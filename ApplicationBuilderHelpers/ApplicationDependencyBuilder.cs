@@ -8,8 +8,16 @@ using System.Text;
 
 namespace ApplicationBuilderHelpers;
 
+/// <summary>
+/// Represents a builder for managing application dependencies.
+/// </summary>
 public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
 {
+    /// <summary>
+    /// Creates an instance of <see cref="ApplicationDependencyBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
+    /// </summary>
+    /// <param name="builder">The host application builder.</param>
+    /// <returns>An instance of ApplicationDependencyBuilder.</returns>
     public static ApplicationDependencyBuilder FromBuilder(IHostApplicationBuilder builder)
     {
         ApplicationRuntime.Configuration = builder.Configuration;
@@ -18,15 +26,38 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
 
     private readonly List<ApplicationDependency> _applicationDependencies = [];
 
+    /// <summary>
+    /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
+    /// </summary>
     public IHostApplicationBuilder Builder { get; }
 
+    /// <summary>
+    /// Gets the <see cref="IConfiguration"/> associated with the <see cref="Builder"/>.
+    /// </summary>
     public IConfiguration Configuration => Builder.Configuration;
 
+    /// <summary>
+    /// Constructs an instance of <see cref="ApplicationDependencyBuilder"/>.
+    /// </summary>
+    /// <param name="builder">The host application builder.</param>
     protected ApplicationDependencyBuilder(IHostApplicationBuilder builder)
     {
         Builder = builder;
     }
 
+    /// <summary>
+    /// Adds an <see cref="ApplicationDependency"/>.
+    /// </summary>
+    /// <param name="applicationDependency">The application dependency to add.</param>
+    public void Add(ApplicationDependency applicationDependency)
+    {
+        _applicationDependencies.Add(applicationDependency);
+    }
+
+    /// <summary>
+    /// Adds an <see cref="ApplicationDependency"/> of type <typeparamref name="TApplicationDependency"/>.
+    /// </summary>
+    /// <typeparam name="TApplicationDependency">The type of <see cref="ApplicationDependency"/> to add.</typeparam>
     public void Add<TApplicationDependency>()
         where TApplicationDependency : ApplicationDependency
     {
@@ -34,11 +65,9 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
         _applicationDependencies.Add(instance);
     }
 
-    public void Add(ApplicationDependency applicationDependency)
-    {
-        _applicationDependencies.Add(applicationDependency);
-    }
-
+    /// <summary>
+    /// Runs the configured application.
+    /// </summary>
     public void Run()
     {
         foreach (var applicationDependency in _applicationDependencies)
@@ -97,11 +126,13 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
         }
     }
 
+    /// <inheritdoc/>
     public IEnumerator<ApplicationDependency> GetEnumerator()
     {
         return _applicationDependencies.GetEnumerator();
     }
 
+    /// <inheritdoc/>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();

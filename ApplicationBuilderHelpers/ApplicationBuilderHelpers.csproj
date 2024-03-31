@@ -4,7 +4,28 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>12</LangVersion>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>Kiryuumaru</Authors>
+    <Company>Kiryuumaru</Company>
+    <Copyright>Kiryuumaru</Copyright>
+    <Description>ApplicationBuilderHelpers for building a cleaner application with dependency injection.</Description>
+    <PackageTags>ApplicationBuilderHelpers, Application, ApplicationBuilder, Helpers, DependencyInjection</PackageTags>
+    <PackageProjectUrl>https://github.com/Kiryuumaru/ApplicationBuilderHelpers</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Kiryuumaru/ApplicationBuilderHelpers</RepositoryUrl>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE" Pack="true" PackagePath="" />
+    <None Include="..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.1" />
