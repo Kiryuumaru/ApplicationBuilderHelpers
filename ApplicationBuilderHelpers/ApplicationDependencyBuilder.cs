@@ -17,6 +17,18 @@ public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder build
     protected readonly List<ApplicationDependency> ApplicationDependencies = [];
 
     /// <summary>
+    /// Creates an instance of <see cref="ApplicationDependencyBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
+    /// </summary>
+    /// <param name="builder">The host application builder.</param>
+    /// <returns>An instance of ApplicationDependencyBuilder.</returns>
+    public static ApplicationDependencyBuilder<THostApplicationBuilder> FromBuilder<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder applicationBuilder)
+        where THostApplicationBuilder : IHostApplicationBuilder
+    {
+        ApplicationRuntime.Configuration = applicationBuilder.Configuration;
+        return new(applicationBuilder);
+    }
+
+    /// <summary>
     /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
     /// </summary>
     public IHostApplicationBuilder Builder { get; } = builder;
@@ -70,17 +82,6 @@ public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder build
 public class ApplicationDependencyBuilder<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder) : ApplicationDependencyBuilder(builder)
     where THostApplicationBuilder : IHostApplicationBuilder
 {
-    /// <summary>
-    /// Creates an instance of <see cref="ApplicationDependencyBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
-    /// </summary>
-    /// <param name="builder">The host application builder.</param>
-    /// <returns>An instance of ApplicationDependencyBuilder.</returns>
-    public static ApplicationDependencyBuilder<THostApplicationBuilder> FromBuilder(THostApplicationBuilder applicationBuilder)
-    {
-        ApplicationRuntime.Configuration = applicationBuilder.Configuration;
-        return new(applicationBuilder);
-    }
-
     /// <summary>
     /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
     /// </summary>
