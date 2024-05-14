@@ -6,32 +6,20 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
-using static ApplicationBuilderHelpers.Common.Internals.Message;
 
 namespace ApplicationBuilderHelpers;
 
 /// <summary>
 /// Represents a builder for managing application dependencies.
 /// </summary>
-public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
+public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder builder) : IEnumerable<ApplicationDependency>
 {
-    /// <summary>
-    /// Creates an instance of <see cref="ApplicationDependencyBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
-    /// </summary>
-    /// <param name="builder">The host application builder.</param>
-    /// <returns>An instance of ApplicationDependencyBuilder.</returns>
-    public static ApplicationDependencyBuilder FromBuilder(IHostApplicationBuilder builder)
-    {
-        ApplicationRuntime.Configuration = builder.Configuration;
-        return new(builder);
-    }
-
-    private readonly List<ApplicationDependency> _applicationDependencies = [];
+    protected readonly List<ApplicationDependency> ApplicationDependencies = [];
 
     /// <summary>
     /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
     /// </summary>
-    public IHostApplicationBuilder Builder { get; }
+    public IHostApplicationBuilder Builder { get; } = builder;
 
     /// <summary>
     /// Gets the <see cref="IConfiguration"/> associated with the <see cref="Builder"/>.
@@ -39,21 +27,12 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
     public IConfiguration Configuration => Builder.Configuration;
 
     /// <summary>
-    /// Constructs an instance of <see cref="ApplicationDependencyBuilder"/>.
-    /// </summary>
-    /// <param name="builder">The host application builder.</param>
-    protected ApplicationDependencyBuilder(IHostApplicationBuilder builder)
-    {
-        Builder = builder;
-    }
-
-    /// <summary>
     /// Adds an <see cref="ApplicationDependency"/>.
     /// </summary>
     /// <param name="applicationDependency">The application dependency to add.</param>
     public void Add(ApplicationDependency applicationDependency)
     {
-        _applicationDependencies.Add(applicationDependency);
+        ApplicationDependencies.Add(applicationDependency);
     }
 
     /// <summary>
@@ -64,23 +43,61 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
         where TApplicationDependency : ApplicationDependency
     {
         var instance = Activator.CreateInstance<TApplicationDependency>();
-        _applicationDependencies.Add(instance);
+        ApplicationDependencies.Add(instance);
+    }
+
+    /// <inheritdoc/>
+    public IEnumerator<ApplicationDependency> GetEnumerator()
+    {
+        return ApplicationDependencies.GetEnumerator();
+    }
+
+    /// <inheritdoc/>
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
     }
 
     /// <summary>
     /// Runs the configured application.
     /// </summary>
-    public void Run()
+    public abstract void Run();
+}
+
+/// <summary>
+/// Represents a builder for managing application dependencies.
+/// </summary>
+public class ApplicationDependencyBuilder<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder) : ApplicationDependencyBuilder(builder)
+    where THostApplicationBuilder : IHostApplicationBuilder
+{
+    /// <summary>
+    /// Creates an instance of <see cref="ApplicationDependencyBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
+    /// </summary>
+    /// <param name="builder">The host application builder.</param>
+    /// <returns>An instance of ApplicationDependencyBuilder.</returns>
+    public static ApplicationDependencyBuilder<THostApplicationBuilder> FromBuilder(THostApplicationBuilder applicationBuilder)
     {
-        foreach (var applicationDependency in _applicationDependencies)
+        ApplicationRuntime.Configuration = applicationBuilder.Configuration;
+        return new(applicationBuilder);
+    }
+
+    /// <summary>
+    /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
+    /// </summary>
+    public new THostApplicationBuilder Builder { get => (THostApplicationBuilder)base.Builder; }
+
+    /// <inheritdoc/>
+    public override void Run()
+    {
+        foreach (var applicationDependency in ApplicationDependencies)
         {
             applicationDependency.BuilderPreparation(this);
         }
-        foreach (var applicationDependency in _applicationDependencies)
+        foreach (var applicationDependency in ApplicationDependencies)
         {
             applicationDependency.AddConfiguration(this, Builder.Configuration);
         }
-        foreach (var applicationDependency in _applicationDependencies)
+        foreach (var applicationDependency in ApplicationDependencies)
         {
             applicationDependency.AddServices(this, Builder.Services);
         }
@@ -97,12 +114,12 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
             throw new Exception("App does not support " + appObj?.GetType()?.FullName);
         }
 
-        foreach (var applicationDependency in _applicationDependencies)
+        foreach (var applicationDependency in ApplicationDependencies)
         {
             applicationDependency.AddMiddlewares(this, app);
         }
 
-        foreach (var applicationDependency in _applicationDependencies)
+        foreach (var applicationDependency in ApplicationDependencies)
         {
             applicationDependency.AddMappings(this, app);
         }
@@ -126,17 +143,5 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
         {
             HostingAbstractionsHostExtensions.Run(app);
         }
-    }
-
-    /// <inheritdoc/>
-    public IEnumerator<ApplicationDependency> GetEnumerator()
-    {
-        return _applicationDependencies.GetEnumerator();
-    }
-
-    /// <inheritdoc/>
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
     }
 }
