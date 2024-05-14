@@ -3,8 +3,10 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
+using static ApplicationBuilderHelpers.Common.Internals.Message;
 
 namespace ApplicationBuilderHelpers;
 
@@ -58,7 +60,7 @@ public class ApplicationDependencyBuilder : IEnumerable<ApplicationDependency>
     /// Adds an <see cref="ApplicationDependency"/> of type <typeparamref name="TApplicationDependency"/>.
     /// </summary>
     /// <typeparam name="TApplicationDependency">The type of <see cref="ApplicationDependency"/> to add.</typeparam>
-    public void Add<TApplicationDependency>()
+    public void Add<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
         where TApplicationDependency : ApplicationDependency
     {
         var instance = Activator.CreateInstance<TApplicationDependency>();
