@@ -11,7 +11,6 @@ on:
 concurrency: "dependabot-auto-bump"
 
 permissions:
-  pull-requests: write
   contents: write
 
 jobs:
@@ -20,7 +19,7 @@ jobs:
     if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Start nuke auto-bump
+      - name: Start nuke bump
         run: chmod +x ./build.sh && ./build.sh BumpAndForget --args "nuke_build_helpers=patch"
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
