@@ -42,20 +42,24 @@ public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder build
     /// Adds an <see cref="ApplicationDependency"/>.
     /// </summary>
     /// <param name="applicationDependency">The application dependency to add.</param>
-    public void Add(ApplicationDependency applicationDependency)
+    /// <returns>The instance of the builder.</returns>
+    public ApplicationDependencyBuilder Add(ApplicationDependency applicationDependency)
     {
         ApplicationDependencies.Add(applicationDependency);
+        return this;
     }
 
     /// <summary>
     /// Adds an <see cref="ApplicationDependency"/> of type <typeparamref name="TApplicationDependency"/>.
     /// </summary>
     /// <typeparam name="TApplicationDependency">The type of <see cref="ApplicationDependency"/> to add.</typeparam>
-    public void Add<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
+    /// <returns>The instance of the builder.</returns>
+    public ApplicationDependencyBuilder Add<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
         where TApplicationDependency : ApplicationDependency
     {
         var instance = Activator.CreateInstance<TApplicationDependency>();
         ApplicationDependencies.Add(instance);
+        return this;
     }
 
     /// <inheritdoc/>
