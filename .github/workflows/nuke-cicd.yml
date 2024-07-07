@@ -94,7 +94,7 @@ jobs:
     needs:
     - PRE_SETUP
     - APPLICATIONBUILDERHELPERSBUILD
-    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true'"
+    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSBUILD.result != 'failure'"
     env:
       NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
   POST_SETUP:
