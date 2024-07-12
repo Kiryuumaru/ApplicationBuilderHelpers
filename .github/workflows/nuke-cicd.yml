@@ -44,7 +44,7 @@ jobs:
       NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CACHE_MAIN_RESTORE_KEY: ${{ steps.NUKE_RUN.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CACHE_MAIN_RESTORE_KEY }}
   APPLICATIONBUILDERHELPERSBUILD:
     name: Build - application_builder_helpers (ApplicationBuilderHelpersBuild)
-    runs-on: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_RUNS_ON }}
+    runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_RUNS_ON) }}
     steps:
     - uses: actions/checkout@v4
     - name: Cache Run
@@ -72,7 +72,7 @@ jobs:
       NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
   APPLICATIONBUILDERHELPERSPUBLISH:
     name: Publish - application_builder_helpers (ApplicationBuilderHelpersPublish)
-    runs-on: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_RUNS_ON }}
+    runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_RUNS_ON) }}
     steps:
     - uses: actions/checkout@v4
     - name: Download artifacts
