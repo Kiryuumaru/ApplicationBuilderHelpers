@@ -23,6 +23,7 @@ jobs:
         fetch-depth: 0
         fetch-tags: true
         submodules: recursive
+        persist-credentials: true
     - id: NUKE_RUN
       name: Run Nuke PipelinePreSetup
       run: chmod +x ./build.sh && ./build.sh PipelinePreSetup
@@ -61,6 +62,7 @@ jobs:
         fetch-depth: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CHECKOUT_FETCH_DEPTH }}
         fetch-tags: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CHECKOUT_FETCH_TAGS }}
         submodules: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CHECKOUT_SUBMODULES }}
+        persist-credentials: true
     - name: Cache Run
       uses: actions/cache@v4
       with:
@@ -93,6 +95,7 @@ jobs:
         fetch-depth: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_DEPTH }}
         fetch-tags: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_TAGS }}
         submodules: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_SUBMODULES }}
+        persist-credentials: true
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
@@ -112,7 +115,7 @@ jobs:
     needs:
     - PRE_SETUP
     - APPLICATIONBUILDERHELPERSBUILD
-    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSBUILD.result != 'failure'"
+    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSBUILD.result == 'success'"
     env:
       NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
   POST_SETUP:
@@ -125,6 +128,7 @@ jobs:
         fetch-depth: 0
         fetch-tags: true
         submodules: recursive
+        persist-credentials: true
     - name: Download Artifacts
       uses: actions/download-artifact@v4
       with:
