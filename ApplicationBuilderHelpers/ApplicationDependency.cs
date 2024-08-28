@@ -5,51 +5,59 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers;
 
 /// <summary>
-/// Base class for defining application dependencies.
+/// Provides a base class for defining application dependencies, offering hooks for configuring and preparing the application during its startup phase.
 /// </summary>
 public abstract class ApplicationDependency
 {
     /// <summary>
-    /// This method is called first to prepare the application builder before any other configuration methods are invoked.
+    /// Invoked first during the application setup, allowing the application builder to be prepared before any other configuration methods are called.
     /// </summary>
-    /// <param name="builder">The application dependency builder.</param>
+    /// <param name="builder">The application dependency builder used to configure the application.</param>
     public virtual void BuilderPreparation(ApplicationDependencyBuilder builder)
     {
     }
 
     /// <summary>
-    /// This method is called after <see cref="BuilderPreparation"/> to add configuration to the services.
+    /// Called after <see cref="BuilderPreparation"/> to add configuration settings from a given <see cref="IConfiguration"/> source to the application builder.
     /// </summary>
-    /// <param name="builder">The application dependency builder.</param>
-    /// <param name="configuration">The configuration to add.</param>
+    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="configuration">The configuration source containing settings to be added.</param>
     public virtual void AddConfiguration(ApplicationDependencyBuilder builder, IConfiguration configuration)
     {
     }
 
     /// <summary>
-    /// This method is called after <see cref="AddConfiguration"/> to add services to the service collection.
+    /// Called after <see cref="AddConfiguration"/> to register services with the application's <see cref="IServiceCollection"/>.
     /// </summary>
-    /// <param name="builder">The application dependency builder.</param>
-    /// <param name="services">The service collection to add services to.</param>
+    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="services">The service collection where services are registered.</param>
     public virtual void AddServices(ApplicationDependencyBuilder builder, IServiceCollection services)
     {
     }
 
     /// <summary>
-    /// This method is called after <see cref="AddServices"/> to add middlewares to the host.
+    /// Called after <see cref="AddServices"/> to add middleware components to the application's <see cref="IHost"/>.
     /// </summary>
-    /// <param name="builder">The application dependency builder.</param>
-    /// <param name="host">The host to add middlewares to.</param>
+    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="host">The host where middleware components are added.</param>
     public virtual void AddMiddlewares(ApplicationDependencyBuilder builder, IHost host)
     {
     }
 
     /// <summary>
-    /// This method is called after <see cref="AddMiddlewares"/> to add mappings to the host.
+    /// Called after <see cref="AddMiddlewares"/> to define endpoint mappings or other routing configurations for the application's <see cref="IHost"/>.
+    /// </summary>
+    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="host">The host where endpoint mappings or other routing configurations are defined.</param>
+    public virtual void AddMappings(ApplicationDependencyBuilder builder, IHost host)
+    {
+    }
+
+    /// <summary>
+    /// Invoked last during the application setup process, this method finalizes the application builder's preparation before the application is run.
     /// </summary>
     /// <param name="builder">The application dependency builder.</param>
-    /// <param name="host">The host to add mappings to.</param>
-    public virtual void AddMappings(ApplicationDependencyBuilder builder, IHost host)
+    public virtual void RunPreparation(ApplicationDependencyBuilder builder)
     {
     }
 }
