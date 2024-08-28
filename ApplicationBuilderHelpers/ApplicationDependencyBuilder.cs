@@ -129,6 +129,11 @@ public class ApplicationDependencyBuilder<[DynamicallyAccessedMembers(Dynamicall
             applicationDependency.AddMappings(this, app);
         }
 
+        foreach (var applicationDependency in ApplicationDependencies)
+        {
+            applicationDependency.RunPreparation(this);
+        }
+
         if (appObj.GetType().GetMethod("Run") is MethodInfo appRunMethodInfo)
         {
             if (appRunMethodInfo.GetParameters().Length == 0)
