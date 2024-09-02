@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers;
@@ -20,8 +21,9 @@ public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder build
     /// <summary>
     /// Creates an instance of <see cref="ApplicationDependencyBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
     /// </summary>
-    /// <param name="builder">The host application builder.</param>
-    /// <returns>An instance of ApplicationDependencyBuilder.</returns>
+    /// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
+    /// <param name="applicationBuilder">The host application builder.</param>
+    /// <returns>An instance of <see cref="ApplicationDependencyBuilderHost{THostApplicationBuilder}"/>.</returns>
     public static ApplicationDependencyBuilderHost<THostApplicationBuilder> FromBuilder<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder applicationBuilder)
         where THostApplicationBuilder : IHostApplicationBuilder
     {
@@ -53,18 +55,19 @@ public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder build
 }
 
 /// <summary>
-/// Represents a builder for managing application dependencies.
+/// Represents a builder for managing application dependencies for a specific host application builder type.
 /// </summary>
+/// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
 public class ApplicationDependencyBuilderHost<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder) : ApplicationDependencyBuilder(builder)
     where THostApplicationBuilder : IHostApplicationBuilder
 {
     /// <summary>
     /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
     /// </summary>
-    public new THostApplicationBuilder Builder { get => (THostApplicationBuilder)base.Builder; }
+    public new THostApplicationBuilder Builder => (THostApplicationBuilder)base.Builder;
 
     /// <summary>
-    /// Adds an <see cref="ApplicationDependency"/>.
+    /// Adds an <see cref="ApplicationDependency"/> to the builder.
     /// </summary>
     /// <param name="applicationDependency">The application dependency to add.</param>
     /// <returns>The instance of the builder.</returns>
@@ -87,6 +90,11 @@ public class ApplicationDependencyBuilderHost<[DynamicallyAccessedMembers(Dynami
         return this;
     }
 
+    /// <summary>
+    /// Builds the configured application.
+    /// </summary>
+    /// <returns>An instance of <see cref="ApplicationDependencyBuilderApp{THostApplicationBuilder}"/>.</returns>
+    /// <exception cref="Exception">Thrown if the builder does not have a build method or if the resulting object is not an <see cref="IHost"/>.</exception>
     public ApplicationDependencyBuilderApp<THostApplicationBuilder> Build()
     {
         foreach (var applicationDependency in ApplicationDependencies)
@@ -104,14 +112,14 @@ public class ApplicationDependencyBuilderHost<[DynamicallyAccessedMembers(Dynami
 
         if (Builder.GetType().GetMethod("Build") is not MethodInfo builderBuildethodInfo)
         {
-            throw new Exception("Builder does not have build");
+            throw new Exception("Builder does not have a build method.");
         }
 
         var appObj = builderBuildethodInfo.Invoke(Builder, null);
 
         if (appObj is not IHost app)
         {
-            throw new Exception("App does not support " + appObj?.GetType()?.FullName);
+            throw new Exception($"App does not support type {appObj?.GetType()?.FullName}.");
         }
 
         return new(Builder, app)
@@ -122,23 +130,29 @@ public class ApplicationDependencyBuilderHost<[DynamicallyAccessedMembers(Dynami
 }
 
 /// <summary>
-/// Represents a builder for managing application dependencies.
+/// Represents a builder for managing application dependencies and running the configured application.
 /// </summary>
+/// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
 public class ApplicationDependencyBuilderApp<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder, IHost host) : ApplicationDependencyBuilder(builder)
     where THostApplicationBuilder : IHostApplicationBuilder
 {
     /// <summary>
     /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
     /// </summary>
-    public new THostApplicationBuilder Builder { get => (THostApplicationBuilder)base.Builder; }
+    public new THostApplicationBuilder Builder => (THostApplicationBuilder)base.Builder;
 
     /// <summary>
-    /// Gets the <see cref="IHost"/> created from <see cref="Build"/>.
+    /// Gets the <see cref="IHost"/> created from <see cref="ApplicationDependencyBuilderHost{THostApplicationBuilder}.Build"/>.
     /// </summary>
     public IHost Host { get; protected set; } = host;
 
-    /// <inheritdoc/>
-    public Task Run()
+    /// <summary>
+    /// Runs the configured application.
+    /// </summary>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <exception cref="Exception">Thrown if there is an error during application startup.</exception>
+    public async Task Run(CancellationToken cancellationToken = default)
     {
         object appObj = Host;
 
@@ -157,27 +171,6 @@ public class ApplicationDependencyBuilderApp<[DynamicallyAccessedMembers(Dynamic
             applicationDependency.RunPreparation(this);
         }
 
-        return Task.Run(() =>
-        {
-            if (appObj.GetType().GetMethod("Run") is MethodInfo appRunMethodInfo)
-            {
-                if (appRunMethodInfo.GetParameters().Length == 0)
-                {
-                    appRunMethodInfo.Invoke(appObj, null);
-                }
-                else if (appRunMethodInfo.GetParameters().Length == 1)
-                {
-                    appRunMethodInfo.Invoke(appObj, [null]);
-                }
-                else
-                {
-                    throw new Exception("App run does not support " + appObj?.GetType()?.FullName);
-                }
-            }
-            else
-            {
-                HostingAbstractionsHostExtensions.Run(Host);
-            }
-        });
+        await HostingAbstractionsHostExtensions.RunAsync(Host, cancellationToken);
     }
 }
