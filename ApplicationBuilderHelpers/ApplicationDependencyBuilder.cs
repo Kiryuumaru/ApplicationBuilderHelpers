@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers;
 
@@ -37,6 +38,11 @@ public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder build
     /// Gets the <see cref="IConfiguration"/> associated with the <see cref="Builder"/>.
     /// </summary>
     public IConfiguration Configuration => Builder.Configuration;
+
+    /// <summary>
+    /// Gets the <see cref="IHost"/> created from <see cref="Build"/>.
+    /// </summary>
+    public IHost? Host { get; protected set; }
 
     /// <summary>
     /// Adds an <see cref="ApplicationDependency"/>.
@@ -75,9 +81,14 @@ public abstract class ApplicationDependencyBuilder(IHostApplicationBuilder build
     }
 
     /// <summary>
+    /// Builds the configured application.
+    /// </summary>
+    public abstract ApplicationDependencyBuilder Build();
+
+    /// <summary>
     /// Runs the configured application.
     /// </summary>
-    public abstract void Run();
+    public abstract Task Run();
 }
 
 /// <summary>
@@ -91,8 +102,7 @@ public class ApplicationDependencyBuilder<[DynamicallyAccessedMembers(Dynamicall
     /// </summary>
     public new THostApplicationBuilder Builder { get => (THostApplicationBuilder)base.Builder; }
 
-    /// <inheritdoc/>
-    public override void Run()
+    public override ApplicationDependencyBuilder Build()
     {
         foreach (var applicationDependency in ApplicationDependencies)
         {
@@ -119,6 +129,21 @@ public class ApplicationDependencyBuilder<[DynamicallyAccessedMembers(Dynamicall
             throw new Exception("App does not support " + appObj?.GetType()?.FullName);
         }
 
+        Host = app;
+
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public override Task Run()
+    {
+        if (Host is not IHost app)
+        {
+            throw new Exception("IHost is not created");
+        }
+
+        object appObj = app;
+
         foreach (var applicationDependency in ApplicationDependencies)
         {
             applicationDependency.AddMiddlewares(this, app);
@@ -134,24 +159,27 @@ public class ApplicationDependencyBuilder<[DynamicallyAccessedMembers(Dynamicall
             applicationDependency.RunPreparation(this);
         }
 
-        if (appObj.GetType().GetMethod("Run") is MethodInfo appRunMethodInfo)
+        return Task.Run(() =>
         {
-            if (appRunMethodInfo.GetParameters().Length == 0)
+            if (appObj.GetType().GetMethod("Run") is MethodInfo appRunMethodInfo)
             {
-                appRunMethodInfo.Invoke(appObj, null);
-            }
-            else if (appRunMethodInfo.GetParameters().Length == 1)
-            {
-                appRunMethodInfo.Invoke(appObj, [null]);
+                if (appRunMethodInfo.GetParameters().Length == 0)
+                {
+                    appRunMethodInfo.Invoke(appObj, null);
+                }
+                else if (appRunMethodInfo.GetParameters().Length == 1)
+                {
+                    appRunMethodInfo.Invoke(appObj, [null]);
+                }
+                else
+                {
+                    throw new Exception("App run does not support " + appObj?.GetType()?.FullName);
+                }
             }
             else
             {
-                throw new Exception("App run does not support " + appObj?.GetType()?.FullName);
+                HostingAbstractionsHostExtensions.Run(app);
             }
-        }
-        else
-        {
-            HostingAbstractionsHostExtensions.Run(app);
-        }
+        });
     }
 }
