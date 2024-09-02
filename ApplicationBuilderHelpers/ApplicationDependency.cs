@@ -13,7 +13,7 @@ public abstract class ApplicationDependency
     /// Invoked first during the application setup, allowing the application builder to be prepared before any other configuration methods are called.
     /// </summary>
     /// <param name="builder">The application dependency builder used to configure the application.</param>
-    public virtual void BuilderPreparation(ApplicationDependencyBuilder builder)
+    public virtual void BuilderPreparation(ApplicationHostBuilder applicationBuilder)
     {
     }
 
@@ -22,7 +22,7 @@ public abstract class ApplicationDependency
     /// </summary>
     /// <param name="builder">The application dependency builder used to configure the application.</param>
     /// <param name="configuration">The configuration source containing settings to be added.</param>
-    public virtual void AddConfiguration(ApplicationDependencyBuilder builder, IConfiguration configuration)
+    public virtual void AddConfiguration(ApplicationHostBuilder applicationBuilder, IConfiguration configuration)
     {
     }
 
@@ -31,33 +31,33 @@ public abstract class ApplicationDependency
     /// </summary>
     /// <param name="builder">The application dependency builder used to configure the application.</param>
     /// <param name="services">The service collection where services are registered.</param>
-    public virtual void AddServices(ApplicationDependencyBuilder builder, IServiceCollection services)
+    public virtual void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
     {
     }
 
     /// <summary>
     /// Called after <see cref="AddServices"/> to add middleware components to the application's <see cref="IHost"/>.
     /// </summary>
-    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="applicationHost">The application dependency host used to configure the application.</param>
     /// <param name="host">The host where middleware components are added.</param>
-    public virtual void AddMiddlewares(ApplicationDependencyBuilder builder, IHost host)
+    public virtual void AddMiddlewares(ApplicationHost applicationHost, IHost host)
     {
     }
 
     /// <summary>
     /// Called after <see cref="AddMiddlewares"/> to define endpoint mappings or other routing configurations for the application's <see cref="IHost"/>.
     /// </summary>
-    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="applicationHost">The application dependency host used to configure the application.</param>
     /// <param name="host">The host where endpoint mappings or other routing configurations are defined.</param>
-    public virtual void AddMappings(ApplicationDependencyBuilder builder, IHost host)
+    public virtual void AddMappings(ApplicationHost applicationHost, IHost host)
     {
     }
 
     /// <summary>
     /// Invoked last during the application setup process, this method finalizes the application builder's preparation before the application is run.
     /// </summary>
-    /// <param name="builder">The application dependency builder.</param>
-    public virtual void RunPreparation(ApplicationDependencyBuilder builder)
+    /// <param name="applicationHost">The application dependency host.</param>
+    public virtual void RunPreparation(ApplicationHost applicationHost)
     {
     }
 }
