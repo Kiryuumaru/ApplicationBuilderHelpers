@@ -29,7 +29,7 @@ jobs:
       run: chmod +x ./build.sh && ./build.sh PipelinePreSetup
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    timeout-minutes: 10
+    timeout-minutes: 30
     outputs:
       NUKE_PRE_SETUP: ${{ steps.NUKE_RUN.outputs.NUKE_PRE_SETUP }}
       NUKE_PRE_SETUP_OUTPUT_TEST_MATRIX: ${{ steps.NUKE_RUN.outputs.NUKE_PRE_SETUP_OUTPUT_TEST_MATRIX }}
@@ -150,7 +150,7 @@ jobs:
     - APPLICATIONBUILDERHELPERSBUILD
     - APPLICATIONBUILDERHELPERSPUBLISH
     if: success() || failure() || always()
-    timeout-minutes: 10
+    timeout-minutes: 30
     env:
       NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
       NUKE_RUN_RESULT_GITHUB_APPLICATIONBUILDERHELPERSBUILD: ${{ needs.APPLICATIONBUILDERHELPERSBUILD.result }}
