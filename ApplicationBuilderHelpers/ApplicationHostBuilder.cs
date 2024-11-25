@@ -97,7 +97,7 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
             applicationDependency.AddServices(this, Builder.Services);
         }
 
-        if (Builder.GetType().GetMethod("Build") is not MethodInfo builderBuildethodInfo)
+        if (typeof(THostApplicationBuilder).GetMethod("Build") is not MethodInfo builderBuildethodInfo)
         {
             throw new Exception("Builder does not have a build method.");
         }
