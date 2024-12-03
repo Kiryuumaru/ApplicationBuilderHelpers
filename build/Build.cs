@@ -18,7 +18,7 @@ using NukeBuildHelpers.Common.Enums;
 
 class Build : BaseNukeBuildHelpers
 {
-    public static int Main () => Execute<Build>(x => x.Version);
+    public static int Main () => Execute<Build>(x => x.Interactive);
 
     public override string[] EnvironmentBranches { get; } = ["prerelease", "master"];
 
