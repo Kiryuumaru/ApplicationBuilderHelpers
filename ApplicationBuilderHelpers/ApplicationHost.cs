@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using ApplicationBuilderHelpers.Exceptions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections;
@@ -40,7 +41,7 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     /// <exception cref="Exception">Thrown if there is an error during application startup.</exception>
-    public async Task Run(CancellationToken cancellationToken = default)
+    public async Task<int> Run(CancellationToken cancellationToken = default)
     {
         foreach (var applicationDependency in ApplicationDependencies)
         {
@@ -57,7 +58,17 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
             applicationDependency.RunPreparation(this);
         }
 
-        await HostingAbstractionsHostExtensions.RunAsync(Host, cancellationToken);
+        try
+        {
+            await HostingAbstractionsHostExtensions.RunAsync(Host, cancellationToken);
+        }
+        catch (CommandException ex)
+        {
+            Console.WriteLine(ex.Message);
+            return ex.ExitCode;
+        }
+
+        return 0;
     }
 }
 
