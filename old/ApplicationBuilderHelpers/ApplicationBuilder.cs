@@ -12,9 +12,6 @@ using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
-using Microsoft.Extensions.DependencyInjection;
-using ApplicationBuilderHelpers.Workers;
-using ApplicationBuilderHelpers.Services;
 
 namespace ApplicationBuilderHelpers;
 
@@ -36,7 +33,6 @@ public class ApplicationBuilder
         return new ApplicationBuilder();
     }
 
-    private readonly List<ApplicationDependency> _applicationDependencies = [];
     private readonly List<ApplicationCommand> _commands = [];
 
     private string? _executableName = null;
@@ -60,19 +56,6 @@ public class ApplicationBuilder
         where TApplicationCommand : ApplicationCommand
     {
         return AddCommand(applicationCommand: Activator.CreateInstance<TApplicationCommand>());
-    }
-
-    public ApplicationBuilder AddApplication(ApplicationDependency applicationDependency)
-    {
-        _applicationDependencies.Add(applicationDependency);
-        return this;
-    }
-
-    public ApplicationBuilder AddApplication<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
-        where TApplicationDependency : ApplicationDependency
-    {
-        _applicationDependencies.Add(Activator.CreateInstance<TApplicationDependency>());
-        return this;
     }
 
     public async Task<int> RunAsync(string[] args)
@@ -119,7 +102,7 @@ public class ApplicationBuilder
         return await rootHierarchy.Command.InvokeAsync(args);
     }
 
-    private void WireHandler(ApplicationCommandHierarchy hier, ApplicationCommand applicationCommand, CancellationToken stoppingToken)
+    private static void WireHandler(ApplicationCommandHierarchy hier, ApplicationCommand applicationCommand, CancellationToken stoppingToken)
     {
         PropertyInfo[] properties = applicationCommand.GetType().GetProperties();
 
@@ -200,18 +183,7 @@ public class ApplicationBuilder
                 {
                     resolver(context);
                 }
-                var applicationBuilder = await applicationCommand.ApplicationBuilderInternal(stoppingToken);
-                foreach (var dependency in _applicationDependencies)
-                {
-                    applicationBuilder.AddApplication(dependency);
-                }
-                applicationBuilder.AddApplication(applicationCommand);
-                CommandInvokerService commandInvokerService = new();
-                applicationBuilder.Services.AddSingleton(commandInvokerService);
-                applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();
-                var applicationHost = applicationBuilder.Build();
-                commandInvokerService.SetCommand(ct => applicationCommand.RunInternal(applicationHost, ct));
-                await applicationHost.Run(stoppingToken);
+                await applicationCommand.RunInternal(stoppingToken);
                 context.ExitCode = 0;
             }
             catch (CommandException ex)

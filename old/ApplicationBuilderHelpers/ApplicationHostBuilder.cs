@@ -1,6 +1,4 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections;
@@ -16,9 +14,9 @@ namespace ApplicationBuilderHelpers;
 /// <summary>
 /// Represents a builder for managing application dependencies.
 /// </summary>
-public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : IEnumerable<IApplicationDependency>
+public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder) : IEnumerable<ApplicationDependency>
 {
-    internal List<IApplicationDependency> ApplicationDependencies { get; set; } = applicationDependencies ?? [];
+    internal List<ApplicationDependency> ApplicationDependencies { get; set; } = [];
 
     /// <summary>
     /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
@@ -26,17 +24,12 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
     public IHostApplicationBuilder Builder { get; } = builder;
 
     /// <summary>
-    /// Gets the <see cref="IServiceCollection"/> associated with the <see cref="Builder"/>.
-    /// </summary>
-    public IServiceCollection Services => Builder.Services;
-
-    /// <summary>
     /// Gets the <see cref="IConfiguration"/> associated with the <see cref="Builder"/>.
     /// </summary>
     public IConfiguration Configuration => Builder.Configuration;
 
     /// <inheritdoc/>
-    public IEnumerator<IApplicationDependency> GetEnumerator()
+    public IEnumerator<ApplicationDependency> GetEnumerator()
     {
         return ApplicationDependencies.GetEnumerator();
     }
@@ -65,7 +58,7 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
     /// </summary>
     /// <param name="applicationDependency">The application dependency to add.</param>
     /// <returns>The instance of the builder.</returns>
-    public ApplicationHostBuilder<THostApplicationBuilder> AddApplication(IApplicationDependency applicationDependency)
+    public ApplicationHostBuilder<THostApplicationBuilder> Add(ApplicationDependency applicationDependency)
     {
         ApplicationDependencies.Add(applicationDependency);
         return this;
@@ -74,10 +67,10 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
     /// <summary>
     /// Adds an <see cref="ApplicationDependency"/> of type <typeparamref name="TApplicationDependency"/>.
     /// </summary>
-    /// <typeparam name="TApplicationDependency">The type of <see cref="IApplicationDependency"/> to add.</typeparam>
+    /// <typeparam name="TApplicationDependency">The type of <see cref="ApplicationDependency"/> to add.</typeparam>
     /// <returns>The instance of the builder.</returns>
-    public ApplicationHostBuilder<THostApplicationBuilder> AddApplication<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
-        where TApplicationDependency : IApplicationDependency
+    public ApplicationHostBuilder<THostApplicationBuilder> Add<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
+        where TApplicationDependency : ApplicationDependency
     {
         var instance = Activator.CreateInstance<TApplicationDependency>();
         ApplicationDependencies.Add(instance);

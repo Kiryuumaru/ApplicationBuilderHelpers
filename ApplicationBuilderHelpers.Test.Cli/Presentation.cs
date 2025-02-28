@@ -21,5 +21,7 @@ internal class Presentation : ApplicationDependency
         base.AddServices(applicationBuilder, services);
 
         services.AddScoped<MockService>();
+
+        Console.WriteLine("Hello from main PresentationPresentationPresentationPresentationPresentation");
     }
 }

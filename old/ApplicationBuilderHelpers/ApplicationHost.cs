@@ -18,14 +18,22 @@ namespace ApplicationBuilderHelpers;
 public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost host) : ApplicationHostBuilder(builder)
 {
     /// <summary>
+    /// Creates an instance of <see cref="ApplicationHostBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
+    /// </summary>
+    /// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
+    /// <param name="applicationBuilder">The host application builder.</param>
+    /// <returns>An instance of <see cref="ApplicationDependencyBuilderHost{THostApplicationBuilder}"/>.</returns>
+    public static ApplicationHostBuilder<THostApplicationBuilder> FromBuilder<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder applicationBuilder)
+        where THostApplicationBuilder : IHostApplicationBuilder
+    {
+        ApplicationRuntime.Configuration = applicationBuilder.Configuration;
+        return new(applicationBuilder);
+    }
+
+    /// <summary>
     /// Gets the <see cref="IHost"/> created from <see cref="ApplicationDependencyBuilderHost{THostApplicationBuilder}.Build"/>.
     /// </summary>
     public IHost Host { get; protected set; } = host;
-
-    /// <summary>
-    /// Creates an instance of <see cref="ApplicationHostBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
-    /// </summary>
-    public CancellationTokenSource CancellationTokenSource { get; } = new();
 
     /// <summary>
     /// Runs the configured application.

@@ -1,4 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
@@ -18,9 +19,15 @@ internal class MainCommand : ApplicationCommand
 
     }
 
-    protected override ValueTask Run(CancellationToken stoppingToken)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
         return ValueTask.CompletedTask;
+    }
+
+    public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
+    {
+        Console.WriteLine("Hello from main AddServicesAddServicesAddServicesAddServicesAddServicesAddServices");
+        base.AddServices(applicationBuilder, services);
     }
 }
