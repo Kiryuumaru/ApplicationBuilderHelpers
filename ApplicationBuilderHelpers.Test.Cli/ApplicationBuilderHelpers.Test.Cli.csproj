@@ -12,6 +12,14 @@
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<Copyright>Copyright (C) 2025 Kiryuumaru</Copyright>
+		<Company>Kiryuumaru</Company>
+		<Version>0.0.0</Version>
+		<AssemblyTitle>Test</AssemblyTitle>
+		<AssemblyName>test</AssemblyName>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<ProjectReference Include="..\ApplicationBuilderHelpers\ApplicationBuilderHelpers.csproj" />
 	</ItemGroup>

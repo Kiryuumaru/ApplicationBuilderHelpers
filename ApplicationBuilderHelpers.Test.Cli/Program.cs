@@ -3,7 +3,6 @@ using ApplicationBuilderHelpers.Test.Cli;
 using ApplicationBuilderHelpers.Test.Cli.Commands;
 
 return await ApplicationBuilder.Create()
-    .SetExecutableName("test.exe")
     .AddCommand<MainCommand>()
     .AddCommand<SubCommand>()
     .AddCommand<SubCommand2>()

@@ -14,15 +14,16 @@ internal class MainCommand : ApplicationCommand
     [CommandOption('t', "test")]
     public string? Test { get; set; } = null;
 
+    public override bool ExitOnRunComplete => false;
+
     public MainCommand() : base("The main command for the application.")
     {
 
     }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
-        return ValueTask.CompletedTask;
     }
 
     public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)

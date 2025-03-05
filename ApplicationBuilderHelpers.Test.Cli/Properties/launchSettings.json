@@ -1,8 +1,7 @@
 {
   "profiles": {
     "ApplicationBuilderHelpers.Test.Cli": {
-      "commandName": "Project",
-      "commandLineArgs": "-h"
+      "commandName": "Project"
     }
   }
 }

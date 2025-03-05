@@ -46,6 +46,11 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     public string? Description { get; }
 
     /// <summary>
+    /// Gets a value indicating whether the application should exit after the <see cref="Run(ApplicationHost{THostApplicationBuilder}, CancellationToken)"/> method is complete.
+    /// </summary>
+    public virtual bool ExitOnRunComplete { get; } = true;
+
+    /// <summary>
     /// Builds the application builder internally.
     /// </summary>
     /// <param name="stoppingToken">A token to cancel the operation.</param>

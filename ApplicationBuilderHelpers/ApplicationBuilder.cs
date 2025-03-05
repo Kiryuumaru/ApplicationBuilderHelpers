@@ -196,11 +196,12 @@ public class ApplicationBuilder
         {
             try
             {
+                CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                 foreach (var resolver in valueResolver)
                 {
                     resolver(context);
                 }
-                var applicationBuilder = await applicationCommand.ApplicationBuilderInternal(stoppingToken);
+                var applicationBuilder = await applicationCommand.ApplicationBuilderInternal(cts.Token);
                 foreach (var dependency in _applicationDependencies)
                 {
                     applicationBuilder.AddApplication(dependency);
@@ -210,8 +211,15 @@ public class ApplicationBuilder
                 applicationBuilder.Services.AddSingleton(commandInvokerService);
                 applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();
                 var applicationHost = applicationBuilder.Build();
-                commandInvokerService.SetCommand(ct => applicationCommand.RunInternal(applicationHost, ct));
-                await applicationHost.Run(stoppingToken);
+                commandInvokerService.SetCommand(async ct =>
+                {
+                    await applicationCommand.RunInternal(applicationHost, ct);
+                    if (applicationCommand.ExitOnRunComplete)
+                    {
+                        cts.Cancel();
+                    }
+                });
+                await applicationHost.Run(cts.Token);
                 context.ExitCode = 0;
             }
             catch (CommandException ex)

@@ -23,11 +23,6 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     public IHost Host { get; protected set; } = host;
 
     /// <summary>
-    /// Creates an instance of <see cref="ApplicationHostBuilder"/> from an existing <see cref="IHostApplicationBuilder"/>.
-    /// </summary>
-    public CancellationTokenSource CancellationTokenSource { get; } = new();
-
-    /// <summary>
     /// Runs the configured application.
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
