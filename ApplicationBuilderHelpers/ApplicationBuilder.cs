@@ -18,6 +18,9 @@ using ApplicationBuilderHelpers.Services;
 
 namespace ApplicationBuilderHelpers;
 
+/// <summary>
+/// Represents a builder for managing application dependencies and running the configured application.
+/// </summary>
 public class ApplicationBuilder
 {
     private class ApplicationCommandHierarchy(string? name, Command command)
@@ -31,6 +34,10 @@ public class ApplicationBuilder
         public Dictionary<string, ApplicationCommandHierarchy> SubCommands { get; set; } = [];
     }
 
+    /// <summary>
+    /// Creates a new instance of the <see cref="ApplicationBuilder"/> class.
+    /// </summary>
+    /// <returns>A new instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public static ApplicationBuilder Create()
     {
         return new ApplicationBuilder();
@@ -43,12 +50,23 @@ public class ApplicationBuilder
 
     private ApplicationBuilder() { }
 
+    /// <summary>
+    /// Sets the executable name for the application.
+    /// </summary>
+    /// <param name="name">The name of the executable.</param>
+    /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public ApplicationBuilder SetExecutableName(string name)
     {
         _executableName = name;
         return this;
     }
 
+    /// <summary>
+    /// Adds a command to the application.
+    /// </summary>
+    /// <typeparam name="TApplicationCommand">The type of the application command.</typeparam>
+    /// <param name="applicationCommand">The application command instance.</param>
+    /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TApplicationCommand>(TApplicationCommand applicationCommand)
         where TApplicationCommand : ApplicationCommand
     {
@@ -56,18 +74,33 @@ public class ApplicationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Adds a command to the application.
+    /// </summary>
+    /// <typeparam name="TApplicationCommand">The type of the application command.</typeparam>
+    /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TApplicationCommand>()
         where TApplicationCommand : ApplicationCommand
     {
         return AddCommand(applicationCommand: Activator.CreateInstance<TApplicationCommand>());
     }
 
+    /// <summary>
+    /// Adds an application dependency to the application.
+    /// </summary>
+    /// <param name="applicationDependency">The application dependency instance.</param>
+    /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public ApplicationBuilder AddApplication(ApplicationDependency applicationDependency)
     {
         _applicationDependencies.Add(applicationDependency);
         return this;
     }
 
+    /// <summary>
+    /// Adds an application dependency to the application.
+    /// </summary>
+    /// <typeparam name="TApplicationDependency">The type of the application dependency.</typeparam>
+    /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public ApplicationBuilder AddApplication<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
         where TApplicationDependency : ApplicationDependency
     {
@@ -75,6 +108,11 @@ public class ApplicationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Runs the application asynchronously.
+    /// </summary>
+    /// <param name="args">The command-line arguments.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the exit code of the application.</returns>
     public async Task<int> RunAsync(string[] args)
     {
         CancellationTokenSource cancellationTokenSource = new();
@@ -144,7 +182,7 @@ public class ApplicationBuilder
             option.Description = attribute.Description;
             option.IsRequired = attribute.Required
 #if NET7_0_OR_GREATER
-                || property.GetCustomAttribute<RequiredMemberAttribute>() != null;
+                        || property.GetCustomAttribute<RequiredMemberAttribute>() != null;
 #else
                 ;
 #endif
@@ -159,7 +197,7 @@ public class ApplicationBuilder
             hier.Command.AddOption(option);
         }
 
-        List <(int Position, Argument Argument)> arguments = [];
+        List<(int Position, Argument Argument)> arguments = [];
         foreach (var property in properties.Where(prop => Attribute.IsDefined(prop, typeof(CommandArgumentAttribute))))
         {
             var attribute = property.GetCustomAttribute<CommandArgumentAttribute>()!;
