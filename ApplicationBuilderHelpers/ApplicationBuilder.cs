@@ -314,10 +314,8 @@ public class ApplicationBuilder
         if (type.IsEnum)
         {
             var option = new Option<string>(aliases, parseArgument: new ParseArgument<string>(a => GetCasedEnum(type, a.Tokens.SingleOrDefault()?.Value, caseSensitive)));
-            option.AddCompletions([.. Enum.GetValues(type)
-                .Cast<object>()
-                .Select(i => i?.ToString()!)
-                .Where(i => !string.IsNullOrEmpty(i))]);
+            option.AddCompletions(GetEnumStrings(type));
+            option.AddValidator(GetEnumValidation<OptionResult>(type, caseSensitive));
             return option;
         }
         throw new Exception($"Unsupported type \"{type.Name}\" for option");
@@ -346,15 +344,7 @@ public class ApplicationBuilder
         {
             var option = new Argument<string>(parse: new ParseArgument<string>(a => GetCasedEnum(type, a.Tokens.SingleOrDefault()?.Value, caseSensitive)));
             option.AddCompletions(GetEnumStrings(type));
-            option.AddValidator(a =>
-            {
-                var value = a.Tokens.SingleOrDefault()?.Value;
-                if (value is not string s || !TryGetCasedEnum(type, value, caseSensitive, out _))
-                {
-                    var enumValues = string.Join("\t", GetEnumStrings(type));
-                    a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{enumValues}";
-                }
-            });
+            option.AddValidator(GetEnumValidation<ArgumentResult>(type, caseSensitive));
             return option;
         }
         throw new Exception($"Unsupported type \"{type.Name}\" for argument");
@@ -385,20 +375,6 @@ public class ApplicationBuilder
         throw new Exception($"Unsupported type \"{type.Name}\", for resolve");
     }
 
-    private void SS(Symbol option, Type type)
-    {
-        option.AddCompletions(GetEnumStrings(type));
-        option.AddValidator(a =>
-        {
-            var value = a.Tokens.SingleOrDefault()?.Value;
-            if (value is not string s || !TryGetCasedEnum(type, value, caseSensitive, out _))
-            {
-                var enumValues = string.Join("\t", GetEnumStrings(type));
-                a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{enumValues}";
-            }
-        });
-    }
-
     [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
     private static bool TryGetCasedEnum(Type type, object? value, bool caseSensitive, out string? s)
     {
@@ -427,6 +403,20 @@ public class ApplicationBuilder
             }
         }
         throw new Exception($"Value \"{valueStr}\" is not a valid value for enum \"{type.Name}\"");
+    }
+
+    private static ValidateSymbolResult<TSymbolResult> GetEnumValidation<TSymbolResult>(Type type, bool caseSensitive)
+        where TSymbolResult : SymbolResult
+    {
+        return a =>
+        {
+            var value = a.Tokens.SingleOrDefault()?.Value;
+            if (value is not string s || !TryGetCasedEnum(type, value, caseSensitive, out _))
+            {
+                var enumValues = string.Join("\n\t", GetEnumStrings(type));
+                a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{enumValues}";
+            }
+        };
     }
 
     [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]

@@ -2,7 +2,7 @@
   "profiles": {
     "ApplicationBuilderHelpers.Test.Cli": {
       "commandName": "Project",
-      "commandLineArgs": "-l DebUg"
+      "commandLineArgs": "-h"
     }
   }
 }
