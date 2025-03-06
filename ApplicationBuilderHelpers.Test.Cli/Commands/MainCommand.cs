@@ -1,6 +1,7 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,9 @@ internal class MainCommand : ApplicationCommand
 {
     [CommandOption('t', "test")]
     public string? Test { get; set; } = null;
+
+    [CommandOption('l', "log-level", Description = "Level of logs to show.")]
+    public LogLevel LogLevel { get; set; } = LogLevel.Information;
 
     public override bool ExitOnRunComplete => false;
 

@@ -47,4 +47,9 @@ public class CommandArgumentAttribute : Attribute
     /// Gets or sets the allowed values for the command argument.
     /// </summary>
     public object[] FromAmong { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the possible values for the command argument are case sensitive.
+    /// </summary>
+    public bool CaseSensitive { get; set; } = false;
 }

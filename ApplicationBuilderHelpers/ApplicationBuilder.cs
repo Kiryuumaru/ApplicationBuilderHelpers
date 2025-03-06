@@ -15,6 +15,7 @@ using System.CommandLine.Parsing;
 using Microsoft.Extensions.DependencyInjection;
 using ApplicationBuilderHelpers.Workers;
 using ApplicationBuilderHelpers.Services;
+using System.ComponentModel.DataAnnotations;
 
 namespace ApplicationBuilderHelpers;
 
@@ -178,7 +179,7 @@ public class ApplicationBuilder
             {
                 aliases.Add($"-{attribute.ShortTerm}");
             }
-            Option option = CreateOption(propertyUnderlyingType, [.. aliases]);
+            Option option = CreateOption(propertyUnderlyingType, [.. aliases], attribute.CaseSensitive);
             option.Description = attribute.Description;
             option.IsRequired = attribute.Required
 #if NET7_0_OR_GREATER
@@ -192,7 +193,7 @@ public class ApplicationBuilder
             }
             valueResolver.Add(context =>
             {
-                property.SetValue(applicationCommand, context.ParseResult.GetValueForOption(option));
+                property.SetValue(applicationCommand, ResolveValue(propertyUnderlyingType, context.ParseResult.GetValueForOption(option), attribute.CaseSensitive));
             });
             hier.Command.AddOption(option);
         }
@@ -204,7 +205,7 @@ public class ApplicationBuilder
             var defaultValueType = GetDefaultValue(property.PropertyType);
             var currentValue = property.GetValue(applicationCommand);
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            Argument argument = CreateArgument(propertyUnderlyingType);
+            Argument argument = CreateArgument(propertyUnderlyingType, attribute.CaseSensitive);
             argument.Description = attribute.Description;
             if (attribute.Name != null && !string.IsNullOrEmpty(attribute.Name))
             {
@@ -216,11 +217,11 @@ public class ApplicationBuilder
             }
             if (attribute.FromAmong.Length != 0)
             {
-                argument.FromAmong([.. attribute.FromAmong.Select(i => i?.ToString() ?? "")]);
+                argument.FromAmong([.. attribute.FromAmong.Select(i => i?.ToString() ?? "").Where(i => !string.IsNullOrEmpty(i))]);
             }
             valueResolver.Add(context =>
             {
-                property.SetValue(applicationCommand, context.ParseResult.GetValueForArgument(argument));
+                property.SetValue(applicationCommand, ResolveValue(propertyUnderlyingType, context.ParseResult.GetValueForArgument(argument), attribute.CaseSensitive));
             });
             arguments.Add((attribute.Position, argument));
         }
@@ -291,7 +292,8 @@ public class ApplicationBuilder
         return null;
     }
 
-    private static Option CreateOption(Type type, string[] aliases)
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+    private static Option CreateOption(Type type, string[] aliases, bool caseSensitive)
     {
         if (type == typeof(short)) return new Option<short>(aliases);
         if (type == typeof(int)) return new Option<int>(aliases);
@@ -307,12 +309,22 @@ public class ApplicationBuilder
         if (type == typeof(byte)) return new Option<byte>(aliases);
         if (type == typeof(sbyte)) return new Option<sbyte>(aliases);
         if (type == typeof(string)) return new Option<string>(aliases);
-        if (type == typeof(DateTime)) return new Option<DateTime>(aliases, parseArgument: new ParseArgument<DateTime>(a => DateTime.Parse(a.GetValueOrDefault()?.ToString()!)));
-        if (type == typeof(DateTimeOffset)) return new Option<DateTimeOffset>(aliases, parseArgument: new ParseArgument<DateTimeOffset>(a => DateTimeOffset.Parse(a.GetValueOrDefault()?.ToString()!)));
-        throw new Exception("Unsupported type.");
+        if (type == typeof(DateTime)) return new Option<DateTime>(aliases, parseArgument: new ParseArgument<DateTime>(a => DateTime.Parse(a.Tokens.SingleOrDefault()?.Value!)));
+        if (type == typeof(DateTimeOffset)) return new Option<DateTimeOffset>(aliases, parseArgument: new ParseArgument<DateTimeOffset>(a => DateTimeOffset.Parse(a.Tokens.SingleOrDefault()?.Value!)));
+        if (type.IsEnum)
+        {
+            var option = new Option<string>(aliases, parseArgument: new ParseArgument<string>(a => GetCasedEnum(type, a.Tokens.SingleOrDefault()?.Value, caseSensitive)));
+            option.AddCompletions([.. Enum.GetValues(type)
+                .Cast<object>()
+                .Select(i => i?.ToString()!)
+                .Where(i => !string.IsNullOrEmpty(i))]);
+            return option;
+        }
+        throw new Exception($"Unsupported type \"{type.Name}\" for option");
     }
 
-    private static Argument CreateArgument(Type type)
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+    private static Argument CreateArgument(Type type, bool caseSensitive)
     {
         if (type == typeof(short)) return new Argument<short>();
         if (type == typeof(int)) return new Argument<int>();
@@ -330,6 +342,99 @@ public class ApplicationBuilder
         if (type == typeof(string)) return new Argument<string>();
         if (type == typeof(DateTime)) return new Argument<DateTime>(parse: new ParseArgument<DateTime>(a => DateTime.Parse(a.GetValueOrDefault()?.ToString()!)));
         if (type == typeof(DateTimeOffset)) return new Argument<DateTimeOffset>(parse: new ParseArgument<DateTimeOffset>(a => DateTimeOffset.Parse(a.GetValueOrDefault()?.ToString()!)));
-        throw new Exception("Unsupported type.");
+        if (type.IsEnum)
+        {
+            var option = new Argument<string>(parse: new ParseArgument<string>(a => GetCasedEnum(type, a.Tokens.SingleOrDefault()?.Value, caseSensitive)));
+            option.AddCompletions(GetEnumStrings(type));
+            option.AddValidator(a =>
+            {
+                var value = a.Tokens.SingleOrDefault()?.Value;
+                if (value is not string s || !TryGetCasedEnum(type, value, caseSensitive, out _))
+                {
+                    var enumValues = string.Join("\t", GetEnumStrings(type));
+                    a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{enumValues}";
+                }
+            });
+            return option;
+        }
+        throw new Exception($"Unsupported type \"{type.Name}\" for argument");
+    }
+
+    private static object? ResolveValue(Type type, object? value, bool caseSensitive)
+    {
+        if (type == typeof(short)) return value;
+        if (type == typeof(int)) return value;
+        if (type == typeof(long)) return value;
+        if (type == typeof(ushort)) return value;
+        if (type == typeof(uint)) return value;
+        if (type == typeof(ulong)) return value;
+        if (type == typeof(float)) return value;
+        if (type == typeof(double)) return value;
+        if (type == typeof(decimal)) return value;
+        if (type == typeof(bool)) return value;
+        if (type == typeof(char)) return value;
+        if (type == typeof(byte)) return value;
+        if (type == typeof(sbyte)) return value;
+        if (type == typeof(string)) return value;
+        if (type == typeof(DateTime)) return value;
+        if (type == typeof(DateTimeOffset)) return value;
+        if (type.IsEnum)
+        {
+            return Enum.Parse(type, value?.ToString() ?? "", !caseSensitive);
+        }
+        throw new Exception($"Unsupported type \"{type.Name}\", for resolve");
+    }
+
+    private void SS(Symbol option, Type type)
+    {
+        option.AddCompletions(GetEnumStrings(type));
+        option.AddValidator(a =>
+        {
+            var value = a.Tokens.SingleOrDefault()?.Value;
+            if (value is not string s || !TryGetCasedEnum(type, value, caseSensitive, out _))
+            {
+                var enumValues = string.Join("\t", GetEnumStrings(type));
+                a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{enumValues}";
+            }
+        });
+    }
+
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+    private static bool TryGetCasedEnum(Type type, object? value, bool caseSensitive, out string? s)
+    {
+        var valueStr = value?.ToString();
+        foreach (var enumValue in GetEnumStrings(type))
+        {
+            if (enumValue.Equals(valueStr, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+            {
+                s = valueStr;
+                return true;
+            }
+        }
+        s = null;
+        return false;
+    }
+
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+    private static string GetCasedEnum(Type type, object? value, bool caseSensitive)
+    {
+        var valueStr = value?.ToString();
+        foreach (var enumValue in GetEnumStrings(type))
+        {
+            if (enumValue.Equals(valueStr, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+            {
+                return valueStr!;
+            }
+        }
+        throw new Exception($"Value \"{valueStr}\" is not a valid value for enum \"{type.Name}\"");
+    }
+
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+    private static string[] GetEnumStrings(Type type)
+    {
+        return [.. Enum.GetValues(type)
+            .Cast<object>()
+            .Select(i => i?.ToString()!)
+            .Where(i => !string.IsNullOrEmpty(i))];
     }
 }
