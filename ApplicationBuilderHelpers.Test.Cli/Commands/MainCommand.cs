@@ -12,8 +12,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 
 internal class MainCommand : ApplicationCommand
 {
-    [CommandOption('t', "test")]
-    public string? Test { get; set; } = null;
+    [CommandOption('t', "test", EnvironmentVariable = "ENV_TEST1")]
+    public required string? Test { get; set; } = null;
 
     [CommandOption('l', "log-level", Description = "Level of logs to show.")]
     public required LogLevel LogLevel { get; set; } = LogLevel.Information;
@@ -28,6 +28,8 @@ internal class MainCommand : ApplicationCommand
     protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
+        Console.WriteLine($"Test: {Test}");
+        Console.WriteLine($"LogLevel: {LogLevel}");
     }
 
     public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)

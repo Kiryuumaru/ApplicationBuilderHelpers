@@ -194,7 +194,16 @@ public class ApplicationBuilder
             }
             valueResolver.Add(context =>
             {
-                property.SetValue(applicationCommand, ResolveValue(propertyUnderlyingType, context.ParseResult.GetValueForOption(option), attribute.CaseSensitive));
+                object? value = null;
+                if (context.ParseResult.HasOption(option))
+                {
+                    value = context.ParseResult.GetValueForOption(option);
+                }
+                else if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
+                {
+                    value = valueEnv;
+                }
+                property.SetValue(applicationCommand, ResolveValue(propertyUnderlyingType, value, attribute.CaseSensitive));
             });
             hier.Command.AddOption(option);
         }
@@ -296,30 +305,31 @@ public class ApplicationBuilder
     [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
     private static Option CreateOption(Type type, string[] aliases, bool caseSensitive, bool required)
     {
-        if (type == typeof(short)) return new Option<short>(aliases);
-        if (type == typeof(int)) return new Option<int>(aliases);
-        if (type == typeof(long)) return new Option<long>(aliases);
-        if (type == typeof(ushort)) return new Option<ushort>(aliases);
-        if (type == typeof(uint)) return new Option<uint>(aliases);
-        if (type == typeof(ulong)) return new Option<ulong>(aliases);
-        if (type == typeof(float)) return new Option<float>(aliases);
-        if (type == typeof(double)) return new Option<double>(aliases);
-        if (type == typeof(decimal)) return new Option<decimal>(aliases);
-        if (type == typeof(bool)) return new Option<bool>(aliases);
-        if (type == typeof(char)) return new Option<char>(aliases);
-        if (type == typeof(byte)) return new Option<byte>(aliases);
-        if (type == typeof(sbyte)) return new Option<sbyte>(aliases);
-        if (type == typeof(string)) return new Option<string>(aliases);
-        if (type == typeof(DateTime)) return new Option<DateTime>(aliases, parseArgument: new ParseArgument<DateTime>(a => DateTime.Parse(a.Tokens.SingleOrDefault()?.Value!)));
-        if (type == typeof(DateTimeOffset)) return new Option<DateTimeOffset>(aliases, parseArgument: new ParseArgument<DateTimeOffset>(a => DateTimeOffset.Parse(a.Tokens.SingleOrDefault()?.Value!)));
+        Option option;
         if (type.IsEnum)
         {
-            var option = new Option<string>(aliases, parseArgument: new ParseArgument<string>(a => GetCasedEnum(type, a.Tokens.SingleOrDefault()?.Value, caseSensitive)));
+            option = new Option<string>(aliases);
             option.AddCompletions(GetEnumStrings(type));
             option.AddValidator(GetEnumValidation<OptionResult>(type, caseSensitive, required));
-            return option;
         }
-        throw new Exception($"Unsupported type \"{type.Name}\" for option");
+        else if (type == typeof(short)) option = new Option<short>(aliases);
+        else if (type == typeof(int)) option = new Option<int>(aliases);
+        else if (type == typeof(long)) option = new Option<long>(aliases);
+        else if (type == typeof(ushort)) option = new Option<ushort>(aliases);
+        else if (type == typeof(uint)) option = new Option<uint>(aliases);
+        else if (type == typeof(ulong)) option = new Option<ulong>(aliases);
+        else if (type == typeof(float)) option = new Option<float>(aliases);
+        else if (type == typeof(double)) option = new Option<double>(aliases);
+        else if (type == typeof(decimal)) option = new Option<decimal>(aliases);
+        else if (type == typeof(bool)) return new Option<bool>(aliases);
+        else if (type == typeof(char)) return new Option<char>(aliases);
+        else if (type == typeof(byte)) return new Option<byte>(aliases);
+        else if (type == typeof(sbyte)) return new Option<sbyte>(aliases);
+        else if (type == typeof(string)) return new Option<string>(aliases);
+        else if (type == typeof(DateTime)) return new Option<DateTime>(aliases, parseArgument: new ParseArgument<DateTime>(a => DateTime.Parse(a.Tokens.SingleOrDefault()?.Value!)));
+        else if (type == typeof(DateTimeOffset)) return new Option<DateTimeOffset>(aliases, parseArgument: new ParseArgument<DateTimeOffset>(a => DateTimeOffset.Parse(a.Tokens.SingleOrDefault()?.Value!)));
+        else throw new Exception($"Unsupported type \"{type.Name}\" for option");
+        return option;
     }
 
     [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
@@ -353,22 +363,22 @@ public class ApplicationBuilder
 
     private static object? ResolveValue(Type type, object? value, bool caseSensitive)
     {
-        if (type == typeof(short)) return value;
-        if (type == typeof(int)) return value;
-        if (type == typeof(long)) return value;
-        if (type == typeof(ushort)) return value;
-        if (type == typeof(uint)) return value;
-        if (type == typeof(ulong)) return value;
-        if (type == typeof(float)) return value;
-        if (type == typeof(double)) return value;
-        if (type == typeof(decimal)) return value;
-        if (type == typeof(bool)) return value;
-        if (type == typeof(char)) return value;
-        if (type == typeof(byte)) return value;
-        if (type == typeof(sbyte)) return value;
+        if (type == typeof(short)) return value is string valueStr ? short.Parse(valueStr) : value;
+        if (type == typeof(int)) return value is string valueStr ? int.Parse(valueStr) : value;
+        if (type == typeof(long)) return value is string valueStr ? long.Parse(valueStr) : value;
+        if (type == typeof(ushort)) return value is string valueStr ? ushort.Parse(valueStr) : value;
+        if (type == typeof(uint)) return value is string valueStr ? uint.Parse(valueStr) : value;
+        if (type == typeof(ulong)) return value is string valueStr ? ulong.Parse(valueStr) : value;
+        if (type == typeof(float)) return value is string valueStr ? float.Parse(valueStr) : value;
+        if (type == typeof(double)) return value is string valueStr ? double.Parse(valueStr) : value;
+        if (type == typeof(decimal)) return value is string valueStr ? decimal.Parse(valueStr) : value;
+        if (type == typeof(bool)) return value is string valueStr ? bool.Parse(valueStr) : value;
+        if (type == typeof(char)) return value is string valueStr ? char.Parse(valueStr) : value;
+        if (type == typeof(byte)) return value is string valueStr ? byte.Parse(valueStr) : value;
+        if (type == typeof(sbyte)) return value is string valueStr ? sbyte.Parse(valueStr) : value;
         if (type == typeof(string)) return value;
-        if (type == typeof(DateTime)) return value;
-        if (type == typeof(DateTimeOffset)) return value;
+        if (type == typeof(DateTime)) return value is string valueStr ? DateTime.Parse(valueStr) : value;
+        if (type == typeof(DateTimeOffset)) return value is string valueStr ? DateTimeOffset.Parse(valueStr) : value;
         if (type.IsEnum)
         {
             return Enum.Parse(type, value?.ToString() ?? "", !caseSensitive);
