@@ -375,36 +375,6 @@ public class ApplicationBuilder
         throw new Exception($"Unsupported type \"{type.Name}\", for resolve");
     }
 
-    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
-    private static bool TryGetCasedEnum(Type type, object? value, bool caseSensitive, out string? s)
-    {
-        var valueStr = value?.ToString();
-        foreach (var enumValue in GetEnumStrings(type))
-        {
-            if (enumValue.Equals(valueStr, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
-            {
-                s = valueStr;
-                return true;
-            }
-        }
-        s = null;
-        return false;
-    }
-
-    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
-    private static string GetCasedEnum(Type type, object? value, bool caseSensitive)
-    {
-        var valueStr = value?.ToString();
-        foreach (var enumValue in GetEnumStrings(type))
-        {
-            if (enumValue.Equals(valueStr, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
-            {
-                return valueStr!;
-            }
-        }
-        throw new Exception($"Value \"{valueStr}\" is not a valid value for enum \"{type.Name}\"");
-    }
-
     private static ValidateSymbolResult<TSymbolResult> GetEnumValidation<TSymbolResult>(Type type, bool caseSensitive)
         where TSymbolResult : SymbolResult
     {
@@ -417,6 +387,33 @@ public class ApplicationBuilder
                 a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{enumValues}";
             }
         };
+    }
+
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+    private static string GetCasedEnum(Type type, object? value, bool caseSensitive)
+    {
+        var valueStr = value?.ToString();
+        if (TryGetCasedEnum(type, value, caseSensitive, out var casedEnum))
+        {
+            return casedEnum;
+        }
+        throw new Exception($"Value \"{valueStr}\" is not a valid value for enum \"{type.Name}\"");
+    }
+
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+    private static bool TryGetCasedEnum(Type type, object? value, bool caseSensitive, [NotNullWhen(true)] out string? casedEnum)
+    {
+        var valueStr = value?.ToString();
+        foreach (var enumValue in GetEnumStrings(type))
+        {
+            if (enumValue.Equals(valueStr, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+            {
+                casedEnum = enumValue;
+                return true;
+            }
+        }
+        casedEnum = null;
+        return false;
     }
 
     [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
