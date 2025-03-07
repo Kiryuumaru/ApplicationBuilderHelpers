@@ -16,7 +16,7 @@ internal class MainCommand : ApplicationCommand
     public string? Test { get; set; } = null;
 
     [CommandOption('l', "log-level", Description = "Level of logs to show.")]
-    public LogLevel LogLevel { get; set; } = LogLevel.Information;
+    public required LogLevel LogLevel { get; set; } = LogLevel.Information;
 
     public override bool ExitOnRunComplete => false;
 
