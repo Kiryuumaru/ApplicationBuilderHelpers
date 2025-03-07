@@ -167,8 +167,14 @@ public class ApplicationBuilder
         foreach (var property in properties.Where(prop => Attribute.IsDefined(prop, typeof(CommandOptionAttribute))))
         {
             var attribute = property.GetCustomAttribute<CommandOptionAttribute>()!;
-            var defaultValueType = GetDefaultValue(property.PropertyType);
+            var defaultValue = GetDefaultValue(property.PropertyType);
             var currentValue = property.GetValue(applicationCommand);
+            var isRequired = attribute.Required
+#if NET7_0_OR_GREATER
+                        || property.GetCustomAttribute<RequiredMemberAttribute>() != null;
+#else
+                ;
+#endif
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
             List<string> aliases = [];
             if (!string.IsNullOrEmpty(attribute.Term))
@@ -179,15 +185,10 @@ public class ApplicationBuilder
             {
                 aliases.Add($"-{attribute.ShortTerm}");
             }
-            Option option = CreateOption(propertyUnderlyingType, [.. aliases], attribute.CaseSensitive);
+            Option option = CreateOption(propertyUnderlyingType, [.. aliases], attribute.CaseSensitive, isRequired);
             option.Description = attribute.Description;
-            option.IsRequired = attribute.Required
-#if NET7_0_OR_GREATER
-                        || property.GetCustomAttribute<RequiredMemberAttribute>() != null;
-#else
-                ;
-#endif
-            if (defaultValueType != currentValue)
+            option.IsRequired = isRequired;
+            if (defaultValue != currentValue)
             {
                 option.SetDefaultValue(currentValue);
             }
@@ -205,7 +206,7 @@ public class ApplicationBuilder
             var defaultValueType = GetDefaultValue(property.PropertyType);
             var currentValue = property.GetValue(applicationCommand);
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            Argument argument = CreateArgument(propertyUnderlyingType, attribute.CaseSensitive);
+            Argument argument = CreateArgument(propertyUnderlyingType, attribute.CaseSensitive, true);
             argument.Description = attribute.Description;
             if (attribute.Name != null && !string.IsNullOrEmpty(attribute.Name))
             {
@@ -293,7 +294,7 @@ public class ApplicationBuilder
     }
 
     [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
-    private static Option CreateOption(Type type, string[] aliases, bool caseSensitive)
+    private static Option CreateOption(Type type, string[] aliases, bool caseSensitive, bool required)
     {
         if (type == typeof(short)) return new Option<short>(aliases);
         if (type == typeof(int)) return new Option<int>(aliases);
@@ -315,14 +316,14 @@ public class ApplicationBuilder
         {
             var option = new Option<string>(aliases, parseArgument: new ParseArgument<string>(a => GetCasedEnum(type, a.Tokens.SingleOrDefault()?.Value, caseSensitive)));
             option.AddCompletions(GetEnumStrings(type));
-            option.AddValidator(GetEnumValidation<OptionResult>(type, caseSensitive));
+            option.AddValidator(GetEnumValidation<OptionResult>(type, caseSensitive, required));
             return option;
         }
         throw new Exception($"Unsupported type \"{type.Name}\" for option");
     }
 
     [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
-    private static Argument CreateArgument(Type type, bool caseSensitive)
+    private static Argument CreateArgument(Type type, bool caseSensitive, bool required)
     {
         if (type == typeof(short)) return new Argument<short>();
         if (type == typeof(int)) return new Argument<int>();
@@ -344,7 +345,7 @@ public class ApplicationBuilder
         {
             var option = new Argument<string>(parse: new ParseArgument<string>(a => GetCasedEnum(type, a.Tokens.SingleOrDefault()?.Value, caseSensitive)));
             option.AddCompletions(GetEnumStrings(type));
-            option.AddValidator(GetEnumValidation<ArgumentResult>(type, caseSensitive));
+            option.AddValidator(GetEnumValidation<ArgumentResult>(type, caseSensitive, required));
             return option;
         }
         throw new Exception($"Unsupported type \"{type.Name}\" for argument");
@@ -375,16 +376,21 @@ public class ApplicationBuilder
         throw new Exception($"Unsupported type \"{type.Name}\", for resolve");
     }
 
-    private static ValidateSymbolResult<TSymbolResult> GetEnumValidation<TSymbolResult>(Type type, bool caseSensitive)
+    private static ValidateSymbolResult<TSymbolResult> GetEnumValidation<TSymbolResult>(Type type, bool caseSensitive, bool required)
         where TSymbolResult : SymbolResult
     {
         return a =>
         {
-            var value = a.Tokens.SingleOrDefault()?.Value;
-            if (value is not string s || !TryGetCasedEnum(type, value, caseSensitive, out _))
+            var value = a.Tokens.SingleOrDefault()?.Value?.ToString();
+            if (required && string.IsNullOrEmpty(value))
             {
-                var enumValues = string.Join("\n\t", GetEnumStrings(type));
-                a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{enumValues}";
+                a.ErrorMessage = $"Argument '{a.Symbol.Name}' is required";
+                return;
+            }
+            if (!string.IsNullOrEmpty(value) && !TryGetCasedEnum(type, value, caseSensitive, out _))
+            {
+                a.ErrorMessage = $"Argument '{value}' not recognized. Must be one of:\n\t{string.Join("\n\t", GetEnumStrings(type))}";
+                return;
             }
         };
     }
