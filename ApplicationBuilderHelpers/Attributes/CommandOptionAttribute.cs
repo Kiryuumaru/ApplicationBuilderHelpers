@@ -72,4 +72,9 @@ public class CommandOptionAttribute : Attribute
     /// Gets or sets the possible values for the command option.
     /// </summary>
     public object[] FromAmong { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the possible values for the command option are case sensitive.
+    /// </summary>
+    public bool CaseSensitive { get; set; } = false;
 }
