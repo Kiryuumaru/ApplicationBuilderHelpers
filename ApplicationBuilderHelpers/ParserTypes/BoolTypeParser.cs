@@ -4,9 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandLineTypeParser
+public class BoolTypeParser : ICommandLineTypeParser
 {
-    public Type Type => typeof(short);
+    public Type Type => typeof(bool);
 
     public string[] Choices { get; } = [];
 
@@ -14,16 +14,16 @@ public class ShortTypeParser : ICommandLineTypeParser
     {
         if (value == null || string.IsNullOrEmpty(value))
         {
-            return default(short);
+            return default(bool);
         }
-        return short.Parse(value!);
+        return bool.Parse(value!);
     }
 
     public string? Parse(object? value)
     {
-        if (value == null || value is not short)
+        if (value == null || value is not bool)
         {
-            return default(short).ToString();
+            return default(bool).ToString();
         }
         return value.ToString();
     }
@@ -35,9 +35,9 @@ public class ShortTypeParser : ICommandLineTypeParser
         {
             return true;
         }
-        if (!short.TryParse(value, out short _))
+        if (!bool.TryParse(value, out bool _))
         {
-            validateError = "Value must be a short.";
+            validateError = "Value must be a bool.";
             return false;
         }
         return true;

@@ -4,9 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandLineTypeParser
+public class DateTimeOffsetTypeParser : ICommandLineTypeParser
 {
-    public Type Type => typeof(short);
+    public Type Type => typeof(DateTimeOffset);
 
     public string[] Choices { get; } = [];
 
@@ -14,16 +14,16 @@ public class ShortTypeParser : ICommandLineTypeParser
     {
         if (value == null || string.IsNullOrEmpty(value))
         {
-            return default(short);
+            return default(DateTimeOffset);
         }
-        return short.Parse(value!);
+        return DateTimeOffset.Parse(value!);
     }
 
     public string? Parse(object? value)
     {
-        if (value == null || value is not short)
+        if (value == null || value is not DateTimeOffset)
         {
-            return default(short).ToString();
+            return default(DateTimeOffset).ToString();
         }
         return value.ToString();
     }
@@ -35,9 +35,9 @@ public class ShortTypeParser : ICommandLineTypeParser
         {
             return true;
         }
-        if (!short.TryParse(value, out short _))
+        if (!DateTimeOffset.TryParse(value, out DateTimeOffset _))
         {
-            validateError = "Value must be a short.";
+            validateError = "Value must be a DateTimeOffset.";
             return false;
         }
         return true;

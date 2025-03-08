@@ -1,12 +1,13 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Diagnostics.CodeAnalysis;
+using AbsolutePathHelpers;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandLineTypeParser
+public class AbsolutePathTypeParser : ICommandLineTypeParser
 {
-    public Type Type => typeof(short);
+    public Type Type => typeof(AbsolutePath);
 
     public string[] Choices { get; } = [];
 
@@ -14,16 +15,16 @@ public class ShortTypeParser : ICommandLineTypeParser
     {
         if (value == null || string.IsNullOrEmpty(value))
         {
-            return default(short);
+            return default(AbsolutePath);
         }
-        return short.Parse(value!);
+        return AbsolutePath.Create(value!);
     }
 
     public string? Parse(object? value)
     {
-        if (value == null || value is not short)
+        if (value == null || value is not AbsolutePath)
         {
-            return default(short).ToString();
+            return null;
         }
         return value.ToString();
     }
@@ -35,9 +36,13 @@ public class ShortTypeParser : ICommandLineTypeParser
         {
             return true;
         }
-        if (!short.TryParse(value, out short _))
+        try
         {
-            validateError = "Value must be a short.";
+            _ = AbsolutePath.Create(value);
+        }
+        catch
+        {
+            validateError = "Value must be a path.";
             return false;
         }
         return true;

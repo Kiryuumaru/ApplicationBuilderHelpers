@@ -4,9 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandLineTypeParser
+public class FloatTypeParser : ICommandLineTypeParser
 {
-    public Type Type => typeof(short);
+    public Type Type => typeof(float);
 
     public string[] Choices { get; } = [];
 
@@ -14,16 +14,16 @@ public class ShortTypeParser : ICommandLineTypeParser
     {
         if (value == null || string.IsNullOrEmpty(value))
         {
-            return default(short);
+            return default(float);
         }
-        return short.Parse(value!);
+        return float.Parse(value!);
     }
 
     public string? Parse(object? value)
     {
-        if (value == null || value is not short)
+        if (value == null || value is not float)
         {
-            return default(short).ToString();
+            return default(float).ToString();
         }
         return value.ToString();
     }
@@ -35,9 +35,9 @@ public class ShortTypeParser : ICommandLineTypeParser
         {
             return true;
         }
-        if (!short.TryParse(value, out short _))
+        if (!float.TryParse(value, out float _))
         {
-            validateError = "Value must be a short.";
+            validateError = "Value must be a float.";
             return false;
         }
         return true;

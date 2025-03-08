@@ -1,26 +1,45 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandLineTypeParser
+public class UIntTypeParser : ICommandLineTypeParser
 {
-    public Type Type => throw new NotImplementedException();
+    public Type Type => typeof(uint);
 
-    public string[] Choices()
-    {
-        throw new NotImplementedException();
-    }
+    public string[] Choices { get; } = [];
 
     public object? Parse(string? value)
     {
-        throw new NotImplementedException();
+        if (value == null || string.IsNullOrEmpty(value))
+        {
+            return default(uint);
+        }
+        return uint.Parse(value!);
     }
 
-    public void Validate(string? value)
+    public string? Parse(object? value)
     {
-        throw new NotImplementedException();
+        if (value == null || value is not uint)
+        {
+            return default(uint).ToString();
+        }
+        return value.ToString();
+    }
+
+    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    {
+        validateError = null;
+        if (value == null || string.IsNullOrEmpty(value))
+        {
+            return true;
+        }
+        if (!uint.TryParse(value, out uint _))
+        {
+            validateError = "Value must be a uint.";
+            return false;
+        }
+        return true;
     }
 }

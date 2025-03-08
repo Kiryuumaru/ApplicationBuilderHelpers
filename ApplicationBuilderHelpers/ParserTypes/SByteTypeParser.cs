@@ -4,9 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandLineTypeParser
+public class SByteTypeParser : ICommandLineTypeParser
 {
-    public Type Type => typeof(short);
+    public Type Type => typeof(sbyte);
 
     public string[] Choices { get; } = [];
 
@@ -14,16 +14,16 @@ public class ShortTypeParser : ICommandLineTypeParser
     {
         if (value == null || string.IsNullOrEmpty(value))
         {
-            return default(short);
+            return default(sbyte);
         }
-        return short.Parse(value!);
+        return sbyte.Parse(value!);
     }
 
     public string? Parse(object? value)
     {
-        if (value == null || value is not short)
+        if (value == null || value is not sbyte)
         {
-            return default(short).ToString();
+            return default(sbyte).ToString();
         }
         return value.ToString();
     }
@@ -35,9 +35,9 @@ public class ShortTypeParser : ICommandLineTypeParser
         {
             return true;
         }
-        if (!short.TryParse(value, out short _))
+        if (!sbyte.TryParse(value, out sbyte _))
         {
-            validateError = "Value must be a short.";
+            validateError = "Value must be a sbyte.";
             return false;
         }
         return true;

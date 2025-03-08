@@ -1,5 +1,6 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
@@ -7,29 +8,38 @@ public class LongTypeParser : ICommandLineTypeParser
 {
     public Type Type => typeof(long);
 
-    public string[] Choices()
-    {
-        return [];
-    }
+    public string[] Choices { get; } = [];
 
     public object? Parse(string? value)
     {
         if (value == null || string.IsNullOrEmpty(value))
         {
-            return 0;
+            return default(long);
         }
-        return int.Parse(value!);
+        return long.Parse(value!);
     }
 
-    public void Validate(string? value)
+    public string? Parse(object? value)
     {
+        if (value == null || value is not long)
+        {
+            return default(long).ToString();
+        }
+        return value.ToString();
+    }
+
+    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    {
+        validateError = null;
         if (value == null || string.IsNullOrEmpty(value))
         {
-            return;
+            return true;
         }
-        else if (!long.TryParse(value, out long _))
+        if (!long.TryParse(value, out long _))
         {
-            throw new ArgumentException("Invalid long value.");
+            validateError = "Value must be a long.";
+            return false;
         }
+        return true;
     }
 }

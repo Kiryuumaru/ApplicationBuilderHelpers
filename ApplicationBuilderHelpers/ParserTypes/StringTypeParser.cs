@@ -1,26 +1,32 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandLineTypeParser
+public class StringTypeParser : ICommandLineTypeParser
 {
-    public Type Type => throw new NotImplementedException();
+    public Type Type => typeof(string);
 
-    public string[] Choices()
-    {
-        throw new NotImplementedException();
-    }
+    public string[] Choices { get; } = [];
 
     public object? Parse(string? value)
     {
-        throw new NotImplementedException();
+        return value;
     }
 
-    public void Validate(string? value)
+    public string? Parse(object? value)
     {
-        throw new NotImplementedException();
+        if (value == null || value is not string)
+        {
+            return null;
+        }
+        return value.ToString();
+    }
+
+    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    {
+        validateError = null;
+        return true;
     }
 }
