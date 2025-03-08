@@ -1,4 +1,5 @@
-﻿using ApplicationBuilderHelpers.Attributes;
+﻿using AbsolutePathHelpers;
+using ApplicationBuilderHelpers.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,8 +13,11 @@ namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 
 internal class MainCommand : ApplicationCommand
 {
-    [CommandOption('t', "test")]
-    public string? Test { get; set; } = null;
+    [CommandOption('t', "test", Description = "Test args with env var", EnvironmentVariable = "ENV_TEST1")]
+    public required string? Test { get; set; } = null;
+
+    [CommandOption("test-path", Description = "Test args path")]
+    public required AbsolutePath TestPath { get; set; }
 
     [CommandOption('l', "log-level", Description = "Level of logs to show.")]
     public required LogLevel LogLevel { get; set; } = LogLevel.Information;
@@ -28,6 +32,9 @@ internal class MainCommand : ApplicationCommand
     protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
+        Console.WriteLine($"Test: {Test}");
+        Console.WriteLine($"LogLevel: {LogLevel}");
+        Console.WriteLine($"SSS: {TestPath}");
     }
 
     public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)

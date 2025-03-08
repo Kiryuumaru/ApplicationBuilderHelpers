@@ -2,7 +2,10 @@
   "profiles": {
     "ApplicationBuilderHelpers.Test.Cli": {
       "commandName": "Project",
-      "commandLineArgs": "-l debUG"
+      "commandLineArgs": "-l dEbUG --test-path \".\"",
+      "environmentVariables": {
+        "ENV_TEST1": "TestVal1"
+      }
     }
   }
 }
