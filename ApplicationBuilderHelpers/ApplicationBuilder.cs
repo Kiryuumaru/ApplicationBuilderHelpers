@@ -220,7 +220,7 @@ public class ApplicationBuilder
             var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
             var defaultValue = typeParser.ParseToType(null);
             var currentValue = property.GetValue(applicationCommand);
-            string? currentValueStr = typeParser.ParseFromType(currentValue);
+            var currentValueObj = typeParser.ParseFromType(currentValue);
             List<string> aliases = [];
             if (attribute.ShortTerm != null)
             {
@@ -245,7 +245,7 @@ public class ApplicationBuilder
             }
             if (defaultValue != currentValue)
             {
-                option.SetDefaultValue(currentValueStr);
+                option.SetDefaultValue(currentValueObj);
             }
             valueResolver.Add(context =>
             {
@@ -298,7 +298,20 @@ public class ApplicationBuilder
                         }
                         if (defaultValue != currentValue)
                         {
-                            text.Add($"Default value: {currentValueStr}");
+                            string readableCurrentValueObj;
+                            if (currentValueObj is string[] currentValueArr)
+                            {
+                                readableCurrentValueObj = string.Join(", ", currentValueArr);
+                            }
+                            else if (currentValueObj is string currentValueStr)
+                            {
+                                readableCurrentValueObj = currentValueStr;
+                            }
+                            else
+                            {
+                                throw new Exception($"Unknown default value {currentValueObj?.GetType()?.Name}");
+                            }
+                            text.Add($"Default value: {currentValueObj}");
                         }
                         return string.Join("\n", text);
                     });
@@ -314,7 +327,7 @@ public class ApplicationBuilder
             var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
             var defaultValue = typeParser.ParseToType(null);
             var currentValue = property.GetValue(applicationCommand);
-            string? currentValueStr = typeParser.ParseFromType(currentValue);
+            var currentValueObj = typeParser.ParseFromType(currentValue);
             Argument argument = new Argument<string>();
             argument.AddValidator(GetValidation<ArgumentResult>(typeParser, null, attribute.CaseSensitive, true));
             if (typeParser.Choices.Length > 0)
@@ -331,7 +344,7 @@ public class ApplicationBuilder
             }
             if (defaultValue != currentValue)
             {
-                argument.SetDefaultValue(currentValueStr);
+                argument.SetDefaultValue(currentValueObj);
             }
             if (attribute.FromAmong.Length != 0)
             {
