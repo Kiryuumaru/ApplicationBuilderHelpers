@@ -243,7 +243,11 @@ public class ApplicationBuilder
             {
                 option.Description = attribute.Description;
             }
-            if (defaultValue != currentValue)
+            if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
+            {
+                option.SetDefaultValue(valueEnv);
+            }
+            else if (defaultValue != currentValue)
             {
                 option.SetDefaultValue(currentValueObj);
             }
@@ -260,10 +264,6 @@ public class ApplicationBuilder
                 }
                 property.SetValue(applicationCommand, typeParser.ParseToType(value));
             });
-            if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
-            {
-                option.SetDefaultValue(valueEnv);
-            }
             helpResolver.Add(ctx =>
             {
                 ctx.HelpBuilder.CustomizeSymbol(option,
