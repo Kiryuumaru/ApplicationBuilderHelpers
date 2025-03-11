@@ -1,13 +1,12 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Diagnostics.CodeAnalysis;
-using AbsolutePathHelpers;
 
-namespace ApplicationBuilderHelpers.ParserTypes;
+namespace ApplicationBuilderHelpers.ParserTypes.Enumerables;
 
-public class AbsolutePathTypeParser : ICommandLineTypeParser
+public class ArrayTypeParser(Type itemType) : ICommandLineTypeParser
 {
-    public Type Type => typeof(AbsolutePath);
+    public Type Type => throw new NotImplementedException();
 
     public string[] Choices { get; } = [];
 
@@ -16,16 +15,16 @@ public class AbsolutePathTypeParser : ICommandLineTypeParser
         var valueStr = value?.ToString();
         if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
-            return default(AbsolutePath);
+            return default(bool);
         }
-        return AbsolutePath.Create(valueStr);
+        return bool.Parse(valueStr);
     }
 
     public object? ParseFromType(object? value)
     {
-        if (value == null || value is not AbsolutePath)
+        if (value == null || value is not bool)
         {
-            return null;
+            return default(bool).ToString();
         }
         return value.ToString();
     }
@@ -37,13 +36,9 @@ public class AbsolutePathTypeParser : ICommandLineTypeParser
         {
             return true;
         }
-        try
+        if (!bool.TryParse(value, out bool _))
         {
-            _ = AbsolutePath.Create(value);
-        }
-        catch
-        {
-            validateError = "Value must be a path.";
+            validateError = "Value must be a bool.";
             return false;
         }
         return true;

@@ -19,6 +19,9 @@ internal class MainCommand : ApplicationCommand
     [CommandOption("test-path", Description = "Test args path")]
     public required AbsolutePath TestPath { get; set; }
 
+    [CommandOption("test-paths", Description = "Test args paths")]
+    public required AbsolutePath[] TestPaths { get; set; }
+
     [CommandOption('l', "log-level", Description = "Level of logs to show.")]
     public required LogLevel LogLevel { get; set; } = LogLevel.Information;
 
@@ -32,9 +35,12 @@ internal class MainCommand : ApplicationCommand
     protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
-        Console.WriteLine($"Test: {Test}");
         Console.WriteLine($"LogLevel: {LogLevel}");
         Console.WriteLine($"SSS: {TestPath}");
+        foreach (var p in TestPaths)
+        {
+            Console.WriteLine($"Test paths: {p}");
+        }
     }
 
     public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)

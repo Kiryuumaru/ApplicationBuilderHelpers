@@ -10,16 +10,17 @@ public class UShortTypeParser : ICommandLineTypeParser
 
     public string[] Choices { get; } = [];
 
-    public object? Parse(string? value)
+    public object? ParseToType(object? value)
     {
-        if (value == null || string.IsNullOrEmpty(value))
+        var valueStr = value?.ToString();
+        if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
             return default(ushort);
         }
-        return ushort.Parse(value!);
+        return ushort.Parse(valueStr);
     }
 
-    public string? Parse(object? value)
+    public object? ParseFromType(object? value)
     {
         if (value == null || value is not ushort)
         {

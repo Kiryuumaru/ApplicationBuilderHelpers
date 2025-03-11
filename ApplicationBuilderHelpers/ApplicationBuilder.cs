@@ -3,6 +3,7 @@ using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.ParserTypes;
+using ApplicationBuilderHelpers.ParserTypes.Enumerables;
 using ApplicationBuilderHelpers.Services;
 using ApplicationBuilderHelpers.Workers;
 using Microsoft.Extensions.DependencyInjection;
@@ -209,8 +210,6 @@ public class ApplicationBuilder
         foreach (var property in properties.Where(prop => Attribute.IsDefined(prop, typeof(CommandOptionAttribute))))
         {
             var attribute = property.GetCustomAttribute<CommandOptionAttribute>()!;
-            var defaultValue = GetDefaultValue(property.PropertyType, attribute.CaseSensitive);
-            var currentValue = property.GetValue(applicationCommand);
             var isRequired = attribute.Required
 #if NET7_0_OR_GREATER
                         || property.GetCustomAttribute<RequiredMemberAttribute>() != null;
@@ -219,7 +218,9 @@ public class ApplicationBuilder
 #endif
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
             var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
-            string? currentValueStr = typeParser.Parse(currentValue);
+            var defaultValue = typeParser.ParseToType(null);
+            var currentValue = property.GetValue(applicationCommand);
+            string? currentValueStr = typeParser.ParseFromType(currentValue);
             List<string> aliases = [];
             if (attribute.ShortTerm != null)
             {
@@ -257,7 +258,7 @@ public class ApplicationBuilder
                 {
                     value = valueEnv;
                 }
-                property.SetValue(applicationCommand, typeParser.Parse(value));
+                property.SetValue(applicationCommand, typeParser.ParseToType(value));
             });
             if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
             {
@@ -309,10 +310,11 @@ public class ApplicationBuilder
         foreach (var property in properties.Where(prop => Attribute.IsDefined(prop, typeof(CommandArgumentAttribute))))
         {
             var attribute = property.GetCustomAttribute<CommandArgumentAttribute>()!;
-            var defaultValueType = GetDefaultValue(property.PropertyType, attribute.CaseSensitive);
-            var currentValue = property.GetValue(applicationCommand);
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
             var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
+            var defaultValue = typeParser.ParseToType(null);
+            var currentValue = property.GetValue(applicationCommand);
+            string? currentValueStr = typeParser.ParseFromType(currentValue);
             Argument argument = new Argument<string>();
             argument.AddValidator(GetValidation<ArgumentResult>(typeParser, null, attribute.CaseSensitive, true));
             if (typeParser.Choices.Length > 0)
@@ -327,9 +329,9 @@ public class ApplicationBuilder
             {
                 argument.Description = attribute.Description;
             }
-            if (defaultValueType != currentValue)
+            if (defaultValue != currentValue)
             {
-                argument.SetDefaultValue(currentValue);
+                argument.SetDefaultValue(currentValueStr);
             }
             if (attribute.FromAmong.Length != 0)
             {
@@ -337,7 +339,7 @@ public class ApplicationBuilder
             }
             valueResolver.Add(context =>
             {
-                property.SetValue(applicationCommand, typeParser.Parse(context.ParseResult.GetValueForArgument(argument)?.ToString()));
+                property.SetValue(applicationCommand, typeParser.ParseToType(context.ParseResult.GetValueForArgument(argument)?.ToString()));
             });
             arguments.Add((attribute.Position, argument));
         }
@@ -392,32 +394,22 @@ public class ApplicationBuilder
         });
     }
 
-    private object? GetDefaultValue(Type type, bool caseSensitive)
-    {
-        if (!_typeParsers.TryGetValue(type, out ICommandLineTypeParser? typeParser) && type.IsEnum)
-        {
-            typeParser = new EnumTypeParser(type, caseSensitive);
-        }
-        if (typeParser == null)
-        {
-            throw new Exception($"Unsupported type \"{type.Name}\"");
-        }
-
-        return typeParser.Parse(null);
-    }
-
     private ICommandLineTypeParser GetParser(Type type, bool caseSensitive)
     {
-        if (!_typeParsers.TryGetValue(type, out ICommandLineTypeParser? typeParser) && type.IsEnum)
+        if (_typeParsers.TryGetValue(type, out ICommandLineTypeParser? typeParser))
         {
-            typeParser = new EnumTypeParser(type, caseSensitive);
+            return typeParser;
         }
-        if (typeParser == null)
+        if (type.IsArray)
         {
-            throw new Exception($"Unsupported type \"{type.Name}\"");
+            return new ArrayTypeParser(type);
+        }
+        if (type.IsEnum)
+        {
+            return new EnumTypeParser(type, caseSensitive);
         }
 
-        return typeParser;
+        throw new Exception($"Unsupported type \"{type.Name}\"");
     }
 
     private static ValidateSymbolResult<TSymbolResult> GetValidation<TSymbolResult>(ICommandLineTypeParser typeParser, string? environmentVariable, bool caseSensitive, bool required)

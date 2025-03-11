@@ -10,16 +10,17 @@ public class LongTypeParser : ICommandLineTypeParser
 
     public string[] Choices { get; } = [];
 
-    public object? Parse(string? value)
+    public object? ParseToType(object? value)
     {
-        if (value == null || string.IsNullOrEmpty(value))
+        var valueStr = value?.ToString();
+        if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
             return default(long);
         }
-        return long.Parse(value!);
+        return long.Parse(valueStr);
     }
 
-    public string? Parse(object? value)
+    public object? ParseFromType(object? value)
     {
         if (value == null || value is not long)
         {

@@ -22,18 +22,18 @@ public interface ICommandLineTypeParser
     string[] Choices { get; }
 
     /// <summary>
-    /// Parses the given string value to the target type.
+    /// Parses the given value to the target type.
     /// </summary>
-    /// <param name="value">The string value to parse.</param>
-    /// <returns>The parsed object of the target type.</returns>
-    object? Parse(string? value);
+    /// <param name="value">The value to parse.</param>
+    /// <returns>The parsed value as the target type.</returns>
+    object? ParseToType(object? value);
 
     /// <summary>
-    /// Parses the given object value to a string.
+    /// Parses the given value from the target type.
     /// </summary>
-    /// <param name="value">The object value to parse.</param>
-    /// <returns>The parsed string value.</returns>
-    string? Parse(object? value);
+    /// <param name="value">The value to parse.</param>
+    /// <returns>The parsed value as an object.</returns>
+    object? ParseFromType(object? value);
 
     /// <summary>
     /// Validates the given string value.
