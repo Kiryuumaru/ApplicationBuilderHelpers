@@ -32,7 +32,7 @@ internal static class TypeExtensions
             {
                 if (type.GetElementType() is Type elementType && TryGetParser(elementType, typeParsers, caseSensitive, true, out ICommandLineTypeParser? itemTypeParser))
                 {
-                    commandLineTypeParser = new ArrayTypeParser(type, elementType, itemTypeParser);
+                    commandLineTypeParser = new ArrayTypeParser(elementType, itemTypeParser);
                     return true;
                 }
             }
@@ -57,8 +57,37 @@ internal static class TypeExtensions
         return false;
     }
 
-    public static bool IsEnumerable(this Type type)
+    public static bool IsEnumerable(this Type type, Dictionary<Type, ICommandLineTypeParser> typeParsers)
     {
-        return typeof(IEnumerable).IsAssignableFrom(type);
+        if (typeParsers.TryGetValue(type, out _))
+        {
+            return false;
+        }
+        if (type.IsEnum)
+        {
+            return false;
+        }
+
+        if (type.IsArray)
+        {
+            if (type.GetElementType() is Type elementType && TryGetParser(elementType, typeParsers, true, true, out ICommandLineTypeParser? itemTypeParser))
+            {
+                return true;
+            }
+        }
+        if (typeof(IDictionary).IsAssignableFrom(type))
+        {
+            return true;
+        }
+        if (typeof(ICollection).IsAssignableFrom(type))
+        {
+            return true;
+        }
+        if (typeof(IEnumerable).IsAssignableFrom(type))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes.Enumerables;
 
-public class ArrayTypeParser(Type type, Type elementType, ICommandLineTypeParser itemTypeParser) : ICommandLineTypeParser
+public class ArrayTypeParser(Type elementType, ICommandLineTypeParser itemTypeParser) : ICommandLineTypeParser
 {
     public Type Type => throw new NotImplementedException();
 
@@ -41,14 +41,16 @@ public class ArrayTypeParser(Type type, Type elementType, ICommandLineTypeParser
     public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
+        if (value == null || value is not Array valueArr || valueArr.Length == 0)
         {
             return true;
         }
-        if (!bool.TryParse(valueStr, out bool _))
+        for (int i = 0; i < valueArr.Length; i++)
         {
-            validateError = "Value must be a bool.";
-            return false;
+            if (!itemTypeParser.Validate(valueArr.GetValue(i), out validateError))
+            {
+                return false;
+            }
         }
         return true;
     }

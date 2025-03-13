@@ -36,7 +36,7 @@ internal class MainCommand : ApplicationCommand
     protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
-        //Console.WriteLine($"LogLevel: {LogLevel}");
+        Console.WriteLine($"LogLevel: {LogLevel}");
         Console.WriteLine($"SSS: {TestPath}");
         foreach (var p in TestPaths)
         {

@@ -236,16 +236,14 @@ public class ApplicationBuilder
             }
             bool isMulti = false;
             Option option;
-            if (propertyUnderlyingType.IsEnumerable())
+            if (propertyUnderlyingType.IsEnumerable(_typeParsers))
             {
                 isMulti = true;
                 option = new Option<string[]>([.. aliases]);
-                Console.WriteLine("ENUMMMM");
             }
             else
             {
                 option = new Option<string>([.. aliases]);
-                Console.WriteLine("NOOOOENUMMMM");
             }
             option.IsRequired = isRequired;
             option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired));
