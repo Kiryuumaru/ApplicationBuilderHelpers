@@ -2,11 +2,11 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace ApplicationBuilderHelpers.ParserTypes;
+namespace ApplicationBuilderHelpers.ParserTypes.Enumerables;
 
-public class UShortTypeParser : ICommandLineTypeParser
+public class CollectionTypeParser(Type itemType) : ICommandLineTypeParser
 {
-    public Type Type => typeof(ushort);
+    public Type Type => throw new NotImplementedException();
 
     public string[] Choices { get; } = [];
 
@@ -15,16 +15,16 @@ public class UShortTypeParser : ICommandLineTypeParser
         var valueStr = value?.ToString();
         if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
-            return default(ushort);
+            return default(bool);
         }
-        return ushort.Parse(valueStr);
+        return bool.Parse(valueStr);
     }
 
     public object? ParseFromType(object? value)
     {
-        if (value == null || value is not ushort)
+        if (value == null || value is not bool)
         {
-            return default(ushort).ToString();
+            return default(bool).ToString();
         }
         return value.ToString();
     }
@@ -36,9 +36,9 @@ public class UShortTypeParser : ICommandLineTypeParser
         {
             return true;
         }
-        if (!ushort.TryParse(valueStr, out ushort _))
+        if (!bool.TryParse(valueStr, out bool _))
         {
-            validateError = "Value must be a ushort.";
+            validateError = "Value must be a bool.";
             return false;
         }
         return true;

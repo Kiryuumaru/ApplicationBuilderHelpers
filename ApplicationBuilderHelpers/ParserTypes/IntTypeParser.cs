@@ -29,14 +29,14 @@ public class IntTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || string.IsNullOrEmpty(value))
+        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
         {
             return true;
         }
-        if (!int.TryParse(value, out int _))
+        if (!int.TryParse(valueStr, out int _))
         {
             validateError = "Value must be an int.";
             return false;

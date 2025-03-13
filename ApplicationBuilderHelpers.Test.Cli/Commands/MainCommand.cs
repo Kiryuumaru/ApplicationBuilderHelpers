@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,7 +36,7 @@ internal class MainCommand : ApplicationCommand
     protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
-        Console.WriteLine($"LogLevel: {LogLevel}");
+        //Console.WriteLine($"LogLevel: {LogLevel}");
         Console.WriteLine($"SSS: {TestPath}");
         foreach (var p in TestPaths)
         {

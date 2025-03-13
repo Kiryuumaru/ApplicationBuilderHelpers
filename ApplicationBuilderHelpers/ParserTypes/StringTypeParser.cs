@@ -24,7 +24,7 @@ public class StringTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
         return true;

@@ -29,14 +29,14 @@ public class ULongTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || string.IsNullOrEmpty(value))
+        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
         {
             return true;
         }
-        if (!ulong.TryParse(value, out ulong _))
+        if (!ulong.TryParse(valueStr, out ulong _))
         {
             validateError = "Value must be a ulong.";
             return false;

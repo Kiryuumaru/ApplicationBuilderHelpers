@@ -52,7 +52,7 @@ public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandLineTyp
         throw new ArgumentException("Value must be an enum.");
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
         var valueStr = value?.ToString();
