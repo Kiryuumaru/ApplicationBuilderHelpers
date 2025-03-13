@@ -1,5 +1,6 @@
 ﻿using AbsolutePathHelpers;
 using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Common;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.ParserTypes;
@@ -217,7 +218,10 @@ public class ApplicationBuilder
                 ;
 #endif
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
+            if (!propertyUnderlyingType.TryGetParser(_typeParsers, attribute.CaseSensitive, true, out var typeParser))
+            {
+                throw new NotSupportedException($"Options with type '{propertyUnderlyingType.Name}' is not supported");
+            }
             var defaultValue = typeParser.ParseToType(null);
             var currentValue = property.GetValue(applicationCommand);
             var currentValueObj = typeParser.ParseFromType(currentValue);
@@ -230,10 +234,18 @@ public class ApplicationBuilder
             {
                 aliases.Add($"--{attribute.Term}");
             }
-            Option option = new Option<string>([.. aliases])
+            bool isMulti = false;
+            Option option;
+            if (propertyUnderlyingType.IsEnumerable())
             {
-                IsRequired = isRequired
-            };
+                isMulti = true;
+                option = new Option<string[]>([.. aliases]);
+            }
+            else
+            {
+                option = new Option<string>([.. aliases]);
+            }
+            option.IsRequired = isRequired;
             option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired));
             if (typeParser.Choices.Length > 0)
             {
@@ -253,14 +265,21 @@ public class ApplicationBuilder
             }
             valueResolver.Add(context =>
             {
-                string? value = null;
+                object? value = null;
                 if (context.ParseResult.HasOption(option))
                 {
-                    value = context.ParseResult.GetValueForOption(option)?.ToString();
+                    value = context.ParseResult.GetValueForOption(option);
                 }
                 else if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
                 {
-                    value = valueEnv;
+                    if (isMulti)
+                    {
+                        value = valueEnv.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToArray();
+                    }
+                    else
+                    {
+                        value = valueEnv.Trim();
+                    }
                 }
                 property.SetValue(applicationCommand, typeParser.ParseToType(value));
             });
@@ -324,7 +343,10 @@ public class ApplicationBuilder
         {
             var attribute = property.GetCustomAttribute<CommandArgumentAttribute>()!;
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
+            if (!propertyUnderlyingType.TryGetParser(_typeParsers, attribute.CaseSensitive, false, out var typeParser))
+            {
+                throw new NotSupportedException($"Arguments with type '{propertyUnderlyingType.Name}' is not supported");
+            }
             var defaultValue = typeParser.ParseToType(null);
             var currentValue = property.GetValue(applicationCommand);
             var currentValueObj = typeParser.ParseFromType(currentValue);
@@ -407,24 +429,6 @@ public class ApplicationBuilder
         });
     }
 
-    private ICommandLineTypeParser GetParser(Type type, bool caseSensitive)
-    {
-        if (_typeParsers.TryGetValue(type, out ICommandLineTypeParser? typeParser))
-        {
-            return typeParser;
-        }
-        if (type.IsArray)
-        {
-            return new ArrayTypeParser(type);
-        }
-        if (type.IsEnum)
-        {
-            return new EnumTypeParser(type, caseSensitive);
-        }
-
-        throw new Exception($"Unsupported type \"{type.Name}\"");
-    }
-
     private static ValidateSymbolResult<TSymbolResult> GetValidation<TSymbolResult>(ICommandLineTypeParser typeParser, string? environmentVariable, bool caseSensitive, bool required)
         where TSymbolResult : SymbolResult
     {
@@ -433,33 +437,66 @@ public class ApplicationBuilder
             bool isOption = a.Symbol is Option;
             string alias = (a.Symbol is Option o) ? o.Aliases.FirstOrDefault() ?? "" : (a.Symbol as Argument)?.Name ?? "";
             string symbol = a.Symbol is Option ? "Option" : "Argument";
-            string? value = a.Tokens.SingleOrDefault()?.Value;
-            if (required && string.IsNullOrEmpty(value) && (string.IsNullOrEmpty(environmentVariable) || Environment.GetEnvironmentVariable(environmentVariable) is null))
+            if (a.Tokens.Count < 2)
             {
-                a.ErrorMessage = $"{symbol} '{alias}' is required.";
-                return;
-            }
-            if (typeParser.Choices.Length > 0)
-            {
-                bool valid = false;
-                foreach (var choice in typeParser.Choices)
+                var value = a.Tokens.SingleOrDefault()?.Value;
+                if (required && value is null && (string.IsNullOrEmpty(environmentVariable) || Environment.GetEnvironmentVariable(environmentVariable) is null))
                 {
-                    if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+                    a.ErrorMessage = $"{symbol} '{alias}' is required.";
+                    return;
+                }
+                if (typeParser.Choices.Length > 0)
+                {
+                    bool valid = false;
+                    foreach (var choice in typeParser.Choices)
                     {
-                        valid = true;
-                        break;
+                        if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            valid = true;
+                            break;
+                        }
+                    }
+                    if (!valid)
+                    {
+                        a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                        return;
                     }
                 }
-                if (!valid)
+                if (!typeParser.Validate(value, out var validateError))
                 {
-                    a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                    a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid: {validateError}";
                     return;
                 }
             }
-            if (!typeParser.Validate(value, out var validateError))
+            else
             {
-                a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid: {validateError}";
-                return;
+                foreach (var token in a.Tokens)
+                {
+                    var value = token.Value;
+                    if (typeParser.Choices.Length > 0)
+                    {
+                        bool valid = false;
+                        foreach (var choice in typeParser.Choices)
+                        {
+                            if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                valid = true;
+                                break;
+                            }
+                        }
+                        if (!valid)
+                        {
+                            a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                            return;
+                        }
+                    }
+                }
+                string[] values = [.. a.Tokens.Select(i => i.Value)];
+                if (!typeParser.Validate(values, out var validateError))
+                {
+                    a.ErrorMessage = $"{symbol} '{string.Join(", ", values)}' for '{alias}' is not valid: {validateError}";
+                    return;
+                }
             }
         };
     }

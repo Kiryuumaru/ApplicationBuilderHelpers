@@ -29,14 +29,14 @@ public class DateTimeTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || string.IsNullOrEmpty(value))
+        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
         {
             return true;
         }
-        if (!DateTime.TryParse(value, out DateTime _))
+        if (!DateTime.TryParse(valueStr, out DateTime _))
         {
             validateError = "Value must be a DateTime.";
             return false;

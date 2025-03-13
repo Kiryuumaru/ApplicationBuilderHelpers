@@ -29,14 +29,14 @@ public class DecimalTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || string.IsNullOrEmpty(value))
+        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
         {
             return true;
         }
-        if (!decimal.TryParse(value, out decimal _))
+        if (!decimal.TryParse(valueStr, out decimal _))
         {
             validateError = "Value must be a decimal.";
             return false;

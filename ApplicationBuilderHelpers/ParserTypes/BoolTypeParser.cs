@@ -29,14 +29,14 @@ public class BoolTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || string.IsNullOrEmpty(value))
+        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
         {
             return true;
         }
-        if (!bool.TryParse(value, out bool _))
+        if (!bool.TryParse(valueStr, out bool _))
         {
             validateError = "Value must be a bool.";
             return false;

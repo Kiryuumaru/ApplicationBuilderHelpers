@@ -38,8 +38,8 @@ public interface ICommandLineTypeParser
     /// <summary>
     /// Validates the given string value.
     /// </summary>
-    /// <param name="value">The string value to validate.</param>
+    /// <param name="value">The value to validate.</param>
     /// <param name="validateError">The validation error message if validation fails.</param>
     /// <returns>True if the value is valid, otherwise false.</returns>
-    bool Validate(string? value, [NotNullWhen(false)] out string? validateError);
+    bool Validate(object? value, [NotNullWhen(false)] out string? validateError);
 }
