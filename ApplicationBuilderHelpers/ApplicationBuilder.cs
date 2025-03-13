@@ -240,10 +240,12 @@ public class ApplicationBuilder
             {
                 isMulti = true;
                 option = new Option<string[]>([.. aliases]);
+                Console.WriteLine("ENUMMMM");
             }
             else
             {
                 option = new Option<string>([.. aliases]);
+                Console.WriteLine("NOOOOENUMMMM");
             }
             option.IsRequired = isRequired;
             option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired));
