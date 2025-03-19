@@ -15,7 +15,7 @@ namespace ApplicationBuilderHelpers;
 /// <summary>
 /// Represents a builder for managing application dependencies and running the configured application.
 /// </summary>
-public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost host) : ApplicationHostBuilder(builder)
+public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost host) : ApplicationHostBuilderBase(builder)
 {
     /// <summary>
     /// Gets the <see cref="IHost"/> created from <see cref="ApplicationDependencyBuilderHost{THostApplicationBuilder}.Build"/>.
