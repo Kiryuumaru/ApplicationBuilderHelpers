@@ -10,16 +10,17 @@ public class CharTypeParser : ICommandLineTypeParser
 
     public string[] Choices { get; } = [];
 
-    public object? Parse(string? value)
+    public object? ParseToType(object? value)
     {
-        if (value == null || string.IsNullOrEmpty(value))
+        var valueStr = value?.ToString();
+        if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
             return default(char);
         }
-        return char.Parse(value!);
+        return char.Parse(valueStr);
     }
 
-    public string? Parse(object? value)
+    public object? ParseFromType(object? value)
     {
         if (value == null || value is not char)
         {
@@ -28,14 +29,14 @@ public class CharTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || string.IsNullOrEmpty(value))
+        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
         {
             return true;
         }
-        if (!char.TryParse(value, out char _))
+        if (!char.TryParse(valueStr, out char _))
         {
             validateError = "Value must be a char.";
             return false;

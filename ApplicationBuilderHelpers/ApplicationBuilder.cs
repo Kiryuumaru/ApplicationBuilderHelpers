@@ -1,8 +1,10 @@
 ﻿using AbsolutePathHelpers;
 using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Common;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.ParserTypes;
+using ApplicationBuilderHelpers.ParserTypes.Enumerables;
 using ApplicationBuilderHelpers.Services;
 using ApplicationBuilderHelpers.Workers;
 using Microsoft.Extensions.DependencyInjection;
@@ -209,8 +211,6 @@ public class ApplicationBuilder
         foreach (var property in properties.Where(prop => Attribute.IsDefined(prop, typeof(CommandOptionAttribute))))
         {
             var attribute = property.GetCustomAttribute<CommandOptionAttribute>()!;
-            var defaultValue = GetDefaultValue(property.PropertyType, attribute.CaseSensitive);
-            var currentValue = property.GetValue(applicationCommand);
             var isRequired = attribute.Required
 #if NET7_0_OR_GREATER
                         || property.GetCustomAttribute<RequiredMemberAttribute>() != null;
@@ -218,8 +218,13 @@ public class ApplicationBuilder
                 ;
 #endif
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
-            string? currentValueStr = typeParser.Parse(currentValue);
+            if (!propertyUnderlyingType.TryGetParser(_typeParsers, attribute.CaseSensitive, true, out var typeParser))
+            {
+                throw new NotSupportedException($"Options with type '{propertyUnderlyingType.Name}' is not supported");
+            }
+            var defaultValue = typeParser.ParseToType(null);
+            var currentValue = property.GetValue(applicationCommand);
+            var currentValueObj = typeParser.ParseFromType(currentValue);
             List<string> aliases = [];
             if (attribute.ShortTerm != null)
             {
@@ -229,10 +234,18 @@ public class ApplicationBuilder
             {
                 aliases.Add($"--{attribute.Term}");
             }
-            Option option = new Option<string>([.. aliases])
+            bool isMulti = false;
+            Option option;
+            if (propertyUnderlyingType.IsEnumerable(_typeParsers))
             {
-                IsRequired = isRequired
-            };
+                isMulti = true;
+                option = new Option<string[]>([.. aliases]);
+            }
+            else
+            {
+                option = new Option<string>([.. aliases]);
+            }
+            option.IsRequired = isRequired;
             option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired));
             if (typeParser.Choices.Length > 0)
             {
@@ -242,27 +255,34 @@ public class ApplicationBuilder
             {
                 option.Description = attribute.Description;
             }
-            if (defaultValue != currentValue)
-            {
-                option.SetDefaultValue(currentValueStr);
-            }
-            valueResolver.Add(context =>
-            {
-                string? value = null;
-                if (context.ParseResult.HasOption(option))
-                {
-                    value = context.ParseResult.GetValueForOption(option)?.ToString();
-                }
-                else if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
-                {
-                    value = valueEnv;
-                }
-                property.SetValue(applicationCommand, typeParser.Parse(value));
-            });
             if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
             {
                 option.SetDefaultValue(valueEnv);
             }
+            else if (defaultValue != currentValue)
+            {
+                option.SetDefaultValue(currentValueObj);
+            }
+            valueResolver.Add(context =>
+            {
+                object? value = null;
+                if (context.ParseResult.HasOption(option))
+                {
+                    value = context.ParseResult.GetValueForOption(option);
+                }
+                else if (!string.IsNullOrEmpty(attribute.EnvironmentVariable) && Environment.GetEnvironmentVariable(attribute.EnvironmentVariable) is string valueEnv)
+                {
+                    if (isMulti)
+                    {
+                        value = valueEnv.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToArray();
+                    }
+                    else
+                    {
+                        value = valueEnv.Trim();
+                    }
+                }
+                property.SetValue(applicationCommand, typeParser.ParseToType(value));
+            });
             helpResolver.Add(ctx =>
             {
                 ctx.HelpBuilder.CustomizeSymbol(option,
@@ -297,7 +317,20 @@ public class ApplicationBuilder
                         }
                         if (defaultValue != currentValue)
                         {
-                            text.Add($"Default value: {currentValueStr}");
+                            string readableCurrentValueObj;
+                            if (currentValueObj is string[] currentValueArr)
+                            {
+                                readableCurrentValueObj = string.Join(", ", currentValueArr);
+                            }
+                            else if (currentValueObj is string currentValueStr)
+                            {
+                                readableCurrentValueObj = currentValueStr;
+                            }
+                            else
+                            {
+                                throw new Exception($"Unknown default value {currentValueObj?.GetType()?.Name}");
+                            }
+                            text.Add($"Default value: {currentValueObj}");
                         }
                         return string.Join("\n", text);
                     });
@@ -309,10 +342,14 @@ public class ApplicationBuilder
         foreach (var property in properties.Where(prop => Attribute.IsDefined(prop, typeof(CommandArgumentAttribute))))
         {
             var attribute = property.GetCustomAttribute<CommandArgumentAttribute>()!;
-            var defaultValueType = GetDefaultValue(property.PropertyType, attribute.CaseSensitive);
-            var currentValue = property.GetValue(applicationCommand);
             Type propertyUnderlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-            var typeParser = GetParser(propertyUnderlyingType, attribute.CaseSensitive);
+            if (!propertyUnderlyingType.TryGetParser(_typeParsers, attribute.CaseSensitive, false, out var typeParser))
+            {
+                throw new NotSupportedException($"Arguments with type '{propertyUnderlyingType.Name}' is not supported");
+            }
+            var defaultValue = typeParser.ParseToType(null);
+            var currentValue = property.GetValue(applicationCommand);
+            var currentValueObj = typeParser.ParseFromType(currentValue);
             Argument argument = new Argument<string>();
             argument.AddValidator(GetValidation<ArgumentResult>(typeParser, null, attribute.CaseSensitive, true));
             if (typeParser.Choices.Length > 0)
@@ -327,9 +364,9 @@ public class ApplicationBuilder
             {
                 argument.Description = attribute.Description;
             }
-            if (defaultValueType != currentValue)
+            if (defaultValue != currentValue)
             {
-                argument.SetDefaultValue(currentValue);
+                argument.SetDefaultValue(currentValueObj);
             }
             if (attribute.FromAmong.Length != 0)
             {
@@ -337,7 +374,7 @@ public class ApplicationBuilder
             }
             valueResolver.Add(context =>
             {
-                property.SetValue(applicationCommand, typeParser.Parse(context.ParseResult.GetValueForArgument(argument)?.ToString()));
+                property.SetValue(applicationCommand, typeParser.ParseToType(context.ParseResult.GetValueForArgument(argument)?.ToString()));
             });
             arguments.Add((attribute.Position, argument));
         }
@@ -392,34 +429,6 @@ public class ApplicationBuilder
         });
     }
 
-    private object? GetDefaultValue(Type type, bool caseSensitive)
-    {
-        if (!_typeParsers.TryGetValue(type, out ICommandLineTypeParser? typeParser) && type.IsEnum)
-        {
-            typeParser = new EnumTypeParser(type, caseSensitive);
-        }
-        if (typeParser == null)
-        {
-            throw new Exception($"Unsupported type \"{type.Name}\"");
-        }
-
-        return typeParser.Parse(null);
-    }
-
-    private ICommandLineTypeParser GetParser(Type type, bool caseSensitive)
-    {
-        if (!_typeParsers.TryGetValue(type, out ICommandLineTypeParser? typeParser) && type.IsEnum)
-        {
-            typeParser = new EnumTypeParser(type, caseSensitive);
-        }
-        if (typeParser == null)
-        {
-            throw new Exception($"Unsupported type \"{type.Name}\"");
-        }
-
-        return typeParser;
-    }
-
     private static ValidateSymbolResult<TSymbolResult> GetValidation<TSymbolResult>(ICommandLineTypeParser typeParser, string? environmentVariable, bool caseSensitive, bool required)
         where TSymbolResult : SymbolResult
     {
@@ -428,33 +437,66 @@ public class ApplicationBuilder
             bool isOption = a.Symbol is Option;
             string alias = (a.Symbol is Option o) ? o.Aliases.FirstOrDefault() ?? "" : (a.Symbol as Argument)?.Name ?? "";
             string symbol = a.Symbol is Option ? "Option" : "Argument";
-            string? value = a.Tokens.SingleOrDefault()?.Value;
-            if (required && string.IsNullOrEmpty(value) && (string.IsNullOrEmpty(environmentVariable) || Environment.GetEnvironmentVariable(environmentVariable) is null))
+            if (a.Tokens.Count < 2)
             {
-                a.ErrorMessage = $"{symbol} '{alias}' is required.";
-                return;
-            }
-            if (typeParser.Choices.Length > 0)
-            {
-                bool valid = false;
-                foreach (var choice in typeParser.Choices)
+                var value = a.Tokens.SingleOrDefault()?.Value;
+                if (required && value is null && (string.IsNullOrEmpty(environmentVariable) || Environment.GetEnvironmentVariable(environmentVariable) is null))
                 {
-                    if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+                    a.ErrorMessage = $"{symbol} '{alias}' is required.";
+                    return;
+                }
+                if (typeParser.Choices.Length > 0 && (value is not null || required))
+                {
+                    bool valid = false;
+                    foreach (var choice in typeParser.Choices)
                     {
-                        valid = true;
-                        break;
+                        if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            valid = true;
+                            break;
+                        }
+                    }
+                    if (!valid)
+                    {
+                        a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                        return;
                     }
                 }
-                if (!valid)
+                if (!typeParser.Validate(value, out var validateError))
                 {
-                    a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                    a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid: {validateError}";
                     return;
                 }
             }
-            if (!typeParser.Validate(value, out var validateError))
+            else
             {
-                a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid: {validateError}";
-                return;
+                foreach (var token in a.Tokens)
+                {
+                    var value = token.Value;
+                    if (typeParser.Choices.Length > 0)
+                    {
+                        bool valid = false;
+                        foreach (var choice in typeParser.Choices)
+                        {
+                            if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                valid = true;
+                                break;
+                            }
+                        }
+                        if (!valid)
+                        {
+                            a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                            return;
+                        }
+                    }
+                }
+                string[] values = [.. a.Tokens.Select(i => i.Value)];
+                if (!typeParser.Validate(values, out var validateError))
+                {
+                    a.ErrorMessage = $"{symbol} '{string.Join(", ", values)}' for '{alias}' is not valid: {validateError}";
+                    return;
+                }
             }
         };
     }

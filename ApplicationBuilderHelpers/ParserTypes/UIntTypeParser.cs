@@ -10,16 +10,17 @@ public class UIntTypeParser : ICommandLineTypeParser
 
     public string[] Choices { get; } = [];
 
-    public object? Parse(string? value)
+    public object? ParseToType(object? value)
     {
-        if (value == null || string.IsNullOrEmpty(value))
+        var valueStr = value?.ToString();
+        if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
             return default(uint);
         }
-        return uint.Parse(value!);
+        return uint.Parse(valueStr);
     }
 
-    public string? Parse(object? value)
+    public object? ParseFromType(object? value)
     {
         if (value == null || value is not uint)
         {
@@ -28,14 +29,14 @@ public class UIntTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
-        if (value == null || string.IsNullOrEmpty(value))
+        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
         {
             return true;
         }
-        if (!uint.TryParse(value, out uint _))
+        if (!uint.TryParse(valueStr, out uint _))
         {
             validateError = "Value must be a uint.";
             return false;

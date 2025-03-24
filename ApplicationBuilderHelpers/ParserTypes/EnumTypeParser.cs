@@ -22,15 +22,16 @@ public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandLineTyp
         .Cast<object>()
         .ToDictionary(i => i?.ToString()!);
 
-    public object? Parse(string? value)
+    public object? ParseToType(object? value)
     {
-        if (value == null || string.IsNullOrEmpty(value))
+        var valueStr = value?.ToString();
+        if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
             return Enum.GetValues(enumType).GetValue(0);
         }
         foreach (var enumValue in enumValues)
         {
-            if (enumValue.Key.Equals(value, ChoicesCaseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
+            if (enumValue.Key.Equals(valueStr, ChoicesCaseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
             {
                 return enumValue.Value;
             }
@@ -38,7 +39,7 @@ public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandLineTyp
         throw new ArgumentException($"Enum unexpected value '{value}'");
     }
 
-    public string? Parse(object? value)
+    public object? ParseFromType(object? value)
     {
         if (value == null)
         {
@@ -51,10 +52,14 @@ public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandLineTyp
         throw new ArgumentException("Value must be an enum.");
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
         var valueStr = value?.ToString();
+        if (string.IsNullOrEmpty(valueStr))
+        {
+            return true;
+        }
         foreach (var enumValue in enumValues)
         {
             if (enumValue.Key.Equals(valueStr, ChoicesCaseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))

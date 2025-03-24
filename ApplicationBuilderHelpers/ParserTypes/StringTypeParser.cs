@@ -10,12 +10,12 @@ public class StringTypeParser : ICommandLineTypeParser
 
     public string[] Choices { get; } = [];
 
-    public object? Parse(string? value)
+    public object? ParseToType(object? value)
     {
         return value;
     }
 
-    public string? Parse(object? value)
+    public object? ParseFromType(object? value)
     {
         if (value == null || value is not string)
         {
@@ -24,7 +24,7 @@ public class StringTypeParser : ICommandLineTypeParser
         return value.ToString();
     }
 
-    public bool Validate(string? value, [NotNullWhen(false)] out string? validateError)
+    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
     {
         validateError = null;
         return true;
