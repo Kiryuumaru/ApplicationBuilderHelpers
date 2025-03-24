@@ -24,7 +24,7 @@ internal class MainCommand : ApplicationCommand
     public required AbsolutePath[] TestPaths { get; set; }
 
     [CommandOption('l', "log-level", Description = "Level of logs to show.")]
-    public required LogLevel LogLevel { get; set; } = LogLevel.Information;
+    public LogLevel LogLevel { get; set; } = LogLevel.Information;
 
     public override bool ExitOnRunComplete => false;
 

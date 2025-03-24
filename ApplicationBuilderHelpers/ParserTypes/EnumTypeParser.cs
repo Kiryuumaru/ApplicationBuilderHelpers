@@ -56,6 +56,10 @@ public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandLineTyp
     {
         validateError = null;
         var valueStr = value?.ToString();
+        if (string.IsNullOrEmpty(valueStr))
+        {
+            return true;
+        }
         foreach (var enumValue in enumValues)
         {
             if (enumValue.Key.Equals(valueStr, ChoicesCaseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))

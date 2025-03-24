@@ -240,12 +240,10 @@ public class ApplicationBuilder
             {
                 isMulti = true;
                 option = new Option<string[]>([.. aliases]);
-                Console.WriteLine("ENUMMMM");
             }
             else
             {
                 option = new Option<string>([.. aliases]);
-                Console.WriteLine("NOOOOENUMMMM");
             }
             option.IsRequired = isRequired;
             option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired));
@@ -447,7 +445,7 @@ public class ApplicationBuilder
                     a.ErrorMessage = $"{symbol} '{alias}' is required.";
                     return;
                 }
-                if (typeParser.Choices.Length > 0)
+                if (typeParser.Choices.Length > 0 && (value is not null || required))
                 {
                     bool valid = false;
                     foreach (var choice in typeParser.Choices)
