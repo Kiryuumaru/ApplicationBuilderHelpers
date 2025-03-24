@@ -11,7 +11,7 @@ using ApplicationBuilderHelpers.Interfaces;
 namespace ApplicationBuilderHelpers;
 
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-public abstract class ApplicationCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder> : ApplicationDependency
+public abstract class ApplicationCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder> : ApplicationDependency, IApplicationCommand
     where THostApplicationBuilder : IHostApplicationBuilder
 {
     /// <summary>
@@ -51,26 +51,6 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     public virtual bool ExitOnRunComplete { get; } = true;
 
     /// <summary>
-    /// Builds the application builder internally.
-    /// </summary>
-    /// <param name="stoppingToken">A token to cancel the operation.</param>
-    /// <returns>An instance of <see cref="ApplicationHostBuilder{THostApplicationBuilder}"/>.</returns>
-    internal async ValueTask<ApplicationHostBuilder<THostApplicationBuilder>> ApplicationBuilderInternal(CancellationToken stoppingToken)
-    {
-        var hostApplicationBuilder = await ApplicationBuilder(stoppingToken);
-        return new ApplicationHostBuilder<THostApplicationBuilder>(hostApplicationBuilder);
-    }
-
-    /// <summary>
-    /// Runs the application internally.
-    /// </summary>
-    /// <param name="applicationHost">The application host.</param>
-    /// <param name="stoppingToken">A token to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    internal ValueTask RunInternal(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
-        => Run(applicationHost, stoppingToken);
-
-    /// <summary>
     /// Builds the application builder.
     /// </summary>
     /// <param name="stoppingToken">A token to cancel the operation.</param>
@@ -86,6 +66,19 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         return new ValueTask();
+    }
+
+    /// <inheritdoc/>
+    async ValueTask<ApplicationHostBuilder> IApplicationCommand.ApplicationBuilderInternal(CancellationToken stoppingToken)
+    {
+        var hostApplicationBuilder = await ApplicationBuilder(stoppingToken);
+        return new ApplicationHostBuilder<THostApplicationBuilder>(hostApplicationBuilder);
+    }
+
+    /// <inheritdoc/>
+    ValueTask IApplicationCommand.RunInternal(ApplicationHost applicationHost, CancellationToken stoppingToken)
+    {
+        return Run((applicationHost as ApplicationHost<THostApplicationBuilder>)!, stoppingToken);
     }
 }
 

@@ -16,7 +16,7 @@ namespace ApplicationBuilderHelpers;
 /// <summary>
 /// Represents a builder for managing application dependencies.
 /// </summary>
-public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : IEnumerable<IApplicationDependency>
+public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : IEnumerable<IApplicationDependency>
 {
     internal List<IApplicationDependency> ApplicationDependencies { get; set; } = applicationDependencies ?? [];
 
@@ -45,6 +45,32 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
+    }
+}
+
+/// <summary>
+/// Represents a builder for managing application dependencies.
+/// </summary>
+public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : ApplicationHostBuilderBase(builder, applicationDependencies)
+{
+    internal abstract ApplicationHost Build();
+
+    internal ApplicationHost BuildInternal()
+    {
+        foreach (var applicationDependency in ApplicationDependencies)
+        {
+            applicationDependency.BuilderPreparation(this);
+        }
+        foreach (var applicationDependency in ApplicationDependencies)
+        {
+            applicationDependency.AddConfiguration(this, Builder.Configuration);
+        }
+        foreach (var applicationDependency in ApplicationDependencies)
+        {
+            applicationDependency.AddServices(this, Builder.Services);
+        }
+
+        return Build();
     }
 }
 
@@ -84,26 +110,8 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
         return this;
     }
 
-    /// <summary>
-    /// Builds the configured application.
-    /// </summary>
-    /// <returns>An instance of <see cref="ApplicationDependencyBuilderApp{THostApplicationBuilder}"/>.</returns>
-    /// <exception cref="Exception">Thrown if the builder does not have a build method or if the resulting object is not an <see cref="IHost"/>.</exception>
-    public ApplicationHost<THostApplicationBuilder> Build()
+    internal override ApplicationHost Build()
     {
-        foreach (var applicationDependency in ApplicationDependencies)
-        {
-            applicationDependency.BuilderPreparation(this);
-        }
-        foreach (var applicationDependency in ApplicationDependencies)
-        {
-            applicationDependency.AddConfiguration(this, Builder.Configuration);
-        }
-        foreach (var applicationDependency in ApplicationDependencies)
-        {
-            applicationDependency.AddServices(this, Builder.Services);
-        }
-
         if (typeof(THostApplicationBuilder).GetMethod("Build") is not MethodInfo builderBuildethodInfo)
         {
             throw new Exception("Builder does not have a build method.");
@@ -116,7 +124,7 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
             throw new Exception($"App does not support type {appObj?.GetType()?.FullName}.");
         }
 
-        return new(Builder, host)
+        return new ApplicationHost<THostApplicationBuilder>(Builder, host)
         {
             ApplicationDependencies = ApplicationDependencies,
         };
