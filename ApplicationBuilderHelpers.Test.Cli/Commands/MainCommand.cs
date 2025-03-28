@@ -23,8 +23,8 @@ internal class MainCommand : ApplicationCommand
     [CommandOption("test-paths", Description = "Test args paths")]
     public required AbsolutePath[] TestPaths { get; set; }
 
-    [CommandOption('l', "log-level", Description = "Level of logs to show.")]
-    public LogLevel LogLevel { get; set; } = LogLevel.Information;
+    [CommandOption('l', "log-level", Description = "Level of logs to show.", FromAmong = ["Trace", "Debug", "Information", "Warning", "Error", "Critical"])]
+    public string LogLevel { get; set; } = "Information";
 
     public override bool ExitOnRunComplete => false;
 

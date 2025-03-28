@@ -263,6 +263,10 @@ public class ApplicationBuilder
             {
                 option.SetDefaultValue(currentValueObj);
             }
+            if (attribute.FromAmong.Length != 0)
+            {
+                option.FromAmong([.. attribute.FromAmong.Select(i => i?.ToString() ?? "").Where(i => !string.IsNullOrEmpty(i))]);
+            }
             valueResolver.Add(context =>
             {
                 object? value = null;
