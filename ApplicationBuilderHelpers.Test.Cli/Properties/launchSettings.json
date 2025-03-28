@@ -2,7 +2,7 @@
   "profiles": {
     "ApplicationBuilderHelpers.Test.Cli": {
       "commandName": "Project",
-      "commandLineArgs": "-l debugg --test-path \".\" --test-paths \"./awd\" --test-paths \"./cdcd\"",
+      "commandLineArgs": "-l debUg --test-path \".\" --test-paths \"./awd\" --test-paths \"./cdcd\"",
       "environmentVariables": {
         "ENV_TEST1": "TestVal1"
       }

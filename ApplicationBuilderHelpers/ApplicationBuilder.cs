@@ -246,7 +246,7 @@ public class ApplicationBuilder
                 option = new Option<string>([.. aliases]);
             }
             option.IsRequired = isRequired;
-            option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired));
+            option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired, [.. attribute.FromAmong.Select(i => i.ToString())!]));
             if (typeParser.Choices.Length > 0)
             {
                 option.AddCompletions(typeParser.Choices);
@@ -262,10 +262,6 @@ public class ApplicationBuilder
             else if (defaultValue != currentValue)
             {
                 option.SetDefaultValue(currentValueObj);
-            }
-            if (attribute.FromAmong.Length != 0)
-            {
-                option.FromAmong([.. attribute.FromAmong.Select(i => i?.ToString() ?? "").Where(i => !string.IsNullOrEmpty(i))]);
             }
             valueResolver.Add(context =>
             {
@@ -355,7 +351,7 @@ public class ApplicationBuilder
             var currentValue = property.GetValue(applicationCommand);
             var currentValueObj = typeParser.ParseFromType(currentValue);
             Argument argument = new Argument<string>();
-            argument.AddValidator(GetValidation<ArgumentResult>(typeParser, null, attribute.CaseSensitive, true));
+            argument.AddValidator(GetValidation<ArgumentResult>(typeParser, null, attribute.CaseSensitive, true, [.. attribute.FromAmong.Select(i => i.ToString())!]));
             if (typeParser.Choices.Length > 0)
             {
                 argument.AddCompletions(typeParser.Choices);
@@ -371,10 +367,6 @@ public class ApplicationBuilder
             if (defaultValue != currentValue)
             {
                 argument.SetDefaultValue(currentValueObj);
-            }
-            if (attribute.FromAmong.Length != 0)
-            {
-                argument.FromAmong([.. attribute.FromAmong.Select(i => i?.ToString() ?? "").Where(i => !string.IsNullOrEmpty(i))]);
             }
             valueResolver.Add(context =>
             {
@@ -433,7 +425,7 @@ public class ApplicationBuilder
         });
     }
 
-    private static ValidateSymbolResult<TSymbolResult> GetValidation<TSymbolResult>(ICommandLineTypeParser typeParser, string? environmentVariable, bool caseSensitive, bool required)
+    private static ValidateSymbolResult<TSymbolResult> GetValidation<TSymbolResult>(ICommandLineTypeParser typeParser, string? environmentVariable, bool caseSensitive, bool required, string[] fromAmong)
         where TSymbolResult : SymbolResult
     {
         return a =>
@@ -449,10 +441,11 @@ public class ApplicationBuilder
                     a.ErrorMessage = $"{symbol} '{alias}' is required.";
                     return;
                 }
-                if (typeParser.Choices.Length > 0 && (value is not null || required))
+                string[] choices = fromAmong.Length > 0 ? fromAmong : typeParser.Choices;
+                if (choices.Length > 0 && (value is not null || required))
                 {
                     bool valid = false;
-                    foreach (var choice in typeParser.Choices)
+                    foreach (var choice in choices)
                     {
                         if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
                         {
@@ -462,7 +455,7 @@ public class ApplicationBuilder
                     }
                     if (!valid)
                     {
-                        a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                        a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", choices)}";
                         return;
                     }
                 }
@@ -477,10 +470,11 @@ public class ApplicationBuilder
                 foreach (var token in a.Tokens)
                 {
                     var value = token.Value;
-                    if (typeParser.Choices.Length > 0)
+                    string[] choices = fromAmong.Length > 0 ? fromAmong : typeParser.Choices;
+                    if (choices.Length > 0)
                     {
                         bool valid = false;
-                        foreach (var choice in typeParser.Choices)
+                        foreach (var choice in choices)
                         {
                             if (choice.Equals(value, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase))
                             {
@@ -490,7 +484,7 @@ public class ApplicationBuilder
                         }
                         if (!valid)
                         {
-                            a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", typeParser.Choices)}";
+                            a.ErrorMessage = $"{symbol} '{value}' for '{alias}' is not valid. Must be one of:\n\t{string.Join("\n\t", choices)}";
                             return;
                         }
                     }
