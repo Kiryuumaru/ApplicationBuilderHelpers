@@ -12,10 +12,26 @@ public class BoolTypeParser : ICommandLineTypeParser
 
     public object? ParseToType(object? value)
     {
+        if (value is bool valueBool)
+        {
+            return valueBool;
+        }
         var valueStr = value?.ToString();
         if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
             return default(bool);
+        }
+        if (valueStr.Equals("true", StringComparison.InvariantCultureIgnoreCase) ||
+            valueStr.Equals("yes", StringComparison.InvariantCultureIgnoreCase) ||
+            valueStr.Equals("1", StringComparison.InvariantCultureIgnoreCase))
+        {
+            return true;
+        }
+        else if (valueStr.Equals("false", StringComparison.InvariantCultureIgnoreCase) ||
+            valueStr.Equals("no", StringComparison.InvariantCultureIgnoreCase) ||
+            valueStr.Equals("0", StringComparison.InvariantCultureIgnoreCase))
+        {
+            return false;
         }
         return bool.Parse(valueStr);
     }

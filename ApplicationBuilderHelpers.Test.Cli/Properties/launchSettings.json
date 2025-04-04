@@ -4,7 +4,8 @@
       "commandName": "Project",
       "commandLineArgs": "-l debUg --test-path \".\" --test-paths \"./awd\" --test-paths \"./cdcd\"",
       "environmentVariables": {
-        "ENV_TEST1": "TestVal1"
+        "ENV_TEST1": "TestVal1",
+        "WRITE_LOGS": "trUe"
       }
     }
   }
