@@ -26,6 +26,20 @@ internal class MainCommand : ApplicationCommand
     [CommandOption('l', "log-level", Description = "Level of logs to show.")]
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
 
+    [CommandOption(
+        "log-level1",
+        EnvironmentVariable = "CCCC",
+        Description = "Level of logs to show.",
+        FromAmong = ["Trace", "Debug", "Information", "Warning", "Error", "Critical"],
+        CaseSensitive = false)]
+    public string LogLevel1 { get; set; } = "Information";
+
+    [CommandOption(
+        "write-logs",
+        EnvironmentVariable = "WRITE_LOGS",
+        Description = "Write logs file.")]
+    public bool WriteLogs { get; set; } = false;
+
     public override bool ExitOnRunComplete => false;
 
     public MainCommand() : base("The main command for the application.")
@@ -36,8 +50,10 @@ internal class MainCommand : ApplicationCommand
     protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         Console.WriteLine("Hello from main");
+        Console.WriteLine($"Test: {Test}");
         Console.WriteLine($"LogLevel: {LogLevel}");
         Console.WriteLine($"SSS: {TestPath}");
+        Console.WriteLine($"WriteLogs: {WriteLogs}");
         foreach (var p in TestPaths)
         {
             Console.WriteLine($"Test paths: {p}");

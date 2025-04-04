@@ -195,13 +195,13 @@ public class ApplicationBuilder
                 }
             }
             currentHier.AppCommand = command;
-            WireHandler(currentHier, currentHier.AppCommand, cancellationTokenSource.Token);
+            WireHandler(rootHierarchy, currentHier, currentHier.AppCommand, cancellationTokenSource.Token);
         }
 
         return await rootHierarchy.CommandLineBuilder.Build().InvokeAsync(args);
     }
 
-    private void WireHandler(ApplicationCommandHierarchy hier, IApplicationCommand applicationCommand, CancellationToken stoppingToken)
+    private void WireHandler(ApplicationCommandHierarchy rootHierarchy, ApplicationCommandHierarchy hier, IApplicationCommand applicationCommand, CancellationToken stoppingToken)
     {
         PropertyInfo[] properties = applicationCommand.GetType().GetProperties();
 
@@ -240,6 +240,10 @@ public class ApplicationBuilder
             {
                 isMulti = true;
                 option = new Option<string[]>([.. aliases]);
+            }
+            else if (propertyUnderlyingType == typeof(bool))
+            {
+                option = new Option<bool>([.. aliases]);
             }
             else
             {
@@ -380,13 +384,6 @@ public class ApplicationBuilder
             hier.CommandLineBuilder.Command.AddArgument(argument.Argument);
         }
 
-        hier.CommandLineBuilder.UseHelp(context =>
-        {
-            foreach (var resolver in helpResolver)
-            {
-                resolver(context);
-            }
-        });
         hier.CommandLineBuilder.Command.SetHandler(async context =>
         {
             try
@@ -421,6 +418,14 @@ public class ApplicationBuilder
             {
                 Console.WriteLine(ex.Message);
                 context.ExitCode = ex.ExitCode;
+            }
+        });
+
+        rootHierarchy.CommandLineBuilder.UseHelp(context =>
+        {
+            foreach (var resolver in helpResolver)
+            {
+                resolver(context);
             }
         });
     }
