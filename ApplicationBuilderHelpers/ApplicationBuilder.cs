@@ -250,10 +250,11 @@ public class ApplicationBuilder
                 option = new Option<string>([.. aliases]);
             }
             option.IsRequired = isRequired;
-            option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired, [.. attribute.FromAmong.Select(i => i.ToString())!]));
-            if (typeParser.Choices.Length > 0)
+            string[] choices = attribute.FromAmong.Length > 0 ? [.. attribute.FromAmong.Select(i => i.ToString())!] : typeParser.Choices;
+            option.AddValidator(GetValidation<OptionResult>(typeParser, attribute.EnvironmentVariable, attribute.CaseSensitive, isRequired, choices));
+            if (choices.Length > 0)
             {
-                option.AddCompletions(typeParser.Choices);
+                option.AddCompletions(choices);
             }
             if (attribute.Description != null && !string.IsNullOrEmpty(attribute.Description))
             {
@@ -315,9 +316,10 @@ public class ApplicationBuilder
                         {
                             text.Add($"Environment variable: {attribute.EnvironmentVariable}");
                         }
-                        if (typeParser.Choices.Length > 0)
+                        string[] choices = attribute.FromAmong.Length > 0 ? [.. attribute.FromAmong.Select(i => i.ToString())!] : typeParser.Choices;
+                        if (choices.Length > 0)
                         {
-                            text.Add($"One of: {string.Join(", ", typeParser.Choices)}");
+                            text.Add($"One of: {string.Join(", ", choices)}");
                         }
                         if (defaultValue != currentValue)
                         {
@@ -355,10 +357,11 @@ public class ApplicationBuilder
             var currentValue = property.GetValue(applicationCommand);
             var currentValueObj = typeParser.ParseFromType(currentValue);
             Argument argument = new Argument<string>();
-            argument.AddValidator(GetValidation<ArgumentResult>(typeParser, null, attribute.CaseSensitive, true, [.. attribute.FromAmong.Select(i => i.ToString())!]));
-            if (typeParser.Choices.Length > 0)
+            string[] choices = attribute.FromAmong.Length > 0 ? [.. attribute.FromAmong.Select(i => i.ToString())!] : typeParser.Choices;
+            argument.AddValidator(GetValidation<ArgumentResult>(typeParser, null, attribute.CaseSensitive, true, choices));
+            if (choices.Length > 0)
             {
-                argument.AddCompletions(typeParser.Choices);
+                argument.AddCompletions(choices);
             }
             if (attribute.Name != null && !string.IsNullOrEmpty(attribute.Name))
             {
