@@ -195,6 +195,7 @@ public class ApplicationBuilder
                 }
             }
             currentHier.AppCommand = command;
+            await command.CommanPreparationInternal(cancellationTokenSource.Token);
             WireHandler(rootHierarchy, currentHier, currentHier.AppCommand, cancellationTokenSource.Token);
         }
 

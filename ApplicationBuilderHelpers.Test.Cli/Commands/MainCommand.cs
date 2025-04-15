@@ -65,4 +65,9 @@ internal class MainCommand : ApplicationCommand
         Console.WriteLine("Hello from main AddServicesAddServicesAddServicesAddServicesAddServicesAddServices");
         base.AddServices(applicationBuilder, services);
     }
+
+    protected override ValueTask CommanPreparation(CancellationToken stoppingToken)
+    {
+        return base.CommanPreparation(stoppingToken);
+    }
 }
