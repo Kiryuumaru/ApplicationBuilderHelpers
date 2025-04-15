@@ -58,6 +58,16 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     protected abstract ValueTask<THostApplicationBuilder> ApplicationBuilder(CancellationToken stoppingToken);
 
     /// <summary>
+    /// Prepares the command for execution.
+    /// </summary>
+    /// <param name="stoppingToken">A token to cancel the operation.</param>
+    /// <returns>A completed <see cref="ValueTask"/>.</returns>
+    protected virtual ValueTask CommanPreparation(CancellationToken stoppingToken)
+    {
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
     /// Runs the application.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
@@ -66,6 +76,11 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
     {
         return new ValueTask();
+    }
+
+    ValueTask IApplicationCommand.CommanPreparationInternal(CancellationToken stoppingToken)
+    {
+        return CommanPreparation(stoppingToken);
     }
 
     /// <inheritdoc/>
