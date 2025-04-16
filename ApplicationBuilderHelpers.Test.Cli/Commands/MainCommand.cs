@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 
-internal class MainCommand : ApplicationCommand
+internal class MainCommand : BaseCommand
 {
     [CommandOption('t', "test", Description = "Test args with env var", EnvironmentVariable = "ENV_TEST1")]
     public required string? Test { get; set; } = null;

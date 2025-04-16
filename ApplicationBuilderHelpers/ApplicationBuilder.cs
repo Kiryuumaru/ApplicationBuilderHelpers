@@ -204,7 +204,16 @@ public class ApplicationBuilder
 
     private void WireHandler(ApplicationCommandHierarchy rootHierarchy, ApplicationCommandHierarchy hier, IApplicationCommand applicationCommand, CancellationToken stoppingToken)
     {
-        PropertyInfo[] properties = applicationCommand.GetType().GetProperties();
+        var properties = new List<PropertyInfo>();
+        var currentType = applicationCommand.GetType();
+
+        while (currentType != null)
+        {
+            properties.AddRange(currentType.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Reverse());
+            currentType = currentType.BaseType;
+        }
+
+        properties.Reverse();
 
         List<Action<InvocationContext>> valueResolver = [];
         List<Action<HelpContext>> helpResolver = [];
