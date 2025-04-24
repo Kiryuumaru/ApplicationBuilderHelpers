@@ -1,5 +1,6 @@
 ﻿using AbsolutePathHelpers;
 using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,7 @@ internal class MainCommand : BaseCommand
         Description = "Write logs file.")]
     public bool WriteLogs { get; set; } = false;
 
-    public override bool ExitOnRunComplete => false;
+    public override bool ExitOnRunComplete => true;
 
     public MainCommand() : base("The main command for the application.")
     {
@@ -58,6 +59,8 @@ internal class MainCommand : BaseCommand
         {
             Console.WriteLine($"Test paths: {p}");
         }
+
+        throw new CommandException("Test error", 113);
     }
 
     public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
