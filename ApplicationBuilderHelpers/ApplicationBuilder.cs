@@ -416,20 +416,35 @@ public class ApplicationBuilder
                 applicationBuilder.Services.AddSingleton(commandInvokerService);
                 applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();
                 var applicationHost = applicationBuilder.BuildInternal();
+                CommandException? commandException = null;
                 commandInvokerService.SetCommand(async ct =>
                 {
-                    await applicationCommand.RunInternal(applicationHost, ct);
+                    try
+                    {
+                        await applicationCommand.RunInternal(applicationHost, ct);
+                    }
+                    catch (CommandException ex)
+                    {
+                        commandException = ex;
+                    }
                     if (applicationCommand.ExitOnRunComplete)
                     {
                         cts.Cancel();
                     }
                 });
                 await applicationHost.Run(cts.Token);
+                if (commandException != null)
+                {
+                    throw commandException;
+                }
                 context.ExitCode = 0;
             }
             catch (CommandException ex)
             {
-                Console.WriteLine(ex.Message);
+                if (!string.IsNullOrEmpty(ex.Message))
+                {
+                    Console.WriteLine(ex.Message);
+                }
                 context.ExitCode = ex.ExitCode;
             }
         });
