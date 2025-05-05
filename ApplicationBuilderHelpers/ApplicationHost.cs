@@ -23,10 +23,15 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     public IHost Host { get; protected set; } = host;
 
     /// <summary>
+    /// Gets the <see cref="IServiceProvider"/> associated with the <see cref="Host"/>.
+    /// </summary>
+    public new IServiceProvider Services => Host.Services;
+
+    /// <summary>
     /// Runs the configured application.
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <returns>A task that represents the asynchronous operation. Returns an integer exit code.</returns>
     /// <exception cref="Exception">Thrown if there is an error during application startup.</exception>
     public async Task<int> Run(CancellationToken cancellationToken = default)
     {
