@@ -2,6 +2,7 @@
 using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Common;
 using ApplicationBuilderHelpers.Exceptions;
+using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.ParserTypes;
 using ApplicationBuilderHelpers.ParserTypes.Enumerables;
@@ -151,11 +152,20 @@ public class ApplicationBuilder
 
     /// <summary>
     /// Runs the application asynchronously.
-    /// </summary>
+    /// </summary> 
     /// <param name="args">The command-line arguments.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the exit code of the application.</returns>
     public async Task<int> RunAsync(string[] args)
     {
+        if (args.Length == 1 && args.First().Equals("--version", StringComparison.InvariantCultureIgnoreCase))
+        {
+            var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
+            var assemblyInformationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?? "0.0.0";
+            Console.WriteLine(VersionHelpers.RemoveHash(assemblyInformationalVersion));
+            return 0;
+        }
+
         CancellationTokenSource cancellationTokenSource = new();
         Console.CancelKeyPress += (sender, e) =>
         {
