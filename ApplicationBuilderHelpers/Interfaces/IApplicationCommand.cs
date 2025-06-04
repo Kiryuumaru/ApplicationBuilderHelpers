@@ -14,7 +14,7 @@ namespace ApplicationBuilderHelpers.Interfaces;
 /// Represents a command that can be executed within the application.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-public interface IApplicationCommand
+public interface IApplicationCommand : IApplicationDependency
 {
     /// <summary>
     /// Gets the name of the command.
@@ -30,4 +30,25 @@ public interface IApplicationCommand
     /// Gets a value indicating whether the application should exit after the <see cref="Run(ApplicationHost{THostApplicationBuilder}, CancellationToken)"/> method is complete.
     /// </summary>
     bool ExitOnRunComplete { get; }
+
+    /// <summary>
+    /// Prepares the command before execution, allowing for any setup or configuration required by the command.
+    /// </summary>
+    /// <param name="applicationBuilder">The application builder used to configure the application and its commands.</param>
+    internal void CommandPreparationInternal(ApplicationBuilder applicationBuilder);
+
+    /// <summary>
+    /// Builds the application builder internally.
+    /// </summary>
+    /// <param name="stoppingToken">A token to cancel the operation.</param>
+    /// <returns>An instance of <see cref="ApplicationHostBuilder{THostApplicationBuilder}"/>.</returns>
+    internal ValueTask<ApplicationHostBuilder> ApplicationBuilderInternal(CancellationToken stoppingToken);
+
+    /// <summary>
+    /// Runs the application internally.
+    /// </summary>
+    /// <param name="applicationHost">The application host.</param>
+    /// <param name="stoppingToken">A token to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    internal ValueTask RunInternal(ApplicationHost applicationHost, CancellationToken stoppingToken);
 }
