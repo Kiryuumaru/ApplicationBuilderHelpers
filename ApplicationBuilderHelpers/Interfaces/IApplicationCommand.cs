@@ -36,7 +36,7 @@ public interface IApplicationCommand : IApplicationDependency
     /// </summary>
     /// <param name="stoppingToken">A token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    internal ValueTask CommanPreparationInternal(CancellationToken stoppingToken);
+    internal ValueTask CommandPreparationInternal(CancellationToken stoppingToken);
 
     /// <summary>
     /// Builds the application builder internally.

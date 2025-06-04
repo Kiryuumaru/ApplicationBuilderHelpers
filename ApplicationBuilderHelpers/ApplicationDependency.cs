@@ -2,12 +2,18 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Threading;
 
 namespace ApplicationBuilderHelpers;
 
 /// <inheritdoc/>
 public abstract class ApplicationDependency : IApplicationDependency
 {
+    /// <inheritdoc/>
+    public virtual void CommandPreparation(IApplicationCommand applicationCommand)
+    {
+    }
+
     /// <inheritdoc/>
     public virtual void BuilderPreparation(ApplicationHostBuilder applicationBuilder)
     {
