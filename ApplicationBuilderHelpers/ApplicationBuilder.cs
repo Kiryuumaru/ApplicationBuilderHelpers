@@ -205,7 +205,11 @@ public class ApplicationBuilder
                 }
             }
             currentHier.AppCommand = command;
-            await command.CommanPreparationInternal(cancellationTokenSource.Token);
+            foreach (var dependency in _applicationDependencies)
+            {
+                dependency.CommandPreparation(command);
+            }
+            await command.CommandPreparationInternal(cancellationTokenSource.Token);
             WireHandler(rootHierarchy, currentHier, currentHier.AppCommand, cancellationTokenSource.Token);
         }
 

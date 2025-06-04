@@ -62,7 +62,7 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     /// </summary>
     /// <param name="stoppingToken">A token to cancel the operation.</param>
     /// <returns>A completed <see cref="ValueTask"/>.</returns>
-    protected virtual ValueTask CommanPreparation(CancellationToken stoppingToken)
+    protected virtual ValueTask CommandPreparation(CancellationToken stoppingToken)
     {
         return ValueTask.CompletedTask;
     }
@@ -78,9 +78,9 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
         return new ValueTask();
     }
 
-    ValueTask IApplicationCommand.CommanPreparationInternal(CancellationToken stoppingToken)
+    ValueTask IApplicationCommand.CommandPreparationInternal(CancellationToken stoppingToken)
     {
-        return CommanPreparation(stoppingToken);
+        return CommandPreparation(stoppingToken);
     }
 
     /// <inheritdoc/>

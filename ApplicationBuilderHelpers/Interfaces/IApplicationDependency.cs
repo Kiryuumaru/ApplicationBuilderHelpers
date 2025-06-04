@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.Interfaces;
 
@@ -9,6 +11,12 @@ namespace ApplicationBuilderHelpers.Interfaces;
 /// </summary>
 public interface IApplicationDependency
 {
+    /// <summary>
+    /// Prepares the application command before the application starts.
+    /// </summary>
+    /// <param name="applicationCommand">The application command to prepare.</param>
+    void CommandPreparation(IApplicationCommand applicationCommand);
+
     /// <summary>
     /// Invoked first during the application setup, allowing the application builder to be prepared before any other configuration methods are called.
     /// </summary>
