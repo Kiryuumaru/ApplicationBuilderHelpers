@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ShortTypeParser : ICommandArgsTypeParser
+public class ShortTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(short);
 

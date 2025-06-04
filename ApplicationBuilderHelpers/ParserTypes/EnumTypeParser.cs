@@ -7,7 +7,7 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.ParserTypes;
 
 [method: UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
-public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandArgsTypeParser
+public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandTypeParser
 {
     public Type Type => throw new NotImplementedException();
 

@@ -6,10 +6,10 @@ using System.Text;
 namespace ApplicationBuilderHelpers.Interfaces;
 
 /// <summary>
-/// Interface for parsing command arguments to a specific type.
+/// Interface for parsing command type to a specific type.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-public interface ICommandArgsTypeParser
+public interface ICommandTypeParser
 {
     /// <summary>
     /// Gets the type that this parser handles.

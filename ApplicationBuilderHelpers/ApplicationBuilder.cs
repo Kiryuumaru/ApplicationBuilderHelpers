@@ -54,7 +54,7 @@ public class ApplicationBuilder
 
     private readonly List<ApplicationDependency> _applicationDependencies = [];
     private readonly List<IApplicationCommand> _commands = [];
-    private readonly Dictionary<Type, ICommandArgsTypeParser> _typeParsers = new()
+    private readonly Dictionary<Type, ICommandTypeParser> _typeParsers = new()
     {
         [typeof(AbsolutePath)] = new AbsolutePathTypeParser(),
         [typeof(bool)] = new BoolTypeParser(),
@@ -140,12 +140,12 @@ public class ApplicationBuilder
     /// <summary>
     /// Adds a command args type parser to the application.
     /// </summary>
-    /// <typeparam name="TCommandArgsTypeParser">The type of the command line type parser.</typeparam>
+    /// <typeparam name="TCommandTypeParser">The type of the command line type parser.</typeparam>
     /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
-    public ApplicationBuilder AddCommandArgsTypeParser<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommandArgsTypeParser>()
-        where TCommandArgsTypeParser : ICommandArgsTypeParser
+    public ApplicationBuilder AddCommandTypeParser<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommandTypeParser>()
+        where TCommandTypeParser : ICommandTypeParser
     {
-        TCommandArgsTypeParser commandLineTypeParser = Activator.CreateInstance<TCommandArgsTypeParser>();
+        TCommandTypeParser commandLineTypeParser = Activator.CreateInstance<TCommandTypeParser>();
         _typeParsers[commandLineTypeParser.Type] = commandLineTypeParser;
         return this;
     }
@@ -472,7 +472,7 @@ public class ApplicationBuilder
         });
     }
 
-    private static ValidateSymbolResult<TSymbolResult> GetValidation<TSymbolResult>(ICommandArgsTypeParser typeParser, string? environmentVariable, bool caseSensitive, bool required, string[] fromAmong)
+    private static ValidateSymbolResult<TSymbolResult> GetValidation<TSymbolResult>(ICommandTypeParser typeParser, string? environmentVariable, bool caseSensitive, bool required, string[] fromAmong)
         where TSymbolResult : SymbolResult
     {
         return a =>
