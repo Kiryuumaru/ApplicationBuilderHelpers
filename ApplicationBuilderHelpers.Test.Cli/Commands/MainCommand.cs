@@ -69,8 +69,8 @@ internal class MainCommand : BaseCommand
         base.AddServices(applicationBuilder, services);
     }
 
-    protected override ValueTask CommandPreparation(CancellationToken stoppingToken)
+    public override void CommandPreparation(ApplicationBuilder applicationBuilder)
     {
-        return base.CommandPreparation(stoppingToken);
+        Console.WriteLine("Hello from main CommandPreparationCommandPreparationCommandPreparationCommandPreparation");
     }
 }

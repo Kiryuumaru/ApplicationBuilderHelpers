@@ -10,7 +10,7 @@ namespace ApplicationBuilderHelpers;
 public abstract class ApplicationDependency : IApplicationDependency
 {
     /// <inheritdoc/>
-    public virtual void CommandPreparation(IApplicationCommand applicationCommand)
+    public virtual void CommandPreparation(ApplicationBuilder applicationBuilder)
     {
     }
 

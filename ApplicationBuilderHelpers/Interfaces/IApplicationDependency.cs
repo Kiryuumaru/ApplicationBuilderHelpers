@@ -12,10 +12,10 @@ namespace ApplicationBuilderHelpers.Interfaces;
 public interface IApplicationDependency
 {
     /// <summary>
-    /// Prepares the application command before the application starts.
+    /// Prepares the application builder and command before the application starts.
     /// </summary>
-    /// <param name="applicationCommand">The application command to prepare.</param>
-    void CommandPreparation(IApplicationCommand applicationCommand);
+    /// <param name="applicationBuilder">The application builder used to configure the application.</param>
+    void CommandPreparation(ApplicationBuilder applicationBuilder);
 
     /// <summary>
     /// Invoked first during the application setup, allowing the application builder to be prepared before any other configuration methods are called.
