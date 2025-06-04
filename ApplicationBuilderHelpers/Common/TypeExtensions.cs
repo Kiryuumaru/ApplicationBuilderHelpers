@@ -13,9 +13,9 @@ namespace ApplicationBuilderHelpers.Common;
 
 internal static class TypeExtensions
 {
-    public static bool TryGetParser(this Type type, Dictionary<Type, ICommandLineTypeParser> typeParsers, bool caseSensitive, bool autoEnumerableType, [NotNullWhen(true)] out ICommandLineTypeParser? commandLineTypeParser)
+    public static bool TryGetParser(this Type type, Dictionary<Type, ICommandArgsTypeParser> typeParsers, bool caseSensitive, bool autoEnumerableType, [NotNullWhen(true)] out ICommandArgsTypeParser? commandLineTypeParser)
     {
-        if (typeParsers.TryGetValue(type, out ICommandLineTypeParser? typeParser))
+        if (typeParsers.TryGetValue(type, out ICommandArgsTypeParser? typeParser))
         {
             commandLineTypeParser = typeParser;
             return true;
@@ -30,7 +30,7 @@ internal static class TypeExtensions
         {
             if (type.IsArray)
             {
-                if (type.GetElementType() is Type elementType && TryGetParser(elementType, typeParsers, caseSensitive, true, out ICommandLineTypeParser? itemTypeParser))
+                if (type.GetElementType() is Type elementType && TryGetParser(elementType, typeParsers, caseSensitive, true, out ICommandArgsTypeParser? itemTypeParser))
                 {
                     commandLineTypeParser = new ArrayTypeParser(elementType, itemTypeParser);
                     return true;
@@ -57,7 +57,7 @@ internal static class TypeExtensions
         return false;
     }
 
-    public static bool IsEnumerable(this Type type, Dictionary<Type, ICommandLineTypeParser> typeParsers)
+    public static bool IsEnumerable(this Type type, Dictionary<Type, ICommandArgsTypeParser> typeParsers)
     {
         if (typeParsers.TryGetValue(type, out _))
         {
@@ -70,7 +70,7 @@ internal static class TypeExtensions
 
         if (type.IsArray)
         {
-            if (type.GetElementType() is Type elementType && TryGetParser(elementType, typeParsers, true, true, out ICommandLineTypeParser? itemTypeParser))
+            if (type.GetElementType() is Type elementType && TryGetParser(elementType, typeParsers, true, true, out ICommandArgsTypeParser? itemTypeParser))
             {
                 return true;
             }

@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class BoolTypeParser : ICommandLineTypeParser
+public class BoolTypeParser : ICommandArgsTypeParser
 {
     public Type Type => typeof(bool);
 

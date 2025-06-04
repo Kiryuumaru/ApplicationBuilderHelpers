@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class DoubleTypeParser : ICommandLineTypeParser
+public class DoubleTypeParser : ICommandArgsTypeParser
 {
     public Type Type => typeof(double);
 

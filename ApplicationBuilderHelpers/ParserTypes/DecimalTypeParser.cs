@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class DecimalTypeParser : ICommandLineTypeParser
+public class DecimalTypeParser : ICommandArgsTypeParser
 {
     public Type Type => typeof(decimal);
 

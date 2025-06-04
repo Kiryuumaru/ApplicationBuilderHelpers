@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class FloatTypeParser : ICommandLineTypeParser
+public class FloatTypeParser : ICommandArgsTypeParser
 {
     public Type Type => typeof(float);
 

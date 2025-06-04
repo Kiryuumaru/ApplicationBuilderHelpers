@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes.Enumerables;
 
-public class ArrayTypeParser(Type elementType, ICommandLineTypeParser itemTypeParser) : ICommandLineTypeParser
+public class ArrayTypeParser(Type elementType, ICommandArgsTypeParser itemTypeParser) : ICommandArgsTypeParser
 {
     public Type Type => throw new NotImplementedException();
 

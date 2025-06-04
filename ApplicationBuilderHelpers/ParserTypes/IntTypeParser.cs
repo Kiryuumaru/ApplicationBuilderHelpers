@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class IntTypeParser : ICommandLineTypeParser
+public class IntTypeParser : ICommandArgsTypeParser
 {
     public Type Type => typeof(int);
 
