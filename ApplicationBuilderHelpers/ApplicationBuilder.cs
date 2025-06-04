@@ -421,11 +421,11 @@ public class ApplicationBuilder
                     resolver(context);
                 }
                 var applicationBuilder = await applicationCommand.ApplicationBuilderInternal(cts.Token);
+                applicationBuilder.ApplicationDependencies.Add(applicationCommand);
                 foreach (var dependency in _applicationDependencies)
                 {
                     applicationBuilder.ApplicationDependencies.Add(dependency);
                 }
-                applicationBuilder.ApplicationDependencies.Add(applicationCommand);
                 CommandInvokerService commandInvokerService = new();
                 applicationBuilder.Services.AddSingleton(commandInvokerService);
                 applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();

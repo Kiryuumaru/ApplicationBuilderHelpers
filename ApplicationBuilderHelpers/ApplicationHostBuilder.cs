@@ -63,7 +63,7 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
         }
         foreach (var applicationDependency in ApplicationDependencies)
         {
-            applicationDependency.AddConfiguration(this, Builder.Configuration);
+            applicationDependency.AddConfigurations(this, Builder.Configuration);
         }
         foreach (var applicationDependency in ApplicationDependencies)
         {

@@ -9,9 +9,9 @@ namespace ApplicationBuilderHelpers.Test.Cli;
 
 internal class Presentation : ApplicationDependency
 {
-    public override void AddConfiguration(ApplicationHostBuilder applicationBuilder, IConfiguration configuration)
+    public override void AddConfigurations(ApplicationHostBuilder applicationBuilder, IConfiguration configuration)
     {
-        base.AddConfiguration(applicationBuilder, configuration);
+        base.AddConfigurations(applicationBuilder, configuration);
 
         (configuration as ConfigurationManager)!.AddEnvironmentVariables();
     }
