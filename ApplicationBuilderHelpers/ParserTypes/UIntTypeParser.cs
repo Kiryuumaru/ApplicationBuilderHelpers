@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class UIntTypeParser : ICommandLineTypeParser
+public class UIntTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(uint);
 

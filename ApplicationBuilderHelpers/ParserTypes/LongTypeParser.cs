@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class LongTypeParser : ICommandLineTypeParser
+public class LongTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(long);
 

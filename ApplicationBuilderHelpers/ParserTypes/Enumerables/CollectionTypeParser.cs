@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes.Enumerables;
 
-public class CollectionTypeParser(Type itemType) : ICommandLineTypeParser
+public class CollectionTypeParser(Type itemType) : ICommandTypeParser
 {
     public Type Type => throw new NotImplementedException();
 

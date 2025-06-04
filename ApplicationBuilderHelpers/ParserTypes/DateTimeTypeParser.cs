@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class DateTimeTypeParser : ICommandLineTypeParser
+public class DateTimeTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(DateTime);
 

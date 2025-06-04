@@ -5,7 +5,7 @@ using AbsolutePathHelpers;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class AbsolutePathTypeParser : ICommandLineTypeParser
+public class AbsolutePathTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(AbsolutePath);
 
