@@ -28,10 +28,10 @@ public interface IApplicationDependency
     /// </summary>
     /// <param name="builder">The application dependency builder used to configure the application.</param>
     /// <param name="configuration">The configuration source containing settings to be added.</param>
-    void AddConfiguration(ApplicationHostBuilder applicationBuilder, IConfiguration configuration);
+    void AddConfigurations(ApplicationHostBuilder applicationBuilder, IConfiguration configuration);
 
     /// <summary>
-    /// Called after <see cref="AddConfiguration"/> to register services with the application's <see cref="IServiceCollection"/>.
+    /// Called after <see cref="AddConfigurations"/> to register services with the application's <see cref="IServiceCollection"/>.
     /// </summary>
     /// <param name="builder">The application dependency builder used to configure the application.</param>
     /// <param name="services">The service collection where services are registered.</param>

@@ -20,7 +20,7 @@ public abstract class ApplicationDependency : IApplicationDependency
     }
 
     /// <inheritdoc/>
-    public virtual void AddConfiguration(ApplicationHostBuilder applicationBuilder, IConfiguration configuration)
+    public virtual void AddConfigurations(ApplicationHostBuilder applicationBuilder, IConfiguration configuration)
     {
     }
 
