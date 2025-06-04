@@ -38,7 +38,7 @@ public class ApplicationBuilder
 
         public CommandLineBuilder CommandLineBuilder { get; set; } = commandLineBuilder;
 
-        public IApplicationCommand? AppCommand { get; set; } = null;
+        public IApplicationCommandDependency? AppCommand { get; set; } = null;
 
         public Dictionary<string, ApplicationCommandHierarchy> SubCommands { get; set; } = [];
     }
@@ -53,7 +53,7 @@ public class ApplicationBuilder
     }
 
     private readonly List<ApplicationDependency> _applicationDependencies = [];
-    private readonly List<IApplicationCommand> _commands = [];
+    private readonly List<IApplicationCommandDependency> _commands = [];
     private readonly Dictionary<Type, ICommandLineTypeParser> _typeParsers = new()
     {
         [typeof(AbsolutePath)] = new AbsolutePathTypeParser(),
@@ -97,7 +97,7 @@ public class ApplicationBuilder
     /// <param name="applicationCommand">The application command instance.</param>
     /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TApplicationCommand>(TApplicationCommand applicationCommand)
-        where TApplicationCommand : IApplicationCommand
+        where TApplicationCommand : IApplicationCommandDependency
     {
         _commands.Add(applicationCommand);
         return this;
@@ -109,7 +109,7 @@ public class ApplicationBuilder
     /// <typeparam name="TApplicationCommand">The type of the application command.</typeparam>
     /// <returns>The current instance of the <see cref="ApplicationBuilder"/> class.</returns>
     public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TApplicationCommand>()
-        where TApplicationCommand : IApplicationCommand
+        where TApplicationCommand : IApplicationCommandDependency
     {
         return AddCommand(applicationCommand: Activator.CreateInstance<TApplicationCommand>());
     }
@@ -216,7 +216,7 @@ public class ApplicationBuilder
         return await rootHierarchy.CommandLineBuilder.Build().InvokeAsync(args);
     }
 
-    private void WireHandler(ApplicationCommandHierarchy rootHierarchy, ApplicationCommandHierarchy hier, IApplicationCommand applicationCommand, CancellationToken stoppingToken)
+    private void WireHandler(ApplicationCommandHierarchy rootHierarchy, ApplicationCommandHierarchy hier, IApplicationCommandDependency applicationCommand, CancellationToken stoppingToken)
     {
         var properties = new List<PropertyInfo>();
         var currentType = applicationCommand.GetType();
