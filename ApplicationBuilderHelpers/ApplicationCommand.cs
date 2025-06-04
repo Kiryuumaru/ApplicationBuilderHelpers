@@ -11,7 +11,7 @@ using ApplicationBuilderHelpers.Interfaces;
 namespace ApplicationBuilderHelpers;
 
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-public abstract class ApplicationCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder> : ApplicationDependency, IApplicationCommand
+public abstract class ApplicationCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder> : ApplicationDependency, IApplicationCommandDependency
     where THostApplicationBuilder : IHostApplicationBuilder
 {
     /// <summary>
@@ -78,20 +78,20 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
         return new ValueTask();
     }
 
-    ValueTask IApplicationCommand.CommandPreparationInternal(CancellationToken stoppingToken)
+    ValueTask IApplicationCommandDependency.CommandPreparationInternal(CancellationToken stoppingToken)
     {
         return CommandPreparation(stoppingToken);
     }
 
     /// <inheritdoc/>
-    async ValueTask<ApplicationHostBuilder> IApplicationCommand.ApplicationBuilderInternal(CancellationToken stoppingToken)
+    async ValueTask<ApplicationHostBuilder> IApplicationCommandDependency.ApplicationBuilderInternal(CancellationToken stoppingToken)
     {
         var hostApplicationBuilder = await ApplicationBuilder(stoppingToken);
         return new ApplicationHostBuilder<THostApplicationBuilder>(hostApplicationBuilder);
     }
 
     /// <inheritdoc/>
-    ValueTask IApplicationCommand.RunInternal(ApplicationHost applicationHost, CancellationToken stoppingToken)
+    ValueTask IApplicationCommandDependency.RunInternal(ApplicationHost applicationHost, CancellationToken stoppingToken)
     {
         return Run((applicationHost as ApplicationHost<THostApplicationBuilder>)!, stoppingToken);
     }
