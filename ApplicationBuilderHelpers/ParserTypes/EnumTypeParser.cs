@@ -6,22 +6,24 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-[method: UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
 public class EnumTypeParser(Type enumType, bool caseSensitive) : ICommandTypeParser
 {
     public Type Type => throw new NotImplementedException();
 
     public bool ChoicesCaseSensitive { get; } = caseSensitive;
 
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
     public string[] Choices { get; } = [.. Enum.GetValues(enumType)
         .Cast<object>()
         .Select(i => i?.ToString()!)
         .Where(i => !string.IsNullOrEmpty(i))];
 
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
     private readonly Dictionary<string, object> enumValues = Enum.GetValues(enumType)
         .Cast<object>()
         .ToDictionary(i => i?.ToString()!);
 
+    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
     public object? ParseToType(object? value)
     {
         var valueStr = value?.ToString();
