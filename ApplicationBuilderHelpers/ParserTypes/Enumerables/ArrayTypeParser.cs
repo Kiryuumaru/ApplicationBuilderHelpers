@@ -10,6 +10,8 @@ public class ArrayTypeParser(Type elementType, ICommandTypeParser itemTypeParser
 
     public string[] Choices { get; } = [];
 
+    [UnconditionalSuppressMessage("Aot", "IL3050:RequiresDynamicCode",
+        Justification = "The unfriendly method is not reachable with AOT")]
     public object? ParseToType(object? value)
     {
         if (value == null || value is not string[] valueArr || valueArr.Length == 0)
@@ -24,16 +26,18 @@ public class ArrayTypeParser(Type elementType, ICommandTypeParser itemTypeParser
         return arrInstance;
     }
 
+    [UnconditionalSuppressMessage("Aot", "IL3050:RequiresDynamicCode",
+        Justification = "The unfriendly method is not reachable with AOT")]
     public object? ParseFromType(object? value)
     {
         if (value == null || value is not Array valueArr || valueArr.Length == 0)
         {
             return null;
         }
-        var arrInstance = new string[valueArr.Length];
+        var arrInstance = new string?[valueArr.Length];
         for (int i = 0; i < valueArr.Length; i++)
         {
-            arrInstance[i] = itemTypeParser.ParseFromType(valueArr.GetValue(i)).ToString();
+            arrInstance[i] = itemTypeParser.ParseFromType(valueArr.GetValue(i))?.ToString();
         }
         return arrInstance;
     }
