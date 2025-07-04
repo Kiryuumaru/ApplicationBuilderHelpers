@@ -170,6 +170,7 @@ public class ApplicationBuilder
         Console.CancelKeyPress += (sender, e) =>
         {
             cancellationTokenSource.Cancel();
+            e.Cancel = false;
         };
         bool hasRootCommand = false;
         var commandLineBuilder = new CommandLineBuilder(new RootCommand())
