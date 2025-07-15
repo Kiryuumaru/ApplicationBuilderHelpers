@@ -30,7 +30,7 @@ internal class SubCommand3 : ApplicationCommand
 
     }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
         Console.WriteLine("Hello from SubCommand3");
         Console.WriteLine($"SubTest: {SubTest}");
@@ -38,6 +38,7 @@ internal class SubCommand3 : ApplicationCommand
         Console.WriteLine($"SubTest2: {SubTest2}");
         Console.WriteLine($"SubTest3: {SubTest3}");
         Console.WriteLine($"SubTest4: {SubTest4}");
+        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

@@ -211,13 +211,13 @@ public class ApplicationBuilder
             }
             currentHier.AppCommand = command;
             command.CommandPreparationInternal(this);
-            WireHandler(rootHierarchy, currentHier, currentHier.AppCommand, cancellationTokenSource.Token);
+            WireHandler(rootHierarchy, currentHier, currentHier.AppCommand, cancellationTokenSource);
         }
 
         return await rootHierarchy.CommandLineBuilder.Build().InvokeAsync(args);
     }
 
-    private void WireHandler(ApplicationCommandHierarchy rootHierarchy, ApplicationCommandHierarchy hier, IApplicationCommand applicationCommand, CancellationToken stoppingToken)
+    private void WireHandler(ApplicationCommandHierarchy rootHierarchy, ApplicationCommandHierarchy hier, IApplicationCommand applicationCommand, CancellationTokenSource cancellationTokenSource)
     {
         var properties = new List<PropertyInfo>();
         var currentType = applicationCommand.GetType();
@@ -416,12 +416,11 @@ public class ApplicationBuilder
         {
             try
             {
-                CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                 foreach (var resolver in valueResolver)
                 {
                     resolver(context);
                 }
-                var applicationBuilder = await applicationCommand.ApplicationBuilderInternal(cts.Token);
+                var applicationBuilder = await applicationCommand.ApplicationBuilderInternal(cancellationTokenSource.Token);
                 applicationBuilder.ApplicationDependencies.Add(applicationCommand);
                 foreach (var dependency in _applicationDependencies)
                 {
@@ -436,18 +435,14 @@ public class ApplicationBuilder
                 {
                     try
                     {
-                        await applicationCommand.RunInternal(applicationHost, ct);
+                        await applicationCommand.RunInternal(applicationHost, cancellationTokenSource);
                     }
                     catch (CommandException ex)
                     {
                         commandException = ex;
                     }
-                    if (applicationCommand.ExitOnRunComplete)
-                    {
-                        cts.Cancel();
-                    }
                 });
-                await applicationHost.Run(cts.Token);
+                await applicationHost.Run(cancellationTokenSource.Token);
                 if (commandException != null)
                 {
                     throw commandException;

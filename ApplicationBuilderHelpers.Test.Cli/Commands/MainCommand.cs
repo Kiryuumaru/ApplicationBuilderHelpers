@@ -41,14 +41,12 @@ internal class MainCommand : BaseCommand
         Description = "Write logs file.")]
     public bool WriteLogs { get; set; } = false;
 
-    public override bool ExitOnRunComplete => true;
-
     public MainCommand() : base("The main command for the application.")
     {
 
     }
 
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
         Console.WriteLine("Hello from main");
         Console.WriteLine($"Test: {Test}");
