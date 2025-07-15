@@ -18,7 +18,7 @@ internal class SubCommand : ApplicationCommand
 
     }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
         Console.WriteLine("Hello from SubCommand");
         return ValueTask.CompletedTask;

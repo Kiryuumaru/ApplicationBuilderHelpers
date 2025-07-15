@@ -46,11 +46,6 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     public string? Description { get; }
 
     /// <summary>
-    /// Gets a value indicating whether the application should exit after the <see cref="Run(ApplicationHost{THostApplicationBuilder}, CancellationToken)"/> method is complete.
-    /// </summary>
-    public virtual bool ExitOnRunComplete { get; } = true;
-
-    /// <summary>
     /// Builds the application builder.
     /// </summary>
     /// <param name="stoppingToken">A token to cancel the operation.</param>
@@ -61,9 +56,9 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     /// Runs the application.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
-    /// <param name="stoppingToken">A token to cancel the operation.</param>
+    /// <param name="cancellationTokenSource">A token source to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken stoppingToken)
+    protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
         return new ValueTask();
     }
@@ -81,9 +76,9 @@ public abstract class ApplicationCommand<[DynamicallyAccessedMembers(Dynamically
     }
 
     /// <inheritdoc/>
-    ValueTask IApplicationCommand.RunInternal(ApplicationHost applicationHost, CancellationToken stoppingToken)
+    ValueTask IApplicationCommand.RunInternal(ApplicationHost applicationHost, CancellationTokenSource cancellationTokenSource)
     {
-        return Run((applicationHost as ApplicationHost<THostApplicationBuilder>)!, stoppingToken);
+        return Run((applicationHost as ApplicationHost<THostApplicationBuilder>)!, cancellationTokenSource);
     }
 }
 
