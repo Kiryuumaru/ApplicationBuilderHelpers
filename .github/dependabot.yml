@@ -1,6 +1,5 @@
 version: 2
 updates:
-
   - package-ecosystem: "nuget"
     target-branch: "master"
     directory: "/"
