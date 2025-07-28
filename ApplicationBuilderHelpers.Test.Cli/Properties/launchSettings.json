@@ -2,7 +2,7 @@
   "profiles": {
     "ApplicationBuilderHelpers.Test.Cli": {
       "commandName": "Project",
-      "commandLineArgs": "sub sub3 aa sc -x acc -z ascx",
+      "commandLineArgs": "-t \"scsc\" --test-path \"cscccc\" --test-paths \"\" --test-parent \"./scsc\"",
       "environmentVariables": {
         "ENV_TEST1": "TestVal1",
         "WRITE_LOGS": "trUe"
