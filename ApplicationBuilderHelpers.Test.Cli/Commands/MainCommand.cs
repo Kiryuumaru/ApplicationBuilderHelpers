@@ -1,6 +1,7 @@
 ﻿using AbsolutePathHelpers;
 using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
+using ApplicationBuilderHelpers.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -57,6 +58,18 @@ internal class MainCommand : BaseCommand
         {
             Console.WriteLine($"Test paths: {p}");
         }
+        var ss = applicationHost.Services.GetRequiredService<LifetimeService>();
+        ss.ApplicationExitingCallback(async () =>
+        {
+            await Task.Delay(5000);
+            Console.WriteLine("Cancellation action triggered 1.");
+        });
+        ss.CreateCancellationToken().Register(() =>
+        {
+           Console.WriteLine("Cancellation token triggered 2.");
+        });
+
+        await Task.Delay(15000);
 
         throw new CommandException("Test error", 113);
     }

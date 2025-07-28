@@ -427,7 +427,11 @@ public class ApplicationBuilder
                     applicationBuilder.ApplicationDependencies.Add(dependency);
                 }
                 CommandInvokerService commandInvokerService = new();
+                LifetimeGlobalService lifetimeGlobalService = new();
+                cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
                 applicationBuilder.Services.AddSingleton(commandInvokerService);
+                applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+                applicationBuilder.Services.AddScoped<LifetimeService>();
                 applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();
                 var applicationHost = applicationBuilder.BuildInternal();
                 CommandException? commandException = null;
@@ -442,7 +446,13 @@ public class ApplicationBuilder
                         commandException = ex;
                     }
                 });
-                await applicationHost.Run(cancellationTokenSource.Token);
+                await Task.WhenAll(
+                    Task.Run(async () => await applicationHost.Run(cancellationTokenSource.Token)),
+                    Task.Run(async () =>
+                    {
+                        await cancellationTokenSource.Token.WhenCanceled();
+                        await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+                    }));
                 if (commandException != null)
                 {
                     throw commandException;
