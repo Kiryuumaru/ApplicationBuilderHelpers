@@ -11,3 +11,5 @@ updates:
     ignore:
       - dependency-name: "Microsoft.NET.ILLink.Analyzers"
         versions: [ "*" ]
+      - dependency-name: "Microsoft.DotNet.ILCompiler"
+        versions: [ "*" ]
