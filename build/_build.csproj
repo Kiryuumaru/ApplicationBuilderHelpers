@@ -14,12 +14,12 @@
 
 	<ItemGroup>
 		<PackageReference Include="Nuke.Common" Version="9.0.4" />
-		<PackageReference Include="NukeBuildHelpers" Version="8.0.7" />
+		<PackageReference Include="NukeBuildHelpers" Version="8.0.8" />
 	</ItemGroup>
 
 	<ItemGroup>
 
-	  <PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.12.35" />
+	  <PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.14.8" />
 		<ProjectReference Include="..\ApplicationBuilderHelpers\ApplicationBuilderHelpers.csproj" />
 	</ItemGroup>
 
