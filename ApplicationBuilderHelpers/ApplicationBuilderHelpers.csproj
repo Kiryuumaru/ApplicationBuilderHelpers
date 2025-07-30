@@ -32,9 +32,60 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Compile Remove="__Old\ApplicationBuilderOld.cs" />
+		<Compile Remove="__Old\ParserTypesOld\AbsolutePathTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\BoolTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\ByteTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\CharTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\DateTimeOffsetTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\DateTimeTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\DecimalTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\DoubleTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\Enumerables\ArrayTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\Enumerables\CollectionTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\Enumerables\DictionaryTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\Enumerables\EnumerableTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\EnumTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\FloatTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\IntTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\LongTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\SByteTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\ShortTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\StringTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\UIntTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\ULongTypeParser.cs" />
+		<Compile Remove="__Old\ParserTypesOld\UShortTypeParser.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="__Old\ApplicationBuilderOld.cs" />
+		<None Include="__Old\ParserTypesOld\AbsolutePathTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\BoolTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\ByteTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\CharTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\DateTimeOffsetTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\DateTimeTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\DecimalTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\DoubleTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\Enumerables\ArrayTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\Enumerables\CollectionTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\Enumerables\DictionaryTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\Enumerables\EnumerableTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\EnumTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\FloatTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\IntTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\LongTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\SByteTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\ShortTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\StringTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\UIntTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\ULongTypeParser.cs" />
+		<None Include="__Old\ParserTypesOld\UShortTypeParser.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="AbsolutePathHelpers" Version="0.2.4" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.7" />
-		<PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.7" />
 		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.7" />
 	</ItemGroup>
