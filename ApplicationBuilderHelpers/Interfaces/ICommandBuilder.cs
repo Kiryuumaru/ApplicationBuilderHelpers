@@ -25,4 +25,8 @@ public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDep
     internal string? ExecutableVersion { get; set; }
 
     internal int? HelpWidth { get; set; }
+
+    internal int? HelpBorderWidth { get; set; }
+
+    internal IAnsiTheme? Theme { get; set; }
 }

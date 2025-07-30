@@ -27,6 +27,8 @@ public class ApplicationBuilder : ICommandBuilder
     string? ICommandBuilder.ExecutableDescription { get; set; } = null;
     string? ICommandBuilder.ExecutableVersion { get; set; } = null;
     int? ICommandBuilder.HelpWidth { get; set; } = null;
+    int? ICommandBuilder.HelpBorderWidth { get; set; } = null;
+    IAnsiTheme? ICommandBuilder.Theme { get; set; } = null;
     List<ICommand> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = new()
@@ -50,7 +52,16 @@ public class ApplicationBuilder : ICommandBuilder
     
     public async Task<int> RunAsync(string[] args)
     {
-        return 0; // Placeholder for actual implementation
+        try
+        {
+            var commandLineParser = new CommandLineParser(this);
+            return await commandLineParser.RunAsync(args);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
     }
 
     /// <summary>
@@ -61,5 +72,6 @@ public class ApplicationBuilder : ICommandBuilder
     {
         return new ApplicationBuilder();
     }
+
     private ApplicationBuilder() { }
 }

@@ -46,6 +46,26 @@ public static class ICommandBuilderExtensions
         return commandBuilder;
     }
 
+    public static TICommandBuilder SetHelpBorderWidth<TICommandBuilder>(this TICommandBuilder commandBuilder, int helpBorderWidth)
+        where TICommandBuilder : ICommandBuilder
+    {
+        ArgumentNullException.ThrowIfNull(commandBuilder);
+        if (helpBorderWidth < 0)
+            throw new ArgumentOutOfRangeException(nameof(helpBorderWidth), "Help border width must be non-negative.");
+
+        commandBuilder.HelpBorderWidth = helpBorderWidth;
+        return commandBuilder;
+    }
+
+    public static TICommandBuilder SetTheme<TICommandBuilder>(this TICommandBuilder commandBuilder, IAnsiTheme theme)
+        where TICommandBuilder : ICommandBuilder
+    {
+        ArgumentNullException.ThrowIfNull(commandBuilder);
+        ArgumentNullException.ThrowIfNull(theme);
+        commandBuilder.Theme = theme;
+        return commandBuilder;
+    }
+
     public static TICommandBuilder AddCommand<TICommandBuilder>(this TICommandBuilder commandBuilder, ICommand command)
         where TICommandBuilder : ICommandBuilder
     {
