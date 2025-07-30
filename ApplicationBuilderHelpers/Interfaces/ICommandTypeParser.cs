@@ -11,16 +11,21 @@ namespace ApplicationBuilderHelpers.Interfaces;
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public interface ICommandTypeParser
 {
-    /// <summary>
-    /// Gets the type that this parser can handle.
-    /// </summary>
     Type Type { get; }
 
     /// <summary>
-    /// Parses the provided string array into an object of the specified type.
+    /// Parses a string value into an object of the specified type.
     /// </summary>
-    /// <param name="value">The string array to parse. May be null.</param>
-    /// <param name="validateError">When this method returns, contains any validation error message, or null if parsing succeeded.</param>
-    /// <returns>The parsed object, or null if parsing failed or the input was null.</returns>
-    object? Parse(string[]? value, out string? validateError);
+    /// <param name="value"></param>
+    /// <param name="validateError"></param>
+    /// <returns></returns>
+    object? Parse(string? value, out string? validateError);
+
+    /// <summary>
+    /// Converts an object to a string representation, suitable for command-line arguments.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="validateError"></param>
+    /// <returns></returns>
+    string? GetString(object? value);
 }

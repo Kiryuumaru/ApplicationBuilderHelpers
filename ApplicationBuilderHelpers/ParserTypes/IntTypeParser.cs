@@ -5,11 +5,11 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class IntTypeParser : SingleTypeParser
+internal class IntTypeParser : ICommandTypeParser
 {
-    public override Type Type => typeof(int);
+    public Type Type => typeof(int);
 
-    public override object? ParseSingle(string value, out string? validateError)
+    public object? Parse(string? value, out string? validateError)
     {
         if (int.TryParse(value, out var result))
         {
@@ -19,5 +19,10 @@ internal class IntTypeParser : SingleTypeParser
 
         validateError = $"Invalid integer value: '{value}'. Expected a valid integer.";
         return null;
+    }
+
+    public string? GetString(object? value)
+    {
+        return value?.ToString();
     }
 }

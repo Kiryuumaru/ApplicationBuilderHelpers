@@ -5,13 +5,18 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class StringTypeParser : SingleTypeParser
+internal class StringTypeParser : ICommandTypeParser
 {
-    public override Type Type => typeof(string);
+    public Type Type => typeof(string);
 
-    public override object? ParseSingle(string value, out string? validateError)
+    public object? Parse(string? value, out string? validateError)
     {
         validateError = null;
         return value;
+    }
+
+    public string? GetString(object? value)
+    {
+        return value?.ToString();
     }
 }
