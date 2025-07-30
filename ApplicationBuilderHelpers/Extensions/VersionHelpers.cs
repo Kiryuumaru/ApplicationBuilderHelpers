@@ -1,10 +1,11 @@
-﻿using System;
+﻿using ApplicationBuilderHelpers.Extensions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ApplicationBuilderHelpers.Extensions;     
+namespace ApplicationBuilderHelpers.Extensions;
 
 internal static class VersionHelpers
 {

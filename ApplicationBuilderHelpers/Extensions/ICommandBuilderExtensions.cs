@@ -32,6 +32,20 @@ public static class ICommandBuilderExtensions
         return commandBuilder;
     }
 
+    public static TICommandBuilder SetExecutableVersion<TICommandBuilder>(this TICommandBuilder commandBuilder, string executableVersion)
+        where TICommandBuilder : ICommandBuilder
+    {
+        commandBuilder.ExecutableVersion = executableVersion;
+        return commandBuilder;
+    }
+
+    public static TICommandBuilder SetHelpWidth<TICommandBuilder>(this TICommandBuilder commandBuilder, int helpWidth)
+        where TICommandBuilder : ICommandBuilder
+    {
+        commandBuilder.HelpWidth = helpWidth;
+        return commandBuilder;
+    }
+
     public static TICommandBuilder AddCommand<TICommandBuilder>(this TICommandBuilder commandBuilder, ICommand command)
         where TICommandBuilder : ICommandBuilder
     {

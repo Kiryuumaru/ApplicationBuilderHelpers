@@ -21,4 +21,8 @@ public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDep
     internal string? ExecutableTitle { get; set; }
 
     internal string? ExecutableDescription { get; set; }
+
+    internal string? ExecutableVersion { get; set; }
+
+    internal int? HelpWidth { get; set; }
 }

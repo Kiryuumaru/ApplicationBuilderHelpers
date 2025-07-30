@@ -24,6 +24,8 @@ public class ApplicationBuilder : ICommandBuilder
     string? ICommandBuilder.ExecutableName { get; set; } = null;
     string? ICommandBuilder.ExecutableTitle { get; set; } = null;
     string? ICommandBuilder.ExecutableDescription { get; set; } = null;
+    string? ICommandBuilder.ExecutableVersion { get; set; } = null;
+    int? ICommandBuilder.HelpWidth { get; set; } = null;
     List<ICommand> ICommandBuilder.Commands { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
