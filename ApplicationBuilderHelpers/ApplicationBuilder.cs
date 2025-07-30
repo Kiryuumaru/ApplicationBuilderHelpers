@@ -1,18 +1,19 @@
-﻿using ApplicationBuilderHelpers.Extensions;
+﻿using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Exceptions;
+using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
-using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.ParserTypes;
 using ApplicationBuilderHelpers.Services;
 using ApplicationBuilderHelpers.Workers;
-using ApplicationBuilderHelpers.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
 using System.Reflection;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers;
 
@@ -27,8 +28,13 @@ public class ApplicationBuilder : ICommandBuilder
     string? ICommandBuilder.ExecutableVersion { get; set; } = null;
     int? ICommandBuilder.HelpWidth { get; set; } = null;
     List<ICommand> ICommandBuilder.Commands { get; } = [];
-    Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
+    Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = new()
+    {
+        [typeof(bool)] = new BoolTypeParser(),
+        [typeof(int)] = new IntTypeParser(),
+        [typeof(string)] = new StringTypeParser(),
+    };
 
     public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommand>()
         where TCommand : ICommand
