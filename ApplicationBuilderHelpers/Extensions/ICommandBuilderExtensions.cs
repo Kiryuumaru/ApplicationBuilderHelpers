@@ -66,6 +66,16 @@ public static class ICommandBuilderExtensions
         return commandBuilder;
     }
 
+    public static TICommandBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TAnsiTheme, TICommandBuilder>(this TICommandBuilder commandBuilder)
+        where TAnsiTheme : IAnsiTheme
+        where TICommandBuilder : ICommandBuilder
+    {
+        ArgumentNullException.ThrowIfNull(commandBuilder);
+        var theme = Activator.CreateInstance<TAnsiTheme>();
+        commandBuilder.Theme = theme;
+        return commandBuilder;
+    }
+
     public static TICommandBuilder AddCommand<TICommandBuilder>(this TICommandBuilder commandBuilder, ICommand command)
         where TICommandBuilder : ICommandBuilder
     {

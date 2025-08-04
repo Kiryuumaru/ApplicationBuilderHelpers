@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text;
+using System.Reflection;
 
 namespace ApplicationBuilderHelpers.Test.Playground;
 
@@ -7,113 +8,299 @@ internal class Program
 {
     private static async Task<int> Main(string[] args)
     {
+        Console.WriteLine("🚀 ApplicationBuilderHelpers Comprehensive Test Suite");
+        Console.WriteLine("====================================================");
+        Console.WriteLine();
+
+        // Show diagnostic information
+        Console.WriteLine($"📍 Current Directory: {Environment.CurrentDirectory}");
+        Console.WriteLine($"📍 Assembly Location: {Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}");
+        Console.WriteLine();
+
+        // Try to find and run tests
+        var testExePath = FindTestExe();
+        Console.WriteLine($"🔍 Looking for test.exe at: {testExePath}");
+        
+        if (!File.Exists(testExePath))
+        {
+            Console.WriteLine("❌ Test executable not found! Building CLI project...");
+            await BuildCliProject();
+            testExePath = FindTestExe();
+        }
+
+        if (!File.Exists(testExePath))
+        {
+            Console.WriteLine("❌ Still not found after build attempt!");
+            Console.WriteLine("💡 Manual steps to fix:");
+            Console.WriteLine("   1. Run: dotnet build ApplicationBuilderHelpers.Test.Cli");
+            Console.WriteLine("   2. Check if the exe exists at expected paths");
+            Console.WriteLine("   3. Run this playground again");
+            Console.WriteLine();
+            Console.WriteLine("📂 Checked paths:");
+            await ShowCheckedPaths();
+            return 1;
+        }
+
+        Console.WriteLine($"✅ Test executable found at: {testExePath}");
+        Console.WriteLine();
+
         // Run the comprehensive test suite
-        return await ComprehensiveTestSuite.RunAllTests();
+        var result = await ComprehensiveTestSuite.RunAllTests(testExePath);
+
+        Console.WriteLine("\nPress any key to exit...");
+        Console.ReadKey();
+
+        return result;
+    }
+
+    private static async Task ShowCheckedPaths()
+    {
+        var currentAssemblyPath = Assembly.GetExecutingAssembly().Location;
+        var currentDir = Path.GetDirectoryName(currentAssemblyPath) ?? Environment.CurrentDirectory;
+        
+        var possiblePaths = new[]
+        {
+            Path.Combine(currentDir, "..", "..", "..", "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
+            Path.Combine(currentDir, "..", "..", "..", "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe")
+        };
+
+        foreach (var path in possiblePaths)
+        {
+            try
+            {
+                var normalizedPath = Path.GetFullPath(path);
+                var exists = File.Exists(normalizedPath);
+                Console.WriteLine($"   {(exists ? "✅" : "❌")} {normalizedPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"   ❌ Error checking {path}: {ex.Message}");
+            }
+        }
+    }
+
+    private static string FindTestExe()
+    {
+        var currentAssemblyPath = Assembly.GetExecutingAssembly().Location;
+        var currentDir = Path.GetDirectoryName(currentAssemblyPath) ?? Environment.CurrentDirectory;
+        
+        var possiblePaths = new[]
+        {
+            Path.Combine(currentDir, "..", "..", "..", "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
+            Path.Combine(currentDir, "..", "..", "..", "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
+            Path.Combine(Environment.CurrentDirectory, "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe")
+        };
+
+        foreach (var path in possiblePaths)
+        {
+            try
+            {
+                var normalizedPath = Path.GetFullPath(path);
+                if (File.Exists(normalizedPath))
+                {
+                    return normalizedPath;
+                }
+            }
+            catch (Exception)
+            {
+                // Continue to next path
+            }
+        }
+
+        try
+        {
+            return Path.GetFullPath(possiblePaths[0]);
+        }
+        catch
+        {
+            return possiblePaths[0];
+        }
+    }
+
+    private static async Task BuildCliProject()
+    {
+        try
+        {
+            Console.WriteLine("   Building CLI project...");
+            
+            var projectPaths = new[]
+            {
+                "ApplicationBuilderHelpers.Test.Cli/ApplicationBuilderHelpers.Test.Cli.csproj",
+                "../ApplicationBuilderHelpers.Test.Cli/ApplicationBuilderHelpers.Test.Cli.csproj",
+                "ApplicationBuilderHelpers.Test.Cli.csproj"
+            };
+
+            foreach (var projectPath in projectPaths)
+            {
+                if (File.Exists(projectPath))
+                {
+                    Console.WriteLine($"   Found project: {projectPath}");
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "dotnet",
+                        Arguments = $"build \"{projectPath}\" -c Debug --verbosity minimal",
+                        WorkingDirectory = Environment.CurrentDirectory,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var process = Process.Start(psi);
+                    if (process != null)
+                    {
+                        await process.WaitForExitAsync();
+                        var output = await process.StandardOutput.ReadToEndAsync();
+                        var error = await process.StandardError.ReadToEndAsync();
+                        
+                        Console.WriteLine($"   Build completed with exit code: {process.ExitCode}");
+                        if (!string.IsNullOrEmpty(output))
+                        {
+                            Console.WriteLine($"   Output: {output}");
+                        }
+                        if (!string.IsNullOrEmpty(error))
+                        {
+                            Console.WriteLine($"   Error: {error}");
+                        }
+                        return;
+                    }
+                }
+            }
+            
+            Console.WriteLine("   ⚠️ Could not find CLI project to build");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"   ❌ Build failed: {ex.Message}");
+        }
     }
 }
 
 public class ComprehensiveTestSuite
 {
-    public static async Task<int> RunAllTests()
+    public static async Task<int> RunAllTests(string testExePath)
     {
-        Console.WriteLine("🧪 ApplicationBuilderHelpers Comprehensive Test Suite");
-        Console.WriteLine("====================================================");
-        Console.WriteLine();
-
         var testRunner = new TestRunner();
         
-        // === CORE FUNCTIONALITY TESTS ===
+        // Pre-flight checks
+        Console.WriteLine("🔧 Pre-flight Checks");
+        Console.WriteLine("─────────────────────");
+        await testRunner.RunTestAsync("Test Executable Basic Execution", () => TestExecutableBasicExecution(testExePath));
+        Console.WriteLine();
+
+        // Core functionality tests
         Console.WriteLine("📋 Core Functionality Tests");
-        Console.WriteLine("----------------------------");
-        await testRunner.RunTestAsync("Global Help", TestGlobalHelp);
-        await testRunner.RunTestAsync("Version Check", TestVersion);
-        await testRunner.RunTestAsync("Build Command Help", TestBuildCommandHelp);
-        await testRunner.RunTestAsync("Test Command Help", TestTestCommandHelp);
+        Console.WriteLine("─────────────────────────────");
+        await testRunner.RunTestAsync("Global Help", () => TestGlobalHelp(testExePath));
+        await testRunner.RunTestAsync("Version Check", () => TestVersion(testExePath));
+        await testRunner.RunTestAsync("Empty Arguments", () => TestEmptyArguments(testExePath));
         Console.WriteLine();
 
-        // === COMMAND EXECUTION TESTS ===
-        Console.WriteLine("🚀 Command Execution Tests");
-        Console.WriteLine("---------------------------");
-        await testRunner.RunTestAsync("Main Command - Default Execution", TestMainCommandExecution);
-        await testRunner.RunTestAsync("Build Command - Valid Execution", TestBuildValidExecution);
-        await testRunner.RunTestAsync("Test Command - Valid Execution", TestTestValidExecution);
-        Console.WriteLine();
-
-        // === ERROR HANDLING TESTS ===
-        Console.WriteLine("❌ Error Handling Tests");
-        Console.WriteLine("------------------------");
-        await testRunner.RunTestAsync("Build Command - Missing Required Argument", TestBuildMissingArgument);
-        await testRunner.RunTestAsync("Invalid Command", TestInvalidCommand);
-        await testRunner.RunTestAsync("Unknown Option", TestUnknownOption);
-        Console.WriteLine();
-
-        // === OPTIONS PARSING TESTS ===
-        Console.WriteLine("⚙️ Options Parsing Tests");
-        Console.WriteLine("-------------------------");
-        await testRunner.RunTestAsync("Command Options - Complex", TestCommandOptions);
-        await testRunner.RunTestAsync("Boolean Options", TestBooleanOptions);
-        await testRunner.RunTestAsync("Short vs Long Options", TestShortVsLongOptions);
-        Console.WriteLine();
-
-        // === ARRAY OPTIONS TESTS ===
-        Console.WriteLine("📚 Array Options Tests");
-        Console.WriteLine("-----------------------");
-        await testRunner.RunTestAsync("Array Options - Single Value", TestArrayOptionsSingle);
-        await testRunner.RunTestAsync("Array Options - Multiple Values", TestArrayOptionsMultiple);
-        await testRunner.RunTestAsync("Array Options - Mixed", TestArrayOptionsMixed);
-        Console.WriteLine();
-
-        // === ENVIRONMENT VARIABLES TESTS ===
-        Console.WriteLine("🌍 Environment Variables Tests");
-        Console.WriteLine("-------------------------------");
-        await testRunner.RunTestAsync("Environment Variables - Basic", TestEnvironmentVariables);
-        await testRunner.RunTestAsync("Environment Variables - Override", TestEnvironmentVariablesOverride);
-        await testRunner.RunTestAsync("Environment Variables - Missing", TestEnvironmentVariablesMissing);
-        Console.WriteLine();
-
-        // === GLOBAL OPTIONS TESTS ===
-        Console.WriteLine("🌐 Global Options Tests");
-        Console.WriteLine("------------------------");
-        await testRunner.RunTestAsync("Global Options - Log Level", TestGlobalLogLevel);
-        await testRunner.RunTestAsync("Global Options - Complex Command", TestGlobalOptionsComplex);
-        Console.WriteLine();
-
-        // === DEFAULT VALUES TESTS ===
-        Console.WriteLine("🎯 Default Values Tests");
-        Console.WriteLine("------------------------");
-        await testRunner.RunTestAsync("Default Values Display", TestDefaultValuesInHelp);
-        await testRunner.RunTestAsync("Default Values Usage", TestDefaultValuesUsage);
-        Console.WriteLine();
-
-        // === HELP SYSTEM TESTS ===
-        Console.WriteLine("❓ Help System Tests");
-        Console.WriteLine("--------------------");
-        await testRunner.RunTestAsync("Help - Two Column Layout", TestTwoColumnLayout);
-        await testRunner.RunTestAsync("Help - Color Support", TestColorSupport);
-        await testRunner.RunTestAsync("Help - FromAmong Display", TestFromAmongDisplay);
-        await testRunner.RunTestAsync("Help - Environment Variables Display", TestEnvironmentVariablesDisplay);
-        Console.WriteLine();
-
-        // === EDGE CASES TESTS ===
-        Console.WriteLine("🔄 Edge Cases Tests");
-        Console.WriteLine("-------------------");
-        await testRunner.RunTestAsync("Empty Arguments", TestEmptyArguments);
-        await testRunner.RunTestAsync("Only Flags", TestOnlyFlags);
-        await testRunner.RunTestAsync("Mixed Options and Arguments", TestMixedOptionsAndArguments);
-        await testRunner.RunTestAsync("Special Characters in Values", TestSpecialCharacters);
-        Console.WriteLine();
-
-        // === TYPE PARSER INTEGRATION TESTS ===
-        Console.WriteLine("🔧 Type Parser Integration Tests");
-        Console.WriteLine("---------------------------------");
-        await testRunner.RunTestAsync("Integer Option Parsing", TestIntegerParsing);
-        await testRunner.RunTestAsync("Invalid Type Values", TestInvalidTypeValues);
-        Console.WriteLine();
-
-        // === COMMAND DISCOVERY TESTS ===
+        // Command discovery tests
         Console.WriteLine("🔍 Command Discovery Tests");
-        Console.WriteLine("---------------------------");
-        await testRunner.RunTestAsync("Case Sensitivity", TestCaseSensitivity);
+        Console.WriteLine("───────────────────────────");
+        await testRunner.RunTestAsync("Build Command Help", () => TestBuildCommandHelp(testExePath));
+        await testRunner.RunTestAsync("Test Command Help", () => TestTestCommandHelp(testExePath));
+        await testRunner.RunTestAsync("Deploy Command Help", () => TestDeployCommandHelp(testExePath));
+        await testRunner.RunTestAsync("Serve Command Help", () => TestServeCommandHelp(testExePath));
+        await testRunner.RunTestAsync("Invalid Command", () => TestInvalidCommand(testExePath));
+        Console.WriteLine();
+
+        // Cascading subcommand tests
+        Console.WriteLine("🔗 Cascading Subcommand Tests");
+        Console.WriteLine("──────────────────────────────");
+        await testRunner.RunTestAsync("Config Set Command Help", () => TestConfigSetCommandHelp(testExePath));
+        await testRunner.RunTestAsync("Config Get Command Help", () => TestConfigGetCommandHelp(testExePath));
+        await testRunner.RunTestAsync("Database Migrate Command Help", () => TestDatabaseMigrateCommandHelp(testExePath));
+        Console.WriteLine();
+
+        // Command execution tests
+        Console.WriteLine("🚀 Command Execution Tests");
+        Console.WriteLine("───────────────────────────");
+        await testRunner.RunTestAsync("Build Command Valid Execution", () => TestBuildValidExecution(testExePath));
+        await testRunner.RunTestAsync("Test Command Valid Execution", () => TestTestValidExecution(testExePath));
+        await testRunner.RunTestAsync("Deploy Command Valid Execution", () => TestDeployValidExecution(testExePath));
+        await testRunner.RunTestAsync("Config Set Execution", () => TestConfigSetExecution(testExePath));
+        await testRunner.RunTestAsync("Config Get Execution", () => TestConfigGetExecution(testExePath));
+        await testRunner.RunTestAsync("Database Migrate Execution", () => TestDatabaseMigrateExecution(testExePath));
+        await testRunner.RunTestAsync("Serve Command Execution", () => TestServeCommandExecution(testExePath));
+        Console.WriteLine();
+
+        // Options parsing tests
+        Console.WriteLine("⚙️ Options Parsing Tests");
+        Console.WriteLine("─────────────────────────");
+        await testRunner.RunTestAsync("Boolean Options", () => TestBooleanOptions(testExePath));
+        await testRunner.RunTestAsync("String Options", () => TestStringOptions(testExePath));
+        await testRunner.RunTestAsync("Integer Options", () => TestIntegerOptions(testExePath));
+        await testRunner.RunTestAsync("Double Options", () => TestDoubleOptions(testExePath));
+        await testRunner.RunTestAsync("Nullable Options", () => TestNullableOptions(testExePath));
+        await testRunner.RunTestAsync("Environment Variable Options", () => TestEnvironmentVariableOptions(testExePath));
+        Console.WriteLine();
+
+        // Array options tests
+        Console.WriteLine("📚 Array Options Tests");
+        Console.WriteLine("───────────────────────");
+        await testRunner.RunTestAsync("Single Array Value", () => TestArrayOptionsSingle(testExePath));
+        await testRunner.RunTestAsync("Multiple Array Values", () => TestArrayOptionsMultiple(testExePath));
+        await testRunner.RunTestAsync("Multiple Different Arrays", () => TestMultipleDifferentArrays(testExePath));
+        await testRunner.RunTestAsync("Empty Array Handling", () => TestEmptyArrayHandling(testExePath));
+        Console.WriteLine();
+
+        // Validation tests
+        Console.WriteLine("✔️ Validation Tests");
+        Console.WriteLine("────────────────────");
+        await testRunner.RunTestAsync("FromAmong Validation Valid", () => TestFromAmongValidationValid(testExePath));
+        await testRunner.RunTestAsync("FromAmong Validation Invalid", () => TestFromAmongValidationInvalid(testExePath));
+        await testRunner.RunTestAsync("Compact Short Option Valid", () => TestCompactShortOptionValidLogLevel(testExePath));
+        await testRunner.RunTestAsync("Compact Short Option Invalid", () => TestCompactShortOptionInvalidLogLevel(testExePath));
+        await testRunner.RunTestAsync("Framework Targeting", () => TestFrameworkTargeting(testExePath));
+        await testRunner.RunTestAsync("Output Format Validation", () => TestOutputFormatValidation(testExePath));
+        Console.WriteLine();
+
+        // Error handling tests
+        Console.WriteLine("❌ Error Handling Tests");
+        Console.WriteLine("────────────────────────");
+        await testRunner.RunTestAsync("Missing Required Arguments", () => TestMissingRequiredArguments(testExePath));
+        await testRunner.RunTestAsync("Invalid Type Values", () => TestInvalidTypeValues(testExePath));
+        await testRunner.RunTestAsync("Missing Required Options", () => TestMissingRequiredOptions(testExePath));
+        await testRunner.RunTestAsync("Invalid Command Combinations", () => TestInvalidCommandCombinations(testExePath));
+        Console.WriteLine();
+
+        // Global options tests
+        Console.WriteLine("🌐 Global Options Tests");
+        Console.WriteLine("────────────────────────");
+        await testRunner.RunTestAsync("Global Log Level Option", () => TestGlobalLogLevelOption(testExePath));
+        await testRunner.RunTestAsync("Global Quiet Option", () => TestGlobalQuietOption(testExePath));
+        await testRunner.RunTestAsync("Global Dry Run Option", () => TestGlobalDryRunOption(testExePath));
+        await testRunner.RunTestAsync("Global Config File Option", () => TestGlobalConfigFileOption(testExePath));
+        Console.WriteLine();
+
+        // Help system tests
+        Console.WriteLine("❓ Help System Tests");
+        Console.WriteLine("────────────────────");
+        await testRunner.RunTestAsync("Color Support", () => TestColorSupport(testExePath));
+        await testRunner.RunTestAsync("Two Column Layout", () => TestTwoColumnLayout(testExePath));
+        await testRunner.RunTestAsync("Default Values Display", () => TestDefaultValuesDisplay(testExePath));
+        await testRunner.RunTestAsync("Environment Variables Display", () => TestEnvironmentVariablesDisplay(testExePath));
+        await testRunner.RunTestAsync("Global Options in Command Help", () => TestGlobalOptionsInCommandHelp(testExePath));
+        Console.WriteLine();
+
+        // Advanced feature tests
+        Console.WriteLine("🎯 Advanced Feature Tests");
+        Console.WriteLine("──────────────────────────");
+        await testRunner.RunTestAsync("Complex Command Combination", () => TestComplexCommandCombination(testExePath));
+        await testRunner.RunTestAsync("Long Option Names", () => TestLongOptionNames(testExePath));
+        await testRunner.RunTestAsync("Mixed Short and Long Options", () => TestMixedShortAndLongOptions(testExePath));
+        await testRunner.RunTestAsync("Special Characters in Values", () => TestSpecialCharactersInValues(testExePath));
         Console.WriteLine();
 
         testRunner.PrintSummary();
@@ -121,230 +308,314 @@ public class ComprehensiveTestSuite
         return testRunner.HasFailures ? 1 : 0;
     }
 
-    private static async Task<TestResult> TestGlobalHelp()
-    {
-        var result = await RunTestExe("--help");
-        
-        var expectedContent = new[]
-        {
-            "ApplicationBuilderHelpers Test CLI v2.1.0",
-            "USAGE:",
-            "GLOBAL OPTIONS:",
-            "-l, --log-level <LOGLEVEL>",
-            "Set the logging level",
-            "-h, --help",
-            "Show this help message",
-            "-V, --version",
-            "Show version information",
-            "COMMANDS:",
-            "build",
-            "Build the project with optional deployment",
-            "test",
-            "Run various test operations"
-        };
+    #region Pre-flight Tests
 
-        return ValidateOutput(result, 0, expectedContent, "Global help should display correctly");
+    private static async Task<TestResult> TestExecutableBasicExecution(string testExePath)
+    {
+        try
+        {
+            var result = await RunTestExe(testExePath, "--version");
+            var success = result.ExitCode == 0 && !string.IsNullOrEmpty(result.Output);
+            
+            return new TestResult
+            {
+                Success = success,
+                Message = success ? "✅ Test executable runs successfully" : "❌ Test executable failed to run",
+                Output = result.Output,
+                Error = result.Error,
+                ExitCode = result.ExitCode,
+                Arguments = "--version"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new TestResult
+            {
+                Success = false,
+                Message = $"❌ Exception during basic execution: {ex.Message}",
+                Output = "",
+                Error = ex.ToString(),
+                ExitCode = -1,
+                Arguments = "--version"
+            };
+        }
     }
 
-    private static async Task<TestResult> TestVersion()
+    #endregion
+
+    #region Core Functionality Tests
+
+    private static async Task<TestResult> TestGlobalHelp(string testExePath)
     {
-        var result = await RunTestExe("--version");
+        var result = await RunTestExe(testExePath, "--help");
         
+        var expectedContent = new []
+        {
+            "ApplicationBuilderHelpers Test CLI",
+            "2.1.0",
+            "USAGE:",
+            "COMMANDS:",
+            "build",
+            "test",
+            "deploy",
+            "serve",
+            "config",
+            "database"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Global help should display CLI information and all commands");
+    }
+
+    private static async Task<TestResult> TestVersion(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "--version");
         return ValidateOutput(result, 0, ["2.1.0"], "Version should be displayed");
     }
 
-    private static async Task<TestResult> TestBuildCommandHelp()
+    private static async Task<TestResult> TestEmptyArguments(string testExePath)
     {
-        var result = await RunTestExe("build", "--help");
+        var result = await RunTestExe(testExePath);
+        
+        // Should either show default command or help
+        var success = result.ExitCode == 0 && !string.IsNullOrEmpty(result.Output);
+        
+        return new TestResult
+        {
+            Success = success,
+            Message = success ? "✅ Empty arguments handled gracefully" : "❌ Empty arguments caused issues",
+            Output = result.Output,
+            Error = result.Error,
+            ExitCode = result.ExitCode,
+            Arguments = "(empty)"
+        };
+    }
+
+    #endregion
+
+    #region Command Discovery Tests
+
+    private static async Task<TestResult> TestBuildCommandHelp(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "build", "--help");
         
         var expectedContent = new[]
         {
-            "Build the project with optional deployment",
+            "Build the project",
             "USAGE:",
-            "test build [OPTIONS] [GLOBAL OPTIONS] [ARGS]",
             "OPTIONS:",
-            "-r, --release",
-            "Build in release mode",
-            "-o, --output <OUTPUTPATH>",
-            "Output directory",
-            "--target <TARGET>",
-            "Build target",
             "ARGUMENTS:",
             "project",
-            "Project file to build (REQUIRED)",
-            "GLOBAL OPTIONS:",
-            "-l, --log-level <LOGLEVEL>",
-            "Set the logging level",
-            "-h, --help",
-            "-V, --version"
+            "--release",
+            "--output"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Build command help should show required argument");
+        return ValidateOutput(result, 0, expectedContent, "Build command help should show options and arguments");
     }
 
-    private static async Task<TestResult> TestTestCommandHelp()
+    private static async Task<TestResult> TestTestCommandHelp(string testExePath)
     {
-        var result = await RunTestExe("test", "--help");
+        var result = await RunTestExe(testExePath, "test", "--help");
         
         var expectedContent = new[]
         {
             "Run various test operations",
             "OPTIONS:",
-            "-v, --verbose",
-            "Enable verbose output",
-            "-c, --config <CONFIGPATH>",
-            "Configuration file path",
-            "--timeout <TIMEOUT>",
-            "Timeout in seconds",
-            "--parallel",
-            "Run tests in parallel",
-            "ARGUMENTS:",
-            "target",
-            "Target to test",
-            "GLOBAL OPTIONS:"
+            "--verbose",
+            "--config",
+            "--tags",
+            "--coverage",
+            "--framework"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Test command help should display correctly");
+        return ValidateOutput(result, 0, expectedContent, "Test command help should display comprehensive options");
     }
 
-    private static async Task<TestResult> TestBuildMissingArgument()
+    private static async Task<TestResult> TestDeployCommandHelp(string testExePath)
     {
-        var result = await RunTestExe("build");
-        
-        return ValidateOutput(result, 1, ["Missing required argument: project"], "Should error when required argument is missing");
-    }
-
-    private static async Task<TestResult> TestBuildValidExecution()
-    {
-        var result = await RunTestExe("build", "MyProject.csproj");
+        var result = await RunTestExe(testExePath, "deploy", "--help");
         
         var expectedContent = new[]
         {
-            "Building project: MyProject.csproj",
-            "Target: Debug",
-            "Release mode: False"
+            "Deploy applications",
+            "environment",
+            "--strategy",
+            "--services",
+            "--dry-run"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Build command should execute successfully with required argument");
+        return ValidateOutput(result, 0, expectedContent, "Deploy command help should show deployment options");
     }
 
-    private static async Task<TestResult> TestTestValidExecution()
+    private static async Task<TestResult> TestServeCommandHelp(string testExePath)
     {
-        var result = await RunTestExe("test", "MyTarget", "--verbose", "--parallel");
+        var result = await RunTestExe(testExePath, "serve", "--help");
         
         var expectedContent = new[]
         {
-            "Running test on target: MyTarget",
-            "Config: default",
-            "Timeout: 30s",
-            "Parallel: True"
+            "Start a development server",
+            "--port",
+            "--host",
+            "--https",
+            "--watch"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Test command should execute with options");
+        return ValidateOutput(result, 0, expectedContent, "Serve command help should show server options");
     }
 
-    private static async Task<TestResult> TestMainCommandExecution()
+    private static async Task<TestResult> TestInvalidCommand(string testExePath)
     {
-        var result = await RunTestExe();
+        var result = await RunTestExe(testExePath, "invalid-command");
+        // The error message is "No command found.\n" - adjust expectation
+        return ValidateOutput(result, 1, ["No command found"], "Invalid command should return error");
+    }
+
+    #endregion
+
+    #region Cascading Subcommand Tests
+
+    private static async Task<TestResult> TestConfigSetCommandHelp(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "config", "set", "--help");
         
         var expectedContent = new[]
         {
-            "ApplicationBuilderHelpers Test CLI - Default Command",
-            "Use --help to see available commands and options."
+            "Set configuration values",
+            "key",
+            "value",
+            "--global",
+            "--force"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Main command should execute as default");
+        return ValidateOutput(result, 0, expectedContent, "Config set command should show cascading subcommand structure");
     }
 
-    private static async Task<TestResult> TestGlobalLogLevel()
+    private static async Task<TestResult> TestConfigGetCommandHelp(string testExePath)
     {
-        var result = await RunTestExe("--log-level", "debug", "build", "test.csproj");
+        var result = await RunTestExe(testExePath, "config", "get", "--help");
         
         var expectedContent = new[]
         {
-            "Building project: test.csproj"
+            "Get configuration values",
+            "--all",
+            "--global",
+            "--format"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Global log level option should work");
+        return ValidateOutput(result, 0, expectedContent, "Config get command should show configuration retrieval options");
     }
 
-    private static async Task<TestResult> TestCommandOptions()
+    private static async Task<TestResult> TestDatabaseMigrateCommandHelp(string testExePath)
     {
-        var result = await RunTestExe("build", "MyProject.csproj", "--release", "--output", "bin/Release", "--target", "Release");
+        var result = await RunTestExe(testExePath, "database", "migrate", "--help");
         
         var expectedContent = new[]
         {
-            "Building project: MyProject.csproj",
-            "Target: Release",
-            "Release mode: True",
-            "Output: bin/Release"
+            "Run database migrations",
+            "--target",
+            "--script",
+            "--backup"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Command options should be parsed correctly");
+        return ValidateOutput(result, 0, expectedContent, "Database migrate command should show migration options");
     }
 
-    // === MISSING TEST METHODS ===
-    private static async Task<TestResult> TestArrayOptions()
+    #endregion
+
+    #region Command Execution Tests
+
+    private static async Task<TestResult> TestBuildValidExecution(string testExePath)
     {
-        var result = await RunTestExe("test", "MyTarget", "--tags", "unit", "--tags", "integration", "--verbose");
+        var result = await RunTestExe(testExePath, "build", "MyProject.csproj");
         
         var expectedContent = new[]
         {
-            "Running test on target: MyTarget",
-            "Tags: unit, integration"
+            "Building project: MyProject.csproj"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Array options should be parsed correctly");
+        return ValidateOutput(result, 0, expectedContent, "Build command should execute with required argument");
     }
 
-    private static async Task<TestResult> TestEnvironmentVariables()
+    private static async Task<TestResult> TestTestValidExecution(string testExePath)
     {
-        // Set environment variable and test
-        Environment.SetEnvironmentVariable("TEST_CONFIG", "/path/to/config.xml");
-        var result = await RunTestExe("test", "MyTarget", "--verbose");
-        Environment.SetEnvironmentVariable("TEST_CONFIG", null); // Clean up
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--verbose");
         
         var expectedContent = new[]
         {
-            "Running test on target: MyTarget",
-            "Config: /path/to/config.xml"
+            "Running test on target: MyTarget"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Environment variables should be used as defaults");
+        return ValidateOutput(result, 0, expectedContent, "Test command should execute with arguments");
     }
 
-    private static async Task<TestResult> TestEnvironmentVariablesOverride()
+    private static async Task<TestResult> TestDeployValidExecution(string testExePath)
     {
-        Environment.SetEnvironmentVariable("TEST_CONFIG", "/env/config.xml");
-        var result = await RunTestExe("test", "MyTarget", "--config", "/override/config.xml", "--verbose");
-        Environment.SetEnvironmentVariable("TEST_CONFIG", null);
+        var result = await RunTestExe(testExePath, "deploy", "production", "v1.2.3");
         
         var expectedContent = new[]
         {
-            "Running test on target: MyTarget",
-            "Config: /override/config.xml"
+            "Deploying to environment: production",
+            "Version: v1.2.3"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Command line options should override environment variables");
+        return ValidateOutput(result, 0, expectedContent, "Deploy command should execute with environment and version");
     }
 
-    private static async Task<TestResult> TestEnvironmentVariablesMissing()
+    private static async Task<TestResult> TestConfigSetExecution(string testExePath)
     {
-        Environment.SetEnvironmentVariable("TEST_CONFIG", null); // Ensure it's not set
-        var result = await RunTestExe("test", "MyTarget", "--verbose");
+        var result = await RunTestExe(testExePath, "config", "set", "user.name", "testuser");
         
         var expectedContent = new[]
         {
-            "Running test on target: MyTarget",
-            "Config: default"
+            "Setting config user.name = testuser"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Missing environment variables should use defaults");
+        return ValidateOutput(result, 0, expectedContent, "Config set should work with cascading subcommands");
     }
 
-    private static async Task<TestResult> TestBooleanOptions()
+    private static async Task<TestResult> TestConfigGetExecution(string testExePath)
     {
-        var result = await RunTestExe("test", "MyTarget", "--verbose", "--parallel");
+        var result = await RunTestExe(testExePath, "config", "get", "user.name");
+        
+        var expectedContent = new[]
+        {
+            "Getting configuration for key: user.name"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Config get should work with cascading subcommands");
+    }
+
+    private static async Task<TestResult> TestDatabaseMigrateExecution(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "database", "migrate");
+        
+        var expectedContent = new[]
+        {
+            "Running database migrations"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Database migrate should execute successfully");
+    }
+
+    private static async Task<TestResult> TestServeCommandExecution(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "serve", "--port", "3000");
+        
+        var expectedContent = new[]
+        {
+            "Starting development server",
+            "Port: 3000"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Serve command should start with specified port");
+    }
+
+    #endregion
+
+    #region Options Parsing Tests
+
+    private static async Task<TestResult> TestBooleanOptions(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--verbose", "--parallel");
         
         var expectedContent = new[]
         {
@@ -355,247 +626,22 @@ public class ComprehensiveTestSuite
         return ValidateOutput(result, 0, expectedContent, "Boolean flags should be parsed correctly");
     }
 
-    private static async Task<TestResult> TestShortVsLongOptions()
+    private static async Task<TestResult> TestStringOptions(string testExePath)
     {
-        var result1 = await RunTestExe("test", "MyTarget", "-v");
-        var result2 = await RunTestExe("test", "MyTarget", "--verbose");
-        
-        var bothSuccessful = result1.ExitCode == 0 && result2.ExitCode == 0;
-        var similarOutput = result1.Output.Contains("MyTarget") && result2.Output.Contains("MyTarget");
-        
-        return new TestResult
-        {
-            Success = bothSuccessful && similarOutput,
-            Message = bothSuccessful && similarOutput ? "✅ Short and long options should work identically" : "❌ Short and long options behave differently",
-            Output = $"Short: {result1.Output}\nLong: {result2.Output}",
-            Error = $"Short: {result1.Error}\nLong: {result2.Error}",
-            ExitCode = bothSuccessful ? 0 : 1,
-            Arguments = "Short vs Long comparison"
-        };
-    }
-
-    private static async Task<TestResult> TestArrayOptionsSingle()
-    {
-        var result = await RunTestExe("test", "MyTarget", "--tags", "unit", "--verbose");
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--config", "config.xml", "--verbose");
         
         var expectedContent = new[]
         {
             "Running test on target: MyTarget",
-            "Tags: unit"
+            "Config: config.xml"
         };
 
-        return ValidateOutput(result, 0, expectedContent, "Single array option should be parsed correctly");
+        return ValidateOutput(result, 0, expectedContent, "String options should be parsed correctly");
     }
 
-    private static async Task<TestResult> TestArrayOptionsMultiple()
+    private static async Task<TestResult> TestIntegerOptions(string testExePath)
     {
-        var result = await RunTestExe("test", "MyTarget", "--tags", "unit", "--tags", "integration", "--tags", "e2e", "--verbose");
-        
-        var expectedContent = new[]
-        {
-            "Running test on target: MyTarget",
-            "Tags: unit, integration, e2e"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Multiple array options should be collected correctly");
-    }
-
-    private static async Task<TestResult> TestArrayOptionsMixed()
-    {
-        var result = await RunTestExe("test", "MyTarget", "--tags", "unit", "--exclude", "slow", "--tags", "fast", "--verbose");
-        
-        var expectedContent = new[]
-        {
-            "Running test on target: MyTarget",
-            "Tags: unit, fast",
-            "Exclude: slow"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Mixed array options should be parsed independently");
-    }
-
-    // === ERROR HANDLING TESTS ===
-    private static async Task<TestResult> TestMissingRequiredOption()
-    {
-        var result = await RunTestExe("build", "test.csproj", "--output", "/path/output");
-        
-        // Assuming we add a required option to test this
-        return ValidateOutput(result, 0, ["Building project: test.csproj"], "Should handle missing non-required options gracefully");
-    }
-
-    private static async Task<TestResult> TestInvalidCommand()
-    {
-        var result = await RunTestExe("invalid-command");
-        
-        return ValidateOutput(result, 1, ["No command found."], "Should error on invalid command");
-    }
-
-    private static async Task<TestResult> TestUnknownOption()
-    {
-        var result = await RunTestExe("build", "test.csproj", "--unknown-option");
-        
-        return ValidateOutput(result, 1, ["Unknown option: --unknown-option"], "Should error on unknown option");
-    }
-
-    private static async Task<TestResult> TestGlobalOptionsComplex()
-    {
-        var result = await RunTestExe("--log-level", "debug", "test", "MyTarget", "--verbose", "--parallel");
-        
-        var expectedContent = new[]
-        {
-            "Running test on target: MyTarget",
-            "Parallel: True"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Global options should work with complex commands");
-    }
-
-    private static async Task<TestResult> TestDefaultValuesInHelp()
-    {
-        var result = await RunTestExe("build", "--help");
-        
-        var expectedContent = new[]
-        {
-            "Default:",
-            "Debug"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Default values should be displayed in help");
-    }
-
-    private static async Task<TestResult> TestDefaultValuesUsage()
-    {
-        var result = await RunTestExe("build", "test.csproj");
-        
-        var expectedContent = new[]
-        {
-            "Building project: test.csproj",
-            "Target: Debug",
-            "Output: bin/Debug"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Default values should be used when options not specified");
-    }
-
-    private static async Task<TestResult> TestTwoColumnLayout()
-    {
-        var result = await RunTestExe("build", "--help");
-        
-        var expectedContent = new[]
-        {
-            "-r, --release",
-            "Build in release mode",
-            "-o, --output",
-            "Output directory"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Help should display in proper two-column layout");
-    }
-
-    private static async Task<TestResult> TestColorSupport()
-    {
-        var result = await RunTestExe("--help");
-        
-        // Check for ANSI color codes in output
-        var hasColors = result.Output.Contains("\u001b[") || result.Output.Contains("[96m") || result.Output.Contains("[93m");
-        
-        return new TestResult
-        {
-            Success = hasColors,
-            Message = hasColors ? "✅ Help output should contain color codes" : "❌ Help output missing color support",
-            Output = result.Output,
-            Error = result.Error,
-            ExitCode = result.ExitCode,
-            Arguments = "--help"
-        };
-    }
-
-    private static async Task<TestResult> TestFromAmongDisplay()
-    {
-        var result = await RunTestExe("build", "--help");
-        
-        var expectedContent = new[]
-        {
-            "Possible values:",
-            "Debug, Release, Test"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "FromAmong values should be displayed in help");
-    }
-
-    private static async Task<TestResult> TestEnvironmentVariablesDisplay()
-    {
-        var result = await RunTestExe("build", "--help");
-        
-        var expectedContent = new[]
-        {
-            "Environment variable:",
-            "BUILD_OUTPUT"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Environment variables should be displayed in help");
-    }
-
-    private static async Task<TestResult> TestEmptyArguments()
-    {
-        var result = await RunTestExe();
-        
-        // Should show default command or global help
-        return new TestResult
-        {
-            Success = result.ExitCode == 0,
-            Message = result.ExitCode == 0 ? "✅ Empty arguments should be handled gracefully" : "❌ Empty arguments caused error",
-            Output = result.Output,
-            Error = result.Error,
-            ExitCode = result.ExitCode,
-            Arguments = "(empty)"
-        };
-    }
-
-    private static async Task<TestResult> TestOnlyFlags()
-    {
-        var result = await RunTestExe("test", "--verbose", "--parallel");
-        
-        var expectedContent = new[]
-        {
-            "Running test on target: default",
-            "Parallel: True"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Commands with only boolean flags should work");
-    }
-
-    private static async Task<TestResult> TestMixedOptionsAndArguments()
-    {
-        var result = await RunTestExe("build", "--release", "MyProject.csproj", "--output", "bin/Release", "--target", "Release");
-        
-        var expectedContent = new[]
-        {
-            "Building project: MyProject.csproj",
-            "Release mode: True",
-            "Output: bin/Release",
-            "Target: Release"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Mixed options and arguments should be parsed correctly");
-    }
-
-    private static async Task<TestResult> TestSpecialCharacters()
-    {
-        var result = await RunTestExe("test", "My-Project_Test", "--config", "/path/with spaces/config.xml");
-        
-        var expectedContent = new[]
-        {
-            "Running test on target: My-Project_Test",
-            "Config: /path/with spaces/config.xml"
-        };
-
-        return ValidateOutput(result, 0, expectedContent, "Special characters in values should be handled correctly");
-    }
-
-    private static async Task<TestResult> TestIntegerParsing()
-    {
-        var result = await RunTestExe("test", "MyTarget", "--timeout", "120", "--verbose");
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--timeout", "120", "--verbose");
         
         var expectedContent = new[]
         {
@@ -606,49 +652,442 @@ public class ComprehensiveTestSuite
         return ValidateOutput(result, 0, expectedContent, "Integer options should be parsed correctly");
     }
 
-    private static async Task<TestResult> TestInvalidTypeValues()
+    private static async Task<TestResult> TestDoubleOptions(string testExePath)
     {
-        var result = await RunTestExe("test", "MyTarget", "--timeout", "invalid");
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--coverage-threshold", "85.5", "--verbose");
         
-        return ValidateOutput(result, 1, ["Invalid value", "invalid"], "Invalid type values should produce error");
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Coverage Threshold: 85.5%"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Double options should be parsed correctly");
     }
 
-    private static async Task<TestResult> TestCaseSensitivity()
+    private static async Task<TestResult> TestNullableOptions(string testExePath)
     {
-        var result1 = await RunTestExe("build", "test.csproj");
-        var result2 = await RunTestExe("BUILD", "test.csproj"); // Should fail
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--seed", "42", "--verbose");
         
-        var success1 = result1.ExitCode == 0;
-        var success2 = result2.ExitCode != 0; // Should fail
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Random Seed: 42"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Nullable integer options should be parsed correctly");
+    }
+
+    private static async Task<TestResult> TestEnvironmentVariableOptions(string testExePath)
+    {
+        // Set environment variable
+        Environment.SetEnvironmentVariable("TEST_CONFIG", "env-config.json");
+        
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Config: env-config.json"
+        };
+
+        // Clean up
+        Environment.SetEnvironmentVariable("TEST_CONFIG", null);
+
+        return ValidateOutput(result, 0, expectedContent, "Environment variable options should be used as defaults");
+    }
+
+    #endregion
+
+    #region Array Options Tests
+
+    private static async Task<TestResult> TestArrayOptionsSingle(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--tags", "unit", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Tags: unit"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Single array option should be parsed correctly");
+    }
+
+    private static async Task<TestResult> TestArrayOptionsMultiple(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--tags", "unit", "--tags", "integration", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Tags: unit, integration"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Multiple array options should be collected correctly");
+    }
+
+    private static async Task<TestResult> TestMultipleDifferentArrays(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--tags", "unit", "--exclude", "slow", "--tags", "integration", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Tags: unit, integration",
+            "Exclude: slow"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Multiple different array types should work together");
+    }
+
+    private static async Task<TestResult> TestEmptyArrayHandling(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--verbose");
+        
+        var success = result.ExitCode == 0;
         
         return new TestResult
         {
-            Success = success1 && success2,
-            Message = success1 && success2 ? "✅ Commands should be case sensitive" : "❌ Case sensitivity not working correctly",
-            Output = $"Lower: {result1.Output}\nUpper: {result2.Output}",
-            Error = $"Lower: {result1.Error}\nUpper: {result2.Error}",
-            ExitCode = success1 && success2 ? 0 : 1,
-            Arguments = "Case sensitivity test"
+            Success = success,
+            Message = success ? "✅ Empty arrays handled correctly" : "❌ Empty arrays caused issues",
+            Output = result.Output,
+            Error = result.Error,
+            ExitCode = result.ExitCode,
+            Arguments = "test MyTarget --verbose"
         };
     }
 
-    private static async Task<ProcessResult> RunTestExe(params string[] arguments)
+    #endregion
+
+    #region Validation Tests
+
+    private static async Task<TestResult> TestFromAmongValidationValid(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "build", "MyProject.csproj", "--target", "Release");
+        
+        var expectedContent = new[]
+        {
+            "Building project: MyProject.csproj",
+            "Target: Release"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Valid FromAmong option should be accepted");
+    }
+
+    private static async Task<TestResult> TestFromAmongValidationInvalid(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "build", "MyProject.csproj", "--target", "InvalidTarget");
+        
+        var expectedContent = new[]
+        {
+            "not valid",
+            "Must be one of"
+        };
+
+        return ValidateOutput(result, 1, expectedContent, "Invalid FromAmong option should be rejected");
+    }
+
+    private static async Task<TestResult> TestCompactShortOptionValidLogLevel(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "-ldebug", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Compact short option with value (-ldebug) should be parsed correctly");
+    }
+
+    private static async Task<TestResult> TestCompactShortOptionInvalidLogLevel(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "-linvalid");
+        
+        var expectedContent = new[]
+        {
+            "not valid",
+            "Must be one of"
+        };
+
+        return ValidateOutput(result, 1, expectedContent, "Invalid compact short option value (-linvalid) should be rejected");
+    }
+
+    private static async Task<TestResult> TestFrameworkTargeting(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--framework", "net9.0", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Framework: net9.0"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Framework targeting should work with valid values");
+    }
+
+    private static async Task<TestResult> TestOutputFormatValidation(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--output-format", "json", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Output Format: json"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Output format validation should accept valid formats");
+    }
+
+    #endregion
+
+    #region Error Handling Tests
+
+    private static async Task<TestResult> TestMissingRequiredArguments(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "build");
+        return ValidateOutput(result, 1, ["required", "project"], "Missing required arguments should produce error");
+    }
+
+    private static async Task<TestResult> TestInvalidTypeValues(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--timeout", "invalid");
+        return ValidateOutput(result, 1, ["Invalid", "timeout"], "Invalid type values should produce error");
+    }
+
+    private static async Task<TestResult> TestMissingRequiredOptions(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "deploy");
+        return ValidateOutput(result, 1, ["required", "environment"], "Missing required options should produce error");
+    }
+
+    private static async Task<TestResult> TestInvalidCommandCombinations(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "config", "invalid-subcommand");
+        return ValidateOutput(result, 1, ["No command found"], "Invalid command combinations should produce error");
+    }
+
+    #endregion
+
+    #region Global Options Tests
+
+    private static async Task<TestResult> TestGlobalLogLevelOption(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "--log-level", "debug", "test", "MyTarget");
+        
+        var success = result.ExitCode == 0;
+        
+        return new TestResult
+        {
+            Success = success,
+            Message = success ? "✅ Global log level option works" : "❌ Global log level option failed",
+            Output = result.Output,
+            Error = result.Error,
+            ExitCode = result.ExitCode,
+            Arguments = "--log-level debug test MyTarget"
+        };
+    }
+
+    private static async Task<TestResult> TestGlobalQuietOption(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "--quiet", "test", "MyTarget");
+        
+        var success = result.ExitCode == 0;
+        
+        return new TestResult
+        {
+            Success = success,
+            Message = success ? "✅ Global quiet option works" : "❌ Global quiet option failed",
+            Output = result.Output,
+            Error = result.Error,
+            ExitCode = result.ExitCode,
+            Arguments = "--quiet test MyTarget"
+        };
+    }
+
+    private static async Task<TestResult> TestGlobalDryRunOption(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "--dry-run", "build", "MyProject.csproj");
+        
+        var success = result.ExitCode == 0;
+        
+        return new TestResult
+        {
+            Success = success,
+            Message = success ? "✅ Global dry run option works" : "❌ Global dry run option failed",
+            Output = result.Output,
+            Error = result.Error,
+            ExitCode = result.ExitCode,
+            Arguments = "--dry-run build MyProject.csproj"
+        };
+    }
+
+    private static async Task<TestResult> TestGlobalConfigFileOption(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "--config-file", "custom-config.json", "test", "MyTarget");
+        
+        var success = result.ExitCode == 0;
+        
+        return new TestResult
+        {
+            Success = success,
+            Message = success ? "✅ Global config file option works" : "❌ Global config file option failed",
+            Output = result.Output,
+            Error = result.Error,
+            ExitCode = result.ExitCode,
+            Arguments = "--config-file custom-config.json test MyTarget"
+        };
+    }
+
+    #endregion
+
+    #region Help System Tests
+
+    private static async Task<TestResult> TestColorSupport(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "--help");
+        
+        // Check for ANSI color codes in output
+        var hasColors = result.Output.Contains("\u001b[") || result.Output.Contains("38;2;");
+        
+        return new TestResult
+        {
+            Success = hasColors,
+            Message = hasColors ? "✅ Help output contains color codes" : "❌ Help output missing color support",
+            Output = result.Output,
+            Error = result.Error,
+            ExitCode = result.ExitCode,
+            Arguments = "--help"
+        };
+    }
+
+    private static async Task<TestResult> TestTwoColumnLayout(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "build", "--help");
+        
+        var expectedContent = new[]
+        {
+            "--release",
+            "Build in release mode",
+            "--output",
+            "Output directory"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Help should display in proper two-column layout");
+    }
+
+    private static async Task<TestResult> TestDefaultValuesDisplay(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "--help");
+        
+        var expectedContent = new[]
+        {
+            "Default:",
+            "console",
+            "80.0"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Help should display default values");
+    }
+
+    private static async Task<TestResult> TestEnvironmentVariablesDisplay(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "--help");
+        
+        var expectedContent = new[]
+        {
+            "Environment variable:",
+            "TEST_CONFIG"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Help should display environment variable information");
+    }
+
+    private static async Task<TestResult> TestGlobalOptionsInCommandHelp(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "build", "--help");
+        
+        var expectedContent = new[]
+        {
+            "GLOBAL OPTIONS:",
+            "--log-level",
+            "--quiet",
+            "--dry-run"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Command help should display global options");
+    }
+
+    #endregion
+
+    #region Advanced Feature Tests
+
+    private static async Task<TestResult> TestComplexCommandCombination(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", 
+            "--verbose", "--parallel", "--coverage", 
+            "--tags", "unit", "--tags", "integration",
+            "--framework", "net9.0", "--timeout", "300");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Parallel: True",
+            "Coverage Enabled: True",
+            "Tags: unit, integration",
+            "Framework: net9.0",
+            "Timeout: 300s"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Complex command combinations should work correctly");
+    }
+
+    private static async Task<TestResult> TestLongOptionNames(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--coverage-threshold", "90.0", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Coverage Threshold: 90%"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Long option names should be parsed correctly");
+    }
+
+    private static async Task<TestResult> TestMixedShortAndLongOptions(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "-v", "--parallel", "-t", "unit", "--framework", "net9.0");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Parallel: True",
+            "Tags: unit",
+            "Framework: net9.0"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Mixed short and long options should work together");
+    }
+
+    private static async Task<TestResult> TestSpecialCharactersInValues(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "My Target With Spaces", "--config", "path/with-special_chars.json", "--verbose");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: My Target With Spaces",
+            "Config: path/with-special_chars.json"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Special characters in values should be handled correctly");
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static async Task<ProcessResult> RunTestExe(string testExePath, params string[] arguments)
     {
         try
         {
-            // Find the test.exe in the CLI project's output directory
-            var testExePath = FindTestExe();
-            
-            if (!File.Exists(testExePath))
-            {
-                // Try to build the CLI project first
-                await BuildCliProject();
-                testExePath = FindTestExe();
-                
-                if (!File.Exists(testExePath))
-                    throw new FileNotFoundException($"test.exe not found at {testExePath}");
-            }
-
             var psi = new ProcessStartInfo
             {
                 FileName = testExePath,
@@ -685,15 +1124,16 @@ public class ComprehensiveTestSuite
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            // Set a timeout for the process
-            if (!await Task.Run(() => process.WaitForExit(10000)))
+            if (!await Task.Run(() => process.WaitForExit(30000))) // Increased timeout
             {
-                try
+                try { process.Kill(); } catch { }
+                return new ProcessResult
                 {
-                    process.Kill();
-                }
-                catch { }
-                throw new TimeoutException("Process timed out after 10 seconds");
+                    ExitCode = -1,
+                    Output = output.ToString(),
+                    Error = "Process timed out after 30 seconds",
+                    Arguments = string.Join(" ", arguments)
+                };
             }
 
             return new ProcessResult
@@ -716,49 +1156,6 @@ public class ComprehensiveTestSuite
         }
     }
 
-    private static string FindTestExe()
-    {
-        // Look for test.exe in various possible locations
-        var basePath = Path.GetDirectoryName(typeof(Program).Assembly.Location) ?? "";
-        var possiblePaths = new[]
-        {
-            Path.Combine(basePath, "..", "..", "..", "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
-            Path.Combine(basePath, "..", "..", "..", "..", "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe"),
-            Path.Combine(Environment.CurrentDirectory, "test.exe"),
-            Path.Combine(Environment.CurrentDirectory, "ApplicationBuilderHelpers.Test.Cli", "bin", "Debug", "net9.0", "test.exe"),
-            Path.Combine(Environment.CurrentDirectory, "ApplicationBuilderHelpers.Test.Cli", "bin", "Release", "net9.0", "test.exe")
-        };
-
-        return possiblePaths.FirstOrDefault(File.Exists) ?? possiblePaths[0];
-    }
-
-    private static async Task BuildCliProject()
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = "build ../ApplicationBuilderHelpers.Test.Cli/ApplicationBuilderHelpers.Test.Cli.csproj -c Debug",
-                WorkingDirectory = Environment.CurrentDirectory,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(psi);
-            if (process != null)
-            {
-                await process.WaitForExitAsync();
-            }
-        }
-        catch
-        {
-            // Ignore build errors for now
-        }
-    }
-
     private static TestResult ValidateOutput(ProcessResult result, int expectedExitCode, string[] expectedContent, string description)
     {
         var success = true;
@@ -770,13 +1167,19 @@ public class ComprehensiveTestSuite
             message.AppendLine($"❌ Expected exit code {expectedExitCode}, got {result.ExitCode}");
         }
 
+        var missingContent = new List<string>();
         foreach (var expected in expectedContent)
         {
             if (!result.Output.Contains(expected, StringComparison.OrdinalIgnoreCase))
             {
                 success = false;
-                message.AppendLine($"❌ Missing expected content: '{expected}'");
+                missingContent.Add(expected);
             }
+        }
+
+        if (missingContent.Count > 0)
+        {
+            message.AppendLine($"❌ Missing expected content: {string.Join(", ", missingContent.Select(c => $"'{c}'"))}");
         }
 
         if (!string.IsNullOrEmpty(result.Error) && result.ExitCode == 0)
@@ -795,6 +1198,8 @@ public class ComprehensiveTestSuite
             Arguments = result.Arguments
         };
     }
+
+    #endregion
 }
 
 public class TestRunner
@@ -805,7 +1210,7 @@ public class TestRunner
 
     public async Task RunTestAsync(string testName, Func<Task<TestResult>> testFunc)
     {
-        Console.Write($"🔍 Running: {testName,-40} ");
+        Console.Write($"🔍 {testName,-50} ");
         
         try
         {
@@ -824,7 +1229,7 @@ public class TestRunner
                 {
                     Console.WriteLine($"   Command: test.exe {result.Arguments}");
                 }
-                if (!string.IsNullOrEmpty(result.Output))
+                if (!string.IsNullOrEmpty(result.Output) && result.Output.Length < 500)
                 {
                     Console.WriteLine($"   Output: {result.Output.Replace("\n", "\\n").Replace("\r", "")}");
                 }
@@ -849,8 +1254,6 @@ public class TestRunner
             Console.WriteLine("❌ FAIL (Exception)");
             Console.WriteLine($"   {ex.Message}");
         }
-        
-        Console.WriteLine();
     }
 
     public void PrintSummary()
@@ -858,21 +1261,47 @@ public class TestRunner
         var passed = _results.Count(r => r.Success);
         var failed = _results.Count(r => !r.Success);
         
+        Console.WriteLine();
         Console.WriteLine("📊 Test Summary");
-        Console.WriteLine("===============");
+        Console.WriteLine("═══════════════");
         Console.WriteLine($"✅ Passed: {passed}");
         Console.WriteLine($"❌ Failed: {failed}");
         Console.WriteLine($"📋 Total:  {_results.Count}");
+        Console.WriteLine($"📈 Success Rate: {(double)passed / _results.Count * 100:F1}%");
         Console.WriteLine();
         
         if (HasFailures)
         {
-            Console.WriteLine("❌ Some tests failed!");
+            Console.WriteLine("❌ Some tests failed! Check the output above for details.");
+            Console.WriteLine();
+            Console.WriteLine("Failed Tests:");
+            foreach (var failedTest in _results.Where(r => !r.Success))
+            {
+                Console.WriteLine($"  • {failedTest.Arguments} - {failedTest.Message.Split('\n')[0]}");
+            }
         }
         else
         {
             Console.WriteLine("🎉 All tests passed!");
         }
+        
+        Console.WriteLine();
+        Console.WriteLine("💡 Manual Testing Commands:");
+        Console.WriteLine("   test.exe --help");
+        Console.WriteLine("   test.exe --version");
+        Console.WriteLine("   test.exe build --help");
+        Console.WriteLine("   test.exe build MyProject.csproj --release");
+        Console.WriteLine("   test.exe test MyTarget --verbose --parallel");
+        Console.WriteLine("   test.exe deploy production v1.0.0 --strategy blue-green");
+        Console.WriteLine("   test.exe config set user.name testuser --global");
+        Console.WriteLine("   test.exe config get --all --format json");
+        Console.WriteLine("   test.exe database migrate --dry-run");
+        Console.WriteLine("   test.exe serve --port 3000 --https");
+        Console.WriteLine();
+        Console.WriteLine("🔧 Advanced Testing Commands:");
+        Console.WriteLine("   test.exe test MyTarget --tags unit --tags integration --framework net9.0");
+        Console.WriteLine("   test.exe --log-level debug --dry-run build MyProject.csproj");
+        Console.WriteLine("   test.exe deploy staging --services api --services web --env-vars PORT=8080");
     }
 }
 

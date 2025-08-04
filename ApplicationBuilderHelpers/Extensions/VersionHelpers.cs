@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -28,6 +29,14 @@ internal static class VersionHelpers
         }
 
         return parts.Length > 0 ? $"{baseVersion}+{string.Join(".", parts)}" : baseVersion;
+    }
+
+    internal static string GetAutoDetectedVersion()
+    {
+        var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
+        var assemblyInformationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? "0.0.0";
+        return RemoveHash(assemblyInformationalVersion);
     }
 
     static bool IsHex(string s)

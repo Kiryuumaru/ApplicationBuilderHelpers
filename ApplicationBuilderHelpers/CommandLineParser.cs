@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
+using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Themes;
 using System.Text.RegularExpressions;
@@ -123,7 +124,36 @@ internal class CommandLineParser
                 {
                     var arg = args[i];
                     
-                    if (arg == $"--{term}" || (optionAttr.ShortTerm.HasValue && arg == $"-{optionAttr.ShortTerm}"))
+                    // Handle long options with equals (--option=value)
+                    if (arg.StartsWith($"--{term}="))
+                    {
+                        if (property.PropertyType != typeof(bool))
+                        {
+                            var value = arg.Substring($"--{term}=".Length);
+                            optionValues.Add(value);
+                            parsedOptions.Add(term);
+                        }
+                    }
+                    // Handle short options with equals (-o=value)
+                    else if (optionAttr.ShortTerm.HasValue && arg.StartsWith($"-{optionAttr.ShortTerm}="))
+                    {
+                        if (property.PropertyType != typeof(bool))
+                        {
+                            var value = arg.Substring($"-{optionAttr.ShortTerm}=".Length);
+                            optionValues.Add(value);
+                            parsedOptions.Add(term);
+                        }
+                    }
+                    // Handle compact short options (-ovalue, like -ldebug)
+                    else if (optionAttr.ShortTerm.HasValue && property.PropertyType != typeof(bool) && 
+                             arg.StartsWith($"-{optionAttr.ShortTerm}") && arg.Length > 2)
+                    {
+                        var value = arg.Substring(2); // Skip "-" and the short option character
+                        optionValues.Add(value);
+                        parsedOptions.Add(term);
+                    }
+                    // Handle regular long and short options (--option value, -o value)
+                    else if (arg == $"--{term}" || (optionAttr.ShortTerm.HasValue && arg == $"-{optionAttr.ShortTerm}"))
                     {
                         if (property.PropertyType == typeof(bool))
                         {
@@ -134,6 +164,7 @@ internal class CommandLineParser
                         {
                             optionValues.Add(args[i + 1]);
                             parsedOptions.Add(term);
+                            i++; // Skip the value we just consumed
                         }
                     }
                 }
@@ -157,6 +188,19 @@ internal class CommandLineParser
                         var array = Array.CreateInstance(elementType, optionValues.Count);
                         for (int j = 0; j < optionValues.Count; j++)
                         {
+                            // Validate FromAmong for array elements
+                            if (optionAttr.FromAmong?.Length > 0)
+                            {
+                                var isValidValue = optionAttr.FromAmong.Any(validValue => 
+                                    string.Equals(validValue?.ToString(), optionValues[j], StringComparison.OrdinalIgnoreCase));
+                                
+                                if (!isValidValue)
+                                {
+                                    var validValues = string.Join(", ", optionAttr.FromAmong.Select(v => v?.ToString()));
+                                    throw new CommandException($"Value '{optionValues[j]}' is not valid for option '--{term}'. Must be one of: {validValues}", 1);
+                                }
+                            }
+                            
                             var value = ConvertSingleValue(optionValues[j], elementType);
                             array.SetValue(value, j);
                         }
@@ -164,6 +208,19 @@ internal class CommandLineParser
                     }
                     else
                     {
+                        // Validate FromAmong for single values
+                        if (optionAttr.FromAmong?.Length > 0)
+                        {
+                            var isValidValue = optionAttr.FromAmong.Any(validValue => 
+                                string.Equals(validValue?.ToString(), optionValues[0], StringComparison.OrdinalIgnoreCase));
+                            
+                            if (!isValidValue)
+                            {
+                                var validValues = string.Join(", ", optionAttr.FromAmong.Select(v => v?.ToString()));
+                                throw new CommandException($"Value '{optionValues[0]}' is not valid for option '--{term}'. Must be one of: {validValues}", 1);
+                            }
+                        }
+                        
                         var value = ConvertSingleValue(optionValues[0], property.PropertyType);
                         property.SetValue(command, value);
                     }
@@ -197,9 +254,37 @@ internal class CommandLineParser
         return attr?.Name;
     }
 
-    private object? ConvertSingleValue(string? value, Type targetType)
+    private void ValidateFromAmong(string value, object[]? fromAmong, string optionName)
+    {
+        if (fromAmong?.Length > 0)
+        {
+            var isValidValue = fromAmong.Any(validValue => 
+                string.Equals(validValue?.ToString(), value, StringComparison.OrdinalIgnoreCase));
+            
+            if (!isValidValue)
+            {
+                var validValues = string.Join(", ", fromAmong.Select(v => v?.ToString()));
+                throw new CommandException($"Value '{value}' is not valid for option '--{optionName}'. Must be one of: {validValues}", 1);
+            }
+        }
+    }
+
+    private object? ConvertSingleValue(string? value, Type targetType, object[]? fromAmong = null)
     {
         if (value == null) return null;
+
+        // FromAmong validation
+        if (fromAmong?.Length > 0)
+        {
+            var isValidValue = fromAmong.Any(validValue => 
+                string.Equals(validValue?.ToString(), value, StringComparison.OrdinalIgnoreCase));
+            
+            if (!isValidValue)
+            {
+                var validValues = string.Join(", ", fromAmong.Select(v => v?.ToString()));
+                throw new CommandException($"Value '{value}' is not valid for this option. Must be one of: {validValues}", 1);
+            }
+        }
 
         if (_typeParserCollection.TypeParsers.TryGetValue(targetType, out var parser))
         {
@@ -279,8 +364,10 @@ internal class CommandLineParser
 
     private void ShowGlobalHelp(int totalWidth, int borderWidth)
     {
+        var version = _commandBuilder.ExecutableVersion ?? VersionHelpers.GetAutoDetectedVersion();
+
         // Header with theme colors
-        Console.WriteLine($"{_theme.HeaderColor}{_commandBuilder.ExecutableTitle} v{_commandBuilder.ExecutableVersion}{_theme.Reset}");
+        Console.WriteLine($"{_theme.HeaderColor}{_commandBuilder.ExecutableTitle} v{version}{_theme.Reset}");
         if (!string.IsNullOrEmpty(_commandBuilder.ExecutableDescription))
         {
             Console.WriteLine($"{_theme.DescriptionColor}{_commandBuilder.ExecutableDescription}{_theme.Reset}");
@@ -331,7 +418,7 @@ internal class CommandLineParser
             Console.WriteLine($"{_theme.HeaderColor}GLOBAL OPTIONS:{_theme.Reset}");
             foreach (var option in globalOptions)
             {
-                ShowOption(option, leftColumnWidth, totalWidth);
+                ShowOption(option, leftColumnWidth, totalWidth, borderWidth);
             }
             Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
             Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
@@ -358,6 +445,8 @@ internal class CommandLineParser
     private void ShowCommandHelp(ICommand command, int totalWidth, int borderWidth)
     {
         var attr = command.GetType().GetCustomAttribute<CommandAttribute>();
+
+        Console.WriteLine();
 
         // Description
         if (!string.IsNullOrEmpty(attr?.Description))
@@ -415,7 +504,7 @@ internal class CommandLineParser
             Console.WriteLine($"{_theme.HeaderColor}OPTIONS:{_theme.Reset}");
             foreach (var option in commandOptions)
             {
-                ShowOption(option, leftColumnWidth, totalWidth);
+                ShowOption(option, leftColumnWidth, totalWidth, borderWidth);
             }
             Console.WriteLine();
         }
@@ -425,7 +514,7 @@ internal class CommandLineParser
             Console.WriteLine($"{_theme.HeaderColor}ARGUMENTS:{_theme.Reset}");
             foreach (var argument in arguments)
             {
-                ShowArgument(argument, leftColumnWidth, totalWidth);
+                ShowArgument(argument, leftColumnWidth, totalWidth, borderWidth);
             }
             Console.WriteLine();
         }
@@ -435,7 +524,7 @@ internal class CommandLineParser
             Console.WriteLine($"{_theme.HeaderColor}GLOBAL OPTIONS:{_theme.Reset}");
             foreach (var option in globalOptions)
             {
-                ShowOption(option, leftColumnWidth, totalWidth);
+                ShowOption(option, leftColumnWidth, totalWidth, borderWidth);
             }
             Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
             Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
@@ -525,16 +614,16 @@ internal class CommandLineParser
         return Regex.Replace(text, @"\u001b\[[0-9;]*m", "").Length;
     }
 
-    private void ShowOption(OptionInfo option, int leftColumnWidth, int totalWidth)
+    private void ShowOption(OptionInfo option, int leftColumnWidth, int totalWidth, int borderWidth)
     {
         var helpItem = CreateOptionHelpItem(option);
-        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, 2));
+        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
     }
 
-    private void ShowArgument(ArgumentInfo argument, int leftColumnWidth, int totalWidth)
+    private void ShowArgument(ArgumentInfo argument, int leftColumnWidth, int totalWidth, int borderWidth)
     {
         var helpItem = CreateArgumentHelpItem(argument);
-        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, 2));
+        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
     }
 
     private string FormatTwoColumn(string left, string right, int leftColumnWidth, int totalWidth, int borderWidth)
@@ -650,7 +739,8 @@ internal class CommandLineParser
 
     private void ShowVersion()
     {
-        Console.WriteLine($"{_theme.HeaderColor}{_commandBuilder.ExecutableVersion}{_theme.Reset}");
+        var version = _commandBuilder.ExecutableVersion ?? VersionHelpers.GetAutoDetectedVersion();
+        Console.WriteLine($"{_theme.HeaderColor}{version}{_theme.Reset}");
     }
 
     private List<OptionInfo> GetGlobalOptions()

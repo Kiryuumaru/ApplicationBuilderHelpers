@@ -4,6 +4,7 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.ParserTypes;
 using ApplicationBuilderHelpers.Services;
+using ApplicationBuilderHelpers.Themes;
 using ApplicationBuilderHelpers.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -28,7 +29,7 @@ public class ApplicationBuilder : ICommandBuilder
     string? ICommandBuilder.ExecutableVersion { get; set; } = null;
     int? ICommandBuilder.HelpWidth { get; set; } = null;
     int? ICommandBuilder.HelpBorderWidth { get; set; } = null;
-    IAnsiTheme? ICommandBuilder.Theme { get; set; } = null;
+    IAnsiTheme? ICommandBuilder.Theme { get; set; } = VSCodeDarkTheme.Instance;
     List<ICommand> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = new()
@@ -37,6 +38,10 @@ public class ApplicationBuilder : ICommandBuilder
         [typeof(int)] = new IntTypeParser(),
         [typeof(string)] = new StringTypeParser(),
     };
+
+    public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TAnsiTheme>()
+        where TAnsiTheme : IAnsiTheme
+        => ICommandBuilderExtensions.SetTheme<TAnsiTheme, ApplicationBuilder>(this);
 
     public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommand>()
         where TCommand : ICommand

@@ -7,6 +7,8 @@ namespace ApplicationBuilderHelpers.Themes;
 /// </summary>
 public class MonokaiDimmedTheme : IAnsiTheme
 {
+    public static MonokaiDimmedTheme Instance { get; } = new MonokaiDimmedTheme();
+
     public string HeaderColor => "\u001b[38;2;249;38;114m";     // Magenta #F92672
     public string FlagColor => "\u001b[38;2;230;219;116m";      // Yellow #E6DB74  
     public string ParameterColor => "\u001b[38;2;102;217;239m"; // Aqua #66D9EF
@@ -21,6 +23,8 @@ public class MonokaiDimmedTheme : IAnsiTheme
 /// </summary>
 public class DraculaTheme : IAnsiTheme
 {
+    public static DraculaTheme Instance { get; } = new DraculaTheme();
+
     public string HeaderColor => "\u001b[38;2;255;121;198m";    // Pink #FF79C6
     public string FlagColor => "\u001b[38;2;241;250;140m";      // Yellow #F1FA8C
     public string ParameterColor => "\u001b[38;2;139;233;253m"; // Cyan #8BE9FD
@@ -35,6 +39,8 @@ public class DraculaTheme : IAnsiTheme
 /// </summary>
 public class SolarizedDarkTheme : IAnsiTheme
 {
+    public static SolarizedDarkTheme Instance { get; } = new SolarizedDarkTheme();
+
     public string HeaderColor => "\u001b[38;2;203;75;22m";      // Orange #CB4B16
     public string FlagColor => "\u001b[38;2;181;137;0m";        // Yellow #B58900
     public string ParameterColor => "\u001b[38;2;42;161;152m";  // Cyan #2AA198
@@ -49,6 +55,8 @@ public class SolarizedDarkTheme : IAnsiTheme
 /// </summary>
 public class NordTheme : IAnsiTheme
 {
+    public static NordTheme Instance { get; } = new NordTheme();
+
     public string HeaderColor => "\u001b[38;2;136;192;208m";    // Frost #88C0D0
     public string FlagColor => "\u001b[38;2;235;203;139m";      // Aurora Yellow #EBCB8B
     public string ParameterColor => "\u001b[38;2;129;161;193m"; // Frost #81A1C1
@@ -63,6 +71,8 @@ public class NordTheme : IAnsiTheme
 /// </summary>
 public class GruvboxDarkTheme : IAnsiTheme
 {
+    public static GruvboxDarkTheme Instance { get; } = new GruvboxDarkTheme();
+
     public string HeaderColor => "\u001b[38;2;214;93;14m";      // Orange #D65D0E
     public string FlagColor => "\u001b[38;2;250;189;47m";       // Yellow #FABD2F
     public string ParameterColor => "\u001b[38;2;131;165;152m"; // Aqua #83A598
@@ -73,10 +83,44 @@ public class GruvboxDarkTheme : IAnsiTheme
 }
 
 /// <summary>
+/// Visual Studio Code Dark+ theme - familiar and professional colors inspired by the popular editor.
+/// </summary>
+public class VSCodeDarkTheme : IAnsiTheme
+{
+    public static VSCodeDarkTheme Instance { get; } = new VSCodeDarkTheme();
+
+    public string HeaderColor => "\u001b[38;2;78;201;176m";     // Teal #4EC9B0 (interface/type color)
+    public string FlagColor => "\u001b[38;2;86;156;214m";       // Blue #569CD6 (keyword color)
+    public string ParameterColor => "\u001b[38;2;220;220;170m"; // Light Yellow #DCDCAA (parameter color)
+    public string DescriptionColor => "\u001b[38;2;212;212;212m"; // Light Gray #D4D4D4 (foreground)
+    public string SecondaryColor => "\u001b[38;2;106;153;85m";  // Green #6A9955 (comment color)
+    public string RequiredColor => "\u001b[38;2;244;71;71m";    // Red #F44747 (error color)
+    public string Reset => "\u001b[0m";
+}
+
+/// <summary>
+/// Visual Studio Code Light+ theme - clean and bright colors for light terminal backgrounds.
+/// </summary>
+public class VSCodeLightTheme : IAnsiTheme
+{
+    public static VSCodeLightTheme Instance { get; } = new VSCodeLightTheme();
+
+    public string HeaderColor => "\u001b[38;2;43;145;175m";     // Dark Teal #2B91AF (interface/type color)
+    public string FlagColor => "\u001b[38;2;0;0;255m";          // Blue #0000FF (keyword color)
+    public string ParameterColor => "\u001b[38;2;121;94;38m";   // Brown #795E26 (parameter color)
+    public string DescriptionColor => "\u001b[38;2;0;0;0m";     // Black #000000 (foreground)
+    public string SecondaryColor => "\u001b[38;2;0;128;0m";     // Green #008000 (comment color)
+    public string RequiredColor => "\u001b[38;2;205;49;49m";    // Red #CD3131 (error color)
+    public string Reset => "\u001b[0m";
+}
+
+/// <summary>
 /// Classic theme - simple and traditional colors.
 /// </summary>
 public class ClassicTheme : IAnsiTheme
 {
+    public static ClassicTheme Instance { get; } = new ClassicTheme();
+
     public string HeaderColor => "\u001b[1;33m";    // Bold Yellow
     public string FlagColor => "\u001b[1;32m";      // Bold Green
     public string ParameterColor => "\u001b[1;36m"; // Bold Cyan
@@ -91,6 +135,8 @@ public class ClassicTheme : IAnsiTheme
 /// </summary>
 public class NoColorTheme : IAnsiTheme
 {
+    public static NoColorTheme Instance { get; } = new NoColorTheme();
+
     public string HeaderColor => "";
     public string FlagColor => "";
     public string ParameterColor => "";
