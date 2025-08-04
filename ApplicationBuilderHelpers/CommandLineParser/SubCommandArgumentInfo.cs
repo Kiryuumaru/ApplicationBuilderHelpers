@@ -135,6 +135,32 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
+    /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
+    /// (excludes inherited properties to avoid conflicts)
+    /// </summary>
+    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
+    {
+        var arguments = new List<SubCommandArgumentInfo>();
+        var properties = commandType.GetProperties(
+            BindingFlags.DeclaredOnly | 
+            BindingFlags.Public | 
+            BindingFlags.NonPublic | 
+            BindingFlags.Instance);
+
+        foreach (var property in properties)
+        {
+            var argumentAttr = property.GetCustomAttribute<CommandArgumentAttribute>();
+            if (argumentAttr != null)
+            {
+                var argumentInfo = FromProperty(property, argumentAttr, ownerCommand);
+                arguments.Add(argumentInfo);
+            }
+        }
+
+        return arguments.OrderBy(a => a.Position).ToList();
+    }
+
+    /// <summary>
     /// Gets all properties including inherited ones from base classes
     /// </summary>
     private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type type)

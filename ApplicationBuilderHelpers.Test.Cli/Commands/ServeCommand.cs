@@ -21,7 +21,7 @@ internal class ServeCommand : BaseCommand
     [CommandOption('w', "watch", Description = "Enable file watching for auto-reload")]
     public bool Watch { get; set; } = true;
 
-    [CommandOption("env", Description = "Environment mode", FromAmong = ["development", "staging", "production"])]
+    [CommandOption("environment", Description = "Environment mode", FromAmong = ["development", "staging", "production"])]
     public string Environment { get; set; } = "development";
 
     [CommandOption('o', "open", Description = "Open browser automatically")]

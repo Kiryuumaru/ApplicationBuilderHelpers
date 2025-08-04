@@ -114,20 +114,30 @@ internal class SubCommandOptionInfo
         };
 
         // Determine if this option should be inherited by checking if it comes from a base class
-        if (ownerCommand?.Command != null)
+        // This works for both concrete command instances and abstract command types
+        var declaringType = property.DeclaringType;
+        var targetType = ownerCommand?.Command?.GetType() ?? ownerCommand?.CommandParts.LastOrDefault() switch
         {
-            var commandType = ownerCommand.Command.GetType();
-            var declaringType = property.DeclaringType;
-            
-            // If the declaring type is different from the command type, it's from a base class
-            if (declaringType != commandType && declaringType != null && declaringType.IsAssignableFrom(commandType))
-            {
-                optionInfo.IsInherited = true;
-                optionInfo.DetermineInheritanceScope();
-            }
+            string lastPart => FindTypeByCommandName(lastPart, declaringType),
+            _ => null
+        };
+
+        if (targetType != null && declaringType != targetType && declaringType != null && declaringType.IsAssignableFrom(targetType))
+        {
+            optionInfo.IsInherited = true;
+            optionInfo.DetermineInheritanceScope();
         }
 
         return optionInfo;
+    }
+
+    /// <summary>
+    /// Helper method to find a type by command name (used for abstract command processing)
+    /// </summary>
+    private static Type? FindTypeByCommandName(string commandName, Type? declaringType)
+    {
+        // For abstract command processing, we can use the declaring type as a reference
+        return declaringType;
     }
 
     /// <summary>
@@ -137,6 +147,32 @@ internal class SubCommandOptionInfo
     {
         var options = new List<SubCommandOptionInfo>();
         var properties = GetAllProperties(commandType);
+
+        foreach (var property in properties)
+        {
+            var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
+            if (optionAttr != null)
+            {
+                var optionInfo = FromProperty(property, optionAttr, ownerCommand);
+                options.Add(optionInfo);
+            }
+        }
+
+        return options;
+    }
+
+    /// <summary>
+    /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
+    /// (excludes inherited properties to avoid conflicts)
+    /// </summary>
+    public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
+    {
+        var options = new List<SubCommandOptionInfo>();
+        var properties = commandType.GetProperties(
+            BindingFlags.DeclaredOnly | 
+            BindingFlags.Public | 
+            BindingFlags.NonPublic | 
+            BindingFlags.Instance);
 
         foreach (var property in properties)
         {
@@ -180,27 +216,10 @@ internal class SubCommandOptionInfo
     /// </summary>
     private void DetermineInheritanceScope()
     {
-        // Common global options that should be inherited
-        var globalOptionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "help", "h", "version", "v", "verbose", "quiet", "debug", "config", "log-level"
-        };
-
-        var isGlobalOption = (LongName != null && globalOptionNames.Contains(LongName)) ||
-                           (ShortName.HasValue && globalOptionNames.Contains(ShortName.ToString()!));
-
-        if (isGlobalOption)
-        {
-            IsGlobal = true;
-            IsInherited = true;
-        }
-        else
-        {
-            // Check if this option appears in multiple command types (would indicate it should be inherited)
-            // This would be determined during the command hierarchy building phase
-            IsGlobal = false;
-            IsInherited = false;
-        }
+        // For options that come from base classes, they should be inherited but not automatically global
+        // Let the global option detection logic determine what's truly global based on actual usage patterns
+        IsGlobal = false;  // Don't automatically promote to global based on hardcoded names
+        IsInherited = true; // But do mark as inherited since this method is only called for base class options
     }
 
     /// <summary>

@@ -122,12 +122,21 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     {
         if (commandInfo.CommandParts.Length == 0)
         {
-            // Root command
+            // Root command - only add options that are truly global (from BaseCommand)
             if (_rootCommand!.HasImplementation)
                 throw new InvalidOperationException("Cannot have more than one root command");
             
             _rootCommand.Command = commandInfo.Command;
-            _rootCommand.Options.AddRange(commandInfo.Options);
+            
+            // Only add BaseCommand options to root, not command-specific options
+            foreach (var option in commandInfo.Options)
+            {
+                if (IsBaseCommandOption(option))
+                {
+                    _rootCommand.Options.Add(option);
+                }
+            }
+            
             _rootCommand.Arguments.AddRange(commandInfo.Arguments);
             return;
         }
@@ -151,11 +160,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 var child = current.FindChild(part);
                 if (child == null)
                 {
-                    child = new SubCommandInfo
-                    {
-                        CommandParts = commandInfo.CommandParts[0..(i + 1)],
-                        Description = $"Commands for {part}"
-                    };
+                    var intermediateParts = commandInfo.CommandParts[0..(i + 1)];
+                    child = CreateIntermediateCommand(intermediateParts, commandInfo.Command!.GetType());
                     current.AddChild(child);
                     _allCommands[child.FullCommandName] = child;
                 }
@@ -165,14 +171,101 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     }
 
     /// <summary>
+    /// Creates an intermediate command, checking for abstract base class information
+    /// </summary>
+    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, Type leafCommandType)
+    {
+        // Look for abstract base class that matches this intermediate command path
+        var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType);
+        
+        SubCommandInfo result;
+        if (intermediateCommandInfo != null)
+        {
+            // Use information from the abstract base class
+            result = new SubCommandInfo
+            {
+                CommandParts = commandParts,
+                Description = intermediateCommandInfo.Description,
+                Options = intermediateCommandInfo.Options,
+                Arguments = intermediateCommandInfo.Arguments
+            };
+        }
+        else
+        {
+            // Fallback to generic description
+            result = new SubCommandInfo
+            {
+                CommandParts = commandParts,
+                Description = $"Commands for {commandParts[^1]}"
+            };
+        }
+
+        // Ensure intermediate commands inherit global options from root
+        if (_rootCommand != null)
+        {
+            foreach (var globalOption in _rootCommand.Options.Where(o => o.IsGlobal))
+            {
+                // Only add if not already present
+                if (!result.Options.Any(o => o.GetDisplayName() == globalOption.GetDisplayName()))
+                {
+                    result.Options.Add(globalOption);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
+    /// </summary>
+    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
+    {
+        var currentType = leafCommandType.BaseType;
+        var targetCommandName = string.Join(" ", commandParts);
+        
+        while (currentType != null && currentType != typeof(object))
+        {
+            var commandAttr = currentType.GetCustomAttribute<CommandAttribute>();
+            if (commandAttr != null && 
+                currentType.IsAbstract && 
+                commandAttr.Term == targetCommandName)
+            {
+                // Found matching abstract base class
+                var baseCommandInfo = new SubCommandInfo
+                {
+                    CommandParts = commandParts,
+                    Description = commandAttr.Description
+                };
+
+                // Extract only options and arguments that are declared directly in this abstract class
+                // Not from its base classes (like BaseCommand) to avoid conflicts
+                baseCommandInfo.Options = SubCommandOptionInfo.FromDeclaredType(currentType, baseCommandInfo);
+                baseCommandInfo.Arguments = SubCommandArgumentInfo.FromDeclaredType(currentType, baseCommandInfo);
+                
+                return baseCommandInfo;
+            }
+            currentType = currentType.BaseType;
+        }
+        
+        return null;
+    }
+
+    /// <summary>
     /// Determines which options should be global based on commonality across commands
     /// </summary>
     private void DetermineGlobalOptions()
     {
-        // Find options that appear in multiple commands with the same signature
+        // Get all concrete commands (those with implementations)
+        var concreteCommands = _allCommands.Values.Where(c => c.HasImplementation).ToList();
+        
+        if (concreteCommands.Count == 0)
+            return;
+
+        // Find options that appear in ALL commands with the same signature
         var optionsBySignature = new Dictionary<string, List<(SubCommandOptionInfo option, SubCommandInfo command)>>();
 
-        foreach (var command in _allCommands.Values)
+        foreach (var command in concreteCommands)
         {
             foreach (var option in command.Options)
             {
@@ -183,38 +276,36 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
         }
 
-        // Mark options as global if they appear in multiple commands and are from base classes
+        // Mark options as global ONLY if they appear in ALL commands and are identical
         foreach (var (signature, optionInfos) in optionsBySignature)
         {
-            if (optionInfos.Count > 1)
+            // Must appear in ALL concrete commands to be considered global
+            if (optionInfos.Count == concreteCommands.Count)
             {
-                // Check if all options have compatible types and properties
+                // Check if all options have identical signatures (name, term, short term, type)
                 var firstOption = optionInfos[0].option;
-                var allCompatible = optionInfos.All(oi => 
+                var allIdentical = optionInfos.All(oi => 
                     oi.option.PropertyType == firstOption.PropertyType &&
-                    oi.option.IsRequired == firstOption.IsRequired);
+                    oi.option.IsRequired == firstOption.IsRequired &&
+                    oi.option.ShortName == firstOption.ShortName &&
+                    oi.option.LongName == firstOption.LongName &&
+                    ArraysEqual(oi.option.ValidValues, firstOption.ValidValues));
 
-                if (allCompatible)
+                if (allIdentical)
                 {
-                    // Check if these options come from base classes (inheritance)
-                    var isFromBaseClass = optionInfos.All(oi => IsOptionFromBaseClass(oi.option, oi.command));
-                    
-                    if (isFromBaseClass)
+                    // These options appear in ALL commands with identical signatures
+                    foreach (var (option, _) in optionInfos)
                     {
-                        // These are inherited options from base classes, mark them as inherited
-                        foreach (var (option, _) in optionInfos)
-                        {
-                            option.IsGlobal = true;
-                            option.IsInherited = true;
-                        }
+                        option.IsGlobal = true;
+                        option.IsInherited = true;
+                    }
 
-                        // Add one instance to root command
-                        if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == signature))
-                        {
-                            var globalOption = CreateGlobalOptionCopy(firstOption);
-                            globalOption.OwnerCommand = _rootCommand;
-                            _rootCommand.Options.Add(globalOption);
-                        }
+                    // Add one instance to root command
+                    if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == signature))
+                    {
+                        var globalOption = CreateGlobalOptionCopy(firstOption);
+                        globalOption.OwnerCommand = _rootCommand;
+                        _rootCommand.Options.Add(globalOption);
                     }
                 }
             }
@@ -222,39 +313,19 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     }
 
     /// <summary>
-    /// Checks if an option comes from a base class
+    /// Compares two arrays for equality
     /// </summary>
-    private bool IsOptionFromBaseClass(SubCommandOptionInfo option, SubCommandInfo command)
+    private static bool ArraysEqual(object[]? arr1, object[]? arr2)
     {
-        if (command.Command == null) return false;
+        if (arr1 == null && arr2 == null) return true;
+        if (arr1 == null || arr2 == null) return false;
+        if (arr1.Length != arr2.Length) return false;
         
-        var commandType = command.Command.GetType();
-        var declaringType = option.Property.DeclaringType;
-        
-        // If the declaring type is different from the command type, it's from a base class
-        return declaringType != commandType && declaringType != null && declaringType.IsAssignableFrom(commandType);
-    }
-
-    /// <summary>
-    /// Creates a copy of an option for global use
-    /// </summary>
-    private SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
-    {
-        return new SubCommandOptionInfo
+        for (int i = 0; i < arr1.Length; i++)
         {
-            Property = original.Property,
-            PropertyType = original.PropertyType,
-            ShortName = original.ShortName,
-            LongName = original.LongName,
-            Description = original.Description,
-            IsRequired = original.IsRequired,
-            EnvironmentVariable = original.EnvironmentVariable,
-            ValidValues = original.ValidValues,
-            IsCaseSensitive = original.IsCaseSensitive,
-            DefaultValue = original.DefaultValue,
-            IsGlobal = true,
-            IsInherited = true
-        };
+            if (!Equals(arr1[i], arr2[i])) return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -552,6 +623,42 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         await command.RunInternal(host, cancellationTokenSource);
     }
 
+    /// <summary>
+    /// Checks if an option comes from a base class
+    /// </summary>
+    private bool IsOptionFromBaseClass(SubCommandOptionInfo option, SubCommandInfo command)
+    {
+        if (command.Command == null) return false;
+        
+        var commandType = command.Command.GetType();
+        var declaringType = option.Property.DeclaringType;
+        
+        // If the declaring type is different from the command type, it's from a base class
+        return declaringType != commandType && declaringType != null && declaringType.IsAssignableFrom(commandType);
+    }
+
+    /// <summary>
+    /// Creates a copy of an option for global use
+    /// </summary>
+    private SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
+    {
+        return new SubCommandOptionInfo
+        {
+            Property = original.Property,
+            PropertyType = original.PropertyType,
+            ShortName = original.ShortName,
+            LongName = original.LongName,
+            Description = original.Description,
+            IsRequired = original.IsRequired,
+            EnvironmentVariable = original.EnvironmentVariable,
+            ValidValues = original.ValidValues,
+            IsCaseSensitive = original.IsCaseSensitive,
+            DefaultValue = original.DefaultValue,
+            IsGlobal = true,
+            IsInherited = true
+        };
+    }
+
     #region Help and Version Methods
 
     private bool ShouldShowGlobalHelp(string[] args)
@@ -636,10 +743,29 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         Console.WriteLine(usage.ToString());
         Console.WriteLine();
 
-        if (commandInfo.Options.Count > 0)
+        // Categorize options into three groups
+        var commandSpecificOptions = new List<SubCommandOptionInfo>();
+        var hierarchySpecificOptions = new List<SubCommandOptionInfo>();
+        var globalOptions = new List<SubCommandOptionInfo>();
+
+        CategorizeOptionsForHelp(commandInfo, commandSpecificOptions, hierarchySpecificOptions, globalOptions);
+
+        // Show command-specific options (declared directly in this command)
+        if (commandSpecificOptions.Count > 0)
         {
             Console.WriteLine("OPTIONS:");
-            foreach (var option in commandInfo.Options)
+            foreach (var option in commandSpecificOptions)
+            {
+                ShowDetailedOption(option);
+            }
+            Console.WriteLine();
+        }
+
+        // Show hierarchy-specific options (from intermediate parent commands like ConfigCommand)
+        if (hierarchySpecificOptions.Count > 0)
+        {
+            Console.WriteLine("COMMAND OPTIONS:");
+            foreach (var option in hierarchySpecificOptions)
             {
                 ShowDetailedOption(option);
             }
@@ -656,7 +782,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             Console.WriteLine();
         }
 
-        var globalOptions = commandInfo.AllOptions.Where(o => o.IsGlobal).ToList();
+        // Show global options (from BaseCommand)
         if (globalOptions.Count > 0)
         {
             Console.WriteLine("GLOBAL OPTIONS:");
@@ -679,6 +805,83 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
     }
 
+    /// <summary>
+    /// Categorizes options into command-specific, hierarchy-specific, and global categories for help display
+    /// </summary>
+    private void CategorizeOptionsForHelp(SubCommandInfo commandInfo, 
+        List<SubCommandOptionInfo> commandSpecific,
+        List<SubCommandOptionInfo> hierarchySpecific, 
+        List<SubCommandOptionInfo> global)
+    {
+        var seenOptions = new HashSet<string>();
+
+        // First, categorize all options from this command
+        foreach (var option in commandInfo.Options)
+        {
+            var signature = option.GetDisplayName();
+            if (!seenOptions.Contains(signature))
+            {
+                seenOptions.Add(signature);
+                
+                // Check if this is a global option (from BaseCommand)
+                if (IsBaseCommandOption(option))
+                {
+                    global.Add(option);
+                }
+                else if (IsHierarchySpecificOption(option, commandInfo))
+                {
+                    hierarchySpecific.Add(option);
+                }
+                else
+                {
+                    commandSpecific.Add(option);
+                }
+            }
+        }
+
+        // Then, add any global options from the root command that haven't been shown yet
+        if (_rootCommand != null)
+        {
+            foreach (var rootOption in _rootCommand.Options)
+            {
+                var signature = rootOption.GetDisplayName();
+                if (!seenOptions.Contains(signature))
+                {
+                    seenOptions.Add(signature);
+                    global.Add(rootOption);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines if an option is from BaseCommand (should be treated as global)
+    /// </summary>
+    private bool IsBaseCommandOption(SubCommandOptionInfo option)
+    {
+        var declaringType = option.Property.DeclaringType;
+        return declaringType != null && declaringType.Name == "BaseCommand";
+    }
+
+    /// <summary>
+    /// Determines if an option is hierarchy-specific (like --format from ConfigCommand)
+    /// </summary>
+    private bool IsHierarchySpecificOption(SubCommandOptionInfo option, SubCommandInfo commandInfo)
+    {
+        var declaringType = option.Property.DeclaringType;
+        
+        // If the option is declared in an abstract intermediate command class (like ConfigCommand)
+        // and this command is a descendant, then it's hierarchy-specific
+        if (declaringType != null && declaringType.IsAbstract && 
+            declaringType != typeof(object) && declaringType.Name != "BaseCommand" &&
+            declaringType.Name != "Command")
+        {
+            return true;
+        }
+        
+        return false;
+    }
+
     private void ShowDetailedOption(SubCommandOptionInfo option)
     {
         Console.WriteLine($"    {option.GetSignature()}");
@@ -691,8 +894,46 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         if (option.ValidValues?.Length > 0)
             Console.WriteLine($"        Possible values: {string.Join(", ", option.ValidValues)}");
             
-        if (option.DefaultValue != null && !IsDefaultValueEmpty(option.DefaultValue))
-            Console.WriteLine($"        Default: {option.DefaultValue}");
+        // Get the default value from the actual command instance
+        var defaultValue = GetOptionDefaultValue(option);
+        if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
+            Console.WriteLine($"        Default: {defaultValue}");
+    }
+
+    /// <summary>
+    /// Gets the default value for an option from the command instance
+    /// </summary>
+    private object? GetOptionDefaultValue(SubCommandOptionInfo option)
+    {
+        try
+        {
+            // Try to get the default value from the owner command
+            if (option.OwnerCommand?.Command != null)
+            {
+                return option.Property.GetValue(option.OwnerCommand.Command);
+            }
+            
+            // If that doesn't work, try to get from any command that has this option
+            foreach (var command in _allCommands.Values)
+            {
+                if (command.Command != null && command.Options.Any(o => o.Property == option.Property))
+                {
+                    return option.Property.GetValue(command.Command);
+                }
+            }
+            
+            // Fallback to getting the default value from the property type
+            if (option.PropertyType.IsValueType)
+            {
+                return Activator.CreateInstance(option.PropertyType);
+            }
+            
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private void ShowDetailedArgument(SubCommandArgumentInfo argument)
