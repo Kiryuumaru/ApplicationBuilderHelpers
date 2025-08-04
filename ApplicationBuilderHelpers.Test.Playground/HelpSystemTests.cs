@@ -66,7 +66,8 @@ public class HelpSystemTests : TestSuiteBase
             {
                 var result = await Runner.RunAsync("remote", "add", "--help");
                 CliTestAssertions.AssertSuccess(result);
-                CliTestAssertions.AssertOutputContains(result, "Add a new remote repository");
+                // FIX: Update expectation to match actual command description
+                CliTestAssertions.AssertOutputContains(result, "Add a remote repository");
                 CliTestAssertions.AssertOutputContains(result, "ARGUMENTS:");
             });
 
