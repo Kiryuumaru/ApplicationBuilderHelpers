@@ -33,6 +33,7 @@
 
 	<ItemGroup>
 		<Compile Remove="__Old\ApplicationBuilderOld.cs" />
+		<Compile Remove="__Old\CommandLineParserOld.cs" />
 		<Compile Remove="__Old\ParserTypesOld\AbsolutePathTypeParser.cs" />
 		<Compile Remove="__Old\ParserTypesOld\BoolTypeParser.cs" />
 		<Compile Remove="__Old\ParserTypesOld\ByteTypeParser.cs" />
@@ -59,6 +60,7 @@
 
 	<ItemGroup>
 		<None Include="__Old\ApplicationBuilderOld.cs" />
+		<None Include="__Old\CommandLineParserOld.cs" />
 		<None Include="__Old\ParserTypesOld\AbsolutePathTypeParser.cs" />
 		<None Include="__Old\ParserTypesOld\BoolTypeParser.cs" />
 		<None Include="__Old\ParserTypesOld\ByteTypeParser.cs" />

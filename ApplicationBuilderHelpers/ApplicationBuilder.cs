@@ -55,10 +55,10 @@ public class ApplicationBuilder : ICommandBuilder
         where TCommandTypeParser : ICommandTypeParser
         => ICommandTypeParserCollectionExtensions.AddCommandTypeParser<TCommandTypeParser, ApplicationBuilder>(this);
     
-    public async Task<int> RunAsync(string[] args)
+    public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
-        var commandLineParser = new CommandLineParser(this);
-        return await commandLineParser.RunAsync(args);
+        var commandLineParser = new CommandLineParser.CommandLineParser(this);
+        return await commandLineParser.RunAsync(args, cancellationToken);
     }
 
     /// <summary>

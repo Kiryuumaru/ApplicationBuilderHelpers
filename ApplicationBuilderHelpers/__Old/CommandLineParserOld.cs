@@ -12,15 +12,15 @@ using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Themes;
 using System.Text.RegularExpressions;
 
-namespace ApplicationBuilderHelpers;
+namespace ApplicationBuilderHelpers.__Old;
 
-internal class CommandLineParser
+internal class CommandLineParserOld
 {
     private readonly ICommandBuilder _commandBuilder;
     private readonly ICommandTypeParserCollection _typeParserCollection;
     private readonly IAnsiTheme _theme;
 
-    public CommandLineParser(ApplicationBuilder builder)
+    public CommandLineParserOld(ApplicationBuilder builder)
     {
         _commandBuilder = builder;
         _typeParserCollection = builder;
@@ -182,7 +182,7 @@ internal class CommandLineParser
                         parsedOptions.Add(term);
                     }
                     // Handle regular long and short options (--option value, -o value)
-                    else if (arg == $"--{term}" || (optionAttr.ShortTerm.HasValue && arg == $"-{optionAttr.ShortTerm}"))
+                    else if (arg == $"--{term}" || optionAttr.ShortTerm.HasValue && arg == $"-{optionAttr.ShortTerm}")
                     {
                         if (property.PropertyType == typeof(bool))
                         {

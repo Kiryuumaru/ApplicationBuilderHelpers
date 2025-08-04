@@ -37,7 +37,7 @@ public class ExitCodeTests : TestSuiteBase
             Test("Missing required argument should return exit code 1", async () =>
             {
                 // Test the remote add command which requires both name and url arguments
-                // Calling "remote add" without any arguments should fail because Name and Url are required
+                // Calling "remote add" without any arguments should fail because Term and Url are required
                 var result = await Runner.RunAsync("remote", "add"); 
                 
                 // If the command is not found or not executing properly, try a different approach
