@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 
 [Command("config set", "Set configuration values")]
-internal class ConfigSetCommand : BaseCommand
+internal class ConfigSetCommand : ConfigCommand
 {
     [CommandArgument("key", Description = "Configuration key", Position = 0, Required = true)]
     public required string Key { get; set; }

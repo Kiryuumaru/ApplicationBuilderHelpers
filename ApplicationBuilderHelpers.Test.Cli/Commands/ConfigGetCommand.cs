@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 
 [Command("config get", "Get configuration values")]
-internal class ConfigGetCommand : BaseCommand
+internal class ConfigGetCommand : ConfigCommand
 {
     [CommandArgument("key", Description = "Configuration key to retrieve", Position = 0, Required = false)]
     public string? Key { get; set; }
@@ -17,9 +17,6 @@ internal class ConfigGetCommand : BaseCommand
 
     [CommandOption('l', "local", Description = "Show local configuration only")]
     public bool LocalOnly { get; set; }
-
-    [CommandOption("format", Description = "Output format", FromAmong = ["json", "yaml", "table", "list"])]
-    public string OutputFormat { get; set; } = "table";
 
     [CommandOption('s', "section", Description = "Filter by configuration section")]
     public string? Section { get; set; }
