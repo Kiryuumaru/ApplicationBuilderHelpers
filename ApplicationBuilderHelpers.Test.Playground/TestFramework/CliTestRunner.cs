@@ -23,7 +23,7 @@ public class CliTestRunner
         _executablePath = executablePath ?? throw new ArgumentNullException(nameof(executablePath));
         _verbose = verbose;
         _defaultTimeout = defaultTimeout ?? TimeSpan.FromSeconds(30);
-        _environmentVariables = new Dictionary<string, string>();
+        _environmentVariables = [];
         
         if (!File.Exists(_executablePath))
         {
@@ -230,7 +230,7 @@ public class CliTestResult
     public string StandardError { get; set; } = "";
     public TimeSpan ExecutionTime { get; set; }
     public string Command { get; set; } = "";
-    public Dictionary<string, string> EnvironmentVariables { get; set; } = new();
+    public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
 
     public bool IsSuccess => ExitCode == 0;
     public bool HasOutput => !string.IsNullOrWhiteSpace(StandardOutput);

@@ -60,7 +60,6 @@
 
 	<ItemGroup>
 		<None Include="__Old\ApplicationBuilderOld.cs" />
-		<None Include="CommandLineParser.cs" />
 		<None Include="__Old\ParserTypesOld\AbsolutePathTypeParser.cs" />
 		<None Include="__Old\ParserTypesOld\BoolTypeParser.cs" />
 		<None Include="__Old\ParserTypesOld\ByteTypeParser.cs" />

@@ -1,17 +1,19 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class IntTypeParser : ICommandTypeParser
+internal class SByteTypeParser : ICommandTypeParser
 {
-    public Type Type => typeof(int);
+    public Type Type => typeof(sbyte);
 
     public object? Parse(string? value, out string? validateError)
     {
-        if (int.TryParse(value, out var result))
+        if (sbyte.TryParse(value, out var result))
         {
             validateError = null;
             return result;

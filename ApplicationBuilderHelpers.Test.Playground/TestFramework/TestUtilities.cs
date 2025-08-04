@@ -133,17 +133,16 @@ public static class CliTestAssertions
     }
 }
 
-public class AssertionException : Exception
+public class AssertionException(string message) : Exception(message)
 {
-    public AssertionException(string message) : base(message) { }
 }
 
 public abstract class TestSuiteBase
 {
     protected CliTestRunner Runner { get; }
     private readonly string _suiteName;
-    private readonly List<TestCase> _tests = new();
-    private readonly List<TestGroup> _groups = new();
+    private readonly List<TestCase> _tests = [];
+    private readonly List<TestGroup> _groups = [];
 
     protected TestSuiteBase(CliTestRunner runner, string suiteName)
     {
@@ -254,14 +253,14 @@ public abstract class TestSuiteBase
     private class TestGroup
     {
         public string Name { get; set; } = "";
-        public List<TestCase> Tests { get; set; } = new();
+        public List<TestCase> Tests { get; set; } = [];
     }
 }
 
 public class TestSuiteResult
 {
     public string SuiteName { get; set; } = "";
-    public List<TestResult> Results { get; set; } = new();
+    public List<TestResult> Results { get; set; } = [];
     public TimeSpan Duration { get; set; }
     
     public int Total => Results.Count;
@@ -281,5 +280,5 @@ public class TestResult
 
 internal static class CharExtensions
 {
-    public static string Repeat(this char c, int count) => new string(c, count);
+    public static string Repeat(this char c, int count) => new(c, count);
 }

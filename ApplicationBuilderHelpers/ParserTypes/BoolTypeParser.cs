@@ -36,7 +36,7 @@ internal class BoolTypeParser : ICommandTypeParser
             return result;
         }
 
-        validateError = $"Invalid boolean value: '{value}'. Expected 'true', 'false', 'yes', 'no', '1', or '0'";
+        validateError = $"Invalid {Type.Name} value: '{value}'. Expected 'true', 'false', 'yes', 'no', '1', or '0'";
         return null;
     }
 

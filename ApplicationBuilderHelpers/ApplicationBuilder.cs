@@ -1,4 +1,5 @@
-﻿using ApplicationBuilderHelpers.Attributes;
+﻿using AbsolutePathHelpers;
+using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
@@ -32,12 +33,7 @@ public class ApplicationBuilder : ICommandBuilder
     IAnsiTheme? ICommandBuilder.Theme { get; set; } = VSCodeDarkTheme.Instance;
     List<ICommand> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
-    Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = new()
-    {
-        [typeof(bool)] = new BoolTypeParser(),
-        [typeof(int)] = new IntTypeParser(),
-        [typeof(string)] = new StringTypeParser(),
-    };
+    Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
 
     public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TAnsiTheme>()
         where TAnsiTheme : IAnsiTheme
@@ -70,5 +66,24 @@ public class ApplicationBuilder : ICommandBuilder
         return new ApplicationBuilder();
     }
 
-    private ApplicationBuilder() { }
+    private ApplicationBuilder()
+    {
+        AddCommandTypeParser<AbsolutePathTypeParser>();
+        AddCommandTypeParser<BoolTypeParser>();
+        AddCommandTypeParser<ByteTypeParser>();
+        AddCommandTypeParser<CharTypeParser>();
+        AddCommandTypeParser<DateTimeOffsetTypeParser>();
+        AddCommandTypeParser<DateTimeTypeParser>();
+        AddCommandTypeParser<DecimalTypeParser>();
+        AddCommandTypeParser<DoubleTypeParser>();
+        AddCommandTypeParser<FloatTypeParser>();
+        AddCommandTypeParser<IntTypeParser>();
+        AddCommandTypeParser<LongTypeParser>();
+        AddCommandTypeParser<SByteTypeParser>();
+        AddCommandTypeParser<ShortTypeParser>();
+        AddCommandTypeParser<StringTypeParser>();
+        AddCommandTypeParser<UIntTypeParser>();
+        AddCommandTypeParser<ULongTypeParser>();
+        AddCommandTypeParser<UShortTypeParser>();
+    }
 }

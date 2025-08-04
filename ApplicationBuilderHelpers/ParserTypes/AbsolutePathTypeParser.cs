@@ -1,20 +1,21 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
+using AbsolutePathHelpers;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class IntTypeParser : ICommandTypeParser
+public class AbsolutePathTypeParser : ICommandTypeParser
 {
-    public Type Type => typeof(int);
+    public Type Type => typeof(AbsolutePath);
 
     public object? Parse(string? value, out string? validateError)
     {
-        if (int.TryParse(value, out var result))
+        var valueStr = value?.ToString();
+        if (valueStr == null || string.IsNullOrEmpty(valueStr))
         {
             validateError = null;
-            return result;
+            return default(AbsolutePath);
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
