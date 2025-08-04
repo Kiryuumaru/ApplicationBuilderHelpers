@@ -310,6 +310,9 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 }
             }
         }
+
+        // Add built-in global options (help and version)
+        AddBuiltInGlobalOptions();
     }
 
     /// <summary>
@@ -326,6 +329,36 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             if (!Equals(arr1[i], arr2[i])) return false;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Adds built-in global options like help and version to the root command
+    /// </summary>
+    private void AddBuiltInGlobalOptions()
+    {
+        // Create a dummy property to satisfy the Property requirement
+        var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.PropertyType))!;
+
+        // Add help option
+        var helpOption = new SubCommandOptionInfo
+        {
+            ShortName = 'h',
+            LongName = "help",
+            Description = "Show help information",
+            PropertyType = typeof(bool),
+            IsGlobal = true,
+            IsInherited = true,
+            OwnerCommand = _rootCommand,
+            Property = dummyProperty
+        };
+
+        if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == helpOption.GetDisplayName()))
+        {
+            _rootCommand.Options.Add(helpOption);
+        }
+
+        // Note: Not adding version option for now as it conflicts with existing command options
+        // Users can check version with existing --version handling in ShouldShowVersion
     }
 
     /// <summary>
@@ -693,9 +726,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             Console.WriteLine("GLOBAL OPTIONS:");
             foreach (var option in _rootCommand.Options)
             {
-                Console.WriteLine($"    {option.GetSignature()}");
-                if (!string.IsNullOrEmpty(option.Description))
-                    Console.WriteLine($"        {option.Description}");
+                ShowDetailedOption(option);
             }
             Console.WriteLine();
         }
@@ -782,24 +813,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             Console.WriteLine();
         }
 
-        // Show global options (from BaseCommand)
+        // Show global options (from BaseCommand and built-in options)
         if (globalOptions.Count > 0)
         {
             Console.WriteLine("GLOBAL OPTIONS:");
             foreach (var option in globalOptions)
             {
                 ShowDetailedOption(option);
-            }
-        }
-
-        if (commandInfo.Children.Count > 0)
-        {
-            Console.WriteLine("SUBCOMMANDS:");
-            foreach (var child in commandInfo.Children.Values)
-            {
-                Console.WriteLine($"    {child.Name}");
-                if (!string.IsNullOrEmpty(child.Description))
-                    Console.WriteLine($"        {child.Description}");
             }
             Console.WriteLine();
         }
@@ -894,10 +914,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         if (option.ValidValues?.Length > 0)
             Console.WriteLine($"        Possible values: {string.Join(", ", option.ValidValues)}");
             
-        // Get the default value from the actual command instance
-        var defaultValue = GetOptionDefaultValue(option);
-        if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-            Console.WriteLine($"        Default: {defaultValue}");
+        // Get the default value from the actual command instance (skip for built-in options)
+        if (option.LongName != "help" && option.LongName != "version")
+        {
+            var defaultValue = GetOptionDefaultValue(option);
+            if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
+                Console.WriteLine($"        Default: {defaultValue}");
+        }
     }
 
     /// <summary>
