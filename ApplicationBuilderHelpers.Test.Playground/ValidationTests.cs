@@ -128,16 +128,4 @@ public class ValidationTests : TestSuiteBase
             });
         });
     }
-
-    // Test theme with invalid ANSI sequences
-    private class InvalidTestTheme : IAnsiTheme
-    {
-        public string HeaderColor => "invalid";
-        public string FlagColor => "\u001b[31m";
-        public string ParameterColor => "\u001b[32m";
-        public string DescriptionColor => "\u001b[0m";
-        public string SecondaryColor => "\u001b[90m";
-        public string RequiredColor => "\u001b[91m";
-        public string Reset => "\u001b[0m";
-    }
 }
