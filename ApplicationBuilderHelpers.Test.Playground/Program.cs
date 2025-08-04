@@ -239,6 +239,8 @@ public class ComprehensiveTestSuite
         Console.WriteLine("⚙️ Options Parsing Tests");
         Console.WriteLine("─────────────────────────");
         await testRunner.RunTestAsync("Boolean Options", () => TestBooleanOptions(testExePath));
+        await testRunner.RunTestAsync("Boolean Options with Values", () => TestBooleanOptionsWithValues(testExePath));
+        await testRunner.RunTestAsync("Boolean Options with Equals", () => TestBooleanOptionsWithEquals(testExePath));
         await testRunner.RunTestAsync("String Options", () => TestStringOptions(testExePath));
         await testRunner.RunTestAsync("Integer Options", () => TestIntegerOptions(testExePath));
         await testRunner.RunTestAsync("Double Options", () => TestDoubleOptions(testExePath));
@@ -624,6 +626,32 @@ public class ComprehensiveTestSuite
         };
 
         return ValidateOutput(result, 0, expectedContent, "Boolean flags should be parsed correctly");
+    }
+
+    private static async Task<TestResult> TestBooleanOptionsWithValues(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--verbose", "--parallel", "true");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Parallel: True"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Boolean flags with values should be parsed correctly");
+    }
+
+    private static async Task<TestResult> TestBooleanOptionsWithEquals(string testExePath)
+    {
+        var result = await RunTestExe(testExePath, "test", "MyTarget", "--verbose", "--parallel=true");
+        
+        var expectedContent = new[]
+        {
+            "Running test on target: MyTarget",
+            "Parallel: True"
+        };
+
+        return ValidateOutput(result, 0, expectedContent, "Boolean flags with equals syntax should be parsed correctly");
     }
 
     private static async Task<TestResult> TestStringOptions(string testExePath)
@@ -1302,6 +1330,14 @@ public class TestRunner
         Console.WriteLine("   test.exe test MyTarget --tags unit --tags integration --framework net9.0");
         Console.WriteLine("   test.exe --log-level debug --dry-run build MyProject.csproj");
         Console.WriteLine("   test.exe deploy staging --services api --services web --env-vars PORT=8080");
+        Console.WriteLine();
+        Console.WriteLine("🚩 Boolean Option Testing Commands:");
+        Console.WriteLine("   test.exe test MyTarget --diag                    # Sets diag=true (flag mode)");
+        Console.WriteLine("   test.exe test MyTarget --diag=false              # Sets diag=false (equals syntax)");
+        Console.WriteLine("   test.exe test MyTarget --diag false              # Sets diag=false (space syntax)");
+        Console.WriteLine("   test.exe test MyTarget --diag true               # Sets diag=true (space syntax)");
+        Console.WriteLine("   test.exe test MyTarget --verbose --diag=yes      # Multiple boolean options");
+        Console.WriteLine("   test.exe test MyTarget --parallel=no --diag=1    # Various boolean values");
     }
 }
 

@@ -127,22 +127,16 @@ internal class CommandLineParser
                     // Handle long options with equals (--option=value)
                     if (arg.StartsWith($"--{term}="))
                     {
-                        if (property.PropertyType != typeof(bool))
-                        {
-                            var value = arg.Substring($"--{term}=".Length);
-                            optionValues.Add(value);
-                            parsedOptions.Add(term);
-                        }
+                        var value = arg.Substring($"--{term}=".Length);
+                        optionValues.Add(value);
+                        parsedOptions.Add(term);
                     }
                     // Handle short options with equals (-o=value)
                     else if (optionAttr.ShortTerm.HasValue && arg.StartsWith($"-{optionAttr.ShortTerm}="))
                     {
-                        if (property.PropertyType != typeof(bool))
-                        {
-                            var value = arg.Substring($"-{optionAttr.ShortTerm}=".Length);
-                            optionValues.Add(value);
-                            parsedOptions.Add(term);
-                        }
+                        var value = arg.Substring($"-{optionAttr.ShortTerm}=".Length);
+                        optionValues.Add(value);
+                        parsedOptions.Add(term);
                     }
                     // Handle compact short options (-ovalue, like -ldebug)
                     else if (optionAttr.ShortTerm.HasValue && property.PropertyType != typeof(bool) && 
@@ -157,8 +151,30 @@ internal class CommandLineParser
                     {
                         if (property.PropertyType == typeof(bool))
                         {
-                            property.SetValue(command, true);
-                            parsedOptions.Add(term);
+                            // For boolean options, check if next argument is a valid boolean value
+                            if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                            {
+                                var nextArg = args[i + 1];
+                                // Check if next argument is a boolean value
+                                if (IsBooleanValue(nextArg))
+                                {
+                                    optionValues.Add(nextArg);
+                                    parsedOptions.Add(term);
+                                    i++; // Skip the value we just consumed
+                                }
+                                else
+                                {
+                                    // Next argument is not a boolean value, treat as flag
+                                    property.SetValue(command, true);
+                                    parsedOptions.Add(term);
+                                }
+                            }
+                            else
+                            {
+                                // No next argument or next argument starts with -, treat as flag
+                                property.SetValue(command, true);
+                                parsedOptions.Add(term);
+                            }
                         }
                         else if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
                         {
@@ -834,6 +850,16 @@ internal class CommandLineParser
             System.Collections.ICollection collection => collection.Count == 0,
             _ => false
         };
+    }
+
+    private static bool IsBooleanValue(string value)
+    {
+        return value.Equals("true", StringComparison.InvariantCultureIgnoreCase) ||
+               value.Equals("false", StringComparison.InvariantCultureIgnoreCase) ||
+               value.Equals("yes", StringComparison.InvariantCultureIgnoreCase) ||
+               value.Equals("no", StringComparison.InvariantCultureIgnoreCase) ||
+               value.Equals("1", StringComparison.InvariantCultureIgnoreCase) ||
+               value.Equals("0", StringComparison.InvariantCultureIgnoreCase);
     }
 }
 
