@@ -19,7 +19,7 @@ public class CommandAttribute : Attribute
     /// <param name="description">The description for the command.</param>
     public CommandAttribute(string? description = null)
     {
-        Name = null;
+        Term = null;
         Description = description;
     }
 
@@ -30,14 +30,14 @@ public class CommandAttribute : Attribute
     /// <param name="description">The description for the command.</param>
     public CommandAttribute(string name, string? description = null)
     {
-        Name = name;
+        Term = name;
         Description = description;
     }
 
     /// <summary>
     /// Gets or sets the name of the command.
     /// </summary>
-    public string? Name { get; set; }
+    public string? Term { get; set; }
 
     /// <summary>
     /// Gets or sets the description of the command.

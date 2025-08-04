@@ -57,7 +57,7 @@ public class ApplicationBuilder : ICommandBuilder
     
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
-        var commandLineParser = new CommandLineParser.CommandLineParser(this);
+        var commandLineParser = new CommandLineParser(this);
         return await commandLineParser.RunAsync(args, cancellationToken);
     }
 

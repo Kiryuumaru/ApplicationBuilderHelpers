@@ -213,7 +213,7 @@ public abstract class TestSuiteBase
         return result;
     }
 
-    private async Task RunTest(TestCase test, TestSuiteResult suiteResult, string indent)
+    private static async Task RunTest(TestCase test, TestSuiteResult suiteResult, string indent)
     {
         var testResult = new TestResult { Name = test.Name };
         suiteResult.Results.Add(testResult);

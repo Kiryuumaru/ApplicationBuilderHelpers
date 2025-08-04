@@ -35,7 +35,7 @@ internal abstract class BaseCommand : Command
 
         // Print command info
         var commandAttr = GetType().GetCustomAttribute<CommandAttribute>();
-        Console.WriteLine($"[CMD] Command: {commandAttr?.Name ?? GetType().Name}");
+        Console.WriteLine($"[CMD] Command: {commandAttr?.Term ?? GetType().Name}");
         Console.WriteLine($"[DSC] Description: {commandAttr?.Description ?? "No description"}");
         Console.WriteLine();
 

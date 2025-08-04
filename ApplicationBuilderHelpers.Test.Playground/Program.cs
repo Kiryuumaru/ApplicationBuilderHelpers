@@ -107,7 +107,7 @@ catch (Exception ex)
     Console.WriteLine($"⚠️ ExitCodeTests failed to load: {ex.Message}");
 }
 
-if (!allTestSuites.Any())
+if (allTestSuites.Count == 0)
 {
     Console.Error.WriteLine("❌ No test suites could be loaded. Cannot proceed with testing.");
     return 1;
@@ -123,7 +123,7 @@ if (!string.IsNullOrEmpty(requestedSuite))
         .Where(s => s.GetSuiteName().Contains(requestedSuite, StringComparison.OrdinalIgnoreCase))
         .ToList();
 
-    if (!testSuites.Any())
+    if (testSuites.Count == 0)
     {
         Console.Error.WriteLine($"❌ No test suite found matching '{requestedSuite}'");
         Console.WriteLine("\nAvailable test suites:");
@@ -230,7 +230,7 @@ static void PrintAllTestResults(List<TestSuiteResult> results)
         Console.WriteLine($"{'─'.Repeat(50)}");
         Console.WriteLine($"Duration: {suite.Duration.TotalSeconds:F2}s | Total: {suite.Total} | Passed: {suite.Passed} | Failed: {suite.Failed}");
         
-        if (suite.Results.Any())
+        if (suite.Results.Count != 0)
         {
             Console.WriteLine();
             foreach (var test in suite.Results)
@@ -269,7 +269,7 @@ static void PrintOverallSummary(List<TestSuiteResult> results, TimeSpan totalDur
     {
         var suiteStatus = suite.AllPassed ? "✅" : "❌";
         var passRate = suite.Total > 0 ? (double)suite.Passed / suite.Total * 100 : 0;
-        Console.WriteLine($"{(suite.SuiteName.Length > 23 ? suite.SuiteName.Substring(0, 20) + "..." : suite.SuiteName),-25} " +
+        Console.WriteLine($"{(suite.SuiteName.Length > 23 ? suite.SuiteName[..20] + "..." : suite.SuiteName),-25} " +
                          $"{suite.Total,-8} {suite.Passed,-8} {suite.Failed,-8} {passRate:F1}%{"",-3} {suite.Duration.TotalSeconds:F2}s{"",-4}");
     }
 
@@ -319,7 +319,7 @@ static void PrintOverallSummary(List<TestSuiteResult> results, TimeSpan totalDur
         foreach (var suite in results)
         {
             var failedTests = suite.Results.Where(r => !r.Passed).ToList();
-            if (failedTests.Any())
+            if (failedTests.Count != 0)
             {
                 Console.WriteLine($"\n  📁 {suite.SuiteName} - {failedTests.Count} failed test(s):");
                 foreach (var test in failedTests)

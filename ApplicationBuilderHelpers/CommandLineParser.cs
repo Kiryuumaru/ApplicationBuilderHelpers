@@ -11,16 +11,17 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Themes;
 using System.Text.RegularExpressions;
+using System.Diagnostics.CodeAnalysis;
 
-namespace ApplicationBuilderHelpers.__Old;
+namespace ApplicationBuilderHelpers;
 
-internal class CommandLineParserOld
+internal class CommandLineParser
 {
     private readonly ICommandBuilder _commandBuilder;
     private readonly ICommandTypeParserCollection _typeParserCollection;
     private readonly IAnsiTheme _theme;
 
-    public CommandLineParserOld(ApplicationBuilder builder)
+    public CommandLineParser(ApplicationBuilder builder)
     {
         _commandBuilder = builder;
         _typeParserCollection = builder;
@@ -29,7 +30,7 @@ internal class CommandLineParserOld
         _theme = _commandBuilder.Theme ?? new MonokaiDimmedTheme();
     }
 
-    public async Task<int> RunAsync(string[] args)
+    public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
     {
         try
         {
@@ -39,7 +40,7 @@ internal class CommandLineParserOld
                 var defaultCommand = FindDefaultCommand();
                 if (defaultCommand != null)
                 {
-                    await ExecuteCommand(defaultCommand);
+                    await ExecuteCommand(defaultCommand, cancellationToken);
                     return 0;
                 }
                 else
@@ -51,7 +52,7 @@ internal class CommandLineParserOld
 
             if (args.Contains("--help") || args.Contains("-h"))
             {
-                var command = args.Length > 1 && !args[0].StartsWith("-") ? FindCommand(args[0]) : null;
+                var command = args.Length > 1 && !args[0].StartsWith('-') ? FindCommand(args[0]) : null;
                 ShowHelp(command);
                 return 0;
             }
@@ -63,7 +64,7 @@ internal class CommandLineParserOld
             }
 
             // Find command
-            var targetCommand = args.Length > 0 && !args[0].StartsWith("-") ? FindCommand(args[0]) : FindDefaultCommand();
+            var targetCommand = args.Length > 0 && !args[0].StartsWith('-') ? FindCommand(args[0]) : FindDefaultCommand();
             if (targetCommand == null)
             {
                 Console.Error.WriteLine("No command found.");
@@ -76,7 +77,7 @@ internal class CommandLineParserOld
             SetCommandValues(targetCommand, args);
 
             // Execute command
-            await ExecuteCommand(targetCommand);
+            await ExecuteCommand(targetCommand, cancellationToken);
             return 0;
         }
         catch (CommandException ex)
@@ -100,7 +101,7 @@ internal class CommandLineParserOld
         // First pass: collect non-option arguments
         for (int i = 0; i < args.Length; i++)
         {
-            if (!args[i].StartsWith("-"))
+            if (!args[i].StartsWith('-'))
             {
                 nonOptionArgs.Add(args[i]);
             }
@@ -109,7 +110,7 @@ internal class CommandLineParserOld
         // Skip the command name if present
         if (nonOptionArgs.Count > 0)
         {
-            var commandName = FindCommandName(command);
+            var commandName = CommandLineParser.FindCommandName(command);
             if (commandName != null)
             {
                 // Handle commands with spaces (like "remote add")
@@ -162,14 +163,14 @@ internal class CommandLineParserOld
                     // Handle long options with equals (--option=value)
                     if (arg.StartsWith($"--{term}="))
                     {
-                        var value = arg.Substring($"--{term}=".Length);
+                        var value = arg[$"--{term}=".Length..];
                         optionValues.Add(value);
                         parsedOptions.Add(term);
                     }
                     // Handle short options with equals (-o=value)
                     else if (optionAttr.ShortTerm.HasValue && arg.StartsWith($"-{optionAttr.ShortTerm}="))
                     {
-                        var value = arg.Substring($"-{optionAttr.ShortTerm}=".Length);
+                        var value = arg[$"-{optionAttr.ShortTerm}=".Length..];
                         optionValues.Add(value);
                         parsedOptions.Add(term);
                     }
@@ -177,7 +178,7 @@ internal class CommandLineParserOld
                     else if (optionAttr.ShortTerm.HasValue && property.PropertyType != typeof(bool) && 
                              arg.StartsWith($"-{optionAttr.ShortTerm}") && arg.Length > 2)
                     {
-                        var value = arg.Substring(2); // Skip "-" and the short option character
+                        var value = arg[2..]; // Skip "-" and the short option character
                         optionValues.Add(value);
                         parsedOptions.Add(term);
                     }
@@ -187,7 +188,7 @@ internal class CommandLineParserOld
                         if (property.PropertyType == typeof(bool))
                         {
                             // For boolean options, check if next argument is a valid boolean value
-                            if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                            if (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
                             {
                                 var nextArg = args[i + 1];
                                 // Check if next argument is a boolean value
@@ -211,7 +212,7 @@ internal class CommandLineParserOld
                                 parsedOptions.Add(term);
                             }
                         }
-                        else if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                        else if (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
                         {
                             optionValues.Add(args[i + 1]);
                             parsedOptions.Add(term);
@@ -236,7 +237,7 @@ internal class CommandLineParserOld
                     if (property.PropertyType.IsArray)
                     {
                         var elementType = property.PropertyType.GetElementType()!;
-                        var array = Array.CreateInstance(elementType, optionValues.Count);
+                        object[] array = new object[optionValues.Count];
                         for (int j = 0; j < optionValues.Count; j++)
                         {
                             // Validate FromAmong for array elements
@@ -299,25 +300,10 @@ internal class CommandLineParserOld
         }
     }
 
-    private string? FindCommandName(ICommand command)
+    private static string? FindCommandName(ICommand command)
     {
         var attr = command.GetType().GetCustomAttribute<CommandAttribute>();
-        return attr?.Name;
-    }
-
-    private void ValidateFromAmong(string value, object[]? fromAmong, string optionName)
-    {
-        if (fromAmong?.Length > 0)
-        {
-            var isValidValue = fromAmong.Any(validValue => 
-                string.Equals(validValue?.ToString(), value, StringComparison.OrdinalIgnoreCase));
-            
-            if (!isValidValue)
-            {
-                var validValues = string.Join(", ", fromAmong.Select(v => v?.ToString()));
-                throw new CommandException($"Value '{value}' is not valid for option '--{optionName}'. Must be one of: {validValues}", 1);
-            }
-        }
+        return attr?.Term;
     }
 
     private object? ConvertSingleValue(string? value, Type targetType, object[]? fromAmong = null)
@@ -360,7 +346,7 @@ internal class CommandLineParserOld
         var exactMatch = _commandBuilder.Commands.FirstOrDefault(cmd =>
         {
             var attr = cmd.GetType().GetCustomAttribute<CommandAttribute>();
-            return attr?.Name == name;
+            return attr?.Term == name;
         });
         
         if (exactMatch != null) return exactMatch;
@@ -369,9 +355,9 @@ internal class CommandLineParserOld
         return _commandBuilder.Commands.FirstOrDefault(cmd =>
         {
             var attr = cmd.GetType().GetCustomAttribute<CommandAttribute>();
-            if (attr?.Name?.Contains(' ') == true)
+            if (attr?.Term?.Contains(' ') == true)
             {
-                var parts = attr.Name.Split(' ');
+                var parts = attr.Term.Split(' ');
                 return parts.Length > 0 && parts[0] == name;
             }
             return false;
@@ -383,15 +369,15 @@ internal class CommandLineParserOld
         return _commandBuilder.Commands.FirstOrDefault(cmd =>
         {
             var attr = cmd.GetType().GetCustomAttribute<CommandAttribute>();
-            return attr?.Name == null;
+            return attr?.Term == null;
         });
     }
 
-    private async Task ExecuteCommand(ICommand command)
+    private async Task ExecuteCommand(ICommand command, CancellationToken cancellationToken)
     {
         command.CommandPreparationInternal((ApplicationBuilder)_commandBuilder);
 
-        using var cancellationTokenSource = new CancellationTokenSource();
+        using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var hostBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
         var host = hostBuilder.Build();
 
@@ -436,7 +422,7 @@ internal class CommandLineParserOld
 
         // Global options
         var globalOptions = GetGlobalOptions();
-        if (globalOptions.Any())
+        if (globalOptions.Count != 0)
         {
             foreach (var option in globalOptions)
             {
@@ -448,44 +434,44 @@ internal class CommandLineParserOld
 
         // Commands
         var namedCommands = _commandBuilder.Commands
-            .Where(cmd => cmd.GetType().GetCustomAttribute<CommandAttribute>()?.Name != null)
+            .Where(cmd => cmd.GetType().GetCustomAttribute<CommandAttribute>()?.Term != null)
             .ToList();
 
-        if (namedCommands.Any())
+        if (namedCommands.Count != 0)
         {
             foreach (var command in namedCommands)
             {
                 var attr = command.GetType().GetCustomAttribute<CommandAttribute>();
-                items.Add(new HelpItem($"    {_theme.FlagColor}{attr!.Name}{_theme.Reset}", $"{_theme.DescriptionColor}{attr.Description ?? ""}{_theme.Reset}"));
+                items.Add(new HelpItem($"    {_theme.FlagColor}{attr!.Term}{_theme.Reset}", $"{_theme.DescriptionColor}{attr.Description ?? ""}{_theme.Reset}"));
             }
         }
 
         // Calculate optimal left column width
-        var leftColumnWidth = CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
+        var leftColumnWidth = CommandLineParser.CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
 
         // Display sections
-        if (globalOptions.Any())
+        if (globalOptions.Count != 0)
         {
             Console.WriteLine($"{_theme.HeaderColor}GLOBAL OPTIONS:{_theme.Reset}");
             foreach (var option in globalOptions)
             {
                 ShowOption(option, leftColumnWidth, totalWidth, borderWidth);
             }
-            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
-            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
             Console.WriteLine();
         }
 
-        if (namedCommands.Any())
+        if (namedCommands.Count != 0)
         {
             Console.WriteLine($"{_theme.HeaderColor}COMMANDS:{_theme.Reset}");
             foreach (var command in namedCommands)
             {
                 var attr = command.GetType().GetCustomAttribute<CommandAttribute>();
-                var leftText = $"    {_theme.FlagColor}{attr!.Name}{_theme.Reset}";
+                var leftText = $"    {_theme.FlagColor}{attr!.Term}{_theme.Reset}";
                 var rightText = $"{_theme.DescriptionColor}{attr.Description ?? ""}{_theme.Reset}";
 
-                Console.WriteLine(FormatTwoColumn(leftText, rightText, leftColumnWidth, totalWidth, borderWidth));
+                Console.WriteLine(CommandLineParser.FormatTwoColumn(leftText, rightText, leftColumnWidth, totalWidth, borderWidth));
             }
             Console.WriteLine();
         }
@@ -508,15 +494,15 @@ internal class CommandLineParserOld
 
         // Usage
         Console.WriteLine($"{_theme.HeaderColor}USAGE:{_theme.Reset}");
-        Console.WriteLine($"    {_theme.DescriptionColor}{_commandBuilder.ExecutableName}{_theme.Reset} {_theme.FlagColor}{attr?.Name}{_theme.Reset} {_theme.SecondaryColor}[OPTIONS] [GLOBAL OPTIONS] [ARGS]{_theme.Reset}");
+        Console.WriteLine($"    {_theme.DescriptionColor}{_commandBuilder.ExecutableName}{_theme.Reset} {_theme.FlagColor}{attr?.Term}{_theme.Reset} {_theme.SecondaryColor}[OPTIONS] [GLOBAL OPTIONS] [ARGS]{_theme.Reset}");
         Console.WriteLine();
 
         // Collect all items for dynamic left column calculation
         var items = new List<HelpItem>();
 
         // Command options
-        var commandOptions = GetCommandOptions(command);
-        if (commandOptions.Any())
+        var commandOptions = CommandLineParser.GetCommandOptions(command);
+        if (commandOptions.Count != 0)
         {
             foreach (var option in commandOptions)
             {
@@ -525,8 +511,8 @@ internal class CommandLineParserOld
         }
 
         // Arguments
-        var arguments = GetCommandArguments(command);
-        if (arguments.Any())
+        var arguments = CommandLineParser.GetCommandArguments(command);
+        if (arguments.Count != 0)
         {
             foreach (var argument in arguments)
             {
@@ -536,7 +522,7 @@ internal class CommandLineParserOld
 
         // Global options
         var globalOptions = GetGlobalOptions();
-        if (globalOptions.Any())
+        if (globalOptions.Count != 0)
         {
             foreach (var option in globalOptions)
             {
@@ -547,10 +533,10 @@ internal class CommandLineParserOld
         }
 
         // Calculate optimal left column width
-        var leftColumnWidth = CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
+        var leftColumnWidth = CommandLineParser.CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
 
         // Display sections
-        if (commandOptions.Any())
+        if (commandOptions.Count != 0)
         {
             Console.WriteLine($"{_theme.HeaderColor}OPTIONS:{_theme.Reset}");
             foreach (var option in commandOptions)
@@ -560,7 +546,7 @@ internal class CommandLineParserOld
             Console.WriteLine();
         }
 
-        if (arguments.Any())
+        if (arguments.Count != 0)
         {
             Console.WriteLine($"{_theme.HeaderColor}ARGUMENTS:{_theme.Reset}");
             foreach (var argument in arguments)
@@ -570,15 +556,15 @@ internal class CommandLineParserOld
             Console.WriteLine();
         }
 
-        if (globalOptions.Any())
+        if (globalOptions.Count != 0)
         {
             Console.WriteLine($"{_theme.HeaderColor}GLOBAL OPTIONS:{_theme.Reset}");
             foreach (var option in globalOptions)
             {
                 ShowOption(option, leftColumnWidth, totalWidth, borderWidth);
             }
-            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
-            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
         }
     }
 
@@ -599,7 +585,7 @@ internal class CommandLineParserOld
 
         if (option.PropertyType != typeof(bool))
         {
-            var typeName = GetTypeName(option.PropertyType);
+            var typeName = CommandLineParser.GetTypeName(option.PropertyType);
             leftText.Append($" {_theme.ParameterColor}<{typeName}>{_theme.Reset}");
         }
 
@@ -639,12 +625,12 @@ internal class CommandLineParserOld
         return new HelpItem(leftText, description);
     }
 
-    private int CalculateOptimalLeftColumnWidth(List<HelpItem> items, int totalWidth, int borderWidth)
+    private static int CalculateOptimalLeftColumnWidth(List<HelpItem> items, int totalWidth, int borderWidth)
     {
-        if (!items.Any()) return Math.Min(35, totalWidth / 2);
+        if (items.Count == 0) return Math.Min(35, totalWidth / 2);
 
         // Calculate the maximum width needed for the left column
-        var maxLeftWidth = items.Max(item => GetDisplayWidth(item.Left));
+        var maxLeftWidth = items.Max(item => CommandLineParser.GetDisplayWidth(item.Left));
         
         // Account for border width in calculations
         var availableWidth = totalWidth - borderWidth;
@@ -659,7 +645,7 @@ internal class CommandLineParserOld
         return Math.Max(optimalWidth, 20);
     }
 
-    private int GetDisplayWidth(string text)
+    private static int GetDisplayWidth(string text)
     {
         // Remove ANSI color codes for accurate width calculation
         return Regex.Replace(text, @"\u001b\[[0-9;]*m", "").Length;
@@ -668,33 +654,33 @@ internal class CommandLineParserOld
     private void ShowOption(OptionInfo option, int leftColumnWidth, int totalWidth, int borderWidth)
     {
         var helpItem = CreateOptionHelpItem(option);
-        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
+        Console.WriteLine(CommandLineParser.FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
     }
 
     private void ShowArgument(ArgumentInfo argument, int leftColumnWidth, int totalWidth, int borderWidth)
     {
         var helpItem = CreateArgumentHelpItem(argument);
-        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
+        Console.WriteLine(CommandLineParser.FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
     }
 
-    private string FormatTwoColumn(string left, string right, int leftColumnWidth, int totalWidth, int borderWidth)
+    private static string FormatTwoColumn(string left, string right, int leftColumnWidth, int totalWidth, int borderWidth)
     {
-        var leftDisplayWidth = GetDisplayWidth(left);
+        var leftDisplayWidth = CommandLineParser.GetDisplayWidth(left);
         var rightColumnWidth = totalWidth - leftColumnWidth - borderWidth;
         
         if (leftDisplayWidth > leftColumnWidth)
         {
             // If left content is too long, put right content on next line
             var indentWidth = leftColumnWidth + borderWidth;
-            return left + Environment.NewLine + new string(' ', indentWidth) + WrapText(right, rightColumnWidth, indentWidth);
+            return left + Environment.NewLine + new string(' ', indentWidth) + CommandLineParser.WrapText(right, rightColumnWidth, indentWidth);
         }
 
         var padding = leftColumnWidth - leftDisplayWidth;
         var border = new string(' ', borderWidth);
-        return left + new string(' ', padding) + border + WrapText(right, rightColumnWidth, leftColumnWidth + borderWidth);
+        return left + new string(' ', padding) + border + CommandLineParser.WrapText(right, rightColumnWidth, leftColumnWidth + borderWidth);
     }
 
-    private string WrapText(string text, int maxWidth, int leftColumnWidth)
+    private static string WrapText(string text, int maxWidth, int leftColumnWidth)
     {
         if (string.IsNullOrEmpty(text) || maxWidth <= 0)
             return text;
@@ -719,7 +705,7 @@ internal class CommandLineParserOld
             else
             {
                 // Word wrap the line
-                var wrappedLines = WrapLine(line, maxWidth);
+                var wrappedLines = CommandLineParser.WrapLine(line, maxWidth);
                 for (int wrapIndex = 0; wrapIndex < wrappedLines.Count; wrapIndex++)
                 {
                     if (lineIndex > 0 || wrapIndex > 0)
@@ -735,7 +721,7 @@ internal class CommandLineParserOld
         return result.ToString();
     }
 
-    private List<string> WrapLine(string line, int maxWidth)
+    private static List<string> WrapLine(string line, int maxWidth)
     {
         var result = new List<string>();
         var words = line.Split(' ');
@@ -763,7 +749,7 @@ internal class CommandLineParserOld
                 // Handle words longer than maxWidth
                 if (wordWithoutColors.Length > maxWidth)
                 {
-                    result.Add(word.Substring(0, Math.Min(word.Length, maxWidth - 3)) + "...");
+                    result.Add(word[..Math.Min(word.Length, maxWidth - 3)] + "...");
                 }
                 else
                 {
@@ -777,10 +763,10 @@ internal class CommandLineParserOld
             result.Add(currentLine.ToString());
         }
 
-        return result.Any() ? result : [line];
+        return result.Count != 0 ? result : [line];
     }
 
-    private string GetTypeName(Type type)
+    private static string GetTypeName(Type type)
     {
         if (type.IsArray)
             type = type.GetElementType()!;
@@ -800,7 +786,7 @@ internal class CommandLineParserOld
 
         // Find options that are common to all commands
         var allCommandOptions = _commandBuilder.Commands
-            .SelectMany(cmd => GetCommandOptions(cmd))
+            .SelectMany(cmd => CommandLineParser.GetCommandOptions(cmd))
             .GroupBy(opt => opt.Property.Name)
             .Where(g => g.Count() == _commandBuilder.Commands.Count)
             .Select(g => g.First())
@@ -811,7 +797,7 @@ internal class CommandLineParserOld
         return globalOptions;
     }
 
-    private List<OptionInfo> GetCommandOptions(ICommand command)
+    private static List<OptionInfo> GetCommandOptions(ICommand command)
     {
         var options = new List<OptionInfo>();
         var properties = command.GetType().GetProperties();
@@ -831,7 +817,7 @@ internal class CommandLineParserOld
                     Required = attr.Required,
                     EnvironmentVariable = attr.EnvironmentVariable,
                     FromAmong = attr.FromAmong,
-                    DefaultValue = GetDefaultValue(property, command)
+                    DefaultValue = CommandLineParser.GetDefaultValue(property, command)
                 });
             }
         }
@@ -839,7 +825,7 @@ internal class CommandLineParserOld
         return options;
     }
 
-    private List<ArgumentInfo> GetCommandArguments(ICommand command)
+    private static List<ArgumentInfo> GetCommandArguments(ICommand command)
     {
         var arguments = new List<ArgumentInfo>();
         var properties = command.GetType().GetProperties();
@@ -860,10 +846,10 @@ internal class CommandLineParserOld
             }
         }
 
-        return arguments.OrderBy(a => a.Position).ToList();
+        return [.. arguments.OrderBy(a => a.Position)];
     }
 
-    private object? GetDefaultValue(PropertyInfo property, ICommand command)
+    private static object? GetDefaultValue(PropertyInfo property, ICommand command)
     {
         try
         {
@@ -920,14 +906,8 @@ internal class ArgumentInfo
     public bool Required { get; set; }
 }
 
-internal class HelpItem
+internal class HelpItem(string left, string right)
 {
-    public string Left { get; }
-    public string Right { get; }
-
-    public HelpItem(string left, string right)
-    {
-        Left = left;
-        Right = right;
-    }
+    public string Left { get; } = left;
+    public string Right { get; } = right;
 }
