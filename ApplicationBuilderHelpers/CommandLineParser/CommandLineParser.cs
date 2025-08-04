@@ -795,7 +795,11 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         // Show hierarchy-specific options (from intermediate parent commands like ConfigCommand)
         if (hierarchySpecificOptions.Count > 0)
         {
-            Console.WriteLine("COMMAND OPTIONS:");
+            var parentCommandName = GetParentCommandName(commandInfo);
+            var sectionName = !string.IsNullOrEmpty(parentCommandName) 
+                ? $"OPTIONS ({parentCommandName}):"
+                : "INHERITED OPTIONS:";
+            Console.WriteLine(sectionName);
             foreach (var option in hierarchySpecificOptions)
             {
                 ShowDetailedOption(option);
@@ -872,6 +876,35 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Gets the parent command name for hierarchy-specific options display
+    /// </summary>
+    private string? GetParentCommandName(SubCommandInfo commandInfo)
+    {
+        // For a command like "config get", we want to return "config" for the parent
+        if (commandInfo.CommandParts.Length > 1)
+        {
+            // Get the immediate parent command name
+            return commandInfo.CommandParts[^2];
+        }
+        
+        // For single-level commands, check if they have hierarchy-specific options
+        // by looking at the first hierarchy-specific option's declaring type
+        var hierarchyOption = commandInfo.Options.FirstOrDefault(o => IsHierarchySpecificOption(o, commandInfo));
+        if (hierarchyOption != null && hierarchyOption.Property.DeclaringType != null)
+        {
+            var declaringTypeName = hierarchyOption.Property.DeclaringType.Name;
+            // Convert "ConfigCommand" to "config"
+            if (declaringTypeName.EndsWith("Command", StringComparison.OrdinalIgnoreCase))
+            {
+                return declaringTypeName[..^"Command".Length].ToLowerInvariant();
+            }
+            return declaringTypeName.ToLowerInvariant();
+        }
+        
+        return null;
     }
 
     /// <summary>
