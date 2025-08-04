@@ -13,7 +13,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ApplicationBuilderHelpers;
+namespace ApplicationBuilderHelpers.__Old;
 
 internal class CommandLineParser
 {
@@ -451,7 +451,7 @@ internal class CommandLineParser
         }
 
         // Calculate optimal left column width
-        var leftColumnWidth = CommandLineParser.CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
+        var leftColumnWidth = CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
 
         // Display sections
         if (globalOptions.Count != 0)
@@ -461,8 +461,8 @@ internal class CommandLineParser
             {
                 ShowOption(option, leftColumnWidth, totalWidth, borderWidth);
             }
-            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
-            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
             Console.WriteLine();
         }
 
@@ -475,7 +475,7 @@ internal class CommandLineParser
                 var leftText = $"    {_theme.FlagColor}{attr!.Term}{_theme.Reset}";
                 var rightText = $"{_theme.DescriptionColor}{attr.Description ?? ""}{_theme.Reset}";
 
-                Console.WriteLine(CommandLineParser.FormatTwoColumn(leftText, rightText, leftColumnWidth, totalWidth, borderWidth));
+                Console.WriteLine(FormatTwoColumn(leftText, rightText, leftColumnWidth, totalWidth, borderWidth));
             }
             Console.WriteLine();
         }
@@ -505,7 +505,7 @@ internal class CommandLineParser
         var items = new List<HelpItem>();
 
         // Command options
-        var commandOptions = CommandLineParser.GetCommandOptions(command);
+        var commandOptions = GetCommandOptions(command);
         if (commandOptions.Count != 0)
         {
             foreach (var option in commandOptions)
@@ -515,7 +515,7 @@ internal class CommandLineParser
         }
 
         // Arguments
-        var arguments = CommandLineParser.GetCommandArguments(command);
+        var arguments = GetCommandArguments(command);
         if (arguments.Count != 0)
         {
             foreach (var argument in arguments)
@@ -537,7 +537,7 @@ internal class CommandLineParser
         }
 
         // Calculate optimal left column width
-        var leftColumnWidth = CommandLineParser.CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
+        var leftColumnWidth = CalculateOptimalLeftColumnWidth(items, totalWidth, borderWidth);
 
         // Display sections
         if (commandOptions.Count != 0)
@@ -567,8 +567,8 @@ internal class CommandLineParser
             {
                 ShowOption(option, leftColumnWidth, totalWidth, borderWidth);
             }
-            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
-            Console.WriteLine(CommandLineParser.FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-h, --help{_theme.Reset}", $"{_theme.DescriptionColor}Show this help message{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
+            Console.WriteLine(FormatTwoColumn($"    {_theme.FlagColor}-V, --version{_theme.Reset}", $"{_theme.DescriptionColor}Show version information{_theme.Reset}", leftColumnWidth, totalWidth, borderWidth));
         }
     }
 
@@ -589,7 +589,7 @@ internal class CommandLineParser
 
         if (option.PropertyType != typeof(bool))
         {
-            var typeName = CommandLineParser.GetTypeName(option.PropertyType);
+            var typeName = GetTypeName(option.PropertyType);
             leftText.Append($" {_theme.ParameterColor}<{typeName}>{_theme.Reset}");
         }
 
@@ -634,7 +634,7 @@ internal class CommandLineParser
         if (items.Count == 0) return Math.Min(35, totalWidth / 2);
 
         // Calculate the maximum width needed for the left column
-        var maxLeftWidth = items.Max(item => CommandLineParser.GetDisplayWidth(item.Left));
+        var maxLeftWidth = items.Max(item => GetDisplayWidth(item.Left));
         
         // Account for border width in calculations
         var availableWidth = totalWidth - borderWidth;
@@ -658,30 +658,30 @@ internal class CommandLineParser
     private void ShowOption(OptionInfo option, int leftColumnWidth, int totalWidth, int borderWidth)
     {
         var helpItem = CreateOptionHelpItem(option);
-        Console.WriteLine(CommandLineParser.FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
+        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
     }
 
     private void ShowArgument(ArgumentInfo argument, int leftColumnWidth, int totalWidth, int borderWidth)
     {
         var helpItem = CreateArgumentHelpItem(argument);
-        Console.WriteLine(CommandLineParser.FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
+        Console.WriteLine(FormatTwoColumn(helpItem.Left, helpItem.Right, leftColumnWidth, totalWidth, borderWidth));
     }
 
     private static string FormatTwoColumn(string left, string right, int leftColumnWidth, int totalWidth, int borderWidth)
     {
-        var leftDisplayWidth = CommandLineParser.GetDisplayWidth(left);
+        var leftDisplayWidth = GetDisplayWidth(left);
         var rightColumnWidth = totalWidth - leftColumnWidth - borderWidth;
         
         if (leftDisplayWidth > leftColumnWidth)
         {
             // If left content is too long, put right content on next line
             var indentWidth = leftColumnWidth + borderWidth;
-            return left + Environment.NewLine + new string(' ', indentWidth) + CommandLineParser.WrapText(right, rightColumnWidth, indentWidth);
+            return left + Environment.NewLine + new string(' ', indentWidth) + WrapText(right, rightColumnWidth, indentWidth);
         }
 
         var padding = leftColumnWidth - leftDisplayWidth;
         var border = new string(' ', borderWidth);
-        return left + new string(' ', padding) + border + CommandLineParser.WrapText(right, rightColumnWidth, leftColumnWidth + borderWidth);
+        return left + new string(' ', padding) + border + WrapText(right, rightColumnWidth, leftColumnWidth + borderWidth);
     }
 
     private static string WrapText(string text, int maxWidth, int leftColumnWidth)
@@ -709,7 +709,7 @@ internal class CommandLineParser
             else
             {
                 // Word wrap the line
-                var wrappedLines = CommandLineParser.WrapLine(line, maxWidth);
+                var wrappedLines = WrapLine(line, maxWidth);
                 for (int wrapIndex = 0; wrapIndex < wrappedLines.Count; wrapIndex++)
                 {
                     if (lineIndex > 0 || wrapIndex > 0)
@@ -790,7 +790,7 @@ internal class CommandLineParser
 
         // Find options that are common to all commands
         var allCommandOptions = _commandBuilder.Commands
-            .SelectMany(cmd => CommandLineParser.GetCommandOptions(cmd))
+            .SelectMany(cmd => GetCommandOptions(cmd))
             .GroupBy(opt => opt.Property.Name)
             .Where(g => g.Count() == _commandBuilder.Commands.Count)
             .Select(g => g.First())
@@ -821,7 +821,7 @@ internal class CommandLineParser
                     Required = attr.Required,
                     EnvironmentVariable = attr.EnvironmentVariable,
                     FromAmong = attr.FromAmong,
-                    DefaultValue = CommandLineParser.GetDefaultValue(property, command)
+                    DefaultValue = GetDefaultValue(property, command)
                 });
             }
         }

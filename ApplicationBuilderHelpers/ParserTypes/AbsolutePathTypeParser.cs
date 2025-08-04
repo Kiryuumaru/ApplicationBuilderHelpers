@@ -11,11 +11,10 @@ public class AbsolutePathTypeParser : ICommandTypeParser
 
     public object? Parse(string? value, out string? validateError)
     {
-        var valueStr = value?.ToString();
-        if (valueStr == null || string.IsNullOrEmpty(valueStr))
+        if (AbsolutePath.TryCreate(value, out var result))
         {
             validateError = null;
-            return default(AbsolutePath);
+            return result;
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";

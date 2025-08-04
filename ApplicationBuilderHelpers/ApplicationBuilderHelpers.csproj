@@ -33,6 +33,7 @@
 
 	<ItemGroup>
 		<Compile Remove="__Old\ApplicationBuilderOld.cs" />
+		<Compile Remove="__Old\CommandLineParser.cs" />
 		<Compile Remove="__Old\CommandLineParserOld.cs" />
 		<Compile Remove="__Old\ParserTypesOld\AbsolutePathTypeParser.cs" />
 		<Compile Remove="__Old\ParserTypesOld\BoolTypeParser.cs" />
@@ -60,6 +61,7 @@
 
 	<ItemGroup>
 		<None Include="__Old\ApplicationBuilderOld.cs" />
+		<None Include="__Old\CommandLineParser.cs" />
 		<None Include="__Old\ParserTypesOld\AbsolutePathTypeParser.cs" />
 		<None Include="__Old\ParserTypesOld\BoolTypeParser.cs" />
 		<None Include="__Old\ParserTypesOld\ByteTypeParser.cs" />
@@ -85,7 +87,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="AbsolutePathHelpers" Version="0.2.4" />
+		<PackageReference Include="AbsolutePathHelpers" Version="0.3.1" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.7" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.7" />
 		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.7" />
