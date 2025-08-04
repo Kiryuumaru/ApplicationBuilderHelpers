@@ -11,7 +11,7 @@ public class AbsolutePathTypeParser : ICommandTypeParser
 
     public object? Parse(string? value, out string? validateError)
     {
-        if (AbsolutePath.TryCreate(value, out var result))
+        if (AbsolutePath.TryParse(value, out var result))
         {
             validateError = null;
             return result;
