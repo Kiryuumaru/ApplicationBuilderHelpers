@@ -97,6 +97,16 @@ catch (Exception ex)
     Console.WriteLine($"⚠️ HelpSystemTests failed to load: {ex.Message}");
 }
 
+try
+{
+    allTestSuites.Add(new ExitCodeTests(runner));
+    Console.WriteLine("✅ ExitCodeTests loaded");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"⚠️ ExitCodeTests failed to load: {ex.Message}");
+}
+
 if (!allTestSuites.Any())
 {
     Console.Error.WriteLine("❌ No test suites could be loaded. Cannot proceed with testing.");

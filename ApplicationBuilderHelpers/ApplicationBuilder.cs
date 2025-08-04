@@ -57,16 +57,8 @@ public class ApplicationBuilder : ICommandBuilder
     
     public async Task<int> RunAsync(string[] args)
     {
-        try
-        {
-            var commandLineParser = new CommandLineParser(this);
-            return await commandLineParser.RunAsync(args);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
-        }
+        var commandLineParser = new CommandLineParser(this);
+        return await commandLineParser.RunAsync(args);
     }
 
     /// <summary>

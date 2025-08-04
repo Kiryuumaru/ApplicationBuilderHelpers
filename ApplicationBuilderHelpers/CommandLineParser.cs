@@ -67,6 +67,8 @@ internal class CommandLineParser
             if (targetCommand == null)
             {
                 Console.Error.WriteLine("No command found.");
+                Console.WriteLine();
+                ShowHelp(null);
                 return 1;
             }
 
@@ -76,6 +78,11 @@ internal class CommandLineParser
             // Execute command
             await ExecuteCommand(targetCommand);
             return 0;
+        }
+        catch (CommandException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return ex.ExitCode;
         }
         catch (Exception ex)
         {
@@ -103,9 +110,37 @@ internal class CommandLineParser
         if (nonOptionArgs.Count > 0)
         {
             var commandName = FindCommandName(command);
-            if (commandName != null && nonOptionArgs[0] == commandName)
+            if (commandName != null)
             {
-                nonOptionArgs.RemoveAt(0);
+                // Handle commands with spaces (like "remote add")
+                if (commandName.Contains(' '))
+                {
+                    var commandParts = commandName.Split(' ');
+                    int partsMatched = 0;
+                    
+                    // Check how many command parts match the beginning of nonOptionArgs
+                    for (int i = 0; i < commandParts.Length && i < nonOptionArgs.Count; i++)
+                    {
+                        if (nonOptionArgs[i] == commandParts[i])
+                        {
+                            partsMatched++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    
+                    // Remove the matched command parts
+                    for (int i = 0; i < partsMatched; i++)
+                    {
+                        nonOptionArgs.RemoveAt(0);
+                    }
+                }
+                else if (nonOptionArgs[0] == commandName)
+                {
+                    nonOptionArgs.RemoveAt(0);
+                }
             }
         }
         
