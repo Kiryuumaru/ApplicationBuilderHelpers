@@ -1,17 +1,17 @@
-using System;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Reflection;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
 using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Themes;
-using System.Text.RegularExpressions;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers;
 
@@ -110,7 +110,7 @@ internal class CommandLineParser
         // Skip the command name if present
         if (nonOptionArgs.Count > 0)
         {
-            var commandName = CommandLineParser.FindCommandName(command);
+            var commandName = FindCommandName(command);
             if (commandName != null)
             {
                 // Handle commands with spaces (like "remote add")
@@ -237,7 +237,11 @@ internal class CommandLineParser
                     if (property.PropertyType.IsArray)
                     {
                         var elementType = property.PropertyType.GetElementType()!;
-                        object[] array = new object[optionValues.Count];
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable IL3050 // Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.
+                        var array = Array.CreateInstance(elementType, optionValues.Count);
+#pragma warning restore IL3050 // Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.
+#pragma warning restore IDE0079 // Remove unnecessary suppression
                         for (int j = 0; j < optionValues.Count; j++)
                         {
                             // Validate FromAmong for array elements
