@@ -18,10 +18,8 @@ internal class SubCommandLine
 
     internal Dictionary<Type, ICommandTypeParser> TypeParsers { get; } = [];
 
-    internal Task<int> Parse(string[] args, CancellationToken cancellationToken = default)
+    internal void Parse(string[] args)
     {
-        // Implementation of the command execution logic goes here.
-        // This is a placeholder for the actual command execution logic.
-        return Task.FromResult(0);
+
     }
 }
