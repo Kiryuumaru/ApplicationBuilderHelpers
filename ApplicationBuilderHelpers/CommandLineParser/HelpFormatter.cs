@@ -34,14 +34,16 @@ internal class HelpFormatter
 
         // Usage section
         WriteColored("USAGE:", theme?.HeaderColor, theme);
-        Console.WriteLine($"    {ApplyColor(_commandBuilder.ExecutableName, theme?.FlagColor, theme)} {ApplyColor("[OPTIONS]", theme?.SecondaryColor, theme)} {ApplyColor("<COMMAND>", theme?.ParameterColor, theme)} {ApplyColor("[ARGS...]", theme?.SecondaryColor, theme)}");
+        var usageText = $"    {ApplyColor(_commandBuilder.ExecutableName, theme?.FlagColor, theme)} {ApplyColor("[OPTIONS]", theme?.SecondaryColor, theme)} {ApplyColor("<COMMAND>", theme?.ParameterColor, theme)} {ApplyColor("[ARGS...]", theme?.SecondaryColor, theme)}";
+        WriteWrappedContent(usageText, helpWidth, 0, theme);
         Console.WriteLine();
 
         // Description section
         if (!string.IsNullOrEmpty(_commandBuilder.ExecutableDescription))
         {
             WriteColored("DESCRIPTION:", theme?.HeaderColor, theme);
-            Console.WriteLine($"    {ApplyColor(_commandBuilder.ExecutableDescription, theme?.DescriptionColor, theme)}");
+            var descriptionText = $"    {ApplyColor(_commandBuilder.ExecutableDescription, theme?.DescriptionColor, theme)}";
+            WriteWrappedContent(descriptionText, helpWidth, 0, theme);
             Console.WriteLine();
         }
 
@@ -135,7 +137,8 @@ internal class HelpFormatter
                 opt => BuildOptionDescription(opt, theme));
         }
 
-        WriteColored($"Run '{ApplyColor(_commandBuilder.ExecutableName + " <command> --help", theme?.ParameterColor, theme)}' for more information on specific commands.", theme?.SecondaryColor, theme);
+        var helpMessage = $"Run '{ApplyColor(_commandBuilder.ExecutableName + " <command> --help", theme?.ParameterColor, theme)}' for more information on specific commands.";
+        WriteWrappedContent(helpMessage, helpWidth, 0, theme);
     }
 
     public void ShowCommandHelp(SubCommandInfo commandInfo)
@@ -159,13 +162,14 @@ internal class HelpFormatter
             usage.Append($" {ApplyColor(arg.GetSignature(), theme?.ParameterColor, theme)}");
         }
         
-        Console.WriteLine(usage.ToString());
+        WriteWrappedContent(usage.ToString(), helpWidth, 0, theme);
         Console.WriteLine();
 
         if (!string.IsNullOrEmpty(commandInfo.Description))
         {
             WriteColored("DESCRIPTION:", theme?.HeaderColor, theme);
-            Console.WriteLine($"    {ApplyColor(commandInfo.Description, theme?.DescriptionColor, theme)}");
+            var descriptionText = $"    {ApplyColor(commandInfo.Description, theme?.DescriptionColor, theme)}";
+            WriteWrappedContent(descriptionText, helpWidth, 0, theme);
             Console.WriteLine();
         }
 
@@ -825,5 +829,54 @@ internal class HelpFormatter
             return text;
         
         return $"{color}{text}{theme.Reset}";
+    }
+
+    private void WriteWrappedContent(string text, int maxWidth, int indent, IAnsiTheme? theme)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            Console.WriteLine();
+            return;
+        }
+
+        var indentStr = new string(' ', indent);
+        var availableWidth = maxWidth - indent;
+        
+        // Split text into words while preserving ANSI color codes
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var currentLineLength = 0;
+        var lineStarted = false;
+
+        foreach (var word in words)
+        {
+            var wordLength = GetDisplayWidth(word);
+            
+            // Check if we need to wrap to next line
+            if (lineStarted && currentLineLength + wordLength + 1 > availableWidth)
+            {
+                Console.WriteLine();
+                Console.Write(indentStr);
+                currentLineLength = 0;
+                lineStarted = false;
+            }
+
+            // Add space before word if not at line start
+            if (lineStarted)
+            {
+                Console.Write(" ");
+                currentLineLength++;
+            }
+            else if (indent > 0)
+            {
+                Console.Write(indentStr);
+                currentLineLength = indent;
+            }
+
+            Console.Write(word);
+            currentLineLength += wordLength;
+            lineStarted = true;
+        }
+        
+        Console.WriteLine();
     }
 }
