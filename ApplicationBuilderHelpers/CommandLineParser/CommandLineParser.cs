@@ -1,4 +1,4 @@
-﻿using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
@@ -122,21 +122,14 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     {
         if (commandInfo.CommandParts.Length == 0)
         {
-            // Root command - only add options that are truly global (from BaseCommand)
+            // Root command - add ALL options from the root command
             if (_rootCommand!.HasImplementation)
                 throw new InvalidOperationException("Cannot have more than one root command");
             
             _rootCommand.Command = commandInfo.Command;
             
-            // Only add BaseCommand options to root, not command-specific options
-            foreach (var option in commandInfo.Options)
-            {
-                if (IsBaseCommandOption(option))
-                {
-                    _rootCommand.Options.Add(option);
-                }
-            }
-            
+            // Add ALL options from the root command (both BaseCommand and MainCommand options)
+            _rootCommand.Options.AddRange(commandInfo.Options);
             _rootCommand.Arguments.AddRange(commandInfo.Arguments);
             return;
         }
@@ -311,7 +304,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
         }
 
-        // Add built-in global options (help and version)
+        // Add built-in global options (help only - version is not global)
         AddBuiltInGlobalOptions();
     }
 
@@ -332,14 +325,14 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     }
 
     /// <summary>
-    /// Adds built-in global options like help and version to the root command
+    /// Adds built-in global options (help only) to all commands
     /// </summary>
     private void AddBuiltInGlobalOptions()
     {
         // Create a dummy property to satisfy the Property requirement
         var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.PropertyType))!;
 
-        // Add help option
+        // Add help option as a true global option (appears in all commands)
         var helpOption = new SubCommandOptionInfo
         {
             ShortName = 'h',
@@ -357,8 +350,22 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             _rootCommand.Options.Add(helpOption);
         }
 
-        // Note: Not adding version option for now as it conflicts with existing command options
-        // Users can check version with existing --version handling in ShouldShowVersion
+        // Mark help as global in all commands
+        foreach (var command in _allCommands.Values)
+        {
+            var existingHelpOption = command.Options.FirstOrDefault(o => o.LongName == "help");
+            if (existingHelpOption == null)
+            {
+                var globalHelpOption = CreateGlobalOptionCopy(helpOption);
+                globalHelpOption.OwnerCommand = command;
+                command.Options.Add(globalHelpOption);
+            }
+            else
+            {
+                existingHelpOption.IsGlobal = true;
+                existingHelpOption.IsInherited = true;
+            }
+        }
     }
 
     /// <summary>
@@ -707,175 +714,14 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
     private void ShowGlobalHelp()
     {
-        var commandBuilder = (ICommandBuilder)ApplicationBuilder;
-        
-        Console.WriteLine($"{commandBuilder.ExecutableTitle}");
-        if (!string.IsNullOrEmpty(commandBuilder.ExecutableDescription))
-        {
-            Console.WriteLine($"{commandBuilder.ExecutableDescription}");
-        }
-        Console.WriteLine();
-
-        Console.WriteLine("USAGE:");
-        Console.WriteLine($"    {commandBuilder.ExecutableName} [OPTIONS] <COMMAND> [ARGS]");
-        Console.WriteLine($"    {commandBuilder.ExecutableName} [OPTIONS] <COMMAND> --help");
-        Console.WriteLine();
-
-        if (_rootCommand?.Options.Count > 0)
-        {
-            Console.WriteLine("GLOBAL OPTIONS:");
-            foreach (var option in _rootCommand.Options)
-            {
-                ShowDetailedOption(option);
-            }
-            Console.WriteLine();
-        }
-
-        var topLevelCommands = _rootCommand?.Children.Values.ToList() ?? [];
-        if (topLevelCommands.Count > 0)
-        {
-            Console.WriteLine("COMMANDS:");
-            foreach (var command in topLevelCommands)
-            {
-                Console.WriteLine($"    {command.Name}");
-                if (!string.IsNullOrEmpty(command.Description))
-                    Console.WriteLine($"        {command.Description}");
-            }
-            Console.WriteLine();
-        }
-
-        Console.WriteLine($"Run '{commandBuilder.ExecutableName} <command> --help' for more information on specific commands.");
+        var helpFormatter = new HelpFormatter(CommandBuilder, _rootCommand, _allCommands);
+        helpFormatter.ShowGlobalHelp();
     }
 
     private void ShowCommandHelp(SubCommandInfo commandInfo)
     {
-        var commandBuilder = (ICommandBuilder)ApplicationBuilder;
-        
-        Console.WriteLine($"{commandInfo.FullCommandName}");
-        if (!string.IsNullOrEmpty(commandInfo.Description))
-        {
-            Console.WriteLine($"{commandInfo.Description}");
-        }
-        Console.WriteLine();
-
-        Console.WriteLine("USAGE:");
-        var usage = new StringBuilder($"    {commandBuilder.ExecutableName}");
-        if (!string.IsNullOrEmpty(commandInfo.FullCommandName))
-            usage.Append($" {commandInfo.FullCommandName}");
-        
-        if (commandInfo.AllOptions.Count > 0)
-            usage.Append(" [OPTIONS]");
-            
-        foreach (var arg in commandInfo.AllArguments.OrderBy(a => a.Position))
-        {
-            usage.Append($" {arg.GetSignature()}");
-        }
-        
-        Console.WriteLine(usage.ToString());
-        Console.WriteLine();
-
-        // Categorize options into three groups
-        var commandSpecificOptions = new List<SubCommandOptionInfo>();
-        var hierarchySpecificOptions = new List<SubCommandOptionInfo>();
-        var globalOptions = new List<SubCommandOptionInfo>();
-
-        CategorizeOptionsForHelp(commandInfo, commandSpecificOptions, hierarchySpecificOptions, globalOptions);
-
-        // Show command-specific options (declared directly in this command)
-        if (commandSpecificOptions.Count > 0)
-        {
-            Console.WriteLine("OPTIONS:");
-            foreach (var option in commandSpecificOptions)
-            {
-                ShowDetailedOption(option);
-            }
-            Console.WriteLine();
-        }
-
-        // Show hierarchy-specific options (from intermediate parent commands like ConfigCommand)
-        if (hierarchySpecificOptions.Count > 0)
-        {
-            var parentCommandName = GetParentCommandName(commandInfo);
-            var sectionName = !string.IsNullOrEmpty(parentCommandName) 
-                ? $"OPTIONS ({parentCommandName}):"
-                : "INHERITED OPTIONS:";
-            Console.WriteLine(sectionName);
-            foreach (var option in hierarchySpecificOptions)
-            {
-                ShowDetailedOption(option);
-            }
-            Console.WriteLine();
-        }
-
-        if (commandInfo.Arguments.Count > 0)
-        {
-            Console.WriteLine("ARGUMENTS:");
-            foreach (var argument in commandInfo.Arguments.OrderBy(a => a.Position))
-            {
-                ShowDetailedArgument(argument);
-            }
-            Console.WriteLine();
-        }
-
-        // Show global options (from BaseCommand and built-in options)
-        if (globalOptions.Count > 0)
-        {
-            Console.WriteLine("GLOBAL OPTIONS:");
-            foreach (var option in globalOptions)
-            {
-                ShowDetailedOption(option);
-            }
-            Console.WriteLine();
-        }
-    }
-
-    /// <summary>
-    /// Categorizes options into command-specific, hierarchy-specific, and global categories for help display
-    /// </summary>
-    private void CategorizeOptionsForHelp(SubCommandInfo commandInfo, 
-        List<SubCommandOptionInfo> commandSpecific,
-        List<SubCommandOptionInfo> hierarchySpecific, 
-        List<SubCommandOptionInfo> global)
-    {
-        var seenOptions = new HashSet<string>();
-
-        // First, categorize all options from this command
-        foreach (var option in commandInfo.Options)
-        {
-            var signature = option.GetDisplayName();
-            if (!seenOptions.Contains(signature))
-            {
-                seenOptions.Add(signature);
-                
-                // Check if this is a global option (from BaseCommand)
-                if (IsBaseCommandOption(option))
-                {
-                    global.Add(option);
-                }
-                else if (IsHierarchySpecificOption(option, commandInfo))
-                {
-                    hierarchySpecific.Add(option);
-                }
-                else
-                {
-                    commandSpecific.Add(option);
-                }
-            }
-        }
-
-        // Then, add any global options from the root command that haven't been shown yet
-        if (_rootCommand != null)
-        {
-            foreach (var rootOption in _rootCommand.Options)
-            {
-                var signature = rootOption.GetDisplayName();
-                if (!seenOptions.Contains(signature))
-                {
-                    seenOptions.Add(signature);
-                    global.Add(rootOption);
-                }
-            }
-        }
+        var helpFormatter = new HelpFormatter(CommandBuilder, _rootCommand, _allCommands);
+        helpFormatter.ShowCommandHelp(commandInfo);
     }
 
     /// <summary>
@@ -908,7 +754,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     }
 
     /// <summary>
-    /// Determines if an option is from BaseCommand (should be treated as global)
+    /// Determines if an option is from BaseCommand (should be treated as base option, not global)
     /// </summary>
     private bool IsBaseCommandOption(SubCommandOptionInfo option)
     {
