@@ -76,11 +76,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             ShowErrorMessage(ex.Message);
             return ex.ExitCode;
         }
-        catch (Exception ex)
-        {
-            ShowErrorMessage(ex.Message);
-            return 1;
-        }
     }
 
     /// <summary>
@@ -91,7 +86,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         _rootCommand = new SubCommandInfo
         {
             CommandParts = [],
-            Description = ((ICommandBuilder)ApplicationBuilder).ExecutableDescription
+            // Use auto-detection for null ExecutableDescription
+            Description = CommandBuilder.ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription()
         };
 
         // Process all commands and build hierarchy
@@ -699,20 +695,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     }
 
     /// <summary>
-    /// Checks if an option comes from a base class
-    /// </summary>
-    private static bool IsOptionFromBaseClass(SubCommandOptionInfo option, SubCommandInfo command)
-    {
-        if (command.Command == null) return false;
-        
-        var commandType = command.Command.GetType();
-        var declaringType = option.Property.DeclaringType;
-        
-        // If the declaring type is different from the command type, it's from a base class
-        return declaringType != commandType && declaringType != null && declaringType.IsAssignableFrom(commandType);
-    }
-
-    /// <summary>
     /// Creates a copy of an option for global use
     /// </summary>
     private static SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
@@ -768,8 +750,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
     private void ShowVersion()
     {
-        var commandBuilder = (ICommandBuilder)ApplicationBuilder;
-        var version = commandBuilder.ExecutableVersion ?? VersionHelpers.GetAutoDetectedVersion();
+        var version = CommandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
         Console.WriteLine(version);
     }
 
@@ -779,7 +760,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private void ShowErrorMessage(string message)
     {
         var theme = CommandBuilder.Theme;
-        var executableName = CommandBuilder.ExecutableName ?? "app";
+        // Use auto-detection for null ExecutableName
+        var executableName = CommandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
         
         // Show the error message in red color if theme is available
         var errorColor = theme?.RequiredColor ?? ConsoleColor.Red;

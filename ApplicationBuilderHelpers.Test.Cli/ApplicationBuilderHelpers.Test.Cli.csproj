@@ -15,9 +15,10 @@
 	<PropertyGroup>
 		<Copyright>Copyright (C) 2025 Kiryuumaru</Copyright>
 		<Company>Kiryuumaru</Company>
-		<Version>0.0.0</Version>
-		<AssemblyTitle>Test</AssemblyTitle>
 		<AssemblyName>test</AssemblyName>
+		<AssemblyTitle>ApplicationBuilderHelpers Test CLI</AssemblyTitle>
+		<Description>A comprehensive test CLI application for ApplicationBuilderHelpers with advanced command processing capabilities, subcommands, options, and arguments testing.</Description>
+		<InformationalVersion>0.1.0-alpha.1+build.123</InformationalVersion>
 	</PropertyGroup>
 
 	<ItemGroup>

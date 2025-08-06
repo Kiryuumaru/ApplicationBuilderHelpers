@@ -1,4 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -283,9 +284,9 @@ internal class SubCommandArgumentInfo
             if (!isValid)
             {
                 var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
-                throw new ArgumentException(
+                throw new CommandException(
                     $"Invalid value '{value}' for argument '{DisplayName}'. " +
-                    $"Valid values are: {validValuesString}");
+                    $"Valid values are: {validValuesString}", 1);
             }
         }
 
@@ -294,7 +295,7 @@ internal class SubCommandArgumentInfo
         {
             var result = parser.Parse(value, out var error);
             if (error != null)
-                throw new ArgumentException($"Invalid value '{value}' for argument '{DisplayName}': {error}");
+                throw new CommandException($"Invalid value '{value}' for argument '{DisplayName}': {error}", 1);
             return result;
         }
 
@@ -311,7 +312,7 @@ internal class SubCommandArgumentInfo
         }
         catch (Exception ex)
         {
-            throw new ArgumentException($"Cannot convert '{value}' to {targetType.Name} for argument '{DisplayName}': {ex.Message}");
+            throw new CommandException($"Cannot convert '{value}' to {targetType.Name} for argument '{DisplayName}': {ex.Message}", 1);
         }
     }
 
