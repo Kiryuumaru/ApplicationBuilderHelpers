@@ -579,7 +579,6 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
 
                     WriteColoredText(prefix, theme?.SecondaryColor);
 
-                    HelpFormatter.WriteColoredText(prefix, theme?.SecondaryColor);
                     HelpFormatter.WriteColoredText($" {valueText}", theme?.ParameterColor);
                 }
                 else
