@@ -144,7 +144,6 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
 
         WriteColored("USAGE:", theme?.HeaderColor);
 
-        WriteColored("USAGE:", theme?.HeaderColor);
         var usage = new StringBuilder($"    {_commandBuilder.ExecutableName}");
         if (!string.IsNullOrEmpty(commandInfo.FullCommandName))
             usage.Append($" {commandInfo.FullCommandName}");
