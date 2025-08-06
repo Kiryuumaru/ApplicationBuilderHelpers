@@ -129,7 +129,7 @@ public class BuiltinParserTypesTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", $"--timeout={invalidValue}");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Invalid integer value");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value");
     }
 
     #endregion
@@ -228,7 +228,7 @@ public class BuiltinParserTypesTests : CliTestBase
     }
 
     [Theory]
-    [InlineData("--timeout=invalid", "Invalid integer value")]
+    [InlineData("--timeout=invalid", "Invalid Int32 value")]
     [InlineData("--coverage-threshold=invalid", "Invalid Double value")]
     [InlineData("--diag=invalid", "Invalid Boolean value")]
     public async Task Type_Parser_Error_Messages_Are_Consistent(string args, string expectedError)
