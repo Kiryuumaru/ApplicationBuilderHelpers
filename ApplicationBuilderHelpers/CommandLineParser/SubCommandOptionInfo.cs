@@ -115,30 +115,25 @@ internal class SubCommandOptionInfo
         };
 
         // Determine if this option should be inherited by checking if it comes from a base class
-        // This works for both concrete command instances and abstract command types
         var declaringType = property.DeclaringType;
-        var targetType = ownerCommand?.Command?.GetType() ?? ownerCommand?.CommandParts.LastOrDefault() switch
-        {
-            string lastPart => FindTypeByCommandName(lastPart, declaringType),
-            _ => null
-        };
+        var targetType = ownerCommand?.Command?.GetType();
 
+        // If we have a concrete command instance, check if the property comes from a base class
         if (targetType != null && declaringType != targetType && declaringType != null && declaringType.IsAssignableFrom(targetType))
         {
             optionInfo.IsInherited = true;
             optionInfo.DetermineInheritanceScope();
         }
+        // For abstract command processing (when we don't have a concrete command instance),
+        // we'll rely on the global option detection logic to determine inheritance patterns
+        else if (targetType == null && declaringType != null)
+        {
+            // This handles cases where we're processing abstract command hierarchies
+            // The inheritance will be determined later by the global option detection logic
+            optionInfo.IsInherited = false;
+        }
 
         return optionInfo;
-    }
-
-    /// <summary>
-    /// Helper method to find a type by command name (used for abstract command processing)
-    /// </summary>
-    private static Type? FindTypeByCommandName(string commandName, Type? declaringType)
-    {
-        // For abstract command processing, we can use the declaring type as a reference
-        return declaringType;
     }
 
     /// <summary>
