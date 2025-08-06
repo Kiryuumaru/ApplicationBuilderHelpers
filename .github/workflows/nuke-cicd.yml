@@ -60,6 +60,32 @@ jobs:
       NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_DEPTH: ${{ steps.NUKE_RUN.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_DEPTH }}
       NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_TAGS: ${{ steps.NUKE_RUN.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_TAGS }}
       NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_SUBMODULES: ${{ steps.NUKE_RUN.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_SUBMODULES }}
+  APPLICATIONBUILDERHELPERSTEST:
+    name: Test - application_builder_helpers (ApplicationBuilderHelpersTest)
+    runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_RUNS_ON) }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_FETCH_DEPTH }}
+        fetch-tags: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_FETCH_TAGS }}
+        submodules: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_SUBMODULES }}
+        persist-credentials: true
+    - name: Cache Run
+      uses: actions/cache@v4
+      with:
+        path: ./.nuke/temp/cache
+        key: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CACHE_KEY }}
+        restore-keys: |-
+          ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CACHE_RESTORE_KEY }}
+          ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CACHE_MAIN_RESTORE_KEY }}
+    - id: NUKE_RUN
+      name: Run Nuke ApplicationBuilderHelpersTest
+      run: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_RUN_SCRIPT }} Run --args "ApplicationBuilderHelpersTest"
+    needs:
+    - PRE_SETUP
+    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CONDITION == 'true'"
+    env:
+      NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
   APPLICATIONBUILDERHELPERSBUILD:
     name: Build - application_builder_helpers (ApplicationBuilderHelpersBuild)
     runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_RUNS_ON) }}
@@ -90,38 +116,8 @@ jobs:
         retention-days: 1
     needs:
     - PRE_SETUP
-    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CONDITION == 'true'"
-    env:
-      NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
-  APPLICATIONBUILDERHELPERSTEST:
-    name: Test - application_builder_helpers (ApplicationBuilderHelpersTest)
-    runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_RUNS_ON) }}
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_FETCH_DEPTH }}
-        fetch-tags: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_FETCH_TAGS }}
-        submodules: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_SUBMODULES }}
-        persist-credentials: true
-    - name: Download Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: ./.nuke/temp/artifacts-download
-    - name: Cache Run
-      uses: actions/cache@v4
-      with:
-        path: ./.nuke/temp/cache
-        key: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CACHE_KEY }}
-        restore-keys: |-
-          ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CACHE_RESTORE_KEY }}
-          ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CACHE_MAIN_RESTORE_KEY }}
-    - id: NUKE_RUN
-      name: Run Nuke ApplicationBuilderHelpersTest
-      run: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_RUN_SCRIPT }} Run --args "ApplicationBuilderHelpersTest"
-    needs:
-    - PRE_SETUP
-    - APPLICATIONBUILDERHELPERSBUILD
-    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSBUILD.result == 'success'"
+    - APPLICATIONBUILDERHELPERSTEST
+    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSTEST.result == 'success'"
     env:
       NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
   APPLICATIONBUILDERHELPERSPUBLISH:
@@ -159,9 +155,9 @@ jobs:
         retention-days: 1
     needs:
     - PRE_SETUP
-    - APPLICATIONBUILDERHELPERSBUILD
     - APPLICATIONBUILDERHELPERSTEST
-    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSBUILD.result == 'success' && needs.APPLICATIONBUILDERHELPERSTEST.result == 'success'"
+    - APPLICATIONBUILDERHELPERSBUILD
+    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSTEST.result == 'success' && needs.APPLICATIONBUILDERHELPERSBUILD.result == 'success'"
     env:
       NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
   POST_SETUP:
@@ -184,8 +180,8 @@ jobs:
       run: chmod +x ./build.sh && ./build.sh PipelinePostSetup
     needs:
     - PRE_SETUP
-    - APPLICATIONBUILDERHELPERSBUILD
     - APPLICATIONBUILDERHELPERSTEST
+    - APPLICATIONBUILDERHELPERSBUILD
     - APPLICATIONBUILDERHELPERSPUBLISH
     if: success() || failure() || always()
     timeout-minutes: 30

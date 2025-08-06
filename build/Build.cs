@@ -33,6 +33,7 @@ class Build : BaseNukeBuildHelpers
     public TestEntry ApplicationBuilderHelpersTest => _ => _
         .AppId("application_builder_helpers")
         .RunnerOS(RunnerOS.Windows2022)
+        .ExecuteBeforeBuild(true)
         .Execute(context =>
         {
             DotNetTasks.DotNetBuild(_ => _
