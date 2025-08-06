@@ -11,11 +11,12 @@ public class AllCommandsTests : CliTestBase
     #region Root Command Tests
 
     [Fact]
-    public async Task Should_Show_Help_When_No_Arguments()
+    public async Task Should_Execute_MainCommand_When_No_Arguments()
     {
         var result = await Runner.RunAsync();
         CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Run 'test <command> --help' for more information on specific commands");
+        CliTestAssertions.AssertOutputContains(result, "ApplicationBuilderHelpers Test CLI - Default Command");
+        CliTestAssertions.AssertOutputContains(result, "Use --help to see available commands and options.");
     }
 
     [Fact]

@@ -10,11 +10,12 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 public class CommandLineParsingTests : CliTestBase
 {
     [Fact]
-    public async Task Should_Show_Help_When_No_Arguments_Provided()
+    public async Task Should_Execute_MainCommand_When_No_Arguments_Provided()
     {
         var result = await Runner.RunAsync();
         CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Run 'test <command> --help' for more information on specific commands");
+        CliTestAssertions.AssertOutputContains(result, "ApplicationBuilderHelpers Test CLI - Default Command");
+        CliTestAssertions.AssertOutputContains(result, "Use --help to see available commands and options.");
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public class CommandLineParsingTests : CliTestBase
     [Fact]
     public async Task Should_Handle_Unknown_Command()
     {
-        var result = await Runner.RunAsync("unknowncommand");
+        var result = await Runner.RunAsync("unknown-command");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "No command found");
     }

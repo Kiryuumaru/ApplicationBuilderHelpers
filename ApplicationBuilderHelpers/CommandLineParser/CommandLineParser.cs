@@ -73,12 +73,12 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
         catch (CommandException ex)
         {
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            ShowErrorMessage(ex.Message);
             return ex.ExitCode;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            ShowErrorMessage(ex.Message);
             return 1;
         }
     }
@@ -411,7 +411,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
         }
 
-        // Check for help flag in remaining arguments before validating implementation
+        // Check for help flag in remaining arguments before validating
         var hasHelpFlag = args.Skip(argIndex).Any(arg => arg == "--help" || arg == "-h");
         if (hasHelpFlag)
         {
@@ -424,7 +424,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         {
             // This is an abstract command that requires a subcommand
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
-            throw new CommandException($"'{result.TargetCommand.FullCommandName}' requires a subcommand. Available subcommands: {availableSubcommands}", 1);
+            var commandName = string.IsNullOrEmpty(result.TargetCommand.FullCommandName) ? "" : result.TargetCommand.FullCommandName;
+            throw new CommandException($"'{commandName}' requires a subcommand. Available subcommands: {availableSubcommands}", 1);
         }
 
         if (!result.TargetCommand.HasImplementation)
@@ -732,8 +733,15 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
     private bool ShouldShowGlobalHelp(string[] args)
     {
-        return args.Length == 0 || 
-               (args.Length == 1 && (args[0] == "--help" || args[0] == "-h"));
+        // Only show global help if explicitly requested with --help/-h
+        if (args.Length == 1 && (args[0] == "--help" || args[0] == "-h"))
+        {
+            return true;
+        }
+        
+        // Never show global help for empty args - let ParseCommandLine handle it
+        // This allows root commands to execute normally or show subcommand requirements
+        return false;
     }
 
     private bool ShouldShowVersion(string[] args)
@@ -891,6 +899,61 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         var commandBuilder = (ICommandBuilder)ApplicationBuilder;
         var version = commandBuilder.ExecutableVersion ?? VersionHelpers.GetAutoDetectedVersion();
         Console.WriteLine(version);
+    }
+
+    /// <summary>
+    /// Shows a styled error message with helpful footer information
+    /// </summary>
+    private void ShowErrorMessage(string message)
+    {
+        var theme = CommandBuilder.Theme;
+        var executableName = CommandBuilder.ExecutableName ?? "app";
+        
+        // Show the error message in red color if theme is available
+        var errorColor = theme?.RequiredColor ?? ConsoleColor.Red;
+        var originalColor = Console.ForegroundColor;
+        
+        try
+        {
+            Console.ForegroundColor = errorColor;
+            Console.Error.WriteLine($"Error: {message}");
+        }
+        finally
+        {
+            Console.ForegroundColor = originalColor;
+        }
+
+        // Add helpful footer message based on error type
+        Console.Error.WriteLine();
+        
+        if (message.Contains("requires a subcommand"))
+        {
+            // Extract command name if present for more specific help
+            if (message.StartsWith("'") && message.Contains("'"))
+            {
+                var commandName = message.Substring(1, message.IndexOf("'", 1) - 1);
+                if (!string.IsNullOrEmpty(commandName))
+                {
+                    Console.Error.WriteLine($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
+                }
+                else
+                {
+                    Console.Error.WriteLine($"Run '{executableName} --help' to see available commands and options.");
+                }
+            }
+            else
+            {
+                Console.Error.WriteLine($"Run '{executableName} --help' to see available commands and options.");
+            }
+        }
+        else if (message.Contains("Unknown option") || message.Contains("Missing required"))
+        {
+            Console.Error.WriteLine($"Run '{executableName} <command> --help' for more information on specific command options.");
+        }
+        else
+        {
+            Console.Error.WriteLine($"Run '{executableName} --help' for more information on available commands and options.");
+        }
     }
 
     #endregion

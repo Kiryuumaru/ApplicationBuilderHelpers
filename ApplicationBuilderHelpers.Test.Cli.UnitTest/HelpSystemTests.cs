@@ -16,7 +16,7 @@ public class HelpSystemTests : CliTestBase
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "USAGE:");
         CliTestAssertions.AssertOutputContains(result, "GLOBAL OPTIONS:");
-        CliTestAssertions.AssertOutputContains(result, "Run 'test <command> --help' for more information");
+        CliTestAssertions.AssertOutputContains(result, "Run 'test <command> --help' for more information on specific commands");
     }
 
     [Fact]

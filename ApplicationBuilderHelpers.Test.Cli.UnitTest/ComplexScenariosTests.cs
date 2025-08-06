@@ -57,6 +57,7 @@ public class ComplexScenariosTests : CliTestBase
     [Fact]
     public async Task Global_Options_With_Commands()
     {
+        // Global options alone now execute MainCommand successfully
         var result = await Runner.RunAsync("--log-level=debug");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "ApplicationBuilderHelpers Test CLI - Default Command");
