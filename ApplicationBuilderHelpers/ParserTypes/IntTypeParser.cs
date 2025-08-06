@@ -17,7 +17,7 @@ internal class IntTypeParser : ICommandTypeParser
             return result;
         }
 
-        validateError = $"Invalid integer value: '{value}'. Expected a valid integer.";
+        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
         return null;
     }
 

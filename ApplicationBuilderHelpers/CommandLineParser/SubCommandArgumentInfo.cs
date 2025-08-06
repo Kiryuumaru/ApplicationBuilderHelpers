@@ -116,7 +116,7 @@ internal class SubCommandArgumentInfo
     /// <summary>
     /// Creates a list of SubCommandArgumentInfo objects from a command type
     /// </summary>
-    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
         var arguments = new List<SubCommandArgumentInfo>();
         var properties = GetAllProperties(commandType);
@@ -131,14 +131,14 @@ internal class SubCommandArgumentInfo
             }
         }
 
-        return arguments.OrderBy(a => a.Position).ToList();
+        return [.. arguments.OrderBy(a => a.Position)];
     }
 
     /// <summary>
     /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts)
     /// </summary>
-    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
         var arguments = new List<SubCommandArgumentInfo>();
         var properties = commandType.GetProperties(
@@ -157,13 +157,13 @@ internal class SubCommandArgumentInfo
             }
         }
 
-        return arguments.OrderBy(a => a.Position).ToList();
+        return [.. arguments.OrderBy(a => a.Position)];
     }
 
     /// <summary>
     /// Gets all properties including inherited ones from base classes
     /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type type)
+    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
     {
         var properties = new List<PropertyInfo>();
         var currentType = type;
@@ -207,34 +207,6 @@ internal class SubCommandArgumentInfo
         {
             IsGlobal = false;
             IsInherited = false;
-        }
-    }
-
-    /// <summary>
-    /// Validates the argument value against constraints
-    /// </summary>
-    public void ValidateValue(object? value, int argumentIndex)
-    {
-        if (IsRequired && value == null)
-        {
-            throw new ArgumentException($"Required argument '{DisplayName}' at position {Position} is missing");
-        }
-
-        if (value != null && ValidValues?.Length > 0)
-        {
-            var stringValue = value.ToString();
-            var comparisonType = IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            
-            var isValid = ValidValues.Any(validValue => 
-                string.Equals(validValue?.ToString(), stringValue, comparisonType));
-
-            if (!isValid)
-            {
-                var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
-                throw new ArgumentException(
-                    $"Invalid value '{stringValue}' for argument '{DisplayName}' at position {Position}. " +
-                    $"Valid values are: {validValuesString}");
-            }
         }
     }
 

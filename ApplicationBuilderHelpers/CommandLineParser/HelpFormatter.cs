@@ -9,30 +9,23 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <summary>
 /// Handles formatting and display of help content with theming and two-column layout
 /// </summary>
-internal class HelpFormatter
+internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
 {
-    private readonly ICommandBuilder _commandBuilder;
-    private readonly SubCommandInfo? _rootCommand;
-    private readonly Dictionary<string, SubCommandInfo> _allCommands;
-
-    public HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
-    {
-        _commandBuilder = commandBuilder;
-        _rootCommand = rootCommand;
-        _allCommands = allCommands;
-    }
+    private readonly ICommandBuilder _commandBuilder = commandBuilder;
+    private readonly SubCommandInfo? _rootCommand = rootCommand;
+    private readonly Dictionary<string, SubCommandInfo> _allCommands = allCommands;
 
     public void ShowGlobalHelp()
     {
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
-        
+
         // Title with version
-        WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor);
+        HelpFormatter.WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor);
         Console.WriteLine();
 
         // Usage section
-        WriteColored("USAGE:", theme?.HeaderColor);
+        HelpFormatter.WriteColored("USAGE:", theme?.HeaderColor);
         var usageText = $"    {_commandBuilder.ExecutableName} [OPTIONS] <COMMAND> [ARGS...]";
         WriteWrappedContent(usageText, helpWidth, 0, theme);
         Console.WriteLine();
@@ -40,7 +33,7 @@ internal class HelpFormatter
         // Description section
         if (!string.IsNullOrEmpty(_commandBuilder.ExecutableDescription))
         {
-            WriteColored("DESCRIPTION:", theme?.HeaderColor);
+            HelpFormatter.WriteColored("DESCRIPTION:", theme?.HeaderColor);
             var descriptionText = $"    {_commandBuilder.ExecutableDescription}";
             WriteWrappedContent(descriptionText, helpWidth, 0, theme);
             Console.WriteLine();
@@ -59,7 +52,7 @@ internal class HelpFormatter
                 {
                     globalOptions.Add(option);
                 }
-                else if (IsBaseCommandOption(option))
+                else if (HelpFormatter.IsBaseCommandOption(option))
                 {
                     baseCommandOptions.Add(option);
                 }
@@ -84,7 +77,7 @@ internal class HelpFormatter
         {
             foreach (var item in allRootOptions)
             {
-                var leftColumn = item is SubCommandOptionInfo opt ? BuildOptionSignature(opt) : "    -V, --version";
+                var leftColumn = item is SubCommandOptionInfo opt ? HelpFormatter.BuildOptionSignature(opt) : "    -V, --version";
                 allLeftColumnItems.Add(leftColumn);
             }
         }
@@ -107,7 +100,7 @@ internal class HelpFormatter
         {
             foreach (var opt in allGlobalOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt));
+                allLeftColumnItems.Add(HelpFormatter.BuildOptionSignature(opt));
             }
         }
 
@@ -118,7 +111,7 @@ internal class HelpFormatter
         if (allRootOptions.Count > 0)
         {
             ShowSectionWithFixedLayout("OPTIONS:", allRootOptions, optimalLeftColumnWidth, helpWidth, theme,
-                item => item is SubCommandOptionInfo opt ? BuildOptionSignature(opt) : "    -V, --version",
+                item => item is SubCommandOptionInfo opt ? HelpFormatter.BuildOptionSignature(opt) : "    -V, --version",
                 item => item is SubCommandOptionInfo opt ? BuildOptionDescription(opt) : "Show version information");
         }
 
@@ -144,11 +137,13 @@ internal class HelpFormatter
     {
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
-        
+
         // Use the same header format as global help
         WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor);
         Console.WriteLine();
-        
+
+        WriteColored("USAGE:", theme?.HeaderColor);
+
         WriteColored("USAGE:", theme?.HeaderColor);
         var usage = new StringBuilder($"    {_commandBuilder.ExecutableName}");
         if (!string.IsNullOrEmpty(commandInfo.FullCommandName))
@@ -167,7 +162,7 @@ internal class HelpFormatter
 
         if (!string.IsNullOrEmpty(commandInfo.Description))
         {
-            WriteColored("DESCRIPTION:", theme?.HeaderColor);
+            HelpFormatter.WriteColored("DESCRIPTION:", theme?.HeaderColor);
             var descriptionText = $"    {commandInfo.Description}";
             WriteWrappedContent(descriptionText, helpWidth, 0, theme);
             Console.WriteLine();
@@ -188,7 +183,7 @@ internal class HelpFormatter
         {
             foreach (var opt in commandSpecificOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt));
+                allLeftColumnItems.Add(HelpFormatter.BuildOptionSignature(opt));
             }
         }
 
@@ -197,7 +192,7 @@ internal class HelpFormatter
         {
             foreach (var opt in hierarchySpecificOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt));
+                allLeftColumnItems.Add(HelpFormatter.BuildOptionSignature(opt));
             }
         }
 
@@ -207,7 +202,7 @@ internal class HelpFormatter
             var sortedArguments = commandInfo.Arguments.OrderBy(a => a.Position).ToList();
             foreach (var arg in sortedArguments)
             {
-                allLeftColumnItems.Add(BuildArgumentSignature(arg));
+                allLeftColumnItems.Add(HelpFormatter.BuildArgumentSignature(arg));
             }
         }
 
@@ -219,7 +214,7 @@ internal class HelpFormatter
         {
             foreach (var opt in allGlobalOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt));
+                allLeftColumnItems.Add(HelpFormatter.BuildOptionSignature(opt));
             }
         }
 
@@ -233,13 +228,13 @@ internal class HelpFormatter
             var isSubCommand = commandInfo.CommandParts.Length > 1;
             var sectionName = isSubCommand ? "OPTIONS:" : "OPTIONS (command):";
             ShowSectionWithFixedLayout(sectionName, commandSpecificOptions, optimalLeftColumnWidth, helpWidth, theme,
-                opt => BuildOptionSignature(opt),
+                opt => HelpFormatter.BuildOptionSignature(opt),
                 opt => BuildOptionDescription(opt));
         }
 
         if (hierarchySpecificOptions.Count > 0)
         {
-            var parentCommandName = GetParentCommandName(commandInfo);
+            var parentCommandName = HelpFormatter.GetParentCommandName(commandInfo);
             
             // For immediate parent options (like ConfigCommand options for config), 
             // use "command" instead of the specific parent name
@@ -249,7 +244,7 @@ internal class HelpFormatter
                 : (!string.IsNullOrEmpty(parentCommandName) ? $"OPTIONS ({parentCommandName}):" : "INHERITED OPTIONS:");
                 
             ShowSectionWithFixedLayout(sectionName, hierarchySpecificOptions, optimalLeftColumnWidth, helpWidth, theme,
-                opt => BuildOptionSignature(opt),
+                opt => HelpFormatter.BuildOptionSignature(opt),
                 opt => BuildOptionDescription(opt));
         }
 
@@ -270,9 +265,9 @@ internal class HelpFormatter
         }
     }
 
-    private void CategorizeOptionsForHelp(SubCommandInfo commandInfo, 
+    private void CategorizeOptionsForHelp(SubCommandInfo commandInfo,
         List<SubCommandOptionInfo> commandSpecific,
-        List<SubCommandOptionInfo> hierarchySpecific, 
+        List<SubCommandOptionInfo> hierarchySpecific,
         List<SubCommandOptionInfo> baseOptions,
         List<SubCommandOptionInfo> global)
     {
@@ -281,10 +276,8 @@ internal class HelpFormatter
         foreach (var option in commandInfo.Options)
         {
             var signature = option.GetDisplayName();
-            if (!seenOptions.Contains(signature))
+            if (seenOptions.Add(signature))
             {
-                seenOptions.Add(signature);
-                
                 if (option.LongName == "help" && option.IsGlobal)
                 {
                     global.Add(option);
@@ -293,7 +286,7 @@ internal class HelpFormatter
                 {
                     baseOptions.Add(option);
                 }
-                else if (IsHierarchySpecificOption(option, commandInfo))
+                else if (IsHierarchySpecificOption(option))
                 {
                     hierarchySpecific.Add(option);
                 }
@@ -309,9 +302,9 @@ internal class HelpFormatter
             foreach (var rootOption in _rootCommand.Options)
             {
                 var signature = rootOption.GetDisplayName();
-                if (!seenOptions.Contains(signature) && rootOption.IsGlobal && rootOption.LongName == "help")
+                // CA1868: Remove Contains check, just use Add and check result
+                if (rootOption.IsGlobal && rootOption.LongName == "help" && seenOptions.Add(signature))
                 {
-                    seenOptions.Add(signature);
                     global.Add(rootOption);
                 }
             }
@@ -323,7 +316,7 @@ internal class HelpFormatter
     {
         if (items.Count == 0) return;
 
-        WriteColored(sectionHeader, theme?.HeaderColor);
+        HelpFormatter.WriteColored(sectionHeader, theme?.HeaderColor);
 
         const int Padding = 2;
         
@@ -373,7 +366,7 @@ internal class HelpFormatter
         return leftColumnWidth;
     }
 
-    private string BuildOptionSignature(SubCommandOptionInfo option)
+    private static string BuildOptionSignature(SubCommandOptionInfo option)
     {
         var signature = new StringBuilder("    ");
         
@@ -393,7 +386,7 @@ internal class HelpFormatter
 
         if (option.PropertyType != typeof(bool))
         {
-            var paramName = GetParameterName(option);
+            var paramName = HelpFormatter.GetParameterName(option);
             signature.Append($" {paramName}");
         }
 
@@ -431,7 +424,7 @@ internal class HelpFormatter
         return string.Join("\n", parts);
     }
 
-    private string BuildArgumentSignature(SubCommandArgumentInfo argument)
+    private static string BuildArgumentSignature(SubCommandArgumentInfo argument)
     {
         // Use lowercase format like <key> instead of <KEY>
         var name = argument.DisplayName;
@@ -443,7 +436,7 @@ internal class HelpFormatter
         return $"    {bracketedName}";
     }
 
-    private string BuildArgumentDescription(SubCommandArgumentInfo argument)
+    private static string BuildArgumentDescription(SubCommandArgumentInfo argument)
     {
         var parts = new List<string>();
         
@@ -462,7 +455,7 @@ internal class HelpFormatter
         return string.Join("\n", parts);
     }
 
-    private string GetParameterName(SubCommandOptionInfo option)
+    private static string GetParameterName(SubCommandOptionInfo option)
     {
         // Check if this is an array type
         var isArray = option.PropertyType.IsArray;
@@ -536,11 +529,11 @@ internal class HelpFormatter
                 var colonIndex = line.IndexOf(':');
                 if (colonIndex != -1)
                 {
-                    var prefix = line.Substring(0, colonIndex + 1); // "Possible values:"
-                    var valuesText = line.Substring(colonIndex + 1).Trim(); // The actual values
-                    
+                    var prefix = line[..(colonIndex + 1)]; // "Possible values:"
+                    var valuesText = line[(colonIndex + 1)..].Trim(); // The actual values
+
                     // Write the prefix with secondary color
-                    WriteColoredText(prefix, theme?.SecondaryColor);
+                    HelpFormatter.WriteColoredText(prefix, theme?.SecondaryColor);
                     var currentPos = GetDisplayWidth(prefix);
                     
                     if (!string.IsNullOrEmpty(valuesText))
@@ -557,7 +550,7 @@ internal class HelpFormatter
                             // Check if it fits on current line with some buffer
                             if (currentPos + textLength < width - 2) // Leave 2 chars buffer
                             {
-                                WriteColoredText(textToAdd, theme?.ParameterColor);
+                                HelpFormatter.WriteColoredText(textToAdd, theme?.ParameterColor);
                                 currentPos += textLength;
                             }
                             else
@@ -565,7 +558,7 @@ internal class HelpFormatter
                                 // Move to next line
                                 Console.WriteLine();
                                 Console.Write(indentStr);
-                                WriteColoredText(value, theme?.ParameterColor);
+                                HelpFormatter.WriteColoredText(value, theme?.ParameterColor);
                                 currentPos = indent + GetDisplayWidth(value);
                             }
                         }
@@ -582,11 +575,13 @@ internal class HelpFormatter
                 var colonIndex = line.IndexOf(':');
                 if (colonIndex != -1)
                 {
-                    var prefix = line.Substring(0, colonIndex + 1); // "Environment variable:"
-                    var valueText = line.Substring(colonIndex + 1).Trim(); // The env var name
-                    
+                    var prefix = line[..(colonIndex + 1)]; // "Environment variable:"
+                    var valueText = line[(colonIndex + 1)..].Trim(); // The env var name
+
                     WriteColoredText(prefix, theme?.SecondaryColor);
-                    WriteColoredText($" {valueText}", theme?.ParameterColor);
+
+                    HelpFormatter.WriteColoredText(prefix, theme?.SecondaryColor);
+                    HelpFormatter.WriteColoredText($" {valueText}", theme?.ParameterColor);
                 }
                 else
                 {
@@ -598,11 +593,13 @@ internal class HelpFormatter
                 var colonIndex = line.IndexOf(':');
                 if (colonIndex != -1)
                 {
-                    var prefix = line.Substring(0, colonIndex + 1); // "Default:"
-                    var valueText = line.Substring(colonIndex + 1).Trim(); // The default value
-                    
+                    var prefix = line[..(colonIndex + 1)]; // "Default:"
+                    var valueText = line[(colonIndex + 1)..].Trim(); // The default value
+
                     WriteColoredText(prefix, theme?.SecondaryColor);
-                    WriteColoredText($" {valueText}", theme?.ParameterColor);
+
+                    HelpFormatter.WriteColoredText(prefix, theme?.SecondaryColor);
+                    HelpFormatter.WriteColoredText($" {valueText}", theme?.ParameterColor);
                 }
                 else
                 {
@@ -645,13 +642,13 @@ internal class HelpFormatter
                 currentLineLength++;
             }
 
-            WriteColoredText(word, null); // No coloring for regular words
+            HelpFormatter.WriteColoredText(word, null); // No coloring for regular words
             currentLineLength += wordLength;
             lineStarted = true;
         }
     }
 
-    private void WriteColored(string text, ConsoleColor? color)
+    private static void WriteColored(string text, ConsoleColor? color)
     {
         if (color.HasValue)
         {
@@ -666,7 +663,7 @@ internal class HelpFormatter
         }
     }
 
-    private void WriteColoredText(string text, ConsoleColor? color)
+    private static void WriteColoredText(string text, ConsoleColor? color)
     {
         if (color.HasValue)
         {
@@ -722,7 +719,7 @@ internal class HelpFormatter
                 currentLineLength = indent;
             }
 
-            WriteColoredText(word, theme?.DescriptionColor);
+            HelpFormatter.WriteColoredText(word, theme?.DescriptionColor);
             currentLineLength += wordLength;
             lineStarted = true;
         }
@@ -730,14 +727,14 @@ internal class HelpFormatter
         Console.WriteLine();
     }
 
-    private string? GetParentCommandName(SubCommandInfo commandInfo)
+    private static string? GetParentCommandName(SubCommandInfo commandInfo)
     {
         if (commandInfo.CommandParts.Length > 1)
         {
             return commandInfo.CommandParts[^2];
         }
         
-        var hierarchyOption = commandInfo.Options.FirstOrDefault(o => IsHierarchySpecificOption(o, commandInfo));
+        var hierarchyOption = commandInfo.Options.FirstOrDefault(IsHierarchySpecificOption);
         if (hierarchyOption != null && hierarchyOption.Property.DeclaringType != null)
         {
             var declaringTypeName = hierarchyOption.Property.DeclaringType.Name;
@@ -751,13 +748,13 @@ internal class HelpFormatter
         return null;
     }
 
-    private bool IsBaseCommandOption(SubCommandOptionInfo option)
+    private static bool IsBaseCommandOption(SubCommandOptionInfo option)
     {
         var declaringType = option.Property.DeclaringType;
         return declaringType != null && declaringType.Name == "BaseCommand";
     }
 
-    private bool IsHierarchySpecificOption(SubCommandOptionInfo option, SubCommandInfo commandInfo)
+    private static bool IsHierarchySpecificOption(SubCommandOptionInfo option)
     {
         var declaringType = option.Property.DeclaringType;
         
@@ -790,9 +787,13 @@ internal class HelpFormatter
             
             if (option.PropertyType.IsValueType)
             {
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
                 return Activator.CreateInstance(option.PropertyType);
+#pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             }
-            
+
             return null;
         }
         catch

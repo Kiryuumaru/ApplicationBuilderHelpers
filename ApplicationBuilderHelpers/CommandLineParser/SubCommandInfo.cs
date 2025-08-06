@@ -46,17 +46,17 @@ internal class SubCommandInfo
     /// <summary>
     /// Child subcommands
     /// </summary>
-    public Dictionary<string, SubCommandInfo> Children { get; set; } = new();
+    public Dictionary<string, SubCommandInfo> Children { get; set; } = [];
 
     /// <summary>
     /// Options specific to this command level
     /// </summary>
-    public List<SubCommandOptionInfo> Options { get; set; } = new();
+    public List<SubCommandOptionInfo> Options { get; set; } = [];
 
     /// <summary>
     /// Arguments specific to this command level
     /// </summary>
-    public List<SubCommandArgumentInfo> Arguments { get; set; } = new();
+    public List<SubCommandArgumentInfo> Arguments { get; set; } = [];
 
     /// <summary>
     /// Gets all options including inherited from parent commands
@@ -92,7 +92,7 @@ internal class SubCommandInfo
                 allArguments.AddRange(current.Arguments.Where(a => a.IsGlobal || a.IsInherited));
                 current = current.Parent;
             }
-            return allArguments.OrderBy(a => a.Position).ToList();
+            return [.. allArguments.OrderBy(a => a.Position)];
         }
     }
 
@@ -183,7 +183,7 @@ internal class SubCommandInfo
             current = current.Parent;
         }
         
-        return path.ToArray();
+        return [.. path];
     }
 
     /// <summary>

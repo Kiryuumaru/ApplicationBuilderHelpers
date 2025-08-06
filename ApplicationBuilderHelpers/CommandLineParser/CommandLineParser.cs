@@ -25,7 +25,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     public IApplicationDependencyCollection ApplicationDependencyCollection { get; } = applicationBuilder;
 
     private SubCommandInfo? _rootCommand;
-    private readonly Dictionary<string, SubCommandInfo> _allCommands = new();
+    private readonly Dictionary<string, SubCommandInfo> _allCommands = [];
 
     /// <summary>
     /// Main entry point - builds hierarchy then parses and executes
@@ -39,13 +39,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             ValidateCommandHierarchy();
 
             // Step 2: Handle basic help/version before parsing
-            if (ShouldShowGlobalHelp(args))
+            if (CommandLineParser.ShouldShowGlobalHelp(args))
             {
                 ShowGlobalHelp();
                 return 0;
             }
 
-            if (ShouldShowVersion(args))
+            if (CommandLineParser.ShouldShowVersion(args))
             {
                 ShowVersion();
                 return 0;
@@ -98,8 +98,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         foreach (var command in CommandBuilder.Commands)
         {
             var commandType = command.GetType();
-            var commandAttr = commandType.GetCustomAttribute<CommandAttribute>();
-            
+            _ = commandType.GetCustomAttribute<CommandAttribute>();
+
             // Create SubCommandInfo for this command
             var subCommandInfo = SubCommandInfo.FromCommand(commandType, command);
             
@@ -169,7 +169,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private SubCommandInfo CreateIntermediateCommand(string[] commandParts, Type leafCommandType)
     {
         // Look for abstract base class that matches this intermediate command path
-        var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType);
+        var intermediateCommandInfo = CommandLineParser.FindAbstractBaseCommandInfo(commandParts, leafCommandType);
         
         SubCommandInfo result;
         if (intermediateCommandInfo != null)
@@ -212,7 +212,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
     /// </summary>
-    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
+    private static SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
     {
         var currentType = leafCommandType.BaseType;
         var targetCommandName = string.Join(" ", commandParts);
@@ -233,9 +233,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
                 // Extract only options and arguments that are declared directly in this abstract class
                 // Not from its base classes (like BaseCommand) to avoid conflicts
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
                 baseCommandInfo.Options = SubCommandOptionInfo.FromDeclaredType(currentType, baseCommandInfo);
                 baseCommandInfo.Arguments = SubCommandArgumentInfo.FromDeclaredType(currentType, baseCommandInfo);
-                
+#pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+
                 return baseCommandInfo;
             }
             currentType = currentType.BaseType;
@@ -264,7 +268,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             {
                 var signature = option.GetDisplayName();
                 if (!optionsBySignature.ContainsKey(signature))
-                    optionsBySignature[signature] = new List<(SubCommandOptionInfo, SubCommandInfo)>();
+                    optionsBySignature[signature] = [];
                 optionsBySignature[signature].Add((option, command));
             }
         }
@@ -296,7 +300,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                     // Add one instance to root command
                     if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == signature))
                     {
-                        var globalOption = CreateGlobalOptionCopy(firstOption);
+                        var globalOption = CommandLineParser.CreateGlobalOptionCopy(firstOption);
                         globalOption.OwnerCommand = _rootCommand;
                         _rootCommand.Options.Add(globalOption);
                     }
@@ -356,7 +360,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             var existingHelpOption = command.Options.FirstOrDefault(o => o.LongName == "help");
             if (existingHelpOption == null)
             {
-                var globalHelpOption = CreateGlobalOptionCopy(helpOption);
+                var globalHelpOption = CommandLineParser.CreateGlobalOptionCopy(helpOption);
                 globalHelpOption.OwnerCommand = command;
                 command.Options.Add(globalHelpOption);
             }
@@ -434,7 +438,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
 
         // Parse remaining arguments as options and arguments
-        ParseOptionsAndArguments(args, argIndex, result);
+        CommandLineParser.ParseOptionsAndArguments(args, argIndex, result);
 
         return result;
     }
@@ -442,7 +446,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Parses options and arguments from the command line
     /// </summary>
-    private void ParseOptionsAndArguments(string[] args, int startIndex, ParseResult result)
+    private static void ParseOptionsAndArguments(string[] args, int startIndex, ParseResult result)
     {
         var allOptions = result.TargetCommand.AllOptions;
         var allArguments = result.TargetCommand.AllArguments;
@@ -471,7 +475,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 if (value == nextArg && !nextArg?.StartsWith('-') == true)
                     i++;
 
-                AddOptionValue(result, matchedOption, value);
+                CommandLineParser.AddOptionValue(result, matchedOption, value);
             }
             else if (arg.StartsWith('-'))
             {
@@ -490,7 +494,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             var targetArgument = allArguments.FirstOrDefault(a => a.CanAcceptValueAtPosition(argumentIndex));
             if (targetArgument != null)
             {
-                AddArgumentValue(result, targetArgument, argumentValue);
+                CommandLineParser.AddArgumentValue(result, targetArgument, argumentValue);
                 if (!targetArgument.IsArray)
                     argumentIndex++;
             }
@@ -504,10 +508,10 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Adds an option value to the parse result
     /// </summary>
-    private void AddOptionValue(ParseResult result, SubCommandOptionInfo option, string? value)
+    private static void AddOptionValue(ParseResult result, SubCommandOptionInfo option, string? value)
     {
         if (!result.OptionValues.ContainsKey(option))
-            result.OptionValues[option] = new List<string>();
+            result.OptionValues[option] = [];
 
         if (value != null)
             result.OptionValues[option].Add(value);
@@ -516,10 +520,10 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Adds an argument value to the parse result
     /// </summary>
-    private void AddArgumentValue(ParseResult result, SubCommandArgumentInfo argument, string value)
+    private static void AddArgumentValue(ParseResult result, SubCommandArgumentInfo argument, string value)
     {
         if (!result.ArgumentValues.ContainsKey(argument))
-            result.ArgumentValues[argument] = new List<string>();
+            result.ArgumentValues[argument] = [];
 
         result.ArgumentValues[argument].Add(value);
     }
@@ -527,12 +531,12 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Validates that all required parameters are provided
     /// </summary>
-    private void ValidateRequiredParameters(ParseResult result)
+    private static void ValidateRequiredParameters(ParseResult result)
     {
         // Check required options
         foreach (var option in result.TargetCommand.AllOptions.Where(o => o.IsRequired))
         {
-            if (!result.OptionValues.ContainsKey(option) || result.OptionValues[option].Count == 0)
+            if (!result.OptionValues.TryGetValue(option, out List<string>? value) || value.Count == 0)
             {
                 // Check for environment variable fallback
                 if (!string.IsNullOrEmpty(option.EnvironmentVariable))
@@ -552,7 +556,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         // Check required arguments
         foreach (var argument in result.TargetCommand.AllArguments.Where(a => a.IsRequired))
         {
-            if (!result.ArgumentValues.ContainsKey(argument) || result.ArgumentValues[argument].Count == 0)
+            if (!result.ArgumentValues.TryGetValue(argument, out List<string>? value) || value.Count == 0)
             {
                 throw new CommandException($"Missing required argument: {argument.DisplayName}", 1);
             }
@@ -571,10 +575,11 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         foreach (var option in result.TargetCommand.AllOptions.Where(o => !string.IsNullOrEmpty(o.EnvironmentVariable)))
         {
             // Only apply environment variable if option was not explicitly set
-            if (!result.OptionValues.ContainsKey(option) || result.OptionValues[option].Count == 0)
+            if (!result.OptionValues.TryGetValue(option, out List<string>? value) || value.Count == 0)
             {
-                var envValue = Environment.GetEnvironmentVariable(option.EnvironmentVariable);
-                if (!string.IsNullOrEmpty(envValue))
+                if (option.EnvironmentVariable is string envVar &&
+                    Environment.GetEnvironmentVariable(envVar) is string envValue &&
+                    !string.IsNullOrEmpty(envValue))
                 {
                     AddOptionValue(result, option, envValue);
                 }
@@ -696,7 +701,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Checks if an option comes from a base class
     /// </summary>
-    private bool IsOptionFromBaseClass(SubCommandOptionInfo option, SubCommandInfo command)
+    private static bool IsOptionFromBaseClass(SubCommandOptionInfo option, SubCommandInfo command)
     {
         if (command.Command == null) return false;
         
@@ -710,7 +715,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Creates a copy of an option for global use
     /// </summary>
-    private SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
+    private static SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
     {
         return new SubCommandOptionInfo
         {
@@ -731,7 +736,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
     #region Help and Version Methods
 
-    private bool ShouldShowGlobalHelp(string[] args)
+    private static bool ShouldShowGlobalHelp(string[] args)
     {
         // Only show global help if explicitly requested with --help/-h
         if (args.Length == 1 && (args[0] == "--help" || args[0] == "-h"))
@@ -744,7 +749,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         return false;
     }
 
-    private bool ShouldShowVersion(string[] args)
+    private static bool ShouldShowVersion(string[] args)
     {
         return args.Contains("--version") || args.Contains("-V");
     }
@@ -759,139 +764,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     {
         var helpFormatter = new HelpFormatter(CommandBuilder, _rootCommand, _allCommands);
         helpFormatter.ShowCommandHelp(commandInfo);
-    }
-
-    /// <summary>
-    /// Gets the parent command name for hierarchy-specific options display
-    /// </summary>
-    private string? GetParentCommandName(SubCommandInfo commandInfo)
-    {
-        // For a command like "config get", we want to return "config" for the parent
-        if (commandInfo.CommandParts.Length > 1)
-        {
-            // Get the immediate parent command name
-            return commandInfo.CommandParts[^2];
-        }
-        
-        // For single-level commands, check if they have hierarchy-specific options
-        // by looking at the first hierarchy-specific option's declaring type
-        var hierarchyOption = commandInfo.Options.FirstOrDefault(o => IsHierarchySpecificOption(o, commandInfo));
-        if (hierarchyOption != null && hierarchyOption.Property.DeclaringType != null)
-        {
-            var declaringTypeName = hierarchyOption.Property.DeclaringType.Name;
-            // Convert "ConfigCommand" to "config"
-            if (declaringTypeName.EndsWith("Command", StringComparison.OrdinalIgnoreCase))
-            {
-                return declaringTypeName[..^"Command".Length].ToLowerInvariant();
-            }
-            return declaringTypeName.ToLowerInvariant();
-        }
-        
-        return null;
-    }
-
-    /// <summary>
-    /// Determines if an option is from BaseCommand (should be treated as base option, not global)
-    /// </summary>
-    private bool IsBaseCommandOption(SubCommandOptionInfo option)
-    {
-        var declaringType = option.Property.DeclaringType;
-        return declaringType != null && declaringType.Name == "BaseCommand";
-    }
-
-    /// <summary>
-    /// Determines if an option is hierarchy-specific (like --format from ConfigCommand)
-    /// </summary>
-    private bool IsHierarchySpecificOption(SubCommandOptionInfo option, SubCommandInfo commandInfo)
-    {
-        var declaringType = option.Property.DeclaringType;
-        
-        // If the option is declared in an abstract intermediate command class (like ConfigCommand)
-        // and this command is a descendant, then it's hierarchy-specific
-        if (declaringType != null && declaringType.IsAbstract && 
-            declaringType != typeof(object) && declaringType.Name != "BaseCommand" &&
-            declaringType.Name != "Command")
-        {
-            return true;
-        }
-        
-        return false;
-    }
-
-    private void ShowDetailedOption(SubCommandOptionInfo option)
-    {
-        Console.WriteLine($"    {option.GetSignature()}");
-        if (!string.IsNullOrEmpty(option.Description))
-            Console.WriteLine($"        {option.Description}");
-        
-        if (!string.IsNullOrEmpty(option.EnvironmentVariable))
-            Console.WriteLine($"        Environment variable: {option.EnvironmentVariable}");
-            
-        if (option.ValidValues?.Length > 0)
-            Console.WriteLine($"        Possible values: {string.Join(", ", option.ValidValues)}");
-            
-        // Get the default value from the actual command instance (skip for built-in options)
-        if (option.LongName != "help" && option.LongName != "version")
-        {
-            var defaultValue = GetOptionDefaultValue(option);
-            if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-                Console.WriteLine($"        Default: {defaultValue}");
-        }
-    }
-
-    /// <summary>
-    /// Gets the default value for an option from the command instance
-    /// </summary>
-    private object? GetOptionDefaultValue(SubCommandOptionInfo option)
-    {
-        try
-        {
-            // Try to get the default value from the owner command
-            if (option.OwnerCommand?.Command != null)
-            {
-                return option.Property.GetValue(option.OwnerCommand.Command);
-            }
-            
-            // If that doesn't work, try to get from any command that has this option
-            foreach (var command in _allCommands.Values)
-            {
-                if (command.Command != null && command.Options.Any(o => o.Property == option.Property))
-                {
-                    return option.Property.GetValue(command.Command);
-                }
-            }
-            
-            // Fallback to getting the default value from the property type
-            if (option.PropertyType.IsValueType)
-            {
-                return Activator.CreateInstance(option.PropertyType);
-            }
-            
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private void ShowDetailedArgument(SubCommandArgumentInfo argument)
-    {
-        Console.WriteLine($"    {argument.GetSignature()}");
-        if (!string.IsNullOrEmpty(argument.Description))
-            Console.WriteLine($"        {argument.Description}");
-    }
-
-    private static bool IsDefaultValueEmpty(object value)
-    {
-        return value switch
-        {
-            null => true,
-            string s => string.IsNullOrEmpty(s),
-            Array arr => arr.Length == 0,
-            System.Collections.ICollection collection => collection.Count == 0,
-            _ => false
-        };
     }
 
     private void ShowVersion()
@@ -929,9 +801,9 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         if (message.Contains("requires a subcommand"))
         {
             // Extract command name if present for more specific help
-            if (message.StartsWith("'") && message.Contains("'"))
+            if (message.StartsWith('\'') && message.Contains('\''))
             {
-                var commandName = message.Substring(1, message.IndexOf("'", 1) - 1);
+                var commandName = message[1..message.IndexOf('\'', 1)];
                 if (!string.IsNullOrEmpty(commandName))
                 {
                     Console.Error.WriteLine($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
@@ -966,6 +838,6 @@ internal class ParseResult
 {
     public SubCommandInfo TargetCommand { get; set; } = null!;
     public bool ShowHelp { get; set; }
-    public Dictionary<SubCommandOptionInfo, List<string>> OptionValues { get; set; } = new();
-    public Dictionary<SubCommandArgumentInfo, List<string>> ArgumentValues { get; set; } = new();
+    public Dictionary<SubCommandOptionInfo, List<string>> OptionValues { get; set; } = [];
+    public Dictionary<SubCommandArgumentInfo, List<string>> ArgumentValues { get; set; } = [];
 }

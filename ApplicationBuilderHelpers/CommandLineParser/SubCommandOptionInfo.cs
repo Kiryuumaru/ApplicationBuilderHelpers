@@ -143,7 +143,7 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Creates a list of SubCommandOptionInfo objects from a command type
     /// </summary>
-    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
         var options = new List<SubCommandOptionInfo>();
         var properties = GetAllProperties(commandType);
@@ -190,7 +190,7 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Gets all properties including inherited ones from base classes
     /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type type)
+    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
     {
         var properties = new List<PropertyInfo>();
         var currentType = type;
@@ -330,19 +330,19 @@ internal class SubCommandOptionInfo
         // Handle --option=value format
         if (LongName != null && argument.StartsWith($"--{LongName}="))
         {
-            return argument.Substring($"--{LongName}=".Length);
+            return argument[$"--{LongName}=".Length..];
         }
 
         // Handle -o=value format
         if (ShortName.HasValue && argument.StartsWith($"-{ShortName}="))
         {
-            return argument.Substring($"-{ShortName}=".Length);
+            return argument[$"-{ShortName}=".Length..];
         }
 
         // Handle compact format -ovalue
         if (ShortName.HasValue && !IsFlag && argument.StartsWith($"-{ShortName}") && argument.Length > 2)
         {
-            return argument.Substring(2);
+            return argument[2..];
         }
 
         // Handle --option value or -o value format
