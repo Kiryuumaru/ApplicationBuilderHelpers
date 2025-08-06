@@ -1,62 +1,52 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class BoolTypeParser : ICommandTypeParser
+internal class BoolTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(bool);
 
-    public string[] Choices { get; } = [];
-
-    public object? ParseToType(object? value)
+    public object? Parse(string? value, out string? validateError)
     {
-        if (value is bool valueBool)
+        if (string.IsNullOrEmpty(value)) // bool only needs a flag, not a value
         {
-            return valueBool;
+            validateError = null;
+            return true; // Default to true if no value is provided
         }
-        var valueStr = value?.ToString();
-        if (valueStr == null || string.IsNullOrEmpty(valueStr))
+        if (value.Equals("true", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("yes", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("on", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("1", StringComparison.InvariantCultureIgnoreCase))
         {
-            return default(bool);
-        }
-        if (valueStr.Equals("true", StringComparison.InvariantCultureIgnoreCase) ||
-            valueStr.Equals("yes", StringComparison.InvariantCultureIgnoreCase) ||
-            valueStr.Equals("1", StringComparison.InvariantCultureIgnoreCase))
-        {
+            validateError = null;
             return true;
         }
-        else if (valueStr.Equals("false", StringComparison.InvariantCultureIgnoreCase) ||
-            valueStr.Equals("no", StringComparison.InvariantCultureIgnoreCase) ||
-            valueStr.Equals("0", StringComparison.InvariantCultureIgnoreCase))
+        else if (value.Equals("false", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("no", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("off", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("0", StringComparison.InvariantCultureIgnoreCase))
         {
+            validateError = null;
             return false;
         }
-        return bool.Parse(valueStr);
+        else if (bool.TryParse(value, out var result))
+        {
+            validateError = null;
+            return result;
+        }
+
+        validateError = $"Invalid {Type.Name} value: '{value}'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'";
+        return null;
     }
 
-    public object? ParseFromType(object? value)
+    public string? GetString(object? value)
     {
-        if (value == null || value is not bool)
+        return value switch
         {
-            return default(bool).ToString();
-        }
-        return value.ToString();
-    }
-
-    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
-    {
-        validateError = null;
-        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
-        {
-            return true;
-        }
-        if (!bool.TryParse(valueStr, out bool _))
-        {
-            validateError = "Value must be a bool.";
-            return false;
-        }
-        return true;
+            bool b => b ? "true" : "false",
+            _ => null
+        };
     }
 }

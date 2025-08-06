@@ -16,7 +16,8 @@ namespace ApplicationBuilderHelpers;
 /// <summary>
 /// Represents a builder for managing application dependencies.
 /// </summary>
-public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : IEnumerable<IApplicationDependency>
+public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : 
+    IEnumerable<IApplicationDependency>
 {
     internal List<IApplicationDependency> ApplicationDependencies { get; set; } = applicationDependencies ?? [];
 
@@ -51,7 +52,8 @@ public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder
 /// <summary>
 /// Represents a builder for managing application dependencies.
 /// </summary>
-public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : ApplicationHostBuilderBase(builder, applicationDependencies)
+public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : 
+    ApplicationHostBuilderBase(builder, applicationDependencies)
 {
     internal abstract ApplicationHost Build();
 

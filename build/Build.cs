@@ -30,7 +30,27 @@ class Build : BaseNukeBuildHelpers
     [SecretVariable("GITHUB_TOKEN")]
     readonly string? GithubToken;
 
-    BuildEntry ApplicationBuilderHelpersBuild => _ => _
+    public TestEntry ApplicationBuilderHelpersTest => _ => _
+        .AppId("application_builder_helpers")
+        .RunnerOS(RunnerOS.Windows2022)
+        .ExecuteBeforeBuild(true)
+        .Execute(context =>
+        {
+            DotNetTasks.DotNetBuild(_ => _
+                .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli" / "ApplicationBuilderHelpers.Test.Cli.csproj")
+                .SetConfiguration("Release"));
+            DotNetTasks.DotNetBuild(_ => _
+                .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
+                .SetConfiguration("Release"));
+            DotNetTasks.DotNetTest(_ => _
+                .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
+                .SetConfiguration("Release")
+                .EnableNoLogo()
+                .EnableNoRestore()
+                .EnableNoBuild());
+        });
+
+    public BuildEntry ApplicationBuilderHelpersBuild => _ => _
         .AppId("application_builder_helpers")
         .RunnerOS(RunnerOS.Ubuntu2204)
         .Execute(context =>
@@ -64,7 +84,7 @@ class Build : BaseNukeBuildHelpers
                 .SetOutputDirectory(OutputDirectory));
         });
 
-    PublishEntry ApplicationBuilderHelpersPublish => _ => _
+    public PublishEntry ApplicationBuilderHelpersPublish => _ => _
         .AppId("application_builder_helpers")
         .RunnerOS(RunnerOS.Ubuntu2204)
         .ReleaseCommonAsset(OutputDirectory)

@@ -44,6 +44,11 @@ public class CommandArgumentAttribute : Attribute
     public int Position { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the command argument is required.
+    /// </summary>
+    public bool Required { get; set; } = false;
+
+    /// <summary>
     /// Gets or sets the allowed values for the command argument.
     /// </summary>
     public object[] FromAmong { get; set; } = [];

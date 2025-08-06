@@ -1,46 +1,30 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class UIntTypeParser : ICommandTypeParser
+internal class UIntTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(uint);
 
-    public string[] Choices { get; } = [];
-
-    public object? ParseToType(object? value)
+    public object? Parse(string? value, out string? validateError)
     {
-        var valueStr = value?.ToString();
-        if (valueStr == null || string.IsNullOrEmpty(valueStr))
+        if (uint.TryParse(value, out var result))
         {
-            return default(uint);
+            validateError = null;
+            return result;
         }
-        return uint.Parse(valueStr);
+
+        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        return null;
     }
 
-    public object? ParseFromType(object? value)
+    public string? GetString(object? value)
     {
-        if (value == null || value is not uint)
-        {
-            return default(uint).ToString();
-        }
-        return value.ToString();
-    }
-
-    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
-    {
-        validateError = null;
-        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
-        {
-            return true;
-        }
-        if (!uint.TryParse(valueStr, out uint _))
-        {
-            validateError = "Value must be a uint.";
-            return false;
-        }
-        return true;
+        return value?.ToString();
     }
 }

@@ -1,0 +1,62 @@
+using ApplicationBuilderHelpers.Attributes;
+using Microsoft.Extensions.Hosting;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ApplicationBuilderHelpers.Test.Cli.Commands;
+
+[Command("config set", "Set configuration values")]
+internal class ConfigSetCommand : ConfigCommand
+{
+    [CommandArgument("key", Description = "Configuration key", Position = 0, Required = true)]
+    public required string Key { get; set; }
+
+    [CommandArgument("value", Description = "Configuration value", Position = 1, Required = true)]
+    public required string Value { get; set; }
+
+    [CommandOption('g', "global", Description = "Set global configuration")]
+    public bool Global { get; set; }
+
+    [CommandOption('f', "force", Description = "Force overwrite existing value")]
+    public bool Force { get; set; }
+
+    [CommandOption("path", Description = "Configuration file path")]
+    public string? ConfigPath { get; set; }
+
+    [CommandOption("type", Description = "Value type", FromAmong = ["string", "int", "bool", "json"])]
+    public string ValueType { get; set; } = "string";
+
+    [CommandOption("encrypt", Description = "Encrypt the value")]
+    public bool Encrypt { get; set; }
+
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    {
+        // Print debug info if requested
+        PrintDebugInfo();
+
+        Console.WriteLine("Configuration Set Operation");
+        Console.WriteLine("===========================");
+        Console.WriteLine($"Setting config {Key} = {Value}");
+        Console.WriteLine($"Value Type: {ValueType}");
+        Console.WriteLine($"Global: {Global}");
+        Console.WriteLine($"Force: {Force}");
+        Console.WriteLine($"Encrypt: {Encrypt}");
+        Console.WriteLine($"Output Format: {OutputFormat}");
+        
+        if (!string.IsNullOrEmpty(ConfigPath))
+        {
+            Console.WriteLine($"Config Path: {ConfigPath}");
+        }
+
+        if (!Quiet)
+        {
+            Console.WriteLine("Configuration set completed successfully!");
+        }
+
+        cancellationTokenSource.Cancel();
+        return ValueTask.CompletedTask;
+    }
+}

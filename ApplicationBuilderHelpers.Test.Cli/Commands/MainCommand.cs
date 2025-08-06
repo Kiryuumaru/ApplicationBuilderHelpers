@@ -1,87 +1,96 @@
-﻿using AbsolutePathHelpers;
-using ApplicationBuilderHelpers.Attributes;
-using ApplicationBuilderHelpers.Exceptions;
-using ApplicationBuilderHelpers.Services;
-using Microsoft.Extensions.DependencyInjection;
+﻿using ApplicationBuilderHelpers.Attributes;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 
+[Command(description: "Default command for ApplicationBuilderHelpers Test CLI")]
 internal class MainCommand : BaseCommand
 {
-    [CommandOption('t', "test", Description = "Test args with env var", EnvironmentVariable = "ENV_TEST1")]
-    public required string? Test { get; set; } = null;
+    [CommandOption('v', "verbose", Description = "Enable verbose output")]
+    public bool Verbose { get; set; }
 
-    [CommandOption("test-path", Description = "Test args path")]
-    public required AbsolutePath TestPath { get; set; }
+    [CommandOption('c', "config", Description = "Configuration file path", EnvironmentVariable = "TEST_CONFIG")]
+    public string? ConfigPath { get; set; }
 
-    [CommandOption("test-paths", Description = "Test args paths")]
-    public required AbsolutePath[] TestPaths { get; set; }
+    [CommandOption("timeout", Description = "Timeout in seconds")]
+    public int Timeout { get; set; } = 30;
 
-    [CommandOption('l', "log-level", Description = "Level of logs to show.")]
-    public LogLevel LogLevel { get; set; } = LogLevel.Information;
-
-    [CommandOption(
-        "log-level1",
-        EnvironmentVariable = "CCCC",
-        Description = "Level of logs to show.",
-        FromAmong = ["Trace", "Debug", "Information", "Warning", "Error", "Critical"],
-        CaseSensitive = false)]
-    public string LogLevel1 { get; set; } = "Information";
-
-    [CommandOption(
-        "write-logs",
-        EnvironmentVariable = "WRITE_LOGS",
-        Description = "Write logs file.")]
-    public bool WriteLogs { get; set; } = false;
-
-    public MainCommand() : base("The main command for the application.")
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
+        // Always print debug info first if enabled
+        PrintDebugInfo();
 
-    }
-
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
-    {
-        Console.WriteLine("Hello from main");
-        Console.WriteLine($"Test: {Test}");
-        Console.WriteLine($"LogLevel: {LogLevel}");
-        Console.WriteLine($"SSS: {TestPath}");
-        Console.WriteLine($"WriteLogs: {WriteLogs}");
-        foreach (var p in TestPaths)
+        Console.WriteLine("ApplicationBuilderHelpers Test CLI - Default Command");
+        
+        if (Verbose)
         {
-            Console.WriteLine($"Test paths: {p}");
+            Console.WriteLine();
+            Console.WriteLine("===============================================");
+            Console.WriteLine("[CFG] MAIN COMMAND CONFIGURATION");
+            Console.WriteLine("===============================================");
+            Console.WriteLine();
+            
+            Console.WriteLine("[CORE] Configuration:");
+            Console.WriteLine($"   Config: {ConfigPath ?? "default"}");
+            Console.WriteLine($"   Timeout: {Timeout}s");
+            Console.WriteLine($"   Verbose: {Verbose}");
+            Console.WriteLine();
+            
+            Console.WriteLine("[GLB] Global Options:");
+            Console.WriteLine($"   Log Level: {LogLevel}");
+            Console.WriteLine($"   Quiet Mode: {Quiet}");
+            if (EnvironmentVariables.Length > 0)
+            {
+                Console.WriteLine($"   Environment Variables: {string.Join(", ", EnvironmentVariables)}");
+            }
+            Console.WriteLine();
+            
+            Console.WriteLine("[SUM] PARSED OPTIONS SUMMARY:");
+            Console.WriteLine("-----------------------------------------------");
+            PrintOptionsSummary();
+            
+            Console.WriteLine("===============================================");
+            Console.WriteLine();
         }
-        var ss = applicationHost.Services.GetRequiredService<LifetimeService>();
-        ss.ApplicationExitingCallback(async () =>
-        {
-            await Task.Delay(5000);
-            Console.WriteLine("Cancellation action triggered 1.");
-        });
-        ss.CreateCancellationToken().Register(() =>
-        {
-           Console.WriteLine("Cancellation token triggered 2.");
-        });
+        
+        Console.WriteLine("Use --help to see available commands and options.");
 
-        await Task.Delay(15000);
+        cancellationTokenSource.Cancel(); // Cancel the application host to stop further processing
 
-        throw new CommandException("Test error", 113);
+        return ValueTask.CompletedTask;
     }
 
-    public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
+    private void PrintOptionsSummary()
     {
-        Console.WriteLine("Hello from main AddServicesAddServicesAddServicesAddServicesAddServicesAddServices");
-        base.AddServices(applicationBuilder, services);
-    }
+        var nonDefaultOptions = new List<string>();
 
-    public override void CommandPreparation(ApplicationBuilder applicationBuilder)
-    {
-        Console.WriteLine("Hello from main CommandPreparationCommandPreparationCommandPreparationCommandPreparation");
+        // Check all properties for non-default values
+        if (Verbose) nonDefaultOptions.Add("verbose=true");
+        if (!string.IsNullOrEmpty(ConfigPath)) nonDefaultOptions.Add($"config=\"{ConfigPath}\"");
+        if (Timeout != 30) nonDefaultOptions.Add($"timeout={Timeout}");
+
+        // Base class options
+        if (LogLevel != "information") nonDefaultOptions.Add($"log-level={LogLevel}");
+        if (Quiet) nonDefaultOptions.Add("quiet=true");
+        if (EnvironmentVariables.Length > 0) nonDefaultOptions.Add($"env=[{string.Join(", ", EnvironmentVariables)}]");
+        if (DebugParser) nonDefaultOptions.Add("debug-parser=true");
+
+        if (nonDefaultOptions.Count == 0)
+        {
+            Console.WriteLine("   (All options are at their default values)");
+        }
+        else
+        {
+            foreach (var option in nonDefaultOptions)
+            {
+                Console.WriteLine($"   {option}");
+            }
+        }
+        Console.WriteLine();
     }
 }

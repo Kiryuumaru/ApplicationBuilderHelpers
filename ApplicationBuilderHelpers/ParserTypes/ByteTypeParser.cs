@@ -1,46 +1,30 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class ByteTypeParser : ICommandTypeParser
+internal class ByteTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(byte);
 
-    public string[] Choices { get; } = [];
-
-    public object? ParseToType(object? value)
+    public object? Parse(string? value, out string? validateError)
     {
-        var valueStr = value?.ToString();
-        if (valueStr == null || string.IsNullOrEmpty(valueStr))
+        if (byte.TryParse(value, out var result))
         {
-            return default(byte);
+            validateError = null;
+            return result;
         }
-        return byte.Parse(valueStr);
+
+        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        return null;
     }
 
-    public object? ParseFromType(object? value)
+    public string? GetString(object? value)
     {
-        if (value == null || value is not byte)
-        {
-            return default(byte).ToString();
-        }
-        return value.ToString();
-    }
-
-    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
-    {
-        validateError = null;
-        if (value == null || value is not string valueStr || string.IsNullOrEmpty(valueStr))
-        {
-            return true;
-        }
-        if (!byte.TryParse(valueStr, out byte _))
-        {
-            validateError = "Value must be a byte.";
-            return false;
-        }
-        return true;
+        return value?.ToString();
     }
 }

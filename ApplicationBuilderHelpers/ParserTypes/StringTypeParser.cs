@@ -1,32 +1,21 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class StringTypeParser : ICommandTypeParser
+internal class StringTypeParser : ICommandTypeParser
 {
     public Type Type => typeof(string);
 
-    public string[] Choices { get; } = [];
-
-    public object? ParseToType(object? value)
+    public object? Parse(string? value, out string? validateError)
     {
+        validateError = null;
         return value;
     }
 
-    public object? ParseFromType(object? value)
+    public string? GetString(object? value)
     {
-        if (value == null || value is not string)
-        {
-            return null;
-        }
-        return value.ToString();
-    }
-
-    public bool Validate(object? value, [NotNullWhen(false)] out string? validateError)
-    {
-        validateError = null;
-        return true;
+        return value?.ToString();
     }
 }
