@@ -5,9 +5,6 @@ using ApplicationBuilderHelpers.Test.Cli.Commands;
 using ApplicationBuilderHelpers.Themes;
 
 return await ApplicationBuilder.Create()
-    .SetExecutableName("test")
-    .SetExecutableTitle("ApplicationBuilderHelpers Test CLI")
-    .SetExecutableDescription("A comprehensive test CLI application for ApplicationBuilderHelpers with advanced command processing capabilities, subcommands, options, and arguments testing.")
     .AddCommand<BuildCommand>()
     .AddCommand<ConfigGetCommand>()
     .AddCommand<ConfigSetCommand>()

@@ -76,11 +76,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             ShowErrorMessage(ex.Message);
             return ex.ExitCode;
         }
-        catch (Exception ex)
-        {
-            ShowErrorMessage(ex.Message);
-            return 1;
-        }
     }
 
     /// <summary>
@@ -91,7 +86,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         _rootCommand = new SubCommandInfo
         {
             CommandParts = [],
-            Description = ((ICommandBuilder)ApplicationBuilder).ExecutableDescription
+            // Use auto-detection for null ExecutableDescription
+            Description = ((ICommandBuilder)ApplicationBuilder).ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription()
         };
 
         // Process all commands and build hierarchy
@@ -769,7 +765,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private void ShowVersion()
     {
         var commandBuilder = (ICommandBuilder)ApplicationBuilder;
-        var version = commandBuilder.ExecutableVersion ?? VersionHelpers.GetAutoDetectedVersion();
+        var version = commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
         Console.WriteLine(version);
     }
 
@@ -779,7 +775,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private void ShowErrorMessage(string message)
     {
         var theme = CommandBuilder.Theme;
-        var executableName = CommandBuilder.ExecutableName ?? "app";
+        // Use auto-detection for null ExecutableName
+        var executableName = CommandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
         
         // Show the error message in red color if theme is available
         var errorColor = theme?.RequiredColor ?? ConsoleColor.Red;

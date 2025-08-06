@@ -1,4 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -229,7 +230,7 @@ internal class SubCommandOptionInfo
     {
         if (IsRequired && value == null)
         {
-            throw new ArgumentException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing");
+            throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 1);
         }
 
         if (value != null && ValidValues?.Length > 0)
@@ -243,9 +244,9 @@ internal class SubCommandOptionInfo
             if (!isValid)
             {
                 var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
-                throw new ArgumentException(
+                throw new CommandException(
                     $"Value '{stringValue}' is not valid for option '--{LongName ?? ShortName?.ToString()}'. " +
-                    $"Must be one of: {validValuesString}");
+                    $"Must be one of: {validValuesString}", 1);
             }
         }
     }

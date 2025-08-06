@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace RestfulHelpers;
+namespace ApplicationBuilderHelpers.Properties.Polyfills;
 
 /// <summary>
 /// Internal polyfill for <see cref="System.ArgumentException"/>.
@@ -20,7 +20,7 @@ internal class ArgumentException
     /// <param name="argument">The reference type argument to validate as non-<see langword="null"/>.</param>
     /// <param name="paramName">The name of the parameter with which <paramref name="argument"/> corresponds.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ThrowIfEmpty([NotNull] string argument, [CallerArgumentExpression("argument")] string? paramName = null)
+    public static void ThrowIfEmpty([NotNull] string argument, [CallerArgumentExpression(nameof(argument))] string? paramName = null)
     {
         if (string.IsNullOrEmpty(argument))
         {
@@ -34,9 +34,9 @@ internal class ArgumentException
     /// <param name="argument">The reference type argument to validate as non-<see langword="null"/>.</param>
     /// <param name="paramName">The name of the parameter with which <paramref name="argument"/> corresponds.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ThrowIfEmpty<T>([NotNull] IEnumerable<T> argument, [CallerArgumentExpression("argument")] string? paramName = null)
+    public static void ThrowIfEmpty<T>([NotNull] IEnumerable<T> argument, [CallerArgumentExpression(nameof(argument))] string? paramName = null)
     {
-        if (argument.Count() == 0)
+        if (!argument.Any())
         {
             Throw($"\"{paramName}\" is empty.");
         }
@@ -48,9 +48,9 @@ internal class ArgumentException
     /// <param name="argument">The reference type argument to validate as non-<see langword="null"/>.</param>
     /// <param name="paramName">The name of the parameter with which <paramref name="argument"/> corresponds.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ThrowIfHasNullOrEmpty<T>([NotNull] IEnumerable<T> argument, [CallerArgumentExpression("argument")] string? paramName = null)
+    public static void ThrowIfHasNullOrEmpty<T>([NotNull] IEnumerable<T> argument, [CallerArgumentExpression(nameof(argument))] string? paramName = null)
     {
-        if (argument.Count() == 0)
+        if (!argument.Any())
         {
             Throw($"\"{paramName}\" is empty.");
         }

@@ -1,3 +1,4 @@
+using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -20,21 +21,26 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
 
-        // Title with version
-        HelpFormatter.WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor);
+        // Title with version - use auto-detection for null values
+        var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
+        var executableTitle = _commandBuilder.ExecutableTitle ?? AssemblyHelpers.GetAutoDetectedExecutableTitle();
+        var executableVersion = _commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
+        
+        HelpFormatter.WriteColored($"{executableName} v{executableVersion} - {executableTitle}", theme?.HeaderColor);
         Console.WriteLine();
 
         // Usage section
         HelpFormatter.WriteColored("USAGE:", theme?.HeaderColor);
-        var usageText = $"    {_commandBuilder.ExecutableName} [OPTIONS] <COMMAND> [ARGS...]";
+        var usageText = $"    {executableName} [OPTIONS] <COMMAND> [ARGS...]";
         WriteWrappedContent(usageText, helpWidth, 0, theme);
         Console.WriteLine();
 
-        // Description section
-        if (!string.IsNullOrEmpty(_commandBuilder.ExecutableDescription))
+        // Description section - use auto-detection for null values
+        var executableDescription = _commandBuilder.ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription();
+        if (!string.IsNullOrEmpty(executableDescription))
         {
             HelpFormatter.WriteColored("DESCRIPTION:", theme?.HeaderColor);
-            var descriptionText = $"    {_commandBuilder.ExecutableDescription}";
+            var descriptionText = $"    {executableDescription}";
             WriteWrappedContent(descriptionText, helpWidth, 0, theme);
             Console.WriteLine();
         }
@@ -129,7 +135,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
                 opt => BuildOptionDescription(opt));
         }
 
-        var helpMessage = $"Run '{_commandBuilder.ExecutableName} <command> --help' for more information on specific commands.";
+        var helpMessage = $"Run '{executableName} <command> --help' for more information on specific commands.";
         WriteWrappedContent(helpMessage, helpWidth, 0, theme);
     }
 
@@ -138,13 +144,17 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
 
-        // Use the same header format as global help
-        WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor);
+        // Use the same header format as global help - use auto-detection for null values
+        var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
+        var executableTitle = _commandBuilder.ExecutableTitle ?? AssemblyHelpers.GetAutoDetectedExecutableTitle();
+        var executableVersion = _commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
+        
+        WriteColored($"{executableName} v{executableVersion} - {executableTitle}", theme?.HeaderColor);
         Console.WriteLine();
 
         WriteColored("USAGE:", theme?.HeaderColor);
 
-        var usage = new StringBuilder($"    {_commandBuilder.ExecutableName}");
+        var usage = new StringBuilder($"    {executableName}");
         if (!string.IsNullOrEmpty(commandInfo.FullCommandName))
             usage.Append($" {commandInfo.FullCommandName}");
         
