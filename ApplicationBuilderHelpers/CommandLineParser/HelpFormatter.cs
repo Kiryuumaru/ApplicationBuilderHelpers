@@ -594,7 +594,6 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
                     var prefix = line[..(colonIndex + 1)]; // "Default:"
                     var valueText = line[(colonIndex + 1)..].Trim(); // The default value
 
-                    WriteColoredText(prefix, theme?.SecondaryColor);
 
                     HelpFormatter.WriteColoredText(prefix, theme?.SecondaryColor);
                     HelpFormatter.WriteColoredText($" {valueText}", theme?.ParameterColor);
