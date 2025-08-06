@@ -13,3 +13,5 @@ updates:
         versions: [ "*" ]
       - dependency-name: "Microsoft.DotNet.ILCompiler"
         versions: [ "*" ]
+      - dependency-name: "Microsoft.NET.ILLink.Tasks"
+        versions: [ "*" ]
