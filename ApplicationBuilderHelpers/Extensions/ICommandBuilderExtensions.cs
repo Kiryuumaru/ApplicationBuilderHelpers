@@ -132,45 +132,38 @@ public static class ICommandBuilderExtensions
     }
 
     /// <summary>
-    /// Sets the ANSI theme for CLI help output using the provided theme instance.
+    /// Sets the console theme for CLI help output using the provided theme instance.
     /// </summary>
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
-    /// <param name="theme">The ANSI theme instance to use for CLI help output.</param>
+    /// <param name="theme">The console theme instance to use for CLI help output.</param>
     /// <returns>The command builder instance for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> or <paramref name="theme"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when the theme contains invalid ANSI sequences.</exception>
-    public static TICommandBuilder SetTheme<TICommandBuilder>(this TICommandBuilder commandBuilder, IAnsiTheme theme)
+    public static TICommandBuilder SetTheme<TICommandBuilder>(this TICommandBuilder commandBuilder, IConsoleTheme theme)
         where TICommandBuilder : ICommandBuilder
     {
         ArgumentNullException.ThrowIfNull(commandBuilder);
         ArgumentNullException.ThrowIfNull(theme);
-        
-        // Validate the theme contains valid ANSI sequences
-        AnsiThemeValidator.ValidateAndThrow(theme);
         
         commandBuilder.Theme = theme;
         return commandBuilder;
     }
 
     /// <summary>
-    /// Sets the ANSI theme for CLI help output using the specified theme type.
+    /// Sets the console theme for CLI help output using the specified theme type.
     /// </summary>
-    /// <typeparam name="TAnsiTheme">The type of ANSI theme that implements <see cref="IAnsiTheme"/>.</typeparam>
+    /// <typeparam name="TConsoleTheme">The type of console theme that implements <see cref="IConsoleTheme"/>.</typeparam>
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <returns>The command builder instance for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when the theme contains invalid ANSI sequences.</exception>
-    public static TICommandBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TAnsiTheme, TICommandBuilder>(this TICommandBuilder commandBuilder)
-        where TAnsiTheme : IAnsiTheme
+    public static TICommandBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TConsoleTheme, TICommandBuilder>(this TICommandBuilder commandBuilder)
+        where TConsoleTheme : IConsoleTheme
         where TICommandBuilder : ICommandBuilder
     {
         ArgumentNullException.ThrowIfNull(commandBuilder);
-        var theme = Activator.CreateInstance<TAnsiTheme>();
-        
-        // Validate the theme contains valid ANSI sequences
-        AnsiThemeValidator.ValidateAndThrow(theme);
+        var theme = Activator.CreateInstance<TConsoleTheme>();
+        ArgumentNullException.ThrowIfNull(theme);
         
         commandBuilder.Theme = theme;
         return commandBuilder;

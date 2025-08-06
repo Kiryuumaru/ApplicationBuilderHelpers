@@ -88,10 +88,15 @@ internal class TestCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
-        // Always print debug info first if enabled
         PrintDebugInfo();
 
         Console.WriteLine($"Running test on target: {Target ?? "default"}");
+        
+        // Always show timeout if it's not the default value
+        if (Timeout != 30)
+        {
+            Console.WriteLine($"Timeout: {Timeout}s");
+        }
         
         if (Verbose)
         {

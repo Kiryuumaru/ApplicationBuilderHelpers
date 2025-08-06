@@ -28,5 +28,5 @@ public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDep
 
     internal int? HelpBorderWidth { get; set; }
 
-    internal IAnsiTheme? Theme { get; set; }
+    internal IConsoleTheme? Theme { get; set; }
 }

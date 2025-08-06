@@ -6,11 +6,11 @@ namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 [Command("database migrate", "Run database migrations")]
 internal class DatabaseMigrateCommand : BaseCommand
 {
-    [CommandArgument("connection", Description = "Database connection string or name", Position = 0, Required = false)]
+    [CommandOption("connection-string", Description = "Database connection string")]
     public string? ConnectionString { get; set; }
 
-    [CommandOption('t', "target", Description = "Target migration version")]
-    public string? TargetMigration { get; set; }
+    [CommandOption("target-version", Description = "Target migration version")]
+    public string? TargetVersion { get; set; }
 
     [CommandOption('s', "script", Description = "Generate migration script instead of applying")]
     public bool GenerateScript { get; set; }
@@ -29,14 +29,22 @@ internal class DatabaseMigrateCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
-        Console.WriteLine("Running database migrations");
+        // Print debug info if requested
+        PrintDebugInfo();
+
+        Console.WriteLine("Running database migration");
         Console.WriteLine($"Connection: {ConnectionString ?? "default"}");
-        Console.WriteLine($"Target Migration: {TargetMigration ?? "latest"}");
+        Console.WriteLine($"Target Version: {TargetVersion ?? "latest"}");
         Console.WriteLine($"Generate Script: {GenerateScript}");
         Console.WriteLine($"Dry Run: {DryRun}");
         Console.WriteLine($"Force: {Force}");
         Console.WriteLine($"Create Backup: {CreateBackup}");
         Console.WriteLine($"Timeout: {CommandTimeout}s");
+
+        if (!Quiet)
+        {
+            Console.WriteLine("Database migration completed successfully!");
+        }
 
         cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;

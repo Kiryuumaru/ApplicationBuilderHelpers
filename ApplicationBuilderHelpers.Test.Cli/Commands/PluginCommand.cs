@@ -18,7 +18,7 @@ internal class PluginCommand : BaseCommand
     [CommandOption('f', "force", Description = "Force the operation")]
     public bool Force { get; set; }
 
-    [CommandOption("version", Description = "Specific version to install")]
+    [CommandOption("plugin-version", Description = "Specific version to install")]
     public string? Version { get; set; }
 
     [CommandOption("source", Description = "Plugin source or repository")]
@@ -47,11 +47,37 @@ internal class PluginCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
-        Console.WriteLine($"Plugin action: {Action}");
-        
-        if (!string.IsNullOrEmpty(PluginName))
+        // Print debug info if requested
+        PrintDebugInfo();
+
+        // Handle different actions with specific outputs
+        switch (Action.ToLowerInvariant())
         {
-            Console.WriteLine($"Plugin name: {PluginName}");
+            case "list":
+                Console.WriteLine("Listing installed plugins");
+                break;
+            case "install":
+                if (!string.IsNullOrEmpty(PluginName))
+                {
+                    Console.WriteLine($"Installing plugin: {PluginName}");
+                }
+                else
+                {
+                    Console.WriteLine("Installing plugin");
+                }
+                break;
+            case "uninstall":
+                Console.WriteLine($"Uninstalling plugin: {PluginName}");
+                break;
+            case "update":
+                Console.WriteLine($"Updating plugin: {PluginName}");
+                break;
+            case "search":
+                Console.WriteLine("Searching plugins");
+                break;
+            case "info":
+                Console.WriteLine($"Plugin information: {PluginName}");
+                break;
         }
 
         Console.WriteLine($"Global: {Global}");
@@ -84,6 +110,11 @@ internal class PluginCommand : BaseCommand
         if (Tags.Length > 0)
         {
             Console.WriteLine($"Tags: {string.Join(", ", Tags)}");
+        }
+
+        if (!Quiet)
+        {
+            Console.WriteLine($"Plugin {Action} completed successfully!");
         }
 
         cancellationTokenSource.Cancel();

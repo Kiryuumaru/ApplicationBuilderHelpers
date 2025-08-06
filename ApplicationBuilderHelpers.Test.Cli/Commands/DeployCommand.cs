@@ -36,7 +36,7 @@ internal class DeployCommand : BaseCommand
     public string[] Services { get; set; } = [];
 
     [CommandOption('e', "env-vars", Description = "Environment variables to set")]
-    public string[] EnvironmentVariables { get; set; } = [];
+    public new string[] EnvironmentVariables { get; set; } = [];
 
     [CommandOption("health-check-url", Description = "URL for health checks", EnvironmentVariable = "HEALTH_CHECK_URL")]
     public string? HealthCheckUrl { get; set; }
@@ -46,6 +46,11 @@ internal class DeployCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
+        // Print debug info if requested
+        PrintDebugInfo();
+
+        Console.WriteLine("Deployment Operation");
+        Console.WriteLine("===================");
         Console.WriteLine($"Deploying to environment: {Environment}");
         Console.WriteLine($"Version: {Version ?? "latest"}");
         Console.WriteLine($"Strategy: {Strategy}");
@@ -68,6 +73,11 @@ internal class DeployCommand : BaseCommand
         if (!string.IsNullOrEmpty(HealthCheckUrl))
         {
             Console.WriteLine($"Health Check URL: {HealthCheckUrl}");
+        }
+
+        if (!Quiet)
+        {
+            Console.WriteLine("Deployment completed successfully!");
         }
 
         cancellationTokenSource.Cancel();

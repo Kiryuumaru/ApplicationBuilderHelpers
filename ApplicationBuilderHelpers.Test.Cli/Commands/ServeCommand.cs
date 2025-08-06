@@ -38,6 +38,9 @@ internal class ServeCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
+        // Print debug info if requested
+        PrintDebugInfo();
+
         Console.WriteLine($"Starting development server...");
         Console.WriteLine($"Host: {Host}");
         Console.WriteLine($"Port: {Port}");
@@ -59,6 +62,11 @@ internal class ServeCommand : BaseCommand
         }
 
         Console.WriteLine($"Server would be running at: {(UseHttps ? "https" : "http")}://{Host}:{Port}");
+
+        if (!Quiet)
+        {
+            Console.WriteLine("Development server started successfully!");
+        }
 
         cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;

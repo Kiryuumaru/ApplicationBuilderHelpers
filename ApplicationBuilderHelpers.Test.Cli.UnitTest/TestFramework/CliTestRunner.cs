@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ApplicationBuilderHelpers.Test.Playground.TestFramework;
+namespace ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 
 /// <summary>
 /// Provides utilities for running CLI tests with the test.exe
@@ -54,13 +54,29 @@ public class CliTestRunner
     /// </summary>
     public async Task<CliTestResult> RunAsync(params string[] args)
     {
-        return await RunAsync(_defaultTimeout, args);
+        return await RunAsync(_defaultTimeout, null, args);
+    }
+
+    /// <summary>
+    /// Runs the CLI with specified environment variables and arguments
+    /// </summary>
+    public async Task<CliTestResult> RunAsync(Dictionary<string, string>? environmentVariables, params string[] args)
+    {
+        return await RunAsync(_defaultTimeout, environmentVariables, args);
     }
 
     /// <summary>
     /// Runs the CLI with specified timeout and arguments
     /// </summary>
     public async Task<CliTestResult> RunAsync(TimeSpan timeout, params string[] args)
+    {
+        return await RunAsync(timeout, null, args);
+    }
+
+    /// <summary>
+    /// Runs the CLI with specified timeout, environment variables, and arguments
+    /// </summary>
+    public async Task<CliTestResult> RunAsync(TimeSpan timeout, Dictionary<string, string>? environmentVariables, params string[] args)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo
@@ -80,10 +96,19 @@ public class CliTestRunner
             process.StartInfo.ArgumentList.Add(arg);
         }
 
-        // Add environment variables
+        // Add environment variables from the runner instance first
         foreach (var (name, value) in _environmentVariables)
         {
             process.StartInfo.EnvironmentVariables[name] = value;
+        }
+
+        // Add environment variables from the parameter (these override instance variables)
+        if (environmentVariables != null)
+        {
+            foreach (var (name, value) in environmentVariables)
+            {
+                process.StartInfo.EnvironmentVariables[name] = value;
+            }
         }
 
         var outputBuilder = new StringBuilder();
@@ -156,6 +181,16 @@ public class CliTestRunner
             stopwatch.Stop();
         }
 
+        // Combine all environment variables for the result
+        var allEnvironmentVariables = new Dictionary<string, string>(_environmentVariables);
+        if (environmentVariables != null)
+        {
+            foreach (var (name, value) in environmentVariables)
+            {
+                allEnvironmentVariables[name] = value;
+            }
+        }
+
         return new CliTestResult
         {
             ExitCode = process.ExitCode,
@@ -163,7 +198,7 @@ public class CliTestRunner
             StandardError = errorBuilder.ToString().TrimEnd(),
             ExecutionTime = stopwatch.Elapsed,
             Command = $"{_executablePath} {string.Join(" ", args)}",
-            EnvironmentVariables = new Dictionary<string, string>(_environmentVariables)
+            EnvironmentVariables = allEnvironmentVariables
         };
     }
 
@@ -172,7 +207,15 @@ public class CliTestRunner
     /// </summary>
     public async Task<CliTestResult> RunExpectingFailureAsync(int expectedExitCode, params string[] args)
     {
-        var result = await RunAsync(args);
+        return await RunExpectingFailureAsync(expectedExitCode, null, args);
+    }
+
+    /// <summary>
+    /// Runs the CLI with environment variables and expects it to fail with a specific exit code
+    /// </summary>
+    public async Task<CliTestResult> RunExpectingFailureAsync(int expectedExitCode, Dictionary<string, string>? environmentVariables, params string[] args)
+    {
+        var result = await RunAsync(_defaultTimeout, environmentVariables, args);
         if (result.ExitCode != expectedExitCode)
         {
             throw new InvalidOperationException($"Expected exit code {expectedExitCode} but got {result.ExitCode}");
@@ -185,11 +228,19 @@ public class CliTestRunner
     /// </summary>
     public async Task<List<CliTestResult>> RunSequenceAsync(params string[][] commandSequence)
     {
+        return await RunSequenceAsync(null, commandSequence);
+    }
+
+    /// <summary>
+    /// Runs multiple CLI commands in sequence with environment variables and returns all results
+    /// </summary>
+    public async Task<List<CliTestResult>> RunSequenceAsync(Dictionary<string, string>? environmentVariables, params string[][] commandSequence)
+    {
         var results = new List<CliTestResult>();
         
         foreach (var args in commandSequence)
         {
-            var result = await RunAsync(args);
+            var result = await RunAsync(_defaultTimeout, environmentVariables, args);
             results.Add(result);
             
             // If any command fails, stop the sequence

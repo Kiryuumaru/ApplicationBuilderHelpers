@@ -375,6 +375,8 @@ internal class SubCommandOptionInfo
                value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("no", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("on", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("off", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("0", StringComparison.OrdinalIgnoreCase);
     }

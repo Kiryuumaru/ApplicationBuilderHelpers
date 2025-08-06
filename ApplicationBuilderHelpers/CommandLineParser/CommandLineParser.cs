@@ -411,12 +411,20 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
         }
 
-        // If we ended up on a command without implementation, try to find a default
-        if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        // Check for help flag in remaining arguments before validating implementation
+        var hasHelpFlag = args.Skip(argIndex).Any(arg => arg == "--help" || arg == "-h");
+        if (hasHelpFlag)
         {
-            // For now, commands without implementation will show help
             result.ShowHelp = true;
             return result;
+        }
+
+        // If we ended up on a command without implementation, check if it requires subcommands
+        if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // This is an abstract command that requires a subcommand
+            var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
+            throw new CommandException($"'{result.TargetCommand.FullCommandName}' requires a subcommand. Available subcommands: {availableSubcommands}", 1);
         }
 
         if (!result.TargetCommand.HasImplementation)
@@ -558,6 +566,20 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     {
         var command = result.TargetCommand.Command!;
 
+        // First, check for environment variable fallback for all options with environment variables
+        foreach (var option in result.TargetCommand.AllOptions.Where(o => !string.IsNullOrEmpty(o.EnvironmentVariable)))
+        {
+            // Only apply environment variable if option was not explicitly set
+            if (!result.OptionValues.ContainsKey(option) || result.OptionValues[option].Count == 0)
+            {
+                var envValue = Environment.GetEnvironmentVariable(option.EnvironmentVariable);
+                if (!string.IsNullOrEmpty(envValue))
+                {
+                    AddOptionValue(result, option, envValue);
+                }
+            }
+        }
+
         // Set option values
         foreach (var (option, values) in result.OptionValues)
         {
@@ -637,6 +659,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
         if (targetType.IsEnum)
             return Enum.Parse(targetType, value, true);
+
+        // Handle nullable types
+        if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
+        {
+            var underlyingType = Nullable.GetUnderlyingType(targetType)!;
+            return ConvertValue(value, underlyingType);
+        }
 
         return Convert.ChangeType(value, targetType);
     }

@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -29,20 +28,20 @@ internal class HelpFormatter
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
         
         // Title with version
-        WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor, theme);
+        WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor);
         Console.WriteLine();
 
         // Usage section
-        WriteColored("USAGE:", theme?.HeaderColor, theme);
-        var usageText = $"    {ApplyColor(_commandBuilder.ExecutableName, theme?.FlagColor, theme)} {ApplyColor("[OPTIONS]", theme?.SecondaryColor, theme)} {ApplyColor("<COMMAND>", theme?.ParameterColor, theme)} {ApplyColor("[ARGS...]", theme?.SecondaryColor, theme)}";
+        WriteColored("USAGE:", theme?.HeaderColor);
+        var usageText = $"    {_commandBuilder.ExecutableName} [OPTIONS] <COMMAND> [ARGS...]";
         WriteWrappedContent(usageText, helpWidth, 0, theme);
         Console.WriteLine();
 
         // Description section
         if (!string.IsNullOrEmpty(_commandBuilder.ExecutableDescription))
         {
-            WriteColored("DESCRIPTION:", theme?.HeaderColor, theme);
-            var descriptionText = $"    {ApplyColor(_commandBuilder.ExecutableDescription, theme?.DescriptionColor, theme)}";
+            WriteColored("DESCRIPTION:", theme?.HeaderColor);
+            var descriptionText = $"    {_commandBuilder.ExecutableDescription}";
             WriteWrappedContent(descriptionText, helpWidth, 0, theme);
             Console.WriteLine();
         }
@@ -85,7 +84,7 @@ internal class HelpFormatter
         {
             foreach (var item in allRootOptions)
             {
-                var leftColumn = item is SubCommandOptionInfo opt ? BuildOptionSignature(opt, theme) : $"    {ApplyColor("-V, --version", theme?.FlagColor, theme)}";
+                var leftColumn = item is SubCommandOptionInfo opt ? BuildOptionSignature(opt) : "    -V, --version";
                 allLeftColumnItems.Add(leftColumn);
             }
         }
@@ -96,7 +95,7 @@ internal class HelpFormatter
         {
             foreach (var cmd in topLevelCommands)
             {
-                allLeftColumnItems.Add($"    {ApplyColor(cmd.Name, theme?.FlagColor, theme)}");
+                allLeftColumnItems.Add($"    {cmd.Name}");
             }
         }
 
@@ -108,7 +107,7 @@ internal class HelpFormatter
         {
             foreach (var opt in allGlobalOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt, theme));
+                allLeftColumnItems.Add(BuildOptionSignature(opt));
             }
         }
 
@@ -119,25 +118,25 @@ internal class HelpFormatter
         if (allRootOptions.Count > 0)
         {
             ShowSectionWithFixedLayout("OPTIONS:", allRootOptions, optimalLeftColumnWidth, helpWidth, theme,
-                item => item is SubCommandOptionInfo opt ? BuildOptionSignature(opt, theme) : $"    {ApplyColor("-V, --version", theme?.FlagColor, theme)}",
-                item => item is SubCommandOptionInfo opt ? BuildOptionDescription(opt, theme) : ApplyColor("Show version information", theme?.DescriptionColor, theme));
+                item => item is SubCommandOptionInfo opt ? BuildOptionSignature(opt) : "    -V, --version",
+                item => item is SubCommandOptionInfo opt ? BuildOptionDescription(opt) : "Show version information");
         }
 
         if (topLevelCommands.Count > 0)
         {
             ShowSectionWithFixedLayout("COMMANDS:", topLevelCommands, optimalLeftColumnWidth, helpWidth, theme,
-                cmd => $"    {ApplyColor(cmd.Name, theme?.FlagColor, theme)}",
-                cmd => ApplyColor(cmd.Description ?? "", theme?.DescriptionColor, theme));
+                cmd => $"    {cmd.Name}",
+                cmd => cmd.Description ?? "");
         }
 
         if (allGlobalOptions.Count > 0)
         {
             ShowSectionWithFixedLayout("GLOBAL OPTIONS:", allGlobalOptions, optimalLeftColumnWidth, helpWidth, theme,
-                opt => BuildOptionSignature(opt, theme),
-                opt => BuildOptionDescription(opt, theme));
+                opt => BuildOptionSignature(opt),
+                opt => BuildOptionDescription(opt));
         }
 
-        var helpMessage = $"Run '{ApplyColor(_commandBuilder.ExecutableName + " <command> --help", theme?.ParameterColor, theme)}' for more information on specific commands.";
+        var helpMessage = $"Run '{_commandBuilder.ExecutableName} <command> --help' for more information on specific commands.";
         WriteWrappedContent(helpMessage, helpWidth, 0, theme);
     }
 
@@ -146,20 +145,21 @@ internal class HelpFormatter
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
         
-        WriteColored($"{_commandBuilder.ExecutableTitle}", theme?.HeaderColor, theme);
+        // Use the same header format as global help
+        WriteColored($"{_commandBuilder.ExecutableName} v{_commandBuilder.ExecutableVersion ?? "0.0.0"} - {_commandBuilder.ExecutableTitle}", theme?.HeaderColor);
         Console.WriteLine();
         
-        WriteColored("USAGE:", theme?.HeaderColor, theme);
-        var usage = new StringBuilder($"    {ApplyColor(_commandBuilder.ExecutableName, theme?.FlagColor, theme)}");
+        WriteColored("USAGE:", theme?.HeaderColor);
+        var usage = new StringBuilder($"    {_commandBuilder.ExecutableName}");
         if (!string.IsNullOrEmpty(commandInfo.FullCommandName))
-            usage.Append($" {ApplyColor(commandInfo.FullCommandName, theme?.FlagColor, theme)}");
+            usage.Append($" {commandInfo.FullCommandName}");
         
         if (commandInfo.AllOptions.Count > 0)
-            usage.Append($" {ApplyColor("[OPTIONS]", theme?.SecondaryColor, theme)}");
+            usage.Append(" [OPTIONS]");
             
         foreach (var arg in commandInfo.AllArguments.OrderBy(a => a.Position))
         {
-            usage.Append($" {ApplyColor(arg.GetSignature(), theme?.ParameterColor, theme)}");
+            usage.Append($" {arg.GetSignature()}");
         }
         
         WriteWrappedContent(usage.ToString(), helpWidth, 0, theme);
@@ -167,8 +167,8 @@ internal class HelpFormatter
 
         if (!string.IsNullOrEmpty(commandInfo.Description))
         {
-            WriteColored("DESCRIPTION:", theme?.HeaderColor, theme);
-            var descriptionText = $"    {ApplyColor(commandInfo.Description, theme?.DescriptionColor, theme)}";
+            WriteColored("DESCRIPTION:", theme?.HeaderColor);
+            var descriptionText = $"    {commandInfo.Description}";
             WriteWrappedContent(descriptionText, helpWidth, 0, theme);
             Console.WriteLine();
         }
@@ -188,7 +188,7 @@ internal class HelpFormatter
         {
             foreach (var opt in commandSpecificOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt, theme));
+                allLeftColumnItems.Add(BuildOptionSignature(opt));
             }
         }
 
@@ -197,7 +197,7 @@ internal class HelpFormatter
         {
             foreach (var opt in hierarchySpecificOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt, theme));
+                allLeftColumnItems.Add(BuildOptionSignature(opt));
             }
         }
 
@@ -207,7 +207,7 @@ internal class HelpFormatter
             var sortedArguments = commandInfo.Arguments.OrderBy(a => a.Position).ToList();
             foreach (var arg in sortedArguments)
             {
-                allLeftColumnItems.Add(BuildArgumentSignature(arg, theme));
+                allLeftColumnItems.Add(BuildArgumentSignature(arg));
             }
         }
 
@@ -219,7 +219,7 @@ internal class HelpFormatter
         {
             foreach (var opt in allGlobalOptions)
             {
-                allLeftColumnItems.Add(BuildOptionSignature(opt, theme));
+                allLeftColumnItems.Add(BuildOptionSignature(opt));
             }
         }
 
@@ -233,8 +233,8 @@ internal class HelpFormatter
             var isSubCommand = commandInfo.CommandParts.Length > 1;
             var sectionName = isSubCommand ? "OPTIONS:" : "OPTIONS (command):";
             ShowSectionWithFixedLayout(sectionName, commandSpecificOptions, optimalLeftColumnWidth, helpWidth, theme,
-                opt => BuildOptionSignature(opt, theme),
-                opt => BuildOptionDescription(opt, theme));
+                opt => BuildOptionSignature(opt),
+                opt => BuildOptionDescription(opt));
         }
 
         if (hierarchySpecificOptions.Count > 0)
@@ -249,24 +249,24 @@ internal class HelpFormatter
                 : (!string.IsNullOrEmpty(parentCommandName) ? $"OPTIONS ({parentCommandName}):" : "INHERITED OPTIONS:");
                 
             ShowSectionWithFixedLayout(sectionName, hierarchySpecificOptions, optimalLeftColumnWidth, helpWidth, theme,
-                opt => BuildOptionSignature(opt, theme),
-                opt => BuildOptionDescription(opt, theme));
+                opt => BuildOptionSignature(opt),
+                opt => BuildOptionDescription(opt));
         }
 
         if (commandInfo.Arguments.Count > 0)
         {
             var sortedArguments = commandInfo.Arguments.OrderBy(a => a.Position).ToList();
             ShowSectionWithFixedLayout("ARGUMENTS:", sortedArguments, optimalLeftColumnWidth, helpWidth, theme,
-                arg => BuildArgumentSignature(arg, theme),
-                arg => BuildArgumentDescription(arg, theme));
+                arg => BuildArgumentSignature(arg),
+                arg => BuildArgumentDescription(arg));
         }
 
         // Merge base options and global options into a single GLOBAL OPTIONS section
         if (allGlobalOptions.Count > 0)
         {
             ShowSectionWithFixedLayout("GLOBAL OPTIONS:", allGlobalOptions, optimalLeftColumnWidth, helpWidth, theme,
-                opt => BuildOptionSignature(opt, theme),
-                opt => BuildOptionDescription(opt, theme));
+                opt => BuildOptionSignature(opt),
+                opt => BuildOptionDescription(opt));
         }
     }
 
@@ -318,60 +318,12 @@ internal class HelpFormatter
         }
     }
 
-    private void ShowSectionWithOptimalLayout<T>(string sectionHeader, List<T> items, int totalWidth, IAnsiTheme? theme, 
+    private void ShowSectionWithFixedLayout<T>(string sectionHeader, List<T> items, int leftColumnWidth, int totalWidth, IConsoleTheme? theme, 
         Func<T, string> getLeftColumn, Func<T, string> getRightColumn)
     {
         if (items.Count == 0) return;
 
-        WriteColored(sectionHeader, theme?.HeaderColor, theme);
-
-        // Calculate optimal left column width dynamically but with reasonable limits
-        var leftColumns = items.Select(getLeftColumn).ToList();
-        var maxLeftWidth = leftColumns.Max(GetDisplayWidth);
-        
-        // Set reasonable bounds for the left column
-        const int MinLeftColumnWidth = 20;
-        const int MaxLeftColumnWidth = 35;  // More reasonable maximum
-        const int Padding = 2;
-        
-        // Ensure the right column has enough space
-        var maxAllowedLeftWidth = totalWidth - 40; // Ensure at least 40 chars for right column
-        
-        var leftColumnWidth = Math.Min(Math.Max(maxLeftWidth, MinLeftColumnWidth), 
-                                      Math.Min(MaxLeftColumnWidth, maxAllowedLeftWidth));
-        
-        // Display all items with consistent left column width
-        foreach (var item in items)
-        {
-            var leftColumn = getLeftColumn(item);
-            var rightColumn = getRightColumn(item);
-            var leftDisplayWidth = GetDisplayWidth(leftColumn);
-
-            if (leftDisplayWidth > leftColumnWidth)
-            {
-                // Left content is too long - put right content on next line
-                Console.WriteLine(leftColumn);
-                WriteWrappedText(rightColumn, totalWidth - 4, 4, theme);
-            }
-            else
-            {
-                // Standard two-column layout with optimal left column width
-                var rightColumnWidth = totalWidth - leftColumnWidth - Padding;
-
-                Console.Write(leftColumn);
-                Console.Write(new string(' ', leftColumnWidth - leftDisplayWidth + Padding));
-                WriteWrappedText(rightColumn, rightColumnWidth, leftColumnWidth + Padding, theme);
-            }
-        }
-        Console.WriteLine();
-    }
-
-    private void ShowSectionWithFixedLayout<T>(string sectionHeader, List<T> items, int leftColumnWidth, int totalWidth, IAnsiTheme? theme, 
-        Func<T, string> getLeftColumn, Func<T, string> getRightColumn)
-    {
-        if (items.Count == 0) return;
-
-        WriteColored(sectionHeader, theme?.HeaderColor, theme);
+        WriteColored(sectionHeader, theme?.HeaderColor);
 
         const int Padding = 2;
         
@@ -421,13 +373,13 @@ internal class HelpFormatter
         return leftColumnWidth;
     }
 
-    private string BuildOptionSignature(SubCommandOptionInfo option, IAnsiTheme? theme)
+    private string BuildOptionSignature(SubCommandOptionInfo option)
     {
         var signature = new StringBuilder("    ");
         
         if (option.ShortName.HasValue)
         {
-            signature.Append(ApplyColor($"-{option.ShortName}", theme?.FlagColor, theme));
+            signature.Append($"-{option.ShortName}");
             if (!string.IsNullOrEmpty(option.LongName))
             {
                 signature.Append(", ");
@@ -436,50 +388,50 @@ internal class HelpFormatter
         
         if (!string.IsNullOrEmpty(option.LongName))
         {
-            signature.Append(ApplyColor($"--{option.LongName}", theme?.FlagColor, theme));
+            signature.Append($"--{option.LongName}");
         }
 
         if (option.PropertyType != typeof(bool))
         {
             var paramName = GetParameterName(option);
-            signature.Append($" {ApplyColor(paramName, theme?.ParameterColor, theme)}");
+            signature.Append($" {paramName}");
         }
 
         return signature.ToString();
     }
 
-    private string BuildOptionDescription(SubCommandOptionInfo option, IAnsiTheme? theme)
+    private string BuildOptionDescription(SubCommandOptionInfo option)
     {
         var parts = new List<string>();
         
         if (!string.IsNullOrEmpty(option.Description))
         {
-            parts.Add(ApplyColor(option.Description, theme?.DescriptionColor, theme));
+            parts.Add(option.Description);
         }
 
         if (option.ValidValues?.Length > 0)
         {
             var values = string.Join(", ", option.ValidValues);
-            parts.Add($"{ApplyColor("Possible values:", theme?.SecondaryColor, theme)} {ApplyColor(values, theme?.ParameterColor, theme)}");
+            parts.Add($"Possible values: {values}");
         }
 
         if (!string.IsNullOrEmpty(option.EnvironmentVariable))
         {
-            parts.Add($"{ApplyColor("EnvironmentVariable:", theme?.SecondaryColor, theme)} {ApplyColor(option.EnvironmentVariable, theme?.ParameterColor, theme)}");
+            parts.Add($"Environment variable: {option.EnvironmentVariable}");
         }
 
         if (option.LongName != "help" && option.LongName != "version")
         {
             var defaultValue = GetOptionDefaultValue(option);
             if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-                parts.Add($"{ApplyColor("Default:", theme?.SecondaryColor, theme)} {ApplyColor(defaultValue.ToString(), theme?.ParameterColor, theme)}");
+                parts.Add($"Default: {defaultValue}");
         }
 
         // Use proper line breaks between different description parts for better readability
         return string.Join("\n", parts);
     }
 
-    private string BuildArgumentSignature(SubCommandArgumentInfo argument, IAnsiTheme? theme)
+    private string BuildArgumentSignature(SubCommandArgumentInfo argument)
     {
         // Use lowercase format like <key> instead of <KEY>
         var name = argument.DisplayName;
@@ -488,22 +440,22 @@ internal class HelpFormatter
             name += "...";
             
         var bracketedName = argument.IsRequired ? $"<{name}>" : $"[{name}]";
-        return $"    {ApplyColor(bracketedName, theme?.ParameterColor, theme)}";
+        return $"    {bracketedName}";
     }
 
-    private string BuildArgumentDescription(SubCommandArgumentInfo argument, IAnsiTheme? theme)
+    private string BuildArgumentDescription(SubCommandArgumentInfo argument)
     {
         var parts = new List<string>();
         
         if (!string.IsNullOrEmpty(argument.Description))
         {
-            parts.Add(ApplyColor(argument.Description, theme?.DescriptionColor, theme));
+            parts.Add(argument.Description);
         }
 
         if (argument.ValidValues?.Length > 0)
         {
             var values = string.Join(", ", argument.ValidValues);
-            parts.Add($"{ApplyColor("Possible values:", theme?.SecondaryColor, theme)} {ApplyColor(values, theme?.ParameterColor, theme)}");
+            parts.Add($"Possible values: {values}");
         }
 
         // Use proper line breaks between different description parts for better readability
@@ -540,7 +492,7 @@ internal class HelpFormatter
                 "INT32" => "<NUMBER>",
                 "DOUBLE" => "<NUMBER>",
                 "FLOAT" => "<NUMBER>",
-                "DECIMAL" => "<NUMBER>",
+                "DECIMAL" => "<NUMBER...>",
                 _ => "<VALUE>"
             };
         }
@@ -551,13 +503,13 @@ internal class HelpFormatter
             "INT32" => "<NUMBER>",
             "DOUBLE" => "<NUMBER>",
             "FLOAT" => "<NUMBER>",
-            "DECIMAL" => "<NUMBER>",
+            "DECIMAL" => "<NUMBER...>",
             "BOOLEAN" => "",
             _ => "<VALUE>"
         };
     }
 
-    private void WriteWrappedText(string text, int width, int indent, IAnsiTheme? theme)
+    private void WriteWrappedText(string text, int width, int indent, IConsoleTheme? theme)
     {
         if (string.IsNullOrEmpty(text))
         {
@@ -587,8 +539,8 @@ internal class HelpFormatter
                     var prefix = line.Substring(0, colonIndex + 1); // "Possible values:"
                     var valuesText = line.Substring(colonIndex + 1).Trim(); // The actual values
                     
-                    // Write the prefix
-                    Console.Write(prefix);
+                    // Write the prefix with secondary color
+                    WriteColoredText(prefix, theme?.SecondaryColor);
                     var currentPos = GetDisplayWidth(prefix);
                     
                     if (!string.IsNullOrEmpty(valuesText))
@@ -605,14 +557,15 @@ internal class HelpFormatter
                             // Check if it fits on current line with some buffer
                             if (currentPos + textLength < width - 2) // Leave 2 chars buffer
                             {
-                                Console.Write(textToAdd);
+                                WriteColoredText(textToAdd, theme?.ParameterColor);
                                 currentPos += textLength;
                             }
                             else
                             {
                                 // Move to next line
                                 Console.WriteLine();
-                                Console.Write(indentStr + value);
+                                Console.Write(indentStr);
+                                WriteColoredText(value, theme?.ParameterColor);
                                 currentPos = indent + GetDisplayWidth(value);
                             }
                         }
@@ -621,6 +574,38 @@ internal class HelpFormatter
                 else
                 {
                     // Fallback
+                    WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
+                }
+            }
+            else if (line.Contains("Environment variable:"))
+            {
+                var colonIndex = line.IndexOf(':');
+                if (colonIndex != -1)
+                {
+                    var prefix = line.Substring(0, colonIndex + 1); // "Environment variable:"
+                    var valueText = line.Substring(colonIndex + 1).Trim(); // The env var name
+                    
+                    WriteColoredText(prefix, theme?.SecondaryColor);
+                    WriteColoredText($" {valueText}", theme?.ParameterColor);
+                }
+                else
+                {
+                    WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
+                }
+            }
+            else if (line.Contains("Default:"))
+            {
+                var colonIndex = line.IndexOf(':');
+                if (colonIndex != -1)
+                {
+                    var prefix = line.Substring(0, colonIndex + 1); // "Default:"
+                    var valueText = line.Substring(colonIndex + 1).Trim(); // The default value
+                    
+                    WriteColoredText(prefix, theme?.SecondaryColor);
+                    WriteColoredText($" {valueText}", theme?.ParameterColor);
+                }
+                else
+                {
                     WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
                 }
             }
@@ -660,44 +645,89 @@ internal class HelpFormatter
                 currentLineLength++;
             }
 
-            Console.Write(word);
+            WriteColoredText(word, null); // No coloring for regular words
             currentLineLength += wordLength;
             lineStarted = true;
         }
     }
 
-    private void WriteCommaSeparatedValues(string[] values, int width, int indent, string indentStr)
+    private void WriteColored(string text, ConsoleColor? color)
     {
-        Console.WriteLine();
-        Console.Write(indentStr);
+        if (color.HasValue)
+        {
+            var originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = color.Value;
+            Console.WriteLine(text);
+            Console.ForegroundColor = originalColor;
+        }
+        else
+        {
+            Console.WriteLine(text);
+        }
+    }
+
+    private void WriteColoredText(string text, ConsoleColor? color)
+    {
+        if (color.HasValue)
+        {
+            var originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = color.Value;
+            Console.Write(text);
+            Console.ForegroundColor = originalColor;
+        }
+        else
+        {
+            Console.Write(text);
+        }
+    }
+
+    private void WriteWrappedContent(string text, int maxWidth, int indent, IConsoleTheme? theme)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            Console.WriteLine();
+            return;
+        }
+
+        var indentStr = new string(' ', indent);
+        var availableWidth = maxWidth - indent;
         
-        var currentLineLength = indent;
+        // Split text into words while preserving console color formatting
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var currentLineLength = 0;
         var lineStarted = false;
 
-        for (int i = 0; i < values.Length; i++)
+        foreach (var word in words)
         {
-            var value = values[i];
-            var valueWithComma = i < values.Length - 1 ? value + "," : value;
-            var valueLength = GetDisplayWidth(valueWithComma);
+            var wordLength = GetDisplayWidth(word);
             
-            if (lineStarted && currentLineLength + valueLength + 1 > width)
+            // Check if we need to wrap to next line
+            if (lineStarted && currentLineLength + wordLength + 1 > availableWidth)
             {
                 Console.WriteLine();
                 Console.Write(indentStr);
-                currentLineLength = indent;
+                currentLineLength = 0;
                 lineStarted = false;
             }
 
+            // Add space before word if not at line start
             if (lineStarted)
             {
                 Console.Write(" ");
                 currentLineLength++;
             }
+            else if (indent > 0)
+            {
+                Console.Write(indentStr);
+                currentLineLength = indent;
+            }
 
-            Console.Write(valueWithComma);
-            currentLineLength += valueLength;
+            WriteColoredText(word, theme?.DescriptionColor);
+            currentLineLength += wordLength;
             lineStarted = true;
         }
+        
+        Console.WriteLine();
     }
 
     private string? GetParentCommandName(SubCommandInfo commandInfo)
@@ -783,100 +813,11 @@ internal class HelpFormatter
         };
     }
 
-    private void ShowTwoColumnContent(string leftColumn, string rightColumn, int totalWidth, IAnsiTheme? theme)
-    {
-        var leftDisplayWidth = GetDisplayWidth(leftColumn);
-        
-        // Use dynamic column width calculation (same as ShowSectionWithOptimalLayout)
-        const int MinRightColumnWidth = 30;
-        const int Padding = 2;
-        var maxAllowedLeftWidth = totalWidth - MinRightColumnWidth - Padding;
-        var leftColumnWidth = Math.Min(leftDisplayWidth, maxAllowedLeftWidth);
-        
-        if (leftDisplayWidth > leftColumnWidth)
-        {
-            // Left content is too long - put right content on next line
-            Console.WriteLine(leftColumn);
-            WriteWrappedText(rightColumn, totalWidth - 4, 4, theme);
-        }
-        else
-        {
-            // Standard two-column layout with dynamic left column width
-            var rightColumnWidth = totalWidth - leftColumnWidth - Padding;
-            
-            Console.Write(leftColumn);
-            Console.Write(new string(' ', leftColumnWidth - leftDisplayWidth + Padding));
-            WriteWrappedText(rightColumn, rightColumnWidth, leftColumnWidth + Padding, theme);
-        }
-    }
-
     private int GetDisplayWidth(string text)
     {
         if (string.IsNullOrEmpty(text)) return 0;
         
-        var cleaned = Regex.Replace(text, @"\u001b\[[0-9;]*m", "");
-        return cleaned.Length;
-    }
-
-    private void WriteColored(string text, string? color, IAnsiTheme? theme)
-    {
-        Console.WriteLine(ApplyColor(text, color, theme));
-    }
-
-    private string ApplyColor(string text, string? color, IAnsiTheme? theme)
-    {
-        if (theme == null || string.IsNullOrEmpty(color))
-            return text;
-        
-        return $"{color}{text}{theme.Reset}";
-    }
-
-    private void WriteWrappedContent(string text, int maxWidth, int indent, IAnsiTheme? theme)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            Console.WriteLine();
-            return;
-        }
-
-        var indentStr = new string(' ', indent);
-        var availableWidth = maxWidth - indent;
-        
-        // Split text into words while preserving ANSI color codes
-        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var currentLineLength = 0;
-        var lineStarted = false;
-
-        foreach (var word in words)
-        {
-            var wordLength = GetDisplayWidth(word);
-            
-            // Check if we need to wrap to next line
-            if (lineStarted && currentLineLength + wordLength + 1 > availableWidth)
-            {
-                Console.WriteLine();
-                Console.Write(indentStr);
-                currentLineLength = 0;
-                lineStarted = false;
-            }
-
-            // Add space before word if not at line start
-            if (lineStarted)
-            {
-                Console.Write(" ");
-                currentLineLength++;
-            }
-            else if (indent > 0)
-            {
-                Console.Write(indentStr);
-                currentLineLength = indent;
-            }
-
-            Console.Write(word);
-            currentLineLength += wordLength;
-            lineStarted = true;
-        }
-        
-        Console.WriteLine();
+        // Since we're not using ANSI codes anymore, just return the string length
+        return text.Length;
     }
 }

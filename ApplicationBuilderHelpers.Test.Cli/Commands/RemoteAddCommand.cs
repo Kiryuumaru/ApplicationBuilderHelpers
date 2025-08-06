@@ -19,33 +19,39 @@ internal class RemoteAddCommand : BaseCommand
     public string[] TrackBranches { get; set; } = [];
 
     [CommandOption("tags", Description = "Import tags from remote")]
-    public bool ImportTags { get; set; } = true;
+    public bool Tags { get; set; } = true;
 
-    [CommandOption("mirror", Description = "Set up remote as a mirror", FromAmong = ["fetch", "push"])]
-    public string? MirrorType { get; set; }
+    [CommandOption("mirror", Description = "Set up remote as a mirror")]
+    public bool Mirror { get; set; }
 
     [CommandOption("set-head", Description = "Set default branch for remote")]
     public string? DefaultBranch { get; set; }
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
-        Console.WriteLine($"Adding remote '{Name}' with URL: {Url}");
-        Console.WriteLine($"Fetch immediately: {Fetch}");
-        Console.WriteLine($"Import tags: {ImportTags}");
+        // Print debug info if requested
+        PrintDebugInfo();
+
+        Console.WriteLine("Adding remote repository");
+        Console.WriteLine($"Name: {Name}");
+        Console.WriteLine($"URL: {Url}");
+        Console.WriteLine($"Fetch: {Fetch}");
+        Console.WriteLine($"Tags: {Tags}");
+        Console.WriteLine($"Mirror: {Mirror}");
 
         if (TrackBranches.Length > 0)
         {
             Console.WriteLine($"Track branches: {string.Join(", ", TrackBranches)}");
         }
 
-        if (!string.IsNullOrEmpty(MirrorType))
-        {
-            Console.WriteLine($"Mirror type: {MirrorType}");
-        }
-
         if (!string.IsNullOrEmpty(DefaultBranch))
         {
             Console.WriteLine($"Default branch: {DefaultBranch}");
+        }
+
+        if (!Quiet)
+        {
+            Console.WriteLine("Remote repository added successfully!");
         }
 
         cancellationTokenSource.Cancel();

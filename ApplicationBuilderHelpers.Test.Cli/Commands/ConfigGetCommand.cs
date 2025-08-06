@@ -21,8 +21,20 @@ internal class ConfigGetCommand : ConfigCommand
     [CommandOption('s', "section", Description = "Filter by configuration section")]
     public string? Section { get; set; }
 
+    [CommandOption("path", Description = "Configuration file path")]
+    public string? ConfigPath { get; set; }
+
+    [CommandOption("default", Description = "Default value if key not found")]
+    public string? DefaultValue { get; set; }
+
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
+        // Print debug info if requested
+        PrintDebugInfo();
+
+        Console.WriteLine("Configuration Get Operation");
+        Console.WriteLine("===========================");
+        
         if (ShowAll)
         {
             Console.WriteLine("Showing all configuration values");
@@ -30,6 +42,11 @@ internal class ConfigGetCommand : ConfigCommand
         else if (!string.IsNullOrEmpty(Key))
         {
             Console.WriteLine($"Getting configuration for key: {Key}");
+            
+            if (!string.IsNullOrEmpty(DefaultValue))
+            {
+                Console.WriteLine($"Default value: {DefaultValue}");
+            }
         }
         else
         {
@@ -43,6 +60,16 @@ internal class ConfigGetCommand : ConfigCommand
         if (!string.IsNullOrEmpty(Section))
         {
             Console.WriteLine($"Section Filter: {Section}");
+        }
+        
+        if (!string.IsNullOrEmpty(ConfigPath))
+        {
+            Console.WriteLine($"Config Path: {ConfigPath}");
+        }
+
+        if (!Quiet)
+        {
+            Console.WriteLine("Configuration retrieval completed!");
         }
 
         cancellationTokenSource.Cancel();

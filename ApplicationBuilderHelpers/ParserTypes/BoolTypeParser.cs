@@ -18,6 +18,7 @@ internal class BoolTypeParser : ICommandTypeParser
         }
         if (value.Equals("true", StringComparison.InvariantCultureIgnoreCase) ||
             value.Equals("yes", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("on", StringComparison.InvariantCultureIgnoreCase) ||
             value.Equals("1", StringComparison.InvariantCultureIgnoreCase))
         {
             validateError = null;
@@ -25,6 +26,7 @@ internal class BoolTypeParser : ICommandTypeParser
         }
         else if (value.Equals("false", StringComparison.InvariantCultureIgnoreCase) ||
             value.Equals("no", StringComparison.InvariantCultureIgnoreCase) ||
+            value.Equals("off", StringComparison.InvariantCultureIgnoreCase) ||
             value.Equals("0", StringComparison.InvariantCultureIgnoreCase))
         {
             validateError = null;
@@ -36,7 +38,7 @@ internal class BoolTypeParser : ICommandTypeParser
             return result;
         }
 
-        validateError = $"Invalid {Type.Name} value: '{value}'. Expected 'true', 'false', 'yes', 'no', '1', or '0'";
+        validateError = $"Invalid {Type.Name} value: '{value}'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'";
         return null;
     }
 

@@ -30,29 +30,29 @@ public class ApplicationBuilder : ICommandBuilder
     string? ICommandBuilder.ExecutableVersion { get; set; } = null;
     int? ICommandBuilder.HelpWidth { get; set; } = null;
     int? ICommandBuilder.HelpBorderWidth { get; set; } = null;
-    IAnsiTheme? ICommandBuilder.Theme { get; set; } = VSCodeDarkTheme.Instance;
+    IConsoleTheme? ICommandBuilder.Theme { get; set; } = DefaultConsoleTheme.Instance;
     List<ICommand> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
 
     /// <summary>
-    /// Sets the ANSI theme for CLI help output using the specified theme type.
+    /// Sets the console theme for CLI help output using the specified theme type.
     /// </summary>
-    /// <typeparam name="TAnsiTheme">The type of ANSI theme that implements <see cref="IAnsiTheme"/>.</typeparam>
+    /// <typeparam name="TConsoleTheme">The type of console theme that implements <see cref="IConsoleTheme"/>.</typeparam>
     /// <returns>The current <see cref="ApplicationBuilder"/> instance for method chaining.</returns>
-    public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TAnsiTheme>()
-        where TAnsiTheme : IAnsiTheme
-        => ICommandBuilderExtensions.SetTheme<TAnsiTheme, ApplicationBuilder>(this);
+    public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TConsoleTheme>()
+        where TConsoleTheme : IConsoleTheme
+        => ICommandBuilderExtensions.SetTheme<TConsoleTheme, ApplicationBuilder>(this);
 
     /// <summary>
-    /// Sets the ANSI theme for CLI help output using the provided theme instance.
+    /// Sets the console theme for CLI help output using the provided theme instance.
     /// </summary>
-    /// <typeparam name="TAnsiTheme">The type of ANSI theme that implements <see cref="IAnsiTheme"/>.</typeparam>
-    /// <param name="ansiTheme">The ANSI theme instance to use for CLI help output.</param>
+    /// <typeparam name="TConsoleTheme">The type of console theme that implements <see cref="IConsoleTheme"/>.</typeparam>
+    /// <param name="consoleTheme">The console theme instance to use for CLI help output.</param>
     /// <returns>The current <see cref="ApplicationBuilder"/> instance for method chaining.</returns>
-    public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TAnsiTheme>(TAnsiTheme ansiTheme)
-        where TAnsiTheme : IAnsiTheme
-        => ICommandBuilderExtensions.SetTheme(this, ansiTheme);
+    public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TConsoleTheme>(TConsoleTheme consoleTheme)
+        where TConsoleTheme : IConsoleTheme
+        => ICommandBuilderExtensions.SetTheme(this, consoleTheme);
 
     /// <summary>
     /// Adds a command of the specified type to the application builder.
