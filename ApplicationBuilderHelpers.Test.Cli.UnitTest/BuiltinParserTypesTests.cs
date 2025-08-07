@@ -152,6 +152,15 @@ public class BuiltinParserTypesTests : CliTestBase
         CliTestAssertions.AssertOutputContains(result, $"Coverage Threshold: {expected}%");
     }
 
+    [Fact]
+    public async Task Double_Parser_Negative_Values_Without_Equals()
+    {
+        // Test negative values passed as separate arguments (the problematic case)
+        var result = await Runner.RunAsync("test", "target", "--coverage-threshold", "-1.5", "-v");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "Coverage Threshold: -1.5%");
+    }
+
     [Theory]
     [InlineData("1e2", "100")]
     [InlineData("1.5e1", "15")]
