@@ -689,7 +689,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         LifetimeGlobalService lifetimeGlobalService = new();
         cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
 
-        applicationBuilder.Services.Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true);
         applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
         applicationBuilder.Services.AddScoped<LifetimeService>();
 
