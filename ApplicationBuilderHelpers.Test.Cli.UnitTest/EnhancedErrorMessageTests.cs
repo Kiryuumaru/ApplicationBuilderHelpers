@@ -128,7 +128,7 @@ public class EnhancedErrorMessageTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", "--timeout=invalid");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Invalid value 'invalid'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: 'invalid'");
         CliTestAssertions.AssertErrorContains(result, "Run 'test --help'");
     }
 

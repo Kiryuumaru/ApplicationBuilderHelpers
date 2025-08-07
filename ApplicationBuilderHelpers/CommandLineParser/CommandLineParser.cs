@@ -36,11 +36,17 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     {
         try
         {
-            // Step 1: Build and validate command hierarchy
+            // Step 1: Prepare application builder with dependencies
+            foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
+            {
+                dependency.CommandPreparation(ApplicationBuilder);
+            }
+
+            // Step 2: Build and validate command hierarchy
             BuildCommandHierarchy();
             ValidateCommandHierarchy();
 
-            // Step 2: Handle basic help/version before parsing
+            // Step 3: Handle basic help/version before parsing
             if (ShouldShowGlobalHelp(args))
             {
                 ShowGlobalHelp();
@@ -53,23 +59,29 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 return 0;
             }
 
-            // Step 3: Parse command line arguments
+            // Step 4: Parse command line arguments
             var parseResult = ParseCommandLine(args);
 
-            // Step 4: Handle command-specific help
+            // Step 5: Prepare application builder with dependencies
+            parseResult.TargetCommand.Command?.CommandPreparation(ApplicationBuilder);
+
+            // Step 6: Prepare application builder with dependencies
+            parseResult.TargetCommand.Command?.CommandPreparation(ApplicationBuilder);
+
+            // Step 7: Handle command-specific help
             if (parseResult.ShowHelp)
             {
                 ShowCommandHelp(parseResult.TargetCommand);
                 return 0;
             }
 
-            // Step 5: Validate required options and arguments
+            // Step 8: Validate required options and arguments
             ValidateRequiredParameters(parseResult);
 
-            // Step 6: Set property values on command instance
+            // Step 9: Set property values on command instance
             SetCommandValues(parseResult);
 
-            // Step 7: Execute the command
+            // Step 10: Execute the command
             await ExecuteCommand(parseResult.TargetCommand, cancellationToken);
             return 0;
         }
@@ -654,7 +666,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         {
             var result = parser.Parse(value, out var error);
             if (error != null)
-                throw new CommandException($"Invalid value '{value}': {error}", 1);
+                throw new CommandException(error, 1);
             return result;
         }
 
