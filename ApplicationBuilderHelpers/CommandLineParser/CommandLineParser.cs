@@ -4,15 +4,12 @@ using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Services;
-using ApplicationBuilderHelpers.Workers;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
