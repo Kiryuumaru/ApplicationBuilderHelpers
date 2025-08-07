@@ -65,23 +65,20 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             // Step 5: Prepare application builder with dependencies
             parseResult.TargetCommand.Command?.CommandPreparation(ApplicationBuilder);
 
-            // Step 6: Prepare application builder with dependencies
-            parseResult.TargetCommand.Command?.CommandPreparation(ApplicationBuilder);
-
-            // Step 7: Handle command-specific help
+            // Step 6: Handle command-specific help
             if (parseResult.ShowHelp)
             {
                 ShowCommandHelp(parseResult.TargetCommand);
                 return 0;
             }
 
-            // Step 8: Validate required options and arguments
+            // Step 7: Validate required options and arguments
             ValidateRequiredParameters(parseResult);
 
-            // Step 9: Set property values on command instance
+            // Step 8: Set property values on command instance
             SetCommandValues(parseResult);
 
-            // Step 10: Execute the command
+            // Step 9: Execute the command
             await ExecuteCommand(parseResult.TargetCommand, cancellationToken);
             return 0;
         }
@@ -113,8 +110,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             // Create SubCommandInfo for this command
             var subCommandInfo = SubCommandInfo.FromCommand(commandType, command);
             
-            // Extract options and arguments
-            subCommandInfo.Options = SubCommandOptionInfo.FromCommandType(commandType, subCommandInfo);
+            // Extract options and arguments - pass the type parser collection
+            subCommandInfo.Options = SubCommandOptionInfo.FromCommandType(commandType, subCommandInfo, CommandTypeParserCollection);
             subCommandInfo.Arguments = SubCommandArgumentInfo.FromCommandType(commandType, subCommandInfo);
 
             // Insert into hierarchy
@@ -222,7 +219,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
     /// </summary>
-    private static SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
+    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
     {
         var currentType = leafCommandType.BaseType;
         var targetCommandName = string.Join(" ", commandParts);
@@ -245,7 +242,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 // Not from its base classes (like BaseCommand) to avoid conflicts
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-                baseCommandInfo.Options = SubCommandOptionInfo.FromDeclaredType(currentType, baseCommandInfo);
+                baseCommandInfo.Options = SubCommandOptionInfo.FromDeclaredType(currentType, baseCommandInfo, CommandTypeParserCollection);
                 baseCommandInfo.Arguments = SubCommandArgumentInfo.FromDeclaredType(currentType, baseCommandInfo);
 #pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
 #pragma warning restore IDE0079 // Remove unnecessary suppression
@@ -610,8 +607,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 
                 for (int i = 0; i < values.Count; i++)
                 {
+                    // Validate string value first if ValidValues are specified
+                    if (option.ValidValues?.Length > 0)
+                    {
+                        ValidateStringValue(values[i], option);
+                    }
+                    
                     var convertedValue = ConvertValue(values[i], elementType, option.IsCaseSensitive);
-                    option.ValidateValue(convertedValue);
                     array.SetValue(convertedValue, i);
                 }
                 
@@ -619,9 +621,18 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
             else
             {
+                // Validate string value first if ValidValues are specified
+                if (option.ValidValues?.Length > 0)
+                {
+                    ValidateStringValue(values[0], option);
+                }
+                
                 propertyValue = ConvertValue(values[0], option.PropertyType, option.IsCaseSensitive);
-                option.ValidateValue(propertyValue);
             }
+
+            // Note: We don't call option.ValidateValue here anymore for ValidValues validation
+            // since we already validated the string value above. ValidateValue is now only used
+            // for required field validation in ValidateRequiredParameters.
 
             option.Property.SetValue(command, propertyValue);
         }
@@ -655,6 +666,27 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
     }
 
+    /// <summary>
+    /// Validates a string value against the option's ValidValues before conversion
+    /// </summary>
+    private static void ValidateStringValue(string value, SubCommandOptionInfo option)
+    {
+        if (option.ValidValues?.Length > 0)
+        {
+            var comparisonType = option.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            
+            var isValid = option.ValidValues.Any(validValue => 
+                string.Equals(validValue?.ToString(), value, comparisonType));
+
+            if (!isValid)
+            {
+                var validValuesString = string.Join(", ", option.ValidValues.Select(v => v?.ToString()));
+                throw new CommandException(
+                    $"Value '{value}' is not valid for option '--{option.LongName ?? option.ShortName?.ToString()}'. " +
+                    $"Must be one of: {validValuesString}", 1);
+            }
+        }
+    }
     /// <summary>
     /// Converts a string value to the specified type
     /// </summary>
