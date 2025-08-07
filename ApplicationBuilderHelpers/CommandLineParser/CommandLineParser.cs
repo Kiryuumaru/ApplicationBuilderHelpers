@@ -661,7 +661,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         if (targetType == typeof(string))
             return value;
 
-        if (targetType.IsEnum && Enum.TryParse(targetType, value, isCaseSensitive, out var typedVal))
+        if (targetType.IsEnum && Enum.TryParse(targetType, value, !isCaseSensitive, out var typedVal))
             return typedVal;
 
         // Handle nullable types
