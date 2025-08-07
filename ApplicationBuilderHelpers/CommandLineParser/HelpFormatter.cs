@@ -794,11 +794,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
             
             if (option.PropertyType.IsValueType)
             {
-#pragma warning disable IDE0079 // Remove unnecessary suppression
-#pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
                 return Activator.CreateInstance(option.PropertyType);
-#pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-#pragma warning restore IDE0079 // Remove unnecessary suppression
             }
 
             return null;

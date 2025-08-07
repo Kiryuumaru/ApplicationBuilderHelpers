@@ -173,7 +173,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Creates an intermediate command, checking for abstract base class information
     /// </summary>
-    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, Type leafCommandType)
+    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         // Look for abstract base class that matches this intermediate command path
         var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType);
@@ -219,7 +219,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
     /// </summary>
-    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
+    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         var currentType = leafCommandType.BaseType;
         var targetCommandName = string.Join(" ", commandParts);
@@ -240,12 +240,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
                 // Extract only options and arguments that are declared directly in this abstract class
                 // Not from its base classes (like BaseCommand) to avoid conflicts
-#pragma warning disable IDE0079 // Remove unnecessary suppression
-#pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
                 baseCommandInfo.Options = SubCommandOptionInfo.FromDeclaredType(currentType, baseCommandInfo, CommandTypeParserCollection);
                 baseCommandInfo.Arguments = SubCommandArgumentInfo.FromDeclaredType(currentType, baseCommandInfo);
-#pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-#pragma warning restore IDE0079 // Remove unnecessary suppression
 
                 return baseCommandInfo;
             }
@@ -340,8 +336,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// </summary>
     private void AddBuiltInGlobalOptions()
     {
-        // Create a dummy property to satisfy the Property requirement
-        var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.PropertyType))!;
+        // Use a well-known property from a basic type to avoid AOT warnings
+        var dummyProperty = typeof(object).GetProperty(nameof(object.GetHashCode))!;
 
         // Add help option as a true global option (appears in all commands)
         var helpOption = new SubCommandOptionInfo

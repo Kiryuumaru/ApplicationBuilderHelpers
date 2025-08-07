@@ -3,6 +3,7 @@ using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
@@ -23,6 +24,7 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// The type of the property
     /// </summary>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type PropertyType { get; set; } = null!;
 
     /// <summary>
@@ -98,14 +100,14 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Creates a SubCommandOptionInfo from a property and its CommandOptionAttribute
     /// </summary>
-    public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
+    public static SubCommandOptionInfo FromProperty([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type propertyType, PropertyInfo propertyInfo, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var optionInfo = new SubCommandOptionInfo
         {
-            Property = property,
-            PropertyType = property.PropertyType,
+            Property = propertyInfo,
+            PropertyType = propertyType,
             ShortName = attribute.ShortTerm,
-            LongName = attribute.Term ?? property.Name.ToLowerInvariant(),
+            LongName = attribute.Term ?? propertyInfo.Name.ToLowerInvariant(),
             Description = attribute.Description,
             IsRequired = attribute.Required,
             EnvironmentVariable = attribute.EnvironmentVariable,
@@ -115,13 +117,13 @@ internal class SubCommandOptionInfo
         };
 
         // Auto-populate enum values if FromAmong is not specified and no custom type parser exists
-        if (optionInfo.ValidValues == null && ShouldAutoPopulateEnumValues(property.PropertyType, typeParserCollection))
+        if (optionInfo.ValidValues == null && ShouldAutoPopulateEnumValues(propertyType, typeParserCollection))
         {
-            optionInfo.ValidValues = GetEnumValues(property.PropertyType);
+            optionInfo.ValidValues = GetEnumValues(propertyType);
         }
 
         // Determine if this option should be inherited by checking if it comes from a base class
-        var declaringType = property.DeclaringType;
+        var declaringType = propertyInfo.DeclaringType;
         var targetType = ownerCommand?.Command?.GetType();
 
         // If we have a concrete command instance, check if the property comes from a base class
@@ -150,12 +152,12 @@ internal class SubCommandOptionInfo
         var options = new List<SubCommandOptionInfo>();
         var properties = GetAllProperties(commandType);
 
-        foreach (var property in properties)
+        foreach (var (propertyType, propertyInfo) in properties)
         {
-            var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
+            var optionAttr = propertyInfo.GetCustomAttribute<CommandOptionAttribute>();
             if (optionAttr != null)
             {
-                var optionInfo = FromProperty(property, optionAttr, ownerCommand, typeParserCollection);
+                var optionInfo = FromProperty(propertyType, propertyInfo, optionAttr, ownerCommand, typeParserCollection);
                 options.Add(optionInfo);
             }
         }
@@ -167,21 +169,17 @@ internal class SubCommandOptionInfo
     /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts)
     /// </summary>
-    public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
+    public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var options = new List<SubCommandOptionInfo>();
-        var properties = commandType.GetProperties(
-            BindingFlags.DeclaredOnly | 
-            BindingFlags.Public | 
-            BindingFlags.NonPublic | 
-            BindingFlags.Instance);
+        var properties = GetProperties(commandType);
 
-        foreach (var property in properties)
+        foreach (var (propertyType, propertyInfo) in properties)
         {
-            var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
+            var optionAttr = propertyInfo.GetCustomAttribute<CommandOptionAttribute>();
             if (optionAttr != null)
             {
-                var optionInfo = FromProperty(property, optionAttr, ownerCommand, typeParserCollection);
+                var optionInfo = FromProperty(propertyType, propertyInfo, optionAttr, ownerCommand, typeParserCollection);
                 options.Add(optionInfo);
             }
         }
@@ -190,25 +188,36 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
+    /// Gets properties
+    /// </summary>
+    private static List<(Type, PropertyInfo)> GetProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
+    {
+        var properties = type.GetProperties(
+            BindingFlags.DeclaredOnly |
+            BindingFlags.Public |
+            BindingFlags.NonPublic |
+            BindingFlags.Instance);
+        return [.. properties.Select(i => (i.PropertyType, i))];
+    }
+
+    /// <summary>
     /// Gets all properties including inherited ones from base classes
     /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
+    private static List<(Type, PropertyInfo)> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
     {
-        var properties = new List<PropertyInfo>();
+        var properties = new List<(Type, PropertyInfo)>();
         var currentType = type;
-
         while (currentType != null)
         {
             var declaredProperties = currentType.GetProperties(
-                BindingFlags.DeclaredOnly | 
-                BindingFlags.Public | 
-                BindingFlags.NonPublic | 
+                BindingFlags.DeclaredOnly |
+                BindingFlags.Public |
+                BindingFlags.NonPublic |
                 BindingFlags.Instance);
-            
-            properties.AddRange(declaredProperties.Reverse());
+
+            properties.AddRange(declaredProperties.Reverse().Select(i => (i.PropertyType, i)));
             currentType = currentType.BaseType;
         }
-
         properties.Reverse();
         return properties;
     }
