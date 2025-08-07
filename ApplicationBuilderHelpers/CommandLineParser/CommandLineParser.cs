@@ -703,6 +703,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
         if (cancellationTokenSource.Token.IsCancellationRequested)
         {
+            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
             return;
         }
 
