@@ -607,8 +607,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 
                 for (int i = 0; i < values.Count; i++)
                 {
+                    // Validate string value first if ValidValues are specified
+                    if (option.ValidValues?.Length > 0)
+                    {
+                        ValidateStringValue(values[i], option);
+                    }
+                    
                     var convertedValue = ConvertValue(values[i], elementType, option.IsCaseSensitive);
-                    option.ValidateValue(convertedValue);
                     array.SetValue(convertedValue, i);
                 }
                 
@@ -616,9 +621,18 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
             else
             {
+                // Validate string value first if ValidValues are specified
+                if (option.ValidValues?.Length > 0)
+                {
+                    ValidateStringValue(values[0], option);
+                }
+                
                 propertyValue = ConvertValue(values[0], option.PropertyType, option.IsCaseSensitive);
-                option.ValidateValue(propertyValue);
             }
+
+            // Note: We don't call option.ValidateValue here anymore for ValidValues validation
+            // since we already validated the string value above. ValidateValue is now only used
+            // for required field validation in ValidateRequiredParameters.
 
             option.Property.SetValue(command, propertyValue);
         }
@@ -652,6 +666,27 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
     }
 
+    /// <summary>
+    /// Validates a string value against the option's ValidValues before conversion
+    /// </summary>
+    private static void ValidateStringValue(string value, SubCommandOptionInfo option)
+    {
+        if (option.ValidValues?.Length > 0)
+        {
+            var comparisonType = option.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            
+            var isValid = option.ValidValues.Any(validValue => 
+                string.Equals(validValue?.ToString(), value, comparisonType));
+
+            if (!isValid)
+            {
+                var validValuesString = string.Join(", ", option.ValidValues.Select(v => v?.ToString()));
+                throw new CommandException(
+                    $"Value '{value}' is not valid for option '--{option.LongName ?? option.ShortName?.ToString()}'. " +
+                    $"Must be one of: {validValuesString}", 1);
+            }
+        }
+    }
     /// <summary>
     /// Converts a string value to the specified type
     /// </summary>

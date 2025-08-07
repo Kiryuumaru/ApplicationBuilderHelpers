@@ -225,7 +225,8 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Validates the option value against constraints
+    /// Validates the option value against constraints (only required field validation now)
+    /// ValidValues validation is now handled in CommandLineParser.ValidateStringValue
     /// </summary>
     public void ValidateValue(object? value)
     {
@@ -234,22 +235,8 @@ internal class SubCommandOptionInfo
             throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 1);
         }
 
-        if (value != null && ValidValues?.Length > 0)
-        {
-            var stringValue = value.ToString();
-            var comparisonType = IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            
-            var isValid = ValidValues.Any(validValue => 
-                string.Equals(validValue?.ToString(), stringValue, comparisonType));
-
-            if (!isValid)
-            {
-                var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
-                throw new CommandException(
-                    $"Value '{stringValue}' is not valid for option '--{LongName ?? ShortName?.ToString()}'. " +
-                    $"Must be one of: {validValuesString}", 1);
-            }
-        }
+        // Note: ValidValues validation is now handled in CommandLineParser.ValidateStringValue
+        // before type conversion to ensure consistent error messages regardless of type parsing success
     }
 
     /// <summary>
