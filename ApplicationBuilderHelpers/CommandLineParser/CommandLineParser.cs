@@ -598,7 +598,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 
                 for (int i = 0; i < values.Count; i++)
                 {
-                    var convertedValue = ConvertValue(values[i], elementType);
+                    var convertedValue = ConvertValue(values[i], elementType, option.IsCaseSensitive);
                     option.ValidateValue(convertedValue);
                     array.SetValue(convertedValue, i);
                 }
@@ -607,7 +607,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
             else
             {
-                propertyValue = ConvertValue(values[0], option.PropertyType);
+                propertyValue = ConvertValue(values[0], option.PropertyType, option.IsCaseSensitive);
                 option.ValidateValue(propertyValue);
             }
 
@@ -646,7 +646,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Converts a string value to the specified type
     /// </summary>
-    private object? ConvertValue(string? value, Type targetType)
+    private object? ConvertValue(string? value, Type targetType, bool isCaseSensitive)
     {
         if (value == null) return null;
 
@@ -661,17 +661,24 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         if (targetType == typeof(string))
             return value;
 
-        if (targetType.IsEnum)
-            return Enum.Parse(targetType, value, true);
+        if (targetType.IsEnum && Enum.TryParse(targetType, value, !isCaseSensitive, out var typedVal))
+            return typedVal;
 
         // Handle nullable types
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
         {
             var underlyingType = Nullable.GetUnderlyingType(targetType)!;
-            return ConvertValue(value, underlyingType);
+            return ConvertValue(value, underlyingType, isCaseSensitive);
         }
 
-        return Convert.ChangeType(value, targetType);
+        try
+        {
+            return Convert.ChangeType(value, targetType);
+        }
+        catch (Exception)
+        {
+            throw new CommandException($"Invalid format for value '{value}' of type {targetType.FullName}", 1);
+        }
     }
 
     /// <summary>
