@@ -33,7 +33,7 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation. Returns an integer exit code.</returns>
     /// <exception cref="Exception">Thrown if there is an error during application startup.</exception>
-    public async Task<int> Run(CancellationToken cancellationToken = default)
+    internal async Task<int> Run(CancellationToken cancellationToken = default)
     {
         foreach (var applicationDependency in ApplicationDependencies)
         {

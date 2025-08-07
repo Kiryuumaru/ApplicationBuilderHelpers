@@ -1,7 +1,11 @@
 using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Common;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.Services;
+using ApplicationBuilderHelpers.Workers;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -678,20 +682,44 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private async Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken)
     {
         var command = commandInfo.Command!;
-        
-        // Call preparation dependencies
+        using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
+        applicationBuilder.ApplicationDependencies.Add(command);
         foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
         {
-            dependency.CommandPreparation(ApplicationBuilder);
+            applicationBuilder.ApplicationDependencies.Add(dependency);
         }
-
-        command.CommandPreparationInternal(ApplicationBuilder);
-
-        using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var hostBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
-        var host = hostBuilder.Build();
-
-        await command.RunInternal(host, cancellationTokenSource);
+        CommandInvokerService commandInvokerService = new();
+        LifetimeGlobalService lifetimeGlobalService = new();
+        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
+        applicationBuilder.Services.AddSingleton(commandInvokerService);
+        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+        applicationBuilder.Services.AddScoped<LifetimeService>();
+        applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();
+        var applicationHost = applicationBuilder.BuildInternal();
+        CommandException? commandException = null;
+        commandInvokerService.SetCommand(async ct =>
+        {
+            try
+            {
+                await command.RunInternal(applicationHost, cancellationTokenSource);
+            }
+            catch (CommandException ex)
+            {
+                commandException = ex;
+            }
+        });
+        await Task.WhenAll(
+            Task.Run(async () => await applicationHost.Run(cancellationTokenSource.Token), cancellationTokenSource.Token),
+            Task.Run(async () =>
+            {
+                await cancellationTokenSource.Token.WhenCanceled();
+                await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+            }, cancellationTokenSource.Token));
+        if (commandException != null)
+        {
+            throw commandException;
+        }
     }
 
     /// <summary>

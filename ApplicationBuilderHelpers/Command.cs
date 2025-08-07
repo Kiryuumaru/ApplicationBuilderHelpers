@@ -48,6 +48,9 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     }
 }
 
+/// <summary>
+/// Command base class for applications using <see cref="HostApplicationBuilder"/>.
+/// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public abstract class Command : Command<HostApplicationBuilder>
 {
