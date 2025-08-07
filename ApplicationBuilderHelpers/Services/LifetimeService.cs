@@ -57,4 +57,26 @@ public class LifetimeService(IServiceProvider serviceProvider)
         var lifetimeGlobalService = scope.ServiceProvider.GetRequiredService<LifetimeGlobalService>();
         lifetimeGlobalService.ApplicationExitingCallback(callback);
     }
+
+    /// <summary>
+    /// Registers a synchronous callback to be invoked when the application is exited.
+    /// </summary>
+    /// <param name="callback">The action to be executed when the application is exited.</param>
+    public void ApplicationExitedCallback(Action callback)
+    {
+        using var scope = serviceProvider.CreateScope();
+        var lifetimeGlobalService = scope.ServiceProvider.GetRequiredService<LifetimeGlobalService>();
+        lifetimeGlobalService.ApplicationExitedCallback(callback);
+    }
+
+    /// <summary>
+    /// Registers an asynchronous callback to be invoked when the application is exited.
+    /// </summary>
+    /// <param name="callback">The asynchronous function to be executed when the application is exited.</param>
+    public void ApplicationExitedCallback(Func<Task> callback)
+    {
+        using var scope = serviceProvider.CreateScope();
+        var lifetimeGlobalService = scope.ServiceProvider.GetRequiredService<LifetimeGlobalService>();
+        lifetimeGlobalService.ApplicationExitedCallback(callback);
+    }
 }

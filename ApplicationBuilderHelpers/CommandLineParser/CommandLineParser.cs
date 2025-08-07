@@ -686,7 +686,12 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
 
+        LifetimeGlobalService lifetimeGlobalService = new();
+        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
+
         applicationBuilder.Services.Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true);
+        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+        applicationBuilder.Services.AddScoped<LifetimeService>();
 
         applicationBuilder.ApplicationDependencies.Add(command);
         foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
@@ -694,39 +699,44 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             applicationBuilder.ApplicationDependencies.Add(dependency);
         }
 
-        CommandInvokerService commandInvokerService = new();
-        LifetimeGlobalService lifetimeGlobalService = new();
-
-        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
-
-        applicationBuilder.Services.AddSingleton(commandInvokerService);
-        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
-        applicationBuilder.Services.AddScoped<LifetimeService>();
-        applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();
-
         var applicationHost = applicationBuilder.BuildInternal();
-        CommandException? commandException = null;
-        commandInvokerService.SetCommand(async ct =>
+        var commanRun = command.RunInternal(applicationHost, cancellationTokenSource);
+
+        if (cancellationTokenSource.Token.IsCancellationRequested)
         {
-            try
-            {
-                await command.RunInternal(applicationHost, cancellationTokenSource);
-            }
-            catch (CommandException ex)
-            {
-                commandException = ex;
-            }
-        });
-        await Task.WhenAll(
-            Task.Run(async () => await applicationHost.Run(cancellationTokenSource.Token), cancellationTokenSource.Token),
-            Task.Run(async () =>
-            {
-                await cancellationTokenSource.Token.WhenCanceled();
-                await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
-            }, cancellationTokenSource.Token));
-        if (commandException != null)
+            return;
+        }
+
+        try
         {
-            throw commandException;
+            await Task.WhenAll(
+                Task.Run(async () => await commanRun, cancellationToken),
+                Task.Run(async () =>
+                {
+                    int exitCode = await applicationHost.Run(cancellationTokenSource.Token);
+                    if (exitCode != 0)
+                    {
+                        throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
+                    }
+                }, cancellationTokenSource.Token),
+                Task.Run(async () =>
+                {
+                    await cancellationTokenSource.Token.WhenCanceled();
+                    await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+                }, cancellationTokenSource.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle cancellation gracefully
+            if (!cancellationTokenSource.IsCancellationRequested)
+            {
+                throw; // Rethrow if cancellation was not requested by the caller
+            }
+        }
+        finally
+        {
+            // Ensure we clean up the lifetime service
+            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
         }
     }
 
