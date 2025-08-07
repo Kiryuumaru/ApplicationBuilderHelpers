@@ -683,11 +683,17 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private async Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken)
     {
         var command = commandInfo.Command!;
+
         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
-
         LifetimeGlobalService lifetimeGlobalService = new();
+
         cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
+        Console.CancelKeyPress += (sender, e) =>
+        {
+            cancellationTokenSource.Cancel();
+            e.Cancel = true;
+        };
 
         applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
         applicationBuilder.Services.AddScoped<LifetimeService>();
