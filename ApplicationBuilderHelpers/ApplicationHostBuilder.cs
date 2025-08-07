@@ -55,7 +55,7 @@ public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder
 public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : 
     ApplicationHostBuilderBase(builder, applicationDependencies)
 {
-    protected abstract ApplicationHost Build();
+    internal abstract ApplicationHost Build();
 
     internal ApplicationHost BuildInternal()
     {
@@ -112,7 +112,7 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
         return this;
     }
 
-    protected override ApplicationHost Build()
+    internal override ApplicationHost Build()
     {
         if (typeof(THostApplicationBuilder).GetMethod("Build") is not MethodInfo builderBuildethodInfo)
         {
