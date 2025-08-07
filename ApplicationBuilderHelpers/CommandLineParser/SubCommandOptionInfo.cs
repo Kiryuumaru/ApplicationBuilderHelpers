@@ -1,5 +1,6 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -97,7 +98,7 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Creates a SubCommandOptionInfo from a property and its CommandOptionAttribute
     /// </summary>
-    public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null)
+    public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var optionInfo = new SubCommandOptionInfo
         {
@@ -112,6 +113,12 @@ internal class SubCommandOptionInfo
             IsCaseSensitive = attribute.CaseSensitive,
             OwnerCommand = ownerCommand
         };
+
+        // Auto-populate enum values if FromAmong is not specified and no custom type parser exists
+        if (optionInfo.ValidValues == null && ShouldAutoPopulateEnumValues(property.PropertyType, typeParserCollection))
+        {
+            optionInfo.ValidValues = GetEnumValues(property.PropertyType);
+        }
 
         // Determine if this option should be inherited by checking if it comes from a base class
         var declaringType = property.DeclaringType;
@@ -138,7 +145,7 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Creates a list of SubCommandOptionInfo objects from a command type
     /// </summary>
-    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var options = new List<SubCommandOptionInfo>();
         var properties = GetAllProperties(commandType);
@@ -148,7 +155,7 @@ internal class SubCommandOptionInfo
             var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
             if (optionAttr != null)
             {
-                var optionInfo = FromProperty(property, optionAttr, ownerCommand);
+                var optionInfo = FromProperty(property, optionAttr, ownerCommand, typeParserCollection);
                 options.Add(optionInfo);
             }
         }
@@ -160,7 +167,7 @@ internal class SubCommandOptionInfo
     /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts)
     /// </summary>
-    public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var options = new List<SubCommandOptionInfo>();
         var properties = commandType.GetProperties(
@@ -174,7 +181,7 @@ internal class SubCommandOptionInfo
             var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
             if (optionAttr != null)
             {
-                var optionInfo = FromProperty(property, optionAttr, ownerCommand);
+                var optionInfo = FromProperty(property, optionAttr, ownerCommand, typeParserCollection);
                 options.Add(optionInfo);
             }
         }
@@ -382,5 +389,49 @@ internal class SubCommandOptionInfo
     public override string ToString()
     {
         return GetDisplayName();
+    }
+
+    /// <summary>
+    /// Determines if enum values should be auto-populated for the given type
+    /// </summary>
+    private static bool ShouldAutoPopulateEnumValues(Type propertyType, ICommandTypeParserCollection? typeParserCollection)
+    {
+        // Get the actual type (handle nullable enums)
+        var targetType = propertyType;
+        if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+        {
+            targetType = Nullable.GetUnderlyingType(propertyType)!;
+        }
+
+        // Only proceed if it's an enum
+        if (!targetType.IsEnum)
+            return false;
+
+        // Check if a custom type parser exists for this enum type
+        if (typeParserCollection?.TypeParsers.ContainsKey(targetType) == true)
+        {
+            return false; // Custom type parser exists, don't auto-populate
+        }
+
+        return true; // No custom type parser, auto-populate enum values
+    }
+
+    /// <summary>
+    /// Gets the enum values as an object array for validation
+    /// </summary>
+    private static object[] GetEnumValues(Type propertyType)
+    {
+        // Get the actual enum type (handle nullable enums)
+        var enumType = propertyType;
+        if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+        {
+            enumType = Nullable.GetUnderlyingType(propertyType)!;
+        }
+
+        if (!enumType.IsEnum)
+            return [];
+
+        // Get enum names as strings (lowercase for case-insensitive matching)
+        return [.. Enum.GetNames(enumType).Cast<object>()];
     }
 }
