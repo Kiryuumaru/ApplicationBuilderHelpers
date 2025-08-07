@@ -1,5 +1,4 @@
 using ApplicationBuilderHelpers.Attributes;
-using Microsoft.Extensions.Hosting;
 
 namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 

@@ -4,14 +4,12 @@ using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Services;
-using ApplicationBuilderHelpers.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,13 +41,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             ValidateCommandHierarchy();
 
             // Step 2: Handle basic help/version before parsing
-            if (CommandLineParser.ShouldShowGlobalHelp(args))
+            if (ShouldShowGlobalHelp(args))
             {
                 ShowGlobalHelp();
                 return 0;
             }
 
-            if (CommandLineParser.ShouldShowVersion(args))
+            if (ShouldShowVersion(args))
             {
                 ShowVersion();
                 return 0;
@@ -169,7 +167,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private SubCommandInfo CreateIntermediateCommand(string[] commandParts, Type leafCommandType)
     {
         // Look for abstract base class that matches this intermediate command path
-        var intermediateCommandInfo = CommandLineParser.FindAbstractBaseCommandInfo(commandParts, leafCommandType);
+        var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType);
         
         SubCommandInfo result;
         if (intermediateCommandInfo != null)
@@ -300,7 +298,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                     // Add one instance to root command
                     if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == signature))
                     {
-                        var globalOption = CommandLineParser.CreateGlobalOptionCopy(firstOption);
+                        var globalOption = CreateGlobalOptionCopy(firstOption);
                         globalOption.OwnerCommand = _rootCommand;
                         _rootCommand.Options.Add(globalOption);
                     }
@@ -360,7 +358,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             var existingHelpOption = command.Options.FirstOrDefault(o => o.LongName == "help");
             if (existingHelpOption == null)
             {
-                var globalHelpOption = CommandLineParser.CreateGlobalOptionCopy(helpOption);
+                var globalHelpOption = CreateGlobalOptionCopy(helpOption);
                 globalHelpOption.OwnerCommand = command;
                 command.Options.Add(globalHelpOption);
             }
@@ -438,7 +436,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
 
         // Parse remaining arguments as options and arguments
-        CommandLineParser.ParseOptionsAndArguments(args, argIndex, result);
+        ParseOptionsAndArguments(args, argIndex, result);
 
         return result;
     }
@@ -472,12 +470,12 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 var value = matchedOption.ExtractValue(arg, nextArg);
                 
                 // If value came from next argument, skip it
-                if (value == nextArg && !nextArg?.StartsWith('-') == true)
+                if (value == nextArg && !(nextArg?.StartsWith('-') == true && !IsNumericValue(nextArg)))
                     i++;
 
-                CommandLineParser.AddOptionValue(result, matchedOption, value);
+                AddOptionValue(result, matchedOption, value);
             }
-            else if (arg.StartsWith('-'))
+            else if (arg.StartsWith('-') && !IsNumericValue(arg))
             {
                 throw new CommandException($"Unknown option: {arg}", 1);
             }
@@ -494,7 +492,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             var targetArgument = allArguments.FirstOrDefault(a => a.CanAcceptValueAtPosition(argumentIndex));
             if (targetArgument != null)
             {
-                CommandLineParser.AddArgumentValue(result, targetArgument, argumentValue);
+                AddArgumentValue(result, targetArgument, argumentValue);
                 if (!targetArgument.IsArray)
                     argumentIndex++;
             }
@@ -682,43 +680,67 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private async Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken)
     {
         var command = commandInfo.Command!;
+
         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
+        LifetimeGlobalService lifetimeGlobalService = new();
+
+        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
+        Console.CancelKeyPress += (sender, e) =>
+        {
+            cancellationTokenSource.Cancel();
+            e.Cancel = true;
+        };
+
+        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+        applicationBuilder.Services.AddScoped<LifetimeService>();
+
         applicationBuilder.ApplicationDependencies.Add(command);
         foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
         {
             applicationBuilder.ApplicationDependencies.Add(dependency);
         }
-        CommandInvokerService commandInvokerService = new();
-        LifetimeGlobalService lifetimeGlobalService = new();
-        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
-        applicationBuilder.Services.AddSingleton(commandInvokerService);
-        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
-        applicationBuilder.Services.AddScoped<LifetimeService>();
-        applicationBuilder.Services.AddHostedService<CommandInvokerWorker>();
+
         var applicationHost = applicationBuilder.BuildInternal();
-        CommandException? commandException = null;
-        commandInvokerService.SetCommand(async ct =>
+        var commanRun = command.RunInternal(applicationHost, cancellationTokenSource);
+
+        if (cancellationTokenSource.Token.IsCancellationRequested)
         {
-            try
-            {
-                await command.RunInternal(applicationHost, cancellationTokenSource);
-            }
-            catch (CommandException ex)
-            {
-                commandException = ex;
-            }
-        });
-        await Task.WhenAll(
-            Task.Run(async () => await applicationHost.Run(cancellationTokenSource.Token), cancellationTokenSource.Token),
-            Task.Run(async () =>
-            {
-                await cancellationTokenSource.Token.WhenCanceled();
-                await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
-            }, cancellationTokenSource.Token));
-        if (commandException != null)
+            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
+            return;
+        }
+
+        try
         {
-            throw commandException;
+            await Task.WhenAll(
+                Task.Run(async () => await commanRun, cancellationToken),
+                Task.Run(async () =>
+                {
+                    int exitCode = await applicationHost.Run(cancellationTokenSource.Token);
+                    if (exitCode != 0)
+                    {
+                        throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
+                    }
+                }, cancellationTokenSource.Token),
+                Task.Run(async () =>
+                {
+                    await cancellationTokenSource.Token.WhenCanceled();
+                    await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+                }, cancellationTokenSource.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle cancellation gracefully
+            if (!cancellationTokenSource.IsCancellationRequested)
+            {
+                throw; // Rethrow if cancellation was not requested by the caller
+            }
+        }
+        finally
+        {
+            // Ensure we clean up the lifetime service
+            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
         }
     }
 
@@ -836,6 +858,20 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         {
             Console.Error.WriteLine($"Run '{executableName} --help' for more information on available commands and options.");
         }
+    }
+
+    private static bool IsNumericValue(string value)
+    {
+        if (string.IsNullOrEmpty(value) || !value.StartsWith('-') || value.Length < 2)
+            return false;
+
+        // Check if what follows the dash is a digit or decimal point
+        var afterDash = value[1];
+        if (!char.IsDigit(afterDash) && afterDash != '.')
+            return false;
+
+        // Try to parse as a double to confirm it's a valid numeric value
+        return double.TryParse(value, out _);
     }
 
     #endregion
