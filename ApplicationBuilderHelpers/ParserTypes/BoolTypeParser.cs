@@ -1,13 +1,13 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using AbsolutePathHelpers;
+using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class BoolTypeParser : ICommandTypeParser
+internal class BoolTypeParser : CommandTypeParser<bool>
 {
-    public Type Type => typeof(bool);
-
-    public object? Parse(string? value, out string? validateError)
+    public override bool ParseValue(string? value, out string? validateError)
     {
         if (string.IsNullOrEmpty(value)) // bool only needs a flag, not a value
         {
@@ -37,15 +37,6 @@ internal class BoolTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value switch
-        {
-            bool b => b ? "true" : "false",
-            _ => null
-        };
+        return default;
     }
 }

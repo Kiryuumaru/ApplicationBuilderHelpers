@@ -1,13 +1,12 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class LongTypeParser : ICommandTypeParser
+internal class LongTypeParser : CommandTypeParser<long>
 {
-    public Type Type => typeof(long);
-
-    public object? Parse(string? value, out string? validateError)
+    public override long ParseValue(string? value, out string? validateError)
     {
         if (long.TryParse(value, out var result))
         {
@@ -16,11 +15,6 @@ internal class LongTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }

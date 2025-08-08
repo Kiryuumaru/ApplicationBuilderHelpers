@@ -1,13 +1,12 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class UShortTypeParser : ICommandTypeParser
+internal class UShortTypeParser : CommandTypeParser<ushort>
 {
-    public Type Type => typeof(ushort);
-
-    public object? Parse(string? value, out string? validateError)
+    public override ushort ParseValue(string? value, out string? validateError)
     {
         if (ushort.TryParse(value, out var result))
         {
@@ -16,11 +15,6 @@ internal class UShortTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }

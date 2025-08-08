@@ -1,14 +1,13 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
 using AbsolutePathHelpers;
+using ApplicationBuilderHelpers.Abstracts;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class AbsolutePathTypeParser : ICommandTypeParser
+public class AbsolutePathTypeParser : CommandTypeParser<AbsolutePath>
 {
-    public Type Type => typeof(AbsolutePath);
-
-    public object? Parse(string? value, out string? validateError)
+    public override AbsolutePath? ParseValue(string? value, out string? validateError)
     {
         if (AbsolutePath.TryParse(value, out var result))
         {
@@ -17,11 +16,6 @@ public class AbsolutePathTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }

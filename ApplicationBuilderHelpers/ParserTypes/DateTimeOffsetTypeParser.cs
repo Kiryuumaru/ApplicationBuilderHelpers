@@ -1,13 +1,12 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class DateTimeOffsetTypeParser : ICommandTypeParser
+internal class DateTimeOffsetTypeParser : CommandTypeParser<DateTimeOffset>
 {
-    public Type Type => typeof(DateTimeOffset);
-
-    public object? Parse(string? value, out string? validateError)
+    public override DateTimeOffset ParseValue(string? value, out string? validateError)
     {
         if (DateTimeOffset.TryParse(value, out var result))
         {
@@ -16,11 +15,6 @@ internal class DateTimeOffsetTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }

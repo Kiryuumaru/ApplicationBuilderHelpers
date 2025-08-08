@@ -26,4 +26,17 @@ public interface ICommandTypeParser
     /// <param name="validateError"></param>
     /// <returns></returns>
     string? GetString(object? value);
+
+    /// <summary>
+    /// Gets the default value for the type, which can be used when no value is provided.
+    /// </summary>
+    /// <returns></returns>
+    object? GetDefaultValue();
+
+    /// <summary>
+    /// Creates a typed array for AOT compatibility
+    /// </summary>
+    /// <param name="length"></param>
+    /// <returns></returns>
+    Array CreateTypedArray(int length);
 }
