@@ -1,13 +1,12 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class DecimalTypeParser : ICommandTypeParser
+internal class DecimalTypeParser : CommandTypeParser<decimal>
 {
-    public Type Type => typeof(decimal);
-
-    public object? Parse(string? value, out string? validateError)
+    public override decimal ParseValue(string? value, out string? validateError)
     {
         if (decimal.TryParse(value, out var result))
         {
@@ -16,11 +15,6 @@ internal class DecimalTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }

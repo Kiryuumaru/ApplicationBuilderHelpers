@@ -1,13 +1,12 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class ByteTypeParser : ICommandTypeParser
+internal class ByteTypeParser : CommandTypeParser<byte>
 {
-    public Type Type => typeof(byte);
-
-    public object? Parse(string? value, out string? validateError)
+    public override byte ParseValue(string? value, out string? validateError)
     {
         if (byte.TryParse(value, out var result))
         {
@@ -16,11 +15,6 @@ internal class ByteTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }
