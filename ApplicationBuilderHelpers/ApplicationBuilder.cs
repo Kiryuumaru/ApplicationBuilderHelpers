@@ -124,6 +124,7 @@ public class ApplicationBuilder : ICommandBuilder
         AddCommandTypeParser<DecimalTypeParser>();
         AddCommandTypeParser<DoubleTypeParser>();
         AddCommandTypeParser<FloatTypeParser>();
+        AddCommandTypeParser<GuidTypeParser>();
         AddCommandTypeParser<IntTypeParser>();
         AddCommandTypeParser<LongTypeParser>();
         AddCommandTypeParser<SByteTypeParser>();
