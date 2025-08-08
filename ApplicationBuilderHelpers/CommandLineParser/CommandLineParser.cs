@@ -12,6 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using YamlDotNet.Core.Tokens;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -173,7 +174,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Creates an intermediate command, checking for abstract base class information
     /// </summary>
-    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, Type leafCommandType)
+    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         // Look for abstract base class that matches this intermediate command path
         var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType);
@@ -219,7 +220,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
     /// </summary>
-    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
+    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         var currentType = leafCommandType.BaseType;
         var targetCommandName = string.Join(" ", commandParts);
@@ -238,14 +239,10 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                     Description = commandAttr.Description
                 };
 
-                // Extract only options and arguments that are declared directly in this abstract class
-                // Not from its base classes (like BaseCommand) to avoid conflicts
-#pragma warning disable IDE0079 // Remove unnecessary suppression
-#pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-                baseCommandInfo.Options = SubCommandOptionInfo.FromDeclaredType(currentType, baseCommandInfo, CommandTypeParserCollection);
-                baseCommandInfo.Arguments = SubCommandArgumentInfo.FromDeclaredType(currentType, baseCommandInfo);
-#pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-#pragma warning restore IDE0079 // Remove unnecessary suppression
+                // For AOT compatibility, we need to avoid using methods that require specific DynamicallyAccessedMembers
+                // on types that don't have those annotations. Instead, we'll extract options and arguments manually.
+                baseCommandInfo.Options = ExtractOptionsFromTypeManually(currentType, baseCommandInfo);
+                baseCommandInfo.Arguments = ExtractArgumentsFromTypeManually(currentType, baseCommandInfo);
 
                 return baseCommandInfo;
             }
@@ -253,6 +250,56 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
         
         return null;
+    }
+
+    /// <summary>
+    /// Manually extracts options from a type to avoid AOT warnings
+    /// </summary>
+    private List<SubCommandOptionInfo> ExtractOptionsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand)
+    {
+        var options = new List<SubCommandOptionInfo>();
+        var properties = commandType.GetProperties(
+            BindingFlags.DeclaredOnly | 
+            BindingFlags.Public | 
+            BindingFlags.NonPublic | 
+            BindingFlags.Instance);
+
+        foreach (var property in properties)
+        {
+            var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
+            if (optionAttr != null)
+            {
+                var optionInfo = SubCommandOptionInfo.FromProperty(property, optionAttr, ownerCommand, CommandTypeParserCollection);
+                options.Add(optionInfo);
+            }
+        }
+
+        return options;
+    }
+
+    /// <summary>
+    /// Manually extracts arguments from a type to avoid AOT warnings
+    /// </summary>
+    private static List<SubCommandArgumentInfo> ExtractArgumentsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand)
+    {
+        var arguments = new List<SubCommandArgumentInfo>();
+        var properties = commandType.GetProperties(
+            BindingFlags.DeclaredOnly | 
+            BindingFlags.Public | 
+            BindingFlags.NonPublic | 
+            BindingFlags.Instance);
+
+        foreach (var property in properties)
+        {
+            var argumentAttr = property.GetCustomAttribute<CommandArgumentAttribute>();
+            if (argumentAttr != null)
+            {
+                var argumentInfo = SubCommandArgumentInfo.FromProperty(property, argumentAttr, ownerCommand);
+                arguments.Add(argumentInfo);
+            }
+        }
+
+        return [.. arguments.OrderBy(a => a.Position)];
     }
 
     /// <summary>
@@ -341,7 +388,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private void AddBuiltInGlobalOptions()
     {
         // Create a dummy property to satisfy the Property requirement
-        var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.PropertyType))!;
+        var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.Property))!;
 
         // Add help option as a true global option (appears in all commands)
         var helpOption = new SubCommandOptionInfo
@@ -349,11 +396,12 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             ShortName = 'h',
             LongName = "help",
             Description = "Show help information",
-            PropertyType = typeof(bool),
             IsGlobal = true,
             IsInherited = true,
             OwnerCommand = _rootCommand,
-            Property = dummyProperty
+            Property = dummyProperty,
+            // Set PropertyType directly to avoid AOT warnings
+            PropertyType = typeof(bool)
         };
 
         if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == helpOption.GetDisplayName()))
@@ -573,7 +621,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Sets the parsed values on the command instance properties
     /// </summary>
-    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "Array creation is necessary for command line parsing")]
     private void SetCommandValues(ParseResult result)
     {
         var command = result.TargetCommand.Command!;
@@ -603,7 +650,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             if (option.IsArray)
             {
                 var elementType = option.ElementType!;
-                var array = Array.CreateInstance(elementType, values.Count);
+                var array = CreateTypedArray(elementType, values.Count);
                 
                 for (int i = 0; i < values.Count; i++)
                 {
@@ -647,7 +694,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             if (argument.IsArray)
             {
                 var elementType = argument.ElementType!;
-                var array = Array.CreateInstance(elementType, values.Count);
+                var array = CreateTypedArray(elementType, values.Count);
                 
                 for (int i = 0; i < values.Count; i++)
                 {
@@ -687,6 +734,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
         }
     }
+
     /// <summary>
     /// Converts a string value to the specified type
     /// </summary>
@@ -723,6 +771,28 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         {
             throw new CommandException($"Invalid format for value '{value}' of type {targetType.FullName}", 1);
         }
+    }
+
+    /// <summary>
+    /// Creates a typed array for AOT compatibility
+    /// </summary>
+    private Array CreateTypedArray(Type elementType, int length)
+    {
+        // First try to use the registered type parser to create the array
+        if (CommandTypeParserCollection.TypeParsers.TryGetValue(elementType, out var parser))
+        {
+            try
+            {
+                return parser.CreateTypedArray(length);
+            }
+            catch
+            {
+                // If the type parser fails, fall back to manual creation
+            }
+        }
+
+        // For other types, create a generic object array to maintain AOT compatibility
+        return new object?[length];
     }
 
     /// <summary>
@@ -817,6 +887,20 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         };
     }
 
+    private static bool IsNumericValue(string value)
+    {
+        if (string.IsNullOrEmpty(value) || !value.StartsWith('-') || value.Length < 2)
+            return false;
+
+        // Check if what follows the dash is a digit or decimal point
+        var afterDash = value[1];
+        if (!char.IsDigit(afterDash) && afterDash != '.')
+            return false;
+
+        // Try to parse as a double to confirm it's a valid numeric value
+        return double.TryParse(value, out _);
+    }
+
     #region Help and Version Methods
 
     private static bool ShouldShowGlobalHelp(string[] args)
@@ -909,20 +993,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         {
             Console.Error.WriteLine($"Run '{executableName} --help' for more information on available commands and options.");
         }
-    }
-
-    private static bool IsNumericValue(string value)
-    {
-        if (string.IsNullOrEmpty(value) || !value.StartsWith('-') || value.Length < 2)
-            return false;
-
-        // Check if what follows the dash is a digit or decimal point
-        var afterDash = value[1];
-        if (!char.IsDigit(afterDash) && afterDash != '.')
-            return false;
-
-        // Try to parse as a double to confirm it's a valid numeric value
-        return double.TryParse(value, out _);
     }
 
     #endregion
