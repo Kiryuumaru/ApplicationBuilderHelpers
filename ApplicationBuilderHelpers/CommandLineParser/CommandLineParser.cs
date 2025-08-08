@@ -7,6 +7,7 @@ using ApplicationBuilderHelpers.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
@@ -103,17 +104,16 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         };
 
         // Process all commands and build hierarchy
-        foreach (var command in CommandBuilder.Commands)
+        foreach (var typedCommandHolder in CommandBuilder.Commands)
         {
-            var commandType = command.GetType();
-            _ = commandType.GetCustomAttribute<CommandAttribute>();
+            _ = typedCommandHolder.CommandType.GetCustomAttribute<CommandAttribute>();
 
             // Create SubCommandInfo for this command
-            var subCommandInfo = SubCommandInfo.FromCommand(commandType, command);
-            
+            var subCommandInfo = SubCommandInfo.FromCommand(typedCommandHolder.CommandType, typedCommandHolder.Command);
+
             // Extract options and arguments - pass the type parser collection
-            subCommandInfo.Options = SubCommandOptionInfo.FromCommandType(commandType, subCommandInfo, CommandTypeParserCollection);
-            subCommandInfo.Arguments = SubCommandArgumentInfo.FromCommandType(commandType, subCommandInfo);
+            subCommandInfo.Options = SubCommandOptionInfo.FromCommandType(typedCommandHolder.CommandType, subCommandInfo);
+            subCommandInfo.Arguments = SubCommandArgumentInfo.FromCommandType(typedCommandHolder.CommandType, subCommandInfo);
 
             // Insert into hierarchy
             InsertCommandIntoHierarchy(subCommandInfo);
@@ -255,13 +255,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Manually extracts options from a type to avoid AOT warnings
     /// </summary>
-    private List<SubCommandOptionInfo> ExtractOptionsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand)
+    private List<SubCommandOptionInfo> ExtractOptionsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand)
     {
         var options = new List<SubCommandOptionInfo>();
         var properties = commandType.GetProperties(
-            BindingFlags.DeclaredOnly | 
-            BindingFlags.Public | 
-            BindingFlags.NonPublic | 
+            BindingFlags.DeclaredOnly |
+            BindingFlags.Public |
+            BindingFlags.NonPublic |
             BindingFlags.Instance);
 
         foreach (var property in properties)
@@ -280,13 +280,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Manually extracts arguments from a type to avoid AOT warnings
     /// </summary>
-    private static List<SubCommandArgumentInfo> ExtractArgumentsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand)
+    private static List<SubCommandArgumentInfo> ExtractArgumentsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand)
     {
         var arguments = new List<SubCommandArgumentInfo>();
         var properties = commandType.GetProperties(
-            BindingFlags.DeclaredOnly | 
-            BindingFlags.Public | 
-            BindingFlags.NonPublic | 
+            BindingFlags.DeclaredOnly |
+            BindingFlags.Public |
+            BindingFlags.NonPublic |
             BindingFlags.Instance);
 
         foreach (var property in properties)

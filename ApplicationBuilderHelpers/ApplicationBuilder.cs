@@ -1,5 +1,6 @@
 ﻿using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.Models;
 using ApplicationBuilderHelpers.ParserTypes;
 using ApplicationBuilderHelpers.Themes;
 using System;
@@ -22,7 +23,7 @@ public class ApplicationBuilder : ICommandBuilder
     int? ICommandBuilder.HelpWidth { get; set; } = null;
     int? ICommandBuilder.HelpBorderWidth { get; set; } = null;
     IConsoleTheme? ICommandBuilder.Theme { get; set; } = DefaultConsoleTheme.Instance;
-    List<ICommand> ICommandBuilder.Commands { get; } = [];
+    List<TypedCommandHolder> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
 
@@ -50,7 +51,7 @@ public class ApplicationBuilder : ICommandBuilder
     /// </summary>
     /// <typeparam name="TCommand">The type of command that implements <see cref="ICommand"/>.</typeparam>
     /// <returns>The current <see cref="ApplicationBuilder"/> instance for method chaining.</returns>
-    public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommand>()
+    public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TCommand>()
         where TCommand : ICommand
         => ICommandBuilderExtensions.AddCommand<TCommand, ApplicationBuilder>(this);
 
