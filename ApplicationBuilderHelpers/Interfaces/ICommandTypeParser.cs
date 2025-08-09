@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace ApplicationBuilderHelpers.Interfaces;
 
@@ -30,4 +28,17 @@ public interface ICommandTypeParser
     /// <param name="value">The object to convert to a string.</param>
     /// <returns>The string representation of the object if successful; otherwise, null.</returns>
     string? GetString(object? value);
+
+    /// <summary>
+    /// Gets the default value for the type, which can be used when no value is provided.
+    /// </summary>
+    /// <returns></returns>
+    object? GetDefaultValue();
+
+    /// <summary>
+    /// Creates a typed array for AOT compatibility
+    /// </summary>
+    /// <param name="length"></param>
+    /// <returns></returns>
+    Array CreateTypedArray(int length);
 }

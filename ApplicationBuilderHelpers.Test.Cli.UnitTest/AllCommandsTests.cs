@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;

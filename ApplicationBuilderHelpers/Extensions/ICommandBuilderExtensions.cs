@@ -1,12 +1,6 @@
-﻿using ApplicationBuilderHelpers.Common;
-using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Collections.Generic;
-using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.Extensions;
 
@@ -182,7 +176,7 @@ public static class ICommandBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(commandBuilder);
         ArgumentNullException.ThrowIfNull(command);
-        commandBuilder.Commands.Add(command);
+        commandBuilder.Commands.Add(new Models.TypedCommandHolder(command.GetType(), command));
         return commandBuilder;
     }
 
@@ -194,14 +188,14 @@ public static class ICommandBuilderExtensions
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <returns>The command builder instance for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
-    public static TICommandBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommand, TICommandBuilder>(this TICommandBuilder commandBuilder)
+    public static TICommandBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TCommand, TICommandBuilder>(this TICommandBuilder commandBuilder)
         where TCommand : ICommand
         where TICommandBuilder : ICommandBuilder
     {
         ArgumentNullException.ThrowIfNull(commandBuilder);
         var command = Activator.CreateInstance<TCommand>();
         ArgumentNullException.ThrowIfNull(command);
-        commandBuilder.Commands.Add(command);
+        commandBuilder.Commands.Add(new Models.TypedCommandHolder(typeof(TCommand), command));
         return commandBuilder;
     }
 }

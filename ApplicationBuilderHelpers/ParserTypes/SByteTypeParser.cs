@@ -1,17 +1,12 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class SByteTypeParser : ICommandTypeParser
+internal class SByteTypeParser : CommandTypeParser<sbyte>
 {
-    public Type Type => typeof(sbyte);
-
-    public object? Parse(string? value, out string? validateError)
+    public override sbyte ParseValue(string? value, out string? validateError)
     {
         if (sbyte.TryParse(value, out var result))
         {
@@ -20,11 +15,6 @@ internal class SByteTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }

@@ -1,15 +1,19 @@
 using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Common;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using YamlDotNet.Core.Tokens;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -34,40 +38,49 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     {
         try
         {
-            // Step 1: Build and validate command hierarchy
+            // Step 1: Prepare application builder with dependencies
+            foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
+            {
+                dependency.CommandPreparation(ApplicationBuilder);
+            }
+
+            // Step 2: Build and validate command hierarchy
             BuildCommandHierarchy();
             ValidateCommandHierarchy();
 
-            // Step 2: Handle basic help/version before parsing
-            if (CommandLineParser.ShouldShowGlobalHelp(args))
+            // Step 3: Handle basic help/version before parsing
+            if (ShouldShowGlobalHelp(args))
             {
                 ShowGlobalHelp();
                 return 0;
             }
 
-            if (CommandLineParser.ShouldShowVersion(args))
+            if (ShouldShowVersion(args))
             {
                 ShowVersion();
                 return 0;
             }
 
-            // Step 3: Parse command line arguments
+            // Step 4: Parse command line arguments
             var parseResult = ParseCommandLine(args);
 
-            // Step 4: Handle command-specific help
+            // Step 5: Prepare application builder with dependencies
+            parseResult.TargetCommand.Command?.CommandPreparation(ApplicationBuilder);
+
+            // Step 6: Handle command-specific help
             if (parseResult.ShowHelp)
             {
                 ShowCommandHelp(parseResult.TargetCommand);
                 return 0;
             }
 
-            // Step 5: Validate required options and arguments
+            // Step 7: Validate required options and arguments
             ValidateRequiredParameters(parseResult);
 
-            // Step 6: Set property values on command instance
+            // Step 8: Set property values on command instance
             SetCommandValues(parseResult);
 
-            // Step 7: Execute the command
+            // Step 9: Execute the command
             await ExecuteCommand(parseResult.TargetCommand, cancellationToken);
             return 0;
         }
@@ -91,17 +104,16 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         };
 
         // Process all commands and build hierarchy
-        foreach (var command in CommandBuilder.Commands)
+        foreach (var typedCommandHolder in CommandBuilder.Commands)
         {
-            var commandType = command.GetType();
-            _ = commandType.GetCustomAttribute<CommandAttribute>();
+            _ = typedCommandHolder.CommandType.GetCustomAttribute<CommandAttribute>();
 
             // Create SubCommandInfo for this command
-            var subCommandInfo = SubCommandInfo.FromCommand(commandType, command);
-            
-            // Extract options and arguments
-            subCommandInfo.Options = SubCommandOptionInfo.FromCommandType(commandType, subCommandInfo);
-            subCommandInfo.Arguments = SubCommandArgumentInfo.FromCommandType(commandType, subCommandInfo);
+            var subCommandInfo = SubCommandInfo.FromCommand(typedCommandHolder.CommandType, typedCommandHolder.Command);
+
+            // Extract options and arguments - pass the type parser collection
+            subCommandInfo.Options = SubCommandOptionInfo.FromCommandType(typedCommandHolder.CommandType, subCommandInfo);
+            subCommandInfo.Arguments = SubCommandArgumentInfo.FromCommandType(typedCommandHolder.CommandType, subCommandInfo);
 
             // Insert into hierarchy
             InsertCommandIntoHierarchy(subCommandInfo);
@@ -162,10 +174,10 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Creates an intermediate command, checking for abstract base class information
     /// </summary>
-    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, Type leafCommandType)
+    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         // Look for abstract base class that matches this intermediate command path
-        var intermediateCommandInfo = CommandLineParser.FindAbstractBaseCommandInfo(commandParts, leafCommandType);
+        var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType);
         
         SubCommandInfo result;
         if (intermediateCommandInfo != null)
@@ -208,7 +220,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
     /// </summary>
-    private static SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, Type leafCommandType)
+    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         var currentType = leafCommandType.BaseType;
         var targetCommandName = string.Join(" ", commandParts);
@@ -227,14 +239,10 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                     Description = commandAttr.Description
                 };
 
-                // Extract only options and arguments that are declared directly in this abstract class
-                // Not from its base classes (like BaseCommand) to avoid conflicts
-#pragma warning disable IDE0079 // Remove unnecessary suppression
-#pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-                baseCommandInfo.Options = SubCommandOptionInfo.FromDeclaredType(currentType, baseCommandInfo);
-                baseCommandInfo.Arguments = SubCommandArgumentInfo.FromDeclaredType(currentType, baseCommandInfo);
-#pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-#pragma warning restore IDE0079 // Remove unnecessary suppression
+                // For AOT compatibility, we need to avoid using methods that require specific DynamicallyAccessedMembers
+                // on types that don't have those annotations. Instead, we'll extract options and arguments manually.
+                baseCommandInfo.Options = ExtractOptionsFromTypeManually(currentType, baseCommandInfo);
+                baseCommandInfo.Arguments = ExtractArgumentsFromTypeManually(currentType, baseCommandInfo);
 
                 return baseCommandInfo;
             }
@@ -242,6 +250,56 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
         
         return null;
+    }
+
+    /// <summary>
+    /// Manually extracts options from a type to avoid AOT warnings
+    /// </summary>
+    private List<SubCommandOptionInfo> ExtractOptionsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand)
+    {
+        var options = new List<SubCommandOptionInfo>();
+        var properties = commandType.GetProperties(
+            BindingFlags.DeclaredOnly |
+            BindingFlags.Public |
+            BindingFlags.NonPublic |
+            BindingFlags.Instance);
+
+        foreach (var property in properties)
+        {
+            var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
+            if (optionAttr != null)
+            {
+                var optionInfo = SubCommandOptionInfo.FromProperty(property, optionAttr, ownerCommand, CommandTypeParserCollection);
+                options.Add(optionInfo);
+            }
+        }
+
+        return options;
+    }
+
+    /// <summary>
+    /// Manually extracts arguments from a type to avoid AOT warnings
+    /// </summary>
+    private static List<SubCommandArgumentInfo> ExtractArgumentsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand)
+    {
+        var arguments = new List<SubCommandArgumentInfo>();
+        var properties = commandType.GetProperties(
+            BindingFlags.DeclaredOnly |
+            BindingFlags.Public |
+            BindingFlags.NonPublic |
+            BindingFlags.Instance);
+
+        foreach (var property in properties)
+        {
+            var argumentAttr = property.GetCustomAttribute<CommandArgumentAttribute>();
+            if (argumentAttr != null)
+            {
+                var argumentInfo = SubCommandArgumentInfo.FromProperty(property, argumentAttr, ownerCommand);
+                arguments.Add(argumentInfo);
+            }
+        }
+
+        return [.. arguments.OrderBy(a => a.Position)];
     }
 
     /// <summary>
@@ -296,7 +354,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                     // Add one instance to root command
                     if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == signature))
                     {
-                        var globalOption = CommandLineParser.CreateGlobalOptionCopy(firstOption);
+                        var globalOption = CreateGlobalOptionCopy(firstOption);
                         globalOption.OwnerCommand = _rootCommand;
                         _rootCommand.Options.Add(globalOption);
                     }
@@ -330,7 +388,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private void AddBuiltInGlobalOptions()
     {
         // Create a dummy property to satisfy the Property requirement
-        var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.PropertyType))!;
+        var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.Property))!;
 
         // Add help option as a true global option (appears in all commands)
         var helpOption = new SubCommandOptionInfo
@@ -338,11 +396,12 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             ShortName = 'h',
             LongName = "help",
             Description = "Show help information",
-            PropertyType = typeof(bool),
             IsGlobal = true,
             IsInherited = true,
             OwnerCommand = _rootCommand,
-            Property = dummyProperty
+            Property = dummyProperty,
+            // Set PropertyType directly to avoid AOT warnings
+            PropertyType = typeof(bool)
         };
 
         if (!_rootCommand!.Options.Any(o => o.GetDisplayName() == helpOption.GetDisplayName()))
@@ -356,7 +415,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             var existingHelpOption = command.Options.FirstOrDefault(o => o.LongName == "help");
             if (existingHelpOption == null)
             {
-                var globalHelpOption = CommandLineParser.CreateGlobalOptionCopy(helpOption);
+                var globalHelpOption = CreateGlobalOptionCopy(helpOption);
                 globalHelpOption.OwnerCommand = command;
                 command.Options.Add(globalHelpOption);
             }
@@ -434,7 +493,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
 
         // Parse remaining arguments as options and arguments
-        CommandLineParser.ParseOptionsAndArguments(args, argIndex, result);
+        ParseOptionsAndArguments(args, argIndex, result);
 
         return result;
     }
@@ -468,12 +527,12 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 var value = matchedOption.ExtractValue(arg, nextArg);
                 
                 // If value came from next argument, skip it
-                if (value == nextArg && !nextArg?.StartsWith('-') == true)
+                if (value == nextArg && !(nextArg?.StartsWith('-') == true && !IsNumericValue(nextArg)))
                     i++;
 
-                CommandLineParser.AddOptionValue(result, matchedOption, value);
+                AddOptionValue(result, matchedOption, value);
             }
-            else if (arg.StartsWith('-'))
+            else if (arg.StartsWith('-') && !IsNumericValue(arg))
             {
                 throw new CommandException($"Unknown option: {arg}", 1);
             }
@@ -490,7 +549,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             var targetArgument = allArguments.FirstOrDefault(a => a.CanAcceptValueAtPosition(argumentIndex));
             if (targetArgument != null)
             {
-                CommandLineParser.AddArgumentValue(result, targetArgument, argumentValue);
+                AddArgumentValue(result, targetArgument, argumentValue);
                 if (!targetArgument.IsArray)
                     argumentIndex++;
             }
@@ -562,7 +621,6 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     /// <summary>
     /// Sets the parsed values on the command instance properties
     /// </summary>
-    [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "Array creation is necessary for command line parsing")]
     private void SetCommandValues(ParseResult result)
     {
         var command = result.TargetCommand.Command!;
@@ -592,12 +650,17 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             if (option.IsArray)
             {
                 var elementType = option.ElementType!;
-                var array = Array.CreateInstance(elementType, values.Count);
+                var array = CreateTypedArray(elementType, values.Count);
                 
                 for (int i = 0; i < values.Count; i++)
                 {
-                    var convertedValue = ConvertValue(values[i], elementType);
-                    option.ValidateValue(convertedValue);
+                    // Validate string value first if ValidValues are specified
+                    if (option.ValidValues?.Length > 0)
+                    {
+                        ValidateStringValue(values[i], option);
+                    }
+                    
+                    var convertedValue = ConvertValue(values[i], elementType, option.IsCaseSensitive);
                     array.SetValue(convertedValue, i);
                 }
                 
@@ -605,9 +668,18 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             }
             else
             {
-                propertyValue = ConvertValue(values[0], option.PropertyType);
-                option.ValidateValue(propertyValue);
+                // Validate string value first if ValidValues are specified
+                if (option.ValidValues?.Length > 0)
+                {
+                    ValidateStringValue(values[0], option);
+                }
+                
+                propertyValue = ConvertValue(values[0], option.PropertyType, option.IsCaseSensitive);
             }
+
+            // Note: We don't call option.ValidateValue here anymore for ValidValues validation
+            // since we already validated the string value above. ValidateValue is now only used
+            // for required field validation in ValidateRequiredParameters.
 
             option.Property.SetValue(command, propertyValue);
         }
@@ -622,7 +694,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             if (argument.IsArray)
             {
                 var elementType = argument.ElementType!;
-                var array = Array.CreateInstance(elementType, values.Count);
+                var array = CreateTypedArray(elementType, values.Count);
                 
                 for (int i = 0; i < values.Count; i++)
                 {
@@ -642,9 +714,31 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     }
 
     /// <summary>
+    /// Validates a string value against the option's ValidValues before conversion
+    /// </summary>
+    private static void ValidateStringValue(string value, SubCommandOptionInfo option)
+    {
+        if (option.ValidValues?.Length > 0)
+        {
+            var comparisonType = option.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            
+            var isValid = option.ValidValues.Any(validValue => 
+                string.Equals(validValue?.ToString(), value, comparisonType));
+
+            if (!isValid)
+            {
+                var validValuesString = string.Join(", ", option.ValidValues.Select(v => v?.ToString()));
+                throw new CommandException(
+                    $"Value '{value}' is not valid for option '--{option.LongName ?? option.ShortName?.ToString()}'. " +
+                    $"Must be one of: {validValuesString}", 1);
+            }
+        }
+    }
+
+    /// <summary>
     /// Converts a string value to the specified type
     /// </summary>
-    private object? ConvertValue(string? value, Type targetType)
+    private object? ConvertValue(string? value, Type targetType, bool isCaseSensitive)
     {
         if (value == null) return null;
 
@@ -652,24 +746,53 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         {
             var result = parser.Parse(value, out var error);
             if (error != null)
-                throw new CommandException($"Invalid value '{value}': {error}", 1);
+                throw new CommandException(error, 1);
             return result;
         }
 
         if (targetType == typeof(string))
             return value;
 
-        if (targetType.IsEnum)
-            return Enum.Parse(targetType, value, true);
+        if (targetType.IsEnum && Enum.TryParse(targetType, value, !isCaseSensitive, out var typedVal))
+            return typedVal;
 
         // Handle nullable types
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
         {
             var underlyingType = Nullable.GetUnderlyingType(targetType)!;
-            return ConvertValue(value, underlyingType);
+            return ConvertValue(value, underlyingType, isCaseSensitive);
         }
 
-        return Convert.ChangeType(value, targetType);
+        try
+        {
+            return Convert.ChangeType(value, targetType);
+        }
+        catch (Exception)
+        {
+            throw new CommandException($"Invalid format for value '{value}' of type {targetType.FullName}", 1);
+        }
+    }
+
+    /// <summary>
+    /// Creates a typed array for AOT compatibility
+    /// </summary>
+    private Array CreateTypedArray(Type elementType, int length)
+    {
+        // First try to use the registered type parser to create the array
+        if (CommandTypeParserCollection.TypeParsers.TryGetValue(elementType, out var parser))
+        {
+            try
+            {
+                return parser.CreateTypedArray(length);
+            }
+            catch
+            {
+                // If the type parser fails, fall back to manual creation
+            }
+        }
+
+        // For other types, create a generic object array to maintain AOT compatibility
+        return new object?[length];
     }
 
     /// <summary>
@@ -678,20 +801,68 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     private async Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken)
     {
         var command = commandInfo.Command!;
-        
-        // Call preparation dependencies
-        foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
-        {
-            dependency.CommandPreparation(ApplicationBuilder);
-        }
-
-        command.CommandPreparationInternal(ApplicationBuilder);
 
         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var hostBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
-        var host = hostBuilder.Build();
+        var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
+        LifetimeGlobalService lifetimeGlobalService = new();
 
-        await command.RunInternal(host, cancellationTokenSource);
+        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
+        Console.CancelKeyPress += (sender, e) =>
+        {
+            cancellationTokenSource.Cancel();
+            e.Cancel = true;
+        };
+
+        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+        applicationBuilder.Services.AddScoped<LifetimeService>();
+
+        applicationBuilder.ApplicationDependencies.Add(command);
+        foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
+        {
+            applicationBuilder.ApplicationDependencies.Add(dependency);
+        }
+
+        var applicationHost = applicationBuilder.BuildInternal();
+        var commanRun = command.RunInternal(applicationHost, cancellationTokenSource);
+
+        if (cancellationTokenSource.Token.IsCancellationRequested)
+        {
+            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
+            return;
+        }
+
+        try
+        {
+            await Task.WhenAll(
+                Task.Run(async () => await commanRun, cancellationToken),
+                Task.Run(async () =>
+                {
+                    int exitCode = await applicationHost.Run(cancellationTokenSource.Token);
+                    if (exitCode != 0)
+                    {
+                        throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
+                    }
+                }, cancellationTokenSource.Token),
+                Task.Run(async () =>
+                {
+                    await cancellationTokenSource.Token.WhenCanceled();
+                    await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+                }, cancellationTokenSource.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle cancellation gracefully
+            if (!cancellationTokenSource.IsCancellationRequested)
+            {
+                throw; // Rethrow if cancellation was not requested by the caller
+            }
+        }
+        finally
+        {
+            // Ensure we clean up the lifetime service
+            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
+        }
     }
 
     /// <summary>
@@ -714,6 +885,20 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             IsGlobal = true,
             IsInherited = true
         };
+    }
+
+    private static bool IsNumericValue(string value)
+    {
+        if (string.IsNullOrEmpty(value) || !value.StartsWith('-') || value.Length < 2)
+            return false;
+
+        // Check if what follows the dash is a digit or decimal point
+        var afterDash = value[1];
+        if (!char.IsDigit(afterDash) && afterDash != '.')
+            return false;
+
+        // Try to parse as a double to confirm it's a valid numeric value
+        return double.TryParse(value, out _);
     }
 
     #region Help and Version Methods

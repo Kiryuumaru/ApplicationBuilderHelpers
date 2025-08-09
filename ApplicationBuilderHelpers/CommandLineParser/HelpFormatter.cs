@@ -15,6 +15,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
     private readonly ICommandBuilder _commandBuilder = commandBuilder;
     private readonly SubCommandInfo? _rootCommand = rootCommand;
     private readonly Dictionary<string, SubCommandInfo> _allCommands = allCommands;
+    private readonly ICommandTypeParserCollection _typeParserCollection = commandBuilder;
 
     public void ShowGlobalHelp()
     {
@@ -792,13 +793,10 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
                 }
             }
             
+            // Use type parsers to get default values in an AOT-compatible way
             if (option.PropertyType.IsValueType)
             {
-#pragma warning disable IDE0079 // Remove unnecessary suppression
-#pragma warning disable IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-                return Activator.CreateInstance(option.PropertyType);
-#pragma warning restore IL2072 // Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
-#pragma warning restore IDE0079 // Remove unnecessary suppression
+                return GetDefaultValueFromTypeParser(option.PropertyType);
             }
 
             return null;
@@ -807,6 +805,45 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Gets the default value for a type using the registered type parsers, fallback to AOT-compatible defaults
+    /// </summary>
+    private object? GetDefaultValueFromTypeParser(Type type)
+    {
+        // First try to get the default value from a registered type parser
+        if (_typeParserCollection.TypeParsers.TryGetValue(type, out var parser))
+        {
+            try
+            {
+                return parser.GetDefaultValue();
+            }
+            catch
+            {
+                // If the type parser fails, fall back to manual defaults
+            }
+        }
+
+        // Handle nullable types by getting the underlying type
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+        {
+            return null; // Nullable types default to null
+        }
+
+        // Handle enums with AOT-compatible approach
+        if (type.IsEnum)
+        {
+            // For enums, return null as we can't determine default safely in AOT
+            return null;
+        }
+
+        // For arrays, return null
+        if (type.IsArray)
+            return null;
+
+        // For unknown types, return null
+        return null;
     }
 
     private static bool IsDefaultValueEmpty(object value)

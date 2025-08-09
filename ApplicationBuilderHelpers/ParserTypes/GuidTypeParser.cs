@@ -1,14 +1,15 @@
-﻿using ApplicationBuilderHelpers.Abstracts;
+﻿using AbsolutePathHelpers;
+using ApplicationBuilderHelpers.Abstracts;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class CharTypeParser : CommandTypeParser<char>
+internal class GuidTypeParser : CommandTypeParser<Guid>
 {
-    public override char ParseValue(string? value, out string? validateError)
+    public override Guid ParseValue(string? value, out string? validateError)
     {
-        if (char.TryParse(value, out var result))
+        if (Guid.TryParse(value, out var result))
         {
             validateError = null;
             return result;

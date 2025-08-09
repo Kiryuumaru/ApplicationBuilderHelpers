@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
@@ -246,7 +244,7 @@ public class MainCommandTests : CliTestBase
     {
         var result = await Runner.RunAsync("--timeout", "invalid");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Invalid value 'invalid'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: 'invalid'");
     }
 
     [Fact]

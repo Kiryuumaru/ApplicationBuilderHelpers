@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
@@ -150,6 +147,15 @@ public class BuiltinParserTypesTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", $"--coverage-threshold={input}", "-v");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, $"Coverage Threshold: {expected}%");
+    }
+
+    [Fact]
+    public async Task Double_Parser_Negative_Values_Without_Equals()
+    {
+        // Test negative values passed as separate arguments (the problematic case)
+        var result = await Runner.RunAsync("test", "target", "--coverage-threshold", "-1.5", "-v");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "Coverage Threshold: -1.5%");
     }
 
     [Theory]

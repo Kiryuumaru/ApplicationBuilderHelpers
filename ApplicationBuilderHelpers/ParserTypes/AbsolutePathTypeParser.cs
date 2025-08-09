@@ -1,7 +1,7 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Diagnostics.CodeAnalysis;
 using AbsolutePathHelpers;
+using ApplicationBuilderHelpers.Abstracts;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 

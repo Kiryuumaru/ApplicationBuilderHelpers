@@ -1,7 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Exceptions;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.Extensions;

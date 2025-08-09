@@ -1,19 +1,11 @@
-﻿using AbsolutePathHelpers;
-using ApplicationBuilderHelpers.Attributes;
-using ApplicationBuilderHelpers.Exceptions;
-using ApplicationBuilderHelpers.Extensions;
+﻿using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.Models;
 using ApplicationBuilderHelpers.ParserTypes;
-using ApplicationBuilderHelpers.Services;
 using ApplicationBuilderHelpers.Themes;
-using ApplicationBuilderHelpers.Workers;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,7 +23,7 @@ public class ApplicationBuilder : ICommandBuilder
     int? ICommandBuilder.HelpWidth { get; set; } = null;
     int? ICommandBuilder.HelpBorderWidth { get; set; } = null;
     IConsoleTheme? ICommandBuilder.Theme { get; set; } = DefaultConsoleTheme.Instance;
-    List<ICommand> ICommandBuilder.Commands { get; } = [];
+    List<TypedCommandHolder> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
 
@@ -59,7 +51,7 @@ public class ApplicationBuilder : ICommandBuilder
     /// </summary>
     /// <typeparam name="TCommand">The type of command that implements <see cref="ICommand"/>.</typeparam>
     /// <returns>The current <see cref="ApplicationBuilder"/> instance for method chaining.</returns>
-    public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommand>()
+    public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TCommand>()
         where TCommand : ICommand
         => ICommandBuilderExtensions.AddCommand<TCommand, ApplicationBuilder>(this);
 
@@ -133,6 +125,7 @@ public class ApplicationBuilder : ICommandBuilder
         AddCommandTypeParser<DecimalTypeParser>();
         AddCommandTypeParser<DoubleTypeParser>();
         AddCommandTypeParser<FloatTypeParser>();
+        AddCommandTypeParser<GuidTypeParser>();
         AddCommandTypeParser<IntTypeParser>();
         AddCommandTypeParser<LongTypeParser>();
         AddCommandTypeParser<SByteTypeParser>();

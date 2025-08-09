@@ -1,14 +1,12 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.Abstracts;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Linq;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-internal class IntTypeParser : ICommandTypeParser
+internal class IntTypeParser : CommandTypeParser<int>
 {
-    public Type Type => typeof(int);
-
-    public object? Parse(string? value, out string? validateError)
+    public override int ParseValue(string? value, out string? validateError)
     {
         if (int.TryParse(value, out var result))
         {
@@ -17,11 +15,6 @@ internal class IntTypeParser : ICommandTypeParser
         }
 
         validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
-        return null;
-    }
-
-    public string? GetString(object? value)
-    {
-        return value?.ToString();
+        return default;
     }
 }

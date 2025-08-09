@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
@@ -55,7 +54,7 @@ public class ValidationTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", "--timeout=notanumber");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Invalid value 'notanumber'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: 'notanumber'");
     }
 
     [Fact]
@@ -79,7 +78,7 @@ public class ValidationTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", "--coverage-threshold=notadouble");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Invalid value 'notadouble'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Double value: 'notadouble'");
     }
 
     [Fact]

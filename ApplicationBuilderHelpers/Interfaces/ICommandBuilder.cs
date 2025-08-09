@@ -1,10 +1,7 @@
-﻿using System;
+﻿using ApplicationBuilderHelpers.Models;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.Interfaces;
 
@@ -14,7 +11,7 @@ namespace ApplicationBuilderHelpers.Interfaces;
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDependencyCollection
 {
-    internal List<ICommand> Commands { get; }
+    internal List<TypedCommandHolder> Commands { get; }
 
     internal string? ExecutableName { get; set; }
 

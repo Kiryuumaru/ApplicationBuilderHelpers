@@ -1,7 +1,4 @@
-﻿using ApplicationBuilderHelpers;
-using Microsoft.Extensions.Options;
-using System.Reflection;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ApplicationBuilderHelpers.Test.Cli.Services;
 
