@@ -36,12 +36,13 @@ class Build : BaseNukeBuildHelpers
                 .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
                 .SetConfiguration("Release"));
             DotNetTasks.DotNetTest(_ => _
-                .SetProcessAdditionalArguments("--logger \"GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true\"")
+                .SetProcessAdditionalArguments(
+                    "--logger \"GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true\" " +
+                    "-- " +
+                    "RunConfiguration.CollectSourceInformation=true " +
+                    "DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencovere ")
                 .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
-                .SetConfiguration("Release")
-                .EnableNoLogo()
-                .EnableNoRestore()
-                .EnableNoBuild());
+                .SetConfiguration("Release"));
         });
 
     public BuildEntry ApplicationBuilderHelpersBuild => _ => _
