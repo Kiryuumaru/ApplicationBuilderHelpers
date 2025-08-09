@@ -18,20 +18,20 @@ public interface IApplicationDependency
     /// <summary>
     /// Invoked first during the application setup, allowing the application builder to be prepared before any other configuration methods are called.
     /// </summary>
-    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="applicationBuilder">The application dependency builder used to configure the application.</param>
     void BuilderPreparation(ApplicationHostBuilder applicationBuilder);
 
     /// <summary>
     /// Called after <see cref="BuilderPreparation"/> to add configuration settings from a given <see cref="IConfiguration"/> source to the application builder.
     /// </summary>
-    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="applicationBuilder">The application dependency builder used to configure the application.</param>
     /// <param name="configuration">The configuration source containing settings to be added.</param>
     void AddConfigurations(ApplicationHostBuilder applicationBuilder, IConfiguration configuration);
 
     /// <summary>
     /// Called after <see cref="AddConfigurations"/> to register services with the application's <see cref="IServiceCollection"/>.
     /// </summary>
-    /// <param name="builder">The application dependency builder used to configure the application.</param>
+    /// <param name="applicationBuilder">The application dependency builder used to configure the application.</param>
     /// <param name="services">The service collection where services are registered.</param>
     void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services);
 

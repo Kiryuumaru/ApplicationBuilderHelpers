@@ -5,7 +5,7 @@ using ApplicationBuilderHelpers.Abstracts;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
-public class AbsolutePathTypeParser : CommandTypeParser<AbsolutePath>
+internal class AbsolutePathTypeParser : CommandTypeParser<AbsolutePath>
 {
     public override AbsolutePath? ParseValue(string? value, out string? validateError)
     {
