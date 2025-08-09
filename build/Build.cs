@@ -1,12 +1,13 @@
 using Nuke.Common.IO;
+using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using NukeBuildHelpers;
 using NukeBuildHelpers.Common.Attributes;
+using NukeBuildHelpers.Common.Enums;
 using NukeBuildHelpers.Entry;
 using NukeBuildHelpers.Entry.Extensions;
-using NukeBuildHelpers.Runner.Abstraction;
 using NukeBuildHelpers.RunContext.Extensions;
-using NukeBuildHelpers.Common.Enums;
+using NukeBuildHelpers.Runner.Abstraction;
 
 class Build : BaseNukeBuildHelpers
 {
@@ -35,6 +36,7 @@ class Build : BaseNukeBuildHelpers
                 .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
                 .SetConfiguration("Release"));
             DotNetTasks.DotNetTest(_ => _
+                .SetProcessAdditionalArguments("--logger \"GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true\"")
                 .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
                 .SetConfiguration("Release")
                 .EnableNoLogo()
