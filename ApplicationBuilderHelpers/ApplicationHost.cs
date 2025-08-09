@@ -18,7 +18,7 @@ namespace ApplicationBuilderHelpers;
 public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost host) : ApplicationHostBuilderBase(builder)
 {
     /// <summary>
-    /// Gets the <see cref="IHost"/> created from <see cref="ApplicationDependencyBuilderHost{THostApplicationBuilder}.Build"/>.
+    /// Gets the <see cref="IHost"/> created from the ApplicationHostBuilder Build method.
     /// </summary>
     public IHost Host { get; protected set; } = host;
 
