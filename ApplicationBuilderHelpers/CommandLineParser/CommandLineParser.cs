@@ -13,7 +13,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using YamlDotNet.Core.Tokens;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -834,21 +833,40 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
         try
         {
+            var runtimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
             await Task.WhenAll(
-                Task.Run(async () => await commanRun, cancellationToken),
                 Task.Run(async () =>
                 {
-                    int exitCode = await applicationHost.Run(cancellationTokenSource.Token);
-                    if (exitCode != 0)
+                    try
                     {
-                        throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
+                        await commanRun;
                     }
-                }, cancellationTokenSource.Token),
+                    finally
+                    {
+                        runtimeCts.Cancel();
+                    }
+
+                }, runtimeCts.Token),
                 Task.Run(async () =>
                 {
-                    await cancellationTokenSource.Token.WhenCanceled();
+                    try
+                    {
+                        int exitCode = await applicationHost.Run(runtimeCts.Token);
+                        if (exitCode != 0)
+                        {
+                            throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
+                        }
+                    }
+                    finally
+                    {
+                        runtimeCts.Cancel();
+                    }
+                }, runtimeCts.Token),
+                Task.Run(async () =>
+                {
+                    await runtimeCts.Token.WhenCanceled();
                     await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
-                }, cancellationTokenSource.Token));
+                }, runtimeCts.Token));
         }
         catch (OperationCanceledException)
         {
