@@ -841,9 +841,10 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                     {
                         await commanRun;
                     }
-                    finally
+                    catch
                     {
                         runtimeCts.Cancel();
+                        throw;
                     }
 
                 }, runtimeCts.Token),
@@ -857,9 +858,10 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                             throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
                         }
                     }
-                    finally
+                    catch
                     {
                         runtimeCts.Cancel();
+                        throw;
                     }
                 }, runtimeCts.Token),
                 Task.Run(async () =>
