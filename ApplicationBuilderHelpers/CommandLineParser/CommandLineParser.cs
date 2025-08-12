@@ -863,12 +863,9 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                         runtimeCts.Cancel();
                         throw;
                     }
-                }, runtimeCts.Token),
-                Task.Run(async () =>
-                {
-                    await runtimeCts.Token.WhenCanceled();
-                    await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
                 }, runtimeCts.Token));
+
+            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
         }
         catch (OperationCanceledException)
         {
