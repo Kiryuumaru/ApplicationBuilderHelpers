@@ -125,7 +125,7 @@ internal class SubCommandArgumentInfo
     {
         // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
         var hasRequiredMemberAttribute = property.GetCustomAttributes()
-            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
+        var hasRequiredMemberAttribute = property.IsDefined(typeof(RequiredMemberAttribute), inherit: false);
 
         return hasRequiredMemberAttribute;
     }
