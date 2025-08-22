@@ -100,6 +100,9 @@ internal class SubCommandOptionInfo
     /// </summary>
     public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
+        // Check if the property has the C# required keyword (auto-detection)
+        var isRequiredByKeyword = IsPropertyRequired(property);
+        
         var optionInfo = new SubCommandOptionInfo
         {
             Property = property,
@@ -107,7 +110,8 @@ internal class SubCommandOptionInfo
             ShortName = attribute.ShortTerm,
             LongName = attribute.Term ?? property.Name.ToLowerInvariant(),
             Description = attribute.Description,
-            IsRequired = attribute.Required,
+            // Required if explicitly set in attribute OR if property has required keyword
+            IsRequired = attribute.Required || isRequiredByKeyword,
             EnvironmentVariable = attribute.EnvironmentVariable,
             ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
@@ -140,6 +144,18 @@ internal class SubCommandOptionInfo
         }
 
         return optionInfo;
+    }
+
+    /// <summary>
+    /// Checks if a property has the C# required keyword by looking for RequiredMemberAttribute
+    /// </summary>
+    private static bool IsPropertyRequired(PropertyInfo property)
+    {
+        // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
+        var hasRequiredMemberAttribute = property.GetCustomAttributes()
+            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
+
+        return hasRequiredMemberAttribute;
     }
 
     /// <summary>

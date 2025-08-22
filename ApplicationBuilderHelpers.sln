@@ -13,6 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 		README.md = README.md
+		tasksync.md = tasksync.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApplicationBuilderHelpers.Test.Cli.UnitTest", "ApplicationBuilderHelpers.Test.Cli.UnitTest\ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj", "{A89CB92B-230E-4142-AA57-D6E9B4EBE354}"
