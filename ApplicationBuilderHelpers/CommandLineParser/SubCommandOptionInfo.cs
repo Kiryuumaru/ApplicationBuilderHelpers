@@ -153,7 +153,7 @@ internal class SubCommandOptionInfo
     {
         // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
         var hasRequiredMemberAttribute = property.GetCustomAttributes()
-            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
+            .Any(attr => attr.GetType() == typeof(RequiredMemberAttribute));
 
         return hasRequiredMemberAttribute;
     }
