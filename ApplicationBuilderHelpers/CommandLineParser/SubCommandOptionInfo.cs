@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -152,8 +153,12 @@ internal class SubCommandOptionInfo
     private static bool IsPropertyRequired(PropertyInfo property)
     {
         // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
+#if NET7_0_OR_GREATER
+        var hasRequiredMemberAttribute = property.IsDefined(typeof(RequiredMemberAttribute), inherit: false);
+#else
         var hasRequiredMemberAttribute = property.GetCustomAttributes()
-            .Any(attr => attr.GetType() == typeof(RequiredMemberAttribute));
+            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
+#endif
 
         return hasRequiredMemberAttribute;
     }

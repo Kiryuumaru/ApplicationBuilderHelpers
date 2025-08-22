@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -105,7 +106,6 @@ internal class SubCommandArgumentInfo
             Name = attribute.Name ?? property.Name.ToLowerInvariant(),
             Description = attribute.Description,
             Position = attribute.Position,
-            // Required if explicitly set in attribute OR if property has required keyword
             IsRequired = attribute.Required || isRequiredByKeyword,
             ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
@@ -124,8 +124,12 @@ internal class SubCommandArgumentInfo
     private static bool IsPropertyRequired(PropertyInfo property)
     {
         // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
-        var hasRequiredMemberAttribute = property.GetCustomAttributes()
+#if NET7_0_OR_GREATER
         var hasRequiredMemberAttribute = property.IsDefined(typeof(RequiredMemberAttribute), inherit: false);
+#else
+        var hasRequiredMemberAttribute = property.GetCustomAttributes()
+            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
+#endif
 
         return hasRequiredMemberAttribute;
     }
