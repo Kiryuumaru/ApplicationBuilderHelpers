@@ -33,7 +33,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="AbsolutePathHelpers" Version="0.3.24" />
-		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" />
 	</ItemGroup>
 
