@@ -18,6 +18,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+  	<PackageReference Include="Microsoft.Build" Version="17.12.50" />
 		<ProjectReference Include="..\ApplicationBuilderHelpers\ApplicationBuilderHelpers.csproj" />
 	</ItemGroup>
 
