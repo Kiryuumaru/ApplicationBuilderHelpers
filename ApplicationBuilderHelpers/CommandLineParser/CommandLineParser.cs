@@ -802,15 +802,15 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         var command = commandInfo.Command!;
 
         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
-        LifetimeGlobalService lifetimeGlobalService = new();
-
-        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
         Console.CancelKeyPress += (sender, e) =>
         {
             cancellationTokenSource.Cancel();
             e.Cancel = true;
         };
+
+        var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
+        LifetimeGlobalService lifetimeGlobalService = new();
+        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
 
         applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
         applicationBuilder.Services.AddScoped<LifetimeService>();
@@ -822,7 +822,7 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         }
 
         var applicationHost = applicationBuilder.BuildInternal();
-        var commanRun = command.RunInternal(applicationHost, cancellationTokenSource);
+        var commandRun = command.RunInternal(applicationHost, cancellationTokenSource);
 
         if (cancellationTokenSource.Token.IsCancellationRequested)
         {
@@ -833,13 +833,13 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
         try
         {
-            var runtimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
+            using var runtimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
             await Task.WhenAll(
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await commanRun;
+                        await commandRun;
                     }
                     catch
                     {
