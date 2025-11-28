@@ -196,8 +196,8 @@ internal class SubCommandArgumentInfo
                 BindingFlags.Public | 
                 BindingFlags.NonPublic | 
                 BindingFlags.Instance);
-            
-            properties.AddRange(declaredProperties.Reverse());
+
+            properties.AddRange((declaredProperties as IEnumerable<PropertyInfo>).Reverse());
             currentType = currentType.BaseType;
         }
 
