@@ -1,5 +1,4 @@
 using ApplicationBuilderHelpers.Attributes;
-using ApplicationBuilderHelpers.Common;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
@@ -9,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -802,11 +802,23 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         var command = commandInfo.Command!;
 
         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Console.CancelKeyPress += (sender, e) =>
+
+        try
         {
-            cancellationTokenSource.Cancel();
-            e.Cancel = true;
-        };
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                cancellationTokenSource.Cancel();
+                e.Cancel = true;
+            };
+        }
+        catch (PlatformNotSupportedException)
+        {
+            Console.WriteLine("Note: Console.CancelKeyPress is not supported on this platform.");
+        }
+        catch (IOException)
+        {
+            Console.WriteLine("Note: Console.CancelKeyPress is unavailable (I/O).");
+        }
 
         var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
         LifetimeGlobalService lifetimeGlobalService = new();
@@ -821,8 +833,8 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             applicationBuilder.ApplicationDependencies.Add(dependency);
         }
 
-        var applicationHost = applicationBuilder.BuildInternal();
-        var commandRun = command.RunInternal(applicationHost, cancellationTokenSource);
+        ApplicationHost applicationHost = applicationBuilder.BuildInternal();
+        ValueTask commandRun = command.RunInternal(applicationHost, cancellationTokenSource);
 
         if (cancellationTokenSource.Token.IsCancellationRequested)
         {
