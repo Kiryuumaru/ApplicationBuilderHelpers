@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers;
 
@@ -41,5 +43,11 @@ public abstract class ApplicationDependency : IApplicationDependency
     /// <inheritdoc/>
     public virtual void RunPreparation(ApplicationHost applicationHost)
     {
+    }
+
+    /// <inheritdoc/>
+    public virtual ValueTask RunPreparationAsync(ApplicationHost applicationHost, CancellationToken cancellationToken)
+    {
+        return ValueTask.CompletedTask;
     }
 }

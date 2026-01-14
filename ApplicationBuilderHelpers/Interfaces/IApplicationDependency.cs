@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.Interfaces;
 
@@ -54,4 +56,11 @@ public interface IApplicationDependency
     /// </summary>
     /// <param name="applicationHost">The application dependency host.</param>
     void RunPreparation(ApplicationHost applicationHost);
+
+    /// <summary>
+    /// Invoked last during the application setup process, this method finalizes the application builder's preparation before the application is run.
+    /// </summary>
+    /// <param name="applicationHost">The application dependency host.</param>
+    /// <param name="cancellationToken">The <see cref="CancellationToken"/> to cancel the operation.</param>
+    ValueTask RunPreparationAsync(ApplicationHost applicationHost, CancellationToken cancellationToken);
 }
