@@ -46,6 +46,8 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
             applicationDependency.RunPreparation(this);
         }
 
+        await Task.WhenAll(ApplicationDependencies.Select(ad => Task.Run(() => applicationDependency.RunPreparation(this)));
+        
         await Task.WhenAll(ApplicationDependencies.Select(ad => Task.Run(async () => await ad.RunPreparationAsync(this, cancellationToken), cancellationToken)));
 
         try
