@@ -119,10 +119,15 @@ public class CoreApplication : ApplicationDependency
     {
         // Add middleware to the application pipeline
     }
-
+    
     public override void RunPreparation(ApplicationHost applicationHost)
     {
-        // Perform any final setup before the application runs
+        // Perform any final setup before the application runs (all parallel)
+    }
+
+    public override ValueTask RunPreparationAsync(ApplicationHost applicationHost, CancellationToken cancellationToken)
+    {
+        // Perform any final setup before the application runs (all parallel)
     }
 }
 ```
@@ -245,7 +250,8 @@ Base class for application modules that configure services, middleware, and appl
 3. `AddConfigurations` - Add configuration providers
 4. `AddServices` - Register services with DI container
 5. `AddMiddlewares` - Configure middleware pipeline
-6. `RunPreparation` - Final setup before run
+6. `RunPreparation` - Final setup before run (all parallel)
+6. `RunPreparationAsync` - Final setup before run (all parallel)
 
 ## Advanced Features
 
