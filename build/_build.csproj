@@ -19,6 +19,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+  	<PackageReference Include="NuGet.Packaging" Version="6.12.5" />
   	<PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.15" />
 		<ProjectReference Include="..\ApplicationBuilderHelpers\ApplicationBuilderHelpers.csproj" />
 	</ItemGroup>
