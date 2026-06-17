@@ -10,7 +10,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="ApplicationBuilderHelpers" Version="4.1.87" />
+		<PackageReference Include="ApplicationBuilderHelpers" Version="4.1.86" />
 		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.9" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
 	</ItemGroup>
