@@ -30,10 +30,10 @@ class Build : BaseNukeBuildHelpers
         .Execute(context =>
         {
             DotNetTasks.DotNetBuild(_ => _
-                .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli" / "ApplicationBuilderHelpers.Test.Cli.csproj")
+                .SetProjectFile(RootDirectory / "src" / "ApplicationBuilderHelpers.Test.Cli" / "ApplicationBuilderHelpers.Test.Cli.csproj")
                 .SetConfiguration("Release"));
             DotNetTasks.DotNetBuild(_ => _
-                .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
+                .SetProjectFile(RootDirectory / "src" / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
                 .SetConfiguration("Release"));
             DotNetTasks.DotNetTest(_ => _
                 .SetProcessAdditionalArguments(
@@ -41,7 +41,7 @@ class Build : BaseNukeBuildHelpers
                     "-- " +
                     "RunConfiguration.CollectSourceInformation=true " +
                     "DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencovere ")
-                .SetProjectFile(RootDirectory / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
+                .SetProjectFile(RootDirectory / "src" / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
                 .SetConfiguration("Release"));
         });
 

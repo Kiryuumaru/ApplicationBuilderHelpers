@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="src/ApplicationBuilderHelpers/ApplicationBuilderHelpers.csproj" />
+  <Project Path="build/_build.csproj" />
+  <Project Path="src/ApplicationBuilderHelpers.Test.Cli/ApplicationBuilderHelpers.Test.Cli.csproj" />
+  <Project Path="src/ApplicationBuilderHelpers.Test.Cli.UnitTest/ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="README.md" />
+    <File Path="tasksync.md" />
+  </Folder>
+</Solution>
