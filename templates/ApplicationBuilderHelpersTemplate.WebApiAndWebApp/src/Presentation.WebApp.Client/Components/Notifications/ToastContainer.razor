@@ -1,0 +1,72 @@
+@using Presentation.WebApp.Client.Components.Notifications.Interfaces
+@using Presentation.WebApp.Client.Components.Notifications.Models
+@using Presentation.WebApp.Client.Components.Notifications.Services
+@inject IToastService ToastService
+@implements IDisposable
+
+<div class="fixed top-12 left-1/2 -translate-x-1/2 md:left-auto md:right-4 md:translate-x-0 z-60 flex flex-col gap-3 w-full max-w-sm px-4 md:px-0">
+    @foreach (var toast in _toasts)
+    {
+        <ToastItem Toast="toast" OnDismiss="RemoveToast" />
+    }
+</div>
+
+@code {
+    private readonly List<ToastMessage> _toasts = new();
+    private const int MaxToasts = 5;
+
+    protected override void OnInitialized()
+    {
+        if (ToastService is ToastService service)
+        {
+            service.OnToastAdded += HandleToastAdded;
+            service.OnToastRemoved += HandleToastRemoved;
+        }
+    }
+
+    private async void HandleToastAdded(ToastMessage toast)
+    {
+        await InvokeAsync(() =>
+        {
+            _toasts.Insert(0, toast);
+
+            // Remove oldest if exceeding max
+            while (_toasts.Count > MaxToasts)
+            {
+                _toasts.RemoveAt(_toasts.Count - 1);
+            }
+
+            StateHasChanged();
+        });
+
+        // Auto-dismiss after duration
+        _ = Task.Delay(toast.DurationMs).ContinueWith(_ =>
+        {
+            InvokeAsync(() => RemoveToast(toast.Id));
+        });
+    }
+
+    private void HandleToastRemoved(Guid id)
+    {
+        InvokeAsync(() => RemoveToast(id));
+    }
+
+    private void RemoveToast(Guid id)
+    {
+        var toast = _toasts.FirstOrDefault(t => t.Id == id);
+        if (toast != null)
+        {
+            _toasts.Remove(toast);
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (ToastService is ToastService service)
+        {
+            service.OnToastAdded -= HandleToastAdded;
+            service.OnToastRemoved -= HandleToastRemoved;
+        }
+    }
+}

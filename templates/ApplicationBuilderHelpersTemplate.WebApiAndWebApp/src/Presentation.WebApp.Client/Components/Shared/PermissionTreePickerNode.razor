@@ -1,0 +1,157 @@
+@using Application.Client.Authorization.Models
+
+<div class="@GetNodeClass()">
+    <div class="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary-50 dark:hover:bg-secondary-800 rounded">
+        @if (Permission?.Children?.Any() == true)
+        {
+            <button type="button"
+                    @onclick="ToggleExpanded"
+                    @onclick:stopPropagation="true"
+                    class="text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-300 transition-transform @(_expanded ? "rotate-90" : "")">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+        }
+        else
+        {
+            <span class="w-4"></span>
+        }
+
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+            @* Allow checkbox *@
+            <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox"
+                       checked="@IsAllowSelected()"
+                       @onchange="e => OnAllowChanged((bool)(e.Value ?? false))"
+                       class="w-4 h-4 text-green-600 bg-secondary-100 border-secondary-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-secondary-800 dark:bg-secondary-700 dark:border-secondary-600" />
+                <span class="text-xs text-green-600 dark:text-green-400 font-medium">Allow</span>
+            </label>
+
+            @* Deny checkbox *@
+            <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox"
+                       checked="@IsDenySelected()"
+                       @onchange="e => OnDenyChanged((bool)(e.Value ?? false))"
+                       class="w-4 h-4 text-red-600 bg-secondary-100 border-secondary-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-secondary-800 dark:bg-secondary-700 dark:border-secondary-600" />
+                <span class="text-xs text-red-600 dark:text-red-400 font-medium">Deny</span>
+            </label>
+
+            <code class="text-sm font-mono bg-secondary-100 dark:bg-secondary-700 px-2 py-0.5 rounded text-secondary-800 dark:text-secondary-200 truncate">
+                @Permission?.Path
+            </code>
+
+            @if (Permission?.Parameters?.Any() == true)
+            {
+                @foreach (var param in Permission.Parameters)
+                {
+                    <span class="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+                        @param
+                    </span>
+                }
+            }
+        </div>
+    </div>
+
+    @if (_expanded && Permission?.Children?.Any() == true)
+    {
+        <div class="ml-4 border-l border-secondary-200 dark:border-secondary-700">
+            @foreach (var child in Permission.Children)
+            {
+                <PermissionTreePickerNode Permission="child"
+                                          Level="@(Level + 1)"
+                                          SelectedDirectives="@SelectedDirectives"
+                                          OnSelectionChanged="@OnSelectionChanged"
+                                          SearchTerm="@SearchTerm" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IamPermission? Permission { get; set; }
+    [Parameter] public int Level { get; set; }
+    [Parameter] public HashSet<string> SelectedDirectives { get; set; } = new();
+    [Parameter] public EventCallback<(string directive, bool isSelected)> OnSelectionChanged { get; set; }
+    [Parameter] public string SearchTerm { get; set; } = string.Empty;
+
+    private bool _expanded = true;
+
+    private string GetNodeClass()
+    {
+        return Level > 0 ? "pl-2" : "";
+    }
+
+    private string GetAllowDirective()
+    {
+        return $"allow;{Permission?.Identifier}";
+    }
+
+    private string GetDenyDirective()
+    {
+        return $"deny;{Permission?.Identifier}";
+    }
+
+    private bool IsAllowSelected()
+    {
+        return SelectedDirectives.Contains(GetAllowDirective());
+    }
+
+    private bool IsDenySelected()
+    {
+        return SelectedDirectives.Contains(GetDenyDirective());
+    }
+
+    private async Task OnAllowChanged(bool isChecked)
+    {
+        var allowDirective = GetAllowDirective();
+        var denyDirective = GetDenyDirective();
+
+        if (isChecked)
+        {
+            // Remove deny if exists, add allow
+            if (SelectedDirectives.Contains(denyDirective))
+            {
+                await OnSelectionChanged.InvokeAsync((denyDirective, false));
+            }
+            await OnSelectionChanged.InvokeAsync((allowDirective, true));
+        }
+        else
+        {
+            await OnSelectionChanged.InvokeAsync((allowDirective, false));
+        }
+    }
+
+    private async Task OnDenyChanged(bool isChecked)
+    {
+        var allowDirective = GetAllowDirective();
+        var denyDirective = GetDenyDirective();
+
+        if (isChecked)
+        {
+            // Remove allow if exists, add deny
+            if (SelectedDirectives.Contains(allowDirective))
+            {
+                await OnSelectionChanged.InvokeAsync((allowDirective, false));
+            }
+            await OnSelectionChanged.InvokeAsync((denyDirective, true));
+        }
+        else
+        {
+            await OnSelectionChanged.InvokeAsync((denyDirective, false));
+        }
+    }
+
+    private void ToggleExpanded()
+    {
+        _expanded = !_expanded;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            _expanded = true;
+        }
+    }
+}

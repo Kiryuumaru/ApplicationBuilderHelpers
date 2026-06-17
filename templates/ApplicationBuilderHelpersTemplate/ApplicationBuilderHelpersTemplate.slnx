@@ -1,0 +1,19 @@
+<Solution>
+  <Project Path="src/Domain/Domain.csproj" />
+  <Project Path="src/Domain.SourceGenerators/Domain.SourceGenerators.csproj" />
+  <Project Path="src/Application/Application.csproj" />
+  <Project Path="src/Presentation/Presentation.csproj" />
+  <Project Path="src/Presentation.Cli/Presentation.Cli.csproj" />
+  <Project Path="src/Infrastructure.InMemory/Infrastructure.InMemory.csproj" />
+  <Project Path="build/_build.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path="embedded-config.json" />
+    <File Path="Directory.Build.targets" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Domain.UnitTests/Domain.UnitTests.csproj" />
+    <Project Path="tests/Application.UnitTests/Application.UnitTests.csproj" />
+  </Folder>
+</Solution>

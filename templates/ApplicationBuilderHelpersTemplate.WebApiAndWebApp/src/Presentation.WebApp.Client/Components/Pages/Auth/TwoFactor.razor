@@ -1,0 +1,114 @@
+@page "/auth/two-factor"
+@layout AuthLayout
+@inject IAuthenticationClient AuthClient
+@inject IAuthStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Two-Factor Authentication</PageTitle>
+
+<Card>
+    <h1 class="text-xl font-bold leading-tight tracking-tight text-secondary-900 md:text-2xl dark:text-white mb-2">
+        Two-Factor Authentication
+    </h1>
+    <p class="text-sm text-secondary-500 dark:text-secondary-400 mb-6">
+        Enter the code from your authenticator app.
+    </p>
+    
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <Alert Type="Alert.AlertType.Error" Message="@_errorMessage" Dismissible="true" OnDismissed="() => _errorMessage = null" />
+    }
+    
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="two-factor">
+        <DataAnnotationsValidator />
+        
+        <TextInput Id="code" 
+                   Type="text" 
+                   Label="Verification code" 
+                   Placeholder="000000" 
+                   @bind-Value="_model.Code"
+                   Required="true"
+                   ErrorMessage="@GetValidationError(nameof(_model.Code))" />
+        
+        <Button Type="submit" Loading="_isLoading" LoadingText="Verifying..." class="w-full">
+            Verify
+        </Button>
+        
+        <p class="text-sm text-secondary-500 dark:text-secondary-400 mt-4">
+            <a href="auth/login" class="font-medium text-primary-600 hover:underline dark:text-primary-500">
+                ← Back to sign in
+            </a>
+        </p>
+    </EditForm>
+</Card>
+
+@code {
+    private TwoFactorModel _model = new();
+    private bool _isLoading;
+    private string? _errorMessage;
+    private EditContext? _editContext;
+
+    [SupplyParameterFromQuery]
+    public string? Token { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_model);
+
+        if (string.IsNullOrEmpty(Token))
+        {
+            Navigation.NavigateTo("auth/login");
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var result = await AuthClient.ConfirmTwoFactorAsync(_model.Code!, Token!);
+
+            if (result.Success)
+            {
+                var credentials = new StoredCredentials
+                {
+                    AccessToken = result.AccessToken!,
+                    RefreshToken = result.RefreshToken!,
+                    AccessTokenExpiry = DateTimeOffset.UtcNow.AddSeconds(result.ExpiresIn),
+                    RefreshTokenExpiry = DateTimeOffset.UtcNow.AddDays(7),
+                    Roles = result.Roles.ToList(),
+                    Permissions = result.Permissions.ToList()
+                };
+
+                await AuthStateProvider.UpdateStateAsync(credentials);
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                _errorMessage = result.ErrorMessage ?? "Verification failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string? GetValidationError(string fieldName)
+    {
+        return _editContext?.GetValidationMessages(new FieldIdentifier(_model, fieldName)).FirstOrDefault();
+    }
+
+    private class TwoFactorModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Verification code is required")]
+        [System.ComponentModel.DataAnnotations.StringLength(6, MinimumLength = 6, ErrorMessage = "Code must be 6 digits")]
+        public string? Code { get; set; }
+    }
+}

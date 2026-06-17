@@ -1,0 +1,324 @@
+@page "/admin/roles"
+@attribute [Authorize]
+@using Domain.Authorization.Constants
+@using Presentation.WebApp.Client.Components.Authorization
+@inject IRolesClient RolesClient
+
+<PermissionPage Permission="@PermissionIds.Api.Iam.Roles.Read.Identifier">
+    <PageTitle>Role Management</PageTitle>
+
+    <div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-secondary-900 dark:text-white">Role Management</h1>
+        <Button OnClick="ShowCreateModal">
+            Create Role
+        </Button>
+    </div>
+    
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <Alert Type="Alert.AlertType.Success" Message="@_successMessage" Dismissible="true" OnDismissed="() => _successMessage = null" />
+    }
+    
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <Alert Type="Alert.AlertType.Error" Message="@_errorMessage" Dismissible="true" OnDismissed="() => _errorMessage = null" />
+    }
+    
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (_roles.Count == 0)
+    {
+        <Card>
+            <p class="text-secondary-500 dark:text-secondary-400">No roles found.</p>
+        </Card>
+    }
+    else
+    {
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            @foreach (var role in _roles)
+            {
+                <Card>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold text-secondary-900 dark:text-white">@role.Name</h3>
+                            <p class="text-xs font-mono text-secondary-500 dark:text-secondary-400">@role.Code</p>
+                        </div>
+                        @if (role.IsSystemRole)
+                        {
+                            <span class="px-2 py-1 text-xs rounded-full bg-secondary-100 text-secondary-800 dark:bg-secondary-700 dark:text-secondary-300">
+                                System
+                            </span>
+                        }
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(role.Description))
+                    {
+                        <p class="text-sm text-secondary-600 dark:text-secondary-400 mt-2">@role.Description</p>
+                    }
+                    
+                    <div class="mt-4">
+                        <p class="text-xs text-secondary-500 dark:text-secondary-400">
+                            @role.ScopeTemplates.Count permission scope(s)
+                        </p>
+                    </div>
+                    
+                    @if (!role.IsSystemRole)
+                    {
+                        <div class="flex space-x-2 mt-4">
+                            <Button Size="Button.ButtonSize.Small" Variant="Button.ButtonVariant.Secondary" OnClick="() => ViewRole(role)">
+                                View
+                            </Button>
+                            <Button Size="Button.ButtonSize.Small" Variant="Button.ButtonVariant.Danger" OnClick="() => ConfirmDeleteRole(role)">
+                                Delete
+                            </Button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex space-x-2 mt-4">
+                            <Button Size="Button.ButtonSize.Small" Variant="Button.ButtonVariant.Secondary" OnClick="() => ViewRole(role)">
+                                View
+                            </Button>
+                        </div>
+                    }
+                </Card>
+            }
+        </div>
+    }
+</div>
+
+@* Create Role Modal *@
+@if (_showCreateModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <Card class="w-full max-w-lg m-4">
+            <h3 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Create Role</h3>
+            
+            <div class="space-y-4">
+                <TextInput Id="roleCode"
+                           Label="Code"
+                           Placeholder="ROLE_CODE"
+                           @bind-Value="_newRoleCode"
+                           Required="true" />
+                
+                <TextInput Id="roleName"
+                           Label="Name"
+                           Placeholder="Role Name"
+                           @bind-Value="_newRoleName"
+                           Required="true" />
+            </div>
+            
+            <div class="flex justify-end space-x-2 mt-4">
+                <Button Variant="Button.ButtonVariant.Secondary" OnClick="CancelCreate">
+                    Cancel
+                </Button>
+                <Button OnClick="CreateRole" Loading="_isSaving" LoadingText="Creating...">
+                    Create
+                </Button>
+            </div>
+        </Card>
+    </div>
+}
+
+@* View Role Modal *@
+@if (_viewingRole != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <Card class="w-full max-w-lg m-4 max-h-96 overflow-y-auto">
+            <h3 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Role Details: @_viewingRole.Name</h3>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Code</label>
+                    <p class="font-mono text-secondary-900 dark:text-white">@_viewingRole.Code</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Name</label>
+                    <p class="text-secondary-900 dark:text-white">@_viewingRole.Name</p>
+                </div>
+                @if (!string.IsNullOrEmpty(_viewingRole.Description))
+                {
+                    <div>
+                        <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Description</label>
+                        <p class="text-secondary-900 dark:text-white">@_viewingRole.Description</p>
+                    </div>
+                }
+                <div>
+                    <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">System Role</label>
+                    <p class="text-secondary-900 dark:text-white">@(_viewingRole.IsSystemRole ? "Yes" : "No")</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Scope Templates</label>
+                    @if (_viewingRole.ScopeTemplates.Count == 0)
+                    {
+                        <p class="text-secondary-500 dark:text-secondary-400">No scope templates defined</p>
+                    }
+                    else
+                    {
+                        <ul class="mt-1 space-y-1">
+                            @foreach (var scope in _viewingRole.ScopeTemplates)
+                            {
+                                <li class="text-sm text-secondary-900 dark:text-white flex items-center">
+                                    <span class="@(scope.IsAllow ? "text-success-500" : "text-error-500") mr-2">
+                                        @(scope.IsAllow ? "✓" : "✗")
+                                    </span>
+                                    @scope.PermissionIdentifier
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+            
+            <div class="flex justify-end mt-4">
+                <Button Variant="Button.ButtonVariant.Secondary" OnClick="() => _viewingRole = null">
+                    Close
+                </Button>
+            </div>
+        </Card>
+    </div>
+}
+
+@* Delete Confirmation Modal *@
+@if (_roleToDelete != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <Card class="w-full max-w-md m-4">
+            <h3 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Delete Role</h3>
+            
+            <p class="text-secondary-600 dark:text-secondary-400">
+                Are you sure you want to delete the role "<strong>@_roleToDelete.Name</strong>"? This action cannot be undone.
+            </p>
+            
+            <div class="flex justify-end space-x-2 mt-4">
+                <Button Variant="Button.ButtonVariant.Secondary" OnClick="CancelDelete">
+                    Cancel
+                </Button>
+                <Button Variant="Button.ButtonVariant.Danger" OnClick="DeleteRole" Loading="_isDeleting" LoadingText="Deleting...">
+                    Delete
+                </Button>
+            </div>
+        </Card>
+    </div>
+}
+</PermissionPage>
+
+@code {
+    private List<IamRole> _roles = new();
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isDeleting;
+    private string? _successMessage;
+    private string? _errorMessage;
+    
+    private bool _showCreateModal;
+    private string _newRoleCode = "";
+    private string _newRoleName = "";
+    
+    private IamRole? _viewingRole;
+    private IamRole? _roleToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoles();
+    }
+
+    private async Task LoadRoles()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _roles = await RolesClient.ListRolesAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load roles: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ShowCreateModal()
+    {
+        _newRoleCode = "";
+        _newRoleName = "";
+        _showCreateModal = true;
+    }
+
+    private void CancelCreate()
+    {
+        _showCreateModal = false;
+    }
+
+    private async Task CreateRole()
+    {
+        if (string.IsNullOrWhiteSpace(_newRoleCode) || string.IsNullOrWhiteSpace(_newRoleName))
+        {
+            _errorMessage = "Code and Name are required";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            var request = new CreateRoleRequest { Code = _newRoleCode, Name = _newRoleName };
+            await RolesClient.CreateRoleAsync(request);
+            _successMessage = "Role created successfully";
+            _showCreateModal = false;
+            await LoadRoles();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to create role: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void ViewRole(IamRole role)
+    {
+        _viewingRole = role;
+    }
+
+    private void ConfirmDeleteRole(IamRole role)
+    {
+        _roleToDelete = role;
+    }
+
+    private void CancelDelete()
+    {
+        _roleToDelete = null;
+    }
+
+    private async Task DeleteRole()
+    {
+        if (_roleToDelete == null) return;
+
+        _isDeleting = true;
+
+        try
+        {
+            await RolesClient.DeleteRoleAsync(_roleToDelete.Id);
+            _successMessage = "Role deleted successfully";
+            _roleToDelete = null;
+            await LoadRoles();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to delete role: {ex.Message}";
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
+    }
+}

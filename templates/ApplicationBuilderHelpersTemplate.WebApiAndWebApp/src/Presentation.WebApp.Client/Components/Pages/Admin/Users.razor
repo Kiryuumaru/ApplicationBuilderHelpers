@@ -1,0 +1,489 @@
+@page "/admin/users"
+@attribute [Authorize]
+@using Application.Client.Authorization.Models
+@using Domain.Authorization.Constants
+@using Presentation.WebApp.Client.Components.Authorization
+@inject IUsersClient UsersClient
+@inject IRolesClient RolesClient
+@inject IPermissionsClient PermissionsClient
+
+<PageTitle>User Management</PageTitle>
+
+<PermissionPage Permission="@PermissionIds.Api.Iam.Users.Read.Identifier">
+    <div class="space-y-6">
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-secondary-900 dark:text-white">User Management</h1>
+        </div>
+        
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <Alert Type="Alert.AlertType.Success" Message="@_successMessage" Dismissible="true" OnDismissed="() => _successMessage = null" />
+        }
+        
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <Alert Type="Alert.AlertType.Error" Message="@_errorMessage" Dismissible="true" OnDismissed="() => _errorMessage = null" />
+        }
+        
+        <Card>
+            @if (_isLoading)
+            {
+                <LoadingSpinner />
+            }
+            else if (_users.Count == 0)
+            {
+                <p class="text-secondary-500 dark:text-secondary-400">No users found.</p>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-secondary-500 dark:text-secondary-400">
+                        <thead class="text-xs text-secondary-700 uppercase bg-secondary-50 dark:bg-secondary-700 dark:text-secondary-400">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">User</th>
+                                <th scope="col" class="px-6 py-3">Email</th>
+                                <th scope="col" class="px-6 py-3">2FA</th>
+                                <th scope="col" class="px-6 py-3">Status</th>
+                                <th scope="col" class="px-6 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in _users)
+                            {
+                                <tr class="bg-white border-b dark:bg-secondary-800 dark:border-secondary-700">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center">
+                                        <div class="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium mr-3">
+                                            @(user.Username?.FirstOrDefault().ToString().ToUpperInvariant() ?? "?")
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-secondary-900 dark:text-white">@user.Username</p>
+                                            <p class="text-xs text-secondary-500 dark:text-secondary-400 font-mono">@user.Id</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    @user.Email
+                                </td>
+                                <td class="px-6 py-4">
+                                    @if (user.TwoFactorEnabled)
+                                    {
+                                        <span class="text-success-500">✓</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary-400">-</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-4">
+                                    @if (user.IsLockedOut)
+                                    {
+                                        <span class="px-2 py-1 text-xs rounded-full bg-error-100 text-error-800 dark:bg-error-900 dark:text-error-300">
+                                            Locked
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="px-2 py-1 text-xs rounded-full bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-300">
+                                            Active
+                                        </span>
+                                    }
+                                </td>
+                                <td class="px-6 py-4">
+                                    <Button Size="Button.ButtonSize.Small" Variant="Button.ButtonVariant.Secondary" OnClick="() => ViewUser(user)">
+                                        View
+                                    </Button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Card>
+</div>
+
+@* View User Modal *@
+@if (_viewingUser != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto">
+        <Card class="w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-secondary-900 dark:text-white">User Details</h3>
+                <button type="button" @onclick="CloseUserModal" class="text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">User ID</label>
+                        <p class="font-mono text-sm text-secondary-900 dark:text-white">@_viewingUser.Id</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Username</label>
+                        <p class="text-secondary-900 dark:text-white">@_viewingUser.Username</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Email</label>
+                        <p class="text-secondary-900 dark:text-white">@_viewingUser.Email</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Two-Factor Authentication</label>
+                        <p class="text-secondary-900 dark:text-white">@(_viewingUser.TwoFactorEnabled ? "Enabled" : "Disabled")</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-secondary-500 dark:text-secondary-400">Lockout Status</label>
+                        <p class="text-secondary-900 dark:text-white">
+                            @if (_viewingUser.IsLockedOut)
+                            {
+                                <span class="text-error-600">Locked until @_viewingUser.LockoutEnd?.ToString("g")</span>
+                            }
+                            else
+                            {
+                                <span class="text-success-600">Not locked</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+                
+                @* User Roles Section *@
+                <div class="border-t border-secondary-200 dark:border-secondary-700 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-medium text-secondary-900 dark:text-white">Roles</h4>
+                        <AppAuthorizeView Permission="@PermissionIds.Api.Iam.Roles.Write.Identifier">
+                            <Button Size="Button.ButtonSize.Small" OnClick="ShowAssignRoleModal">
+                                Assign Role
+                            </Button>
+                        </AppAuthorizeView>
+                    </div>
+                    @if (_userRoles.Count == 0)
+                    {
+                        <p class="text-sm text-secondary-500 dark:text-secondary-400">No roles assigned.</p>
+                    }
+                    else
+                    {
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var role in _userRoles)
+                            {
+                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300">
+                                    @role.Name
+                                    @if (role.Code != "User")
+                                    {
+                                        <AppAuthorizeView Permission="@PermissionIds.Api.Iam.Roles.Write.Identifier">
+                                            <button type="button"
+                                                    @onclick="() => UnassignRole(role)"
+                                                    @onclick:stopPropagation="true"
+                                                    class="ml-1 hover:opacity-75">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </AppAuthorizeView>
+                                    }
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+                
+                @* Direct Permissions Section *@
+                <div class="border-t border-secondary-200 dark:border-secondary-700 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-medium text-secondary-900 dark:text-white">Direct Permissions</h4>
+                        <AppAuthorizeView Permission="@PermissionIds.Api.Iam.Permissions.Write.Identifier">
+                            <Button Size="Button.ButtonSize.Small" OnClick="ShowGrantPermissionModal">
+                                Grant Permission
+                            </Button>
+                        </AppAuthorizeView>
+                    </div>
+                    @if (_userPermissions == null || _userPermissions.Permissions.Count == 0)
+                    {
+                        <p class="text-sm text-secondary-500 dark:text-secondary-400">No direct permissions granted.</p>
+                    }
+                    else
+                    {
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var permission in _userPermissions.Permissions)
+                            {
+                                <Presentation.WebApp.Client.Components.Shared.PermissionBadge 
+                                    Directive="@permission"
+                                    OnRemove="() => RevokePermission(permission)" />
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+            
+            <div class="flex justify-end mt-6 border-t border-secondary-200 dark:border-secondary-700 pt-4">
+                <Button Variant="Button.ButtonVariant.Secondary" OnClick="CloseUserModal">
+                    Close
+                </Button>
+            </div>
+        </Card>
+    </div>
+}
+
+@* Assign Role Modal *@
+@if (_showAssignRoleModal && _viewingUser != null)
+{
+    <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
+        <Card class="w-full max-w-md m-4">
+            <h3 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Assign Role to @_viewingUser.Username</h3>
+            
+            @if (_availableRoles.Count == 0)
+            {
+                <p class="text-secondary-500 dark:text-secondary-400">No additional roles available to assign.</p>
+            }
+            else
+            {
+                <div class="space-y-2 max-h-64 overflow-y-auto">
+                    @foreach (var role in _availableRoles)
+                    {
+                        <button type="button"
+                                @onclick="() => AssignRole(role)"
+                                disabled="@_isAssigningRole"
+                                class="w-full text-left p-3 rounded border border-secondary-200 dark:border-secondary-700 hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors disabled:opacity-50">
+                            <div class="font-medium text-secondary-900 dark:text-white">@role.Name</div>
+                            <div class="text-xs text-secondary-500 dark:text-secondary-400">@role.Code</div>
+                        </button>
+                    }
+                </div>
+            }
+            
+            <div class="flex justify-end mt-4">
+                <Button Variant="Button.ButtonVariant.Secondary" OnClick="() => _showAssignRoleModal = false">
+                    Cancel
+                </Button>
+            </div>
+        </Card>
+    </div>
+}
+
+@* Grant Permission Modal *@
+@if (_showGrantPermissionModal && _viewingUser != null)
+{
+    <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto">
+        <Card class="w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Grant Permission to @_viewingUser.Username</h3>
+            
+            <Presentation.WebApp.Client.Components.Shared.PermissionTreePicker 
+                SelectedPermissions="@_selectedPermissionsToGrant"
+                SelectedPermissionsChanged="OnPermissionsSelected" />
+            
+            <div class="flex justify-end gap-2 mt-4">
+                <Button Variant="Button.ButtonVariant.Secondary" OnClick="() => _showGrantPermissionModal = false">
+                    Cancel
+                </Button>
+                <Button OnClick="GrantSelectedPermissions" Loading="_isGrantingPermission" LoadingText="Granting...">
+                    Grant Selected
+                </Button>
+            </div>
+        </Card>
+    </div>
+}
+</PermissionPage>
+
+@code {
+    private List<IamUser> _users = new();
+    private List<IamRole> _allRoles = new();
+    private List<IamRole> _userRoles = new();
+    private List<IamRole> _availableRoles = new();
+    private UserPermissions? _userPermissions;
+    private bool _isLoading = true;
+    private string? _successMessage;
+    private string? _errorMessage;
+    private IamUser? _viewingUser;
+    private bool _showAssignRoleModal;
+    private bool _showGrantPermissionModal;
+    private bool _isAssigningRole;
+    private bool _isGrantingPermission;
+    private List<string> _selectedPermissionsToGrant = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+        await LoadRoles();
+    }
+
+    private async Task LoadUsers()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _users = await UsersClient.ListUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load users: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadRoles()
+    {
+        try
+        {
+            _allRoles = await RolesClient.ListRolesAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load roles: {ex.Message}";
+        }
+    }
+
+    private async Task ViewUser(IamUser user)
+    {
+        _viewingUser = user;
+        _userRoles = _allRoles.Where(r => user.RoleIds.Contains(r.Id)).ToList();
+        _availableRoles = _allRoles.Where(r => !user.RoleIds.Contains(r.Id)).ToList();
+        
+        try
+        {
+            _userPermissions = await UsersClient.GetUserPermissionsAsync(user.Id);
+        }
+        catch
+        {
+            _userPermissions = null;
+        }
+    }
+
+    private void CloseUserModal()
+    {
+        _viewingUser = null;
+        _userRoles = new();
+        _availableRoles = new();
+        _userPermissions = null;
+    }
+
+    private void ShowAssignRoleModal()
+    {
+        _showAssignRoleModal = true;
+    }
+
+    private async Task AssignRole(IamRole role)
+    {
+        if (_viewingUser == null) return;
+        
+        _isAssigningRole = true;
+        try
+        {
+            var request = new AssignRoleRequest { UserId = _viewingUser.Id, RoleCode = role.Code };
+            await RolesClient.AssignRoleAsync(request);
+            _viewingUser.RoleIds.Add(role.Id);
+            _userRoles.Add(role);
+            _availableRoles.Remove(role);
+            _showAssignRoleModal = false;
+            _successMessage = $"Role '{role.Name}' assigned successfully.";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to assign role: {ex.Message}";
+        }
+        finally
+        {
+            _isAssigningRole = false;
+        }
+    }
+
+    private async Task UnassignRole(IamRole role)
+    {
+        if (_viewingUser == null || role.Code == "User") return;
+        
+        try
+        {
+            var request = new UnassignRoleRequest { UserId = _viewingUser.Id, RoleId = role.Id };
+            await RolesClient.UnassignRoleAsync(request);
+            _viewingUser.RoleIds.Remove(role.Id);
+            _userRoles.Remove(role);
+            _availableRoles.Add(role);
+            _successMessage = $"Role '{role.Name}' removed successfully.";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to remove role: {ex.Message}";
+        }
+    }
+
+    private void ShowGrantPermissionModal()
+    {
+        _selectedPermissionsToGrant = new();
+        _showGrantPermissionModal = true;
+    }
+
+    private void OnPermissionsSelected(List<string> permissions)
+    {
+        _selectedPermissionsToGrant = permissions;
+    }
+
+    private async Task GrantSelectedPermissions()
+    {
+        if (_viewingUser == null || _selectedPermissionsToGrant.Count == 0) return;
+        
+        _isGrantingPermission = true;
+        try
+        {
+            foreach (var directive in _selectedPermissionsToGrant)
+            {
+                var parts = directive.Split(';', 2);
+                if (parts.Length < 2) continue;
+                
+                var isAllow = parts[0].Equals("allow", StringComparison.OrdinalIgnoreCase);
+                var permissionIdentifier = parts[1];
+                
+                var request = new GrantPermissionRequest
+                {
+                    UserId = _viewingUser.Id,
+                    PermissionIdentifier = permissionIdentifier,
+                    IsAllow = isAllow
+                };
+                await PermissionsClient.GrantPermissionAsync(request);
+            }
+            
+            _userPermissions = await UsersClient.GetUserPermissionsAsync(_viewingUser.Id);
+            _showGrantPermissionModal = false;
+            _selectedPermissionsToGrant = new();
+            _successMessage = "Permissions granted successfully.";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to grant permissions: {ex.Message}";
+        }
+        finally
+        {
+            _isGrantingPermission = false;
+        }
+    }
+
+    private async Task RevokePermission(string directive)
+    {
+        if (_viewingUser == null) return;
+        
+        try
+        {
+            var parts = directive.Split(';', 2);
+            if (parts.Length < 2) return;
+            
+            var permissionIdentifier = parts[1];
+            var request = new RevokePermissionRequest
+            {
+                UserId = _viewingUser.Id,
+                PermissionIdentifier = permissionIdentifier
+            };
+            await PermissionsClient.RevokePermissionAsync(request);
+            _userPermissions = await UsersClient.GetUserPermissionsAsync(_viewingUser.Id);
+            _successMessage = "Permission revoked successfully.";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to revoke permission: {ex.Message}";
+        }
+    }
+}

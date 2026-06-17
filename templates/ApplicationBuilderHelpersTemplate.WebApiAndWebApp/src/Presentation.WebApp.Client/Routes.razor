@@ -1,0 +1,52 @@
+@using Presentation.WebApp.Components
+@using Presentation.WebApp.Services
+@inject IRenderStateService RenderStateService
+
+@if (RenderStateService.IsPreRender)
+{
+    <SplashScreen />
+}
+else
+{
+    <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(Program).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized>
+                        @if (context.User.Identity?.IsAuthenticated != true)
+                        {
+                            <RedirectToLogin />
+                        }
+                        else
+                        {
+                            <div class="flex items-center justify-center min-h-screen">
+                                <div class="text-center">
+                                    <h1 class="text-2xl font-bold text-secondary-900 dark:text-white mb-4">Access Denied</h1>
+                                    <p class="text-secondary-600 dark:text-secondary-400">You do not have permission to access this page.</p>
+                                </div>
+                            </div>
+                        }
+                    </NotAuthorized>
+                    <Authorizing>
+                        <div class="flex items-center justify-center min-h-screen">
+                            <LoadingSpinner />
+                        </div>
+                    </Authorizing>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                <PageTitle>Not found</PageTitle>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <div class="flex items-center justify-center min-h-screen">
+                        <div class="text-center">
+                            <h1 class="text-6xl font-bold text-secondary-900 dark:text-white mb-4">404</h1>
+                            <p class="text-xl text-secondary-600 dark:text-secondary-400 mb-8">Page not found</p>
+                            <a href="/" class="btn-primary">Go Home</a>
+                        </div>
+                    </div>
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>
+}

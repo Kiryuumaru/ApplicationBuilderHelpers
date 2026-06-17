@@ -1,0 +1,130 @@
+@if (IsOpen)
+{
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-60"
+         @onclick="HandleBackdropClick"
+         @onkeydown="HandleKeyDown"
+         tabindex="-1">
+        <div class="@DialogClass" @onclick:stopPropagation>
+            @if (ShowHeader)
+            {
+                <div class="flex items-start mb-4">
+                    @if (Icon != null)
+                    {
+                        <div class="@IconContainerClass">
+                            @Icon
+                        </div>
+                    }
+                    <div class="@(Icon != null ? "ml-3 flex-1" : "flex-1")">
+                        @if (!string.IsNullOrEmpty(Title))
+                        {
+                            <h3 class="text-lg font-semibold text-secondary-900 dark:text-white">@Title</h3>
+                        }
+                        @if (HeaderContent != null)
+                        {
+                            <div class="@(Title != null ? "mt-2" : "")">
+                                @HeaderContent
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (BodyContent != null)
+            {
+                <div class="@BodyClass">
+                    @BodyContent
+                </div>
+            }
+
+            @if (FooterContent != null)
+            {
+                <div class="flex justify-end gap-3 mt-6">
+                    @FooterContent
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public RenderFragment? Icon { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? BodyContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? FooterContent { get; set; }
+
+    [Parameter]
+    public bool ShowHeader { get; set; } = true;
+
+    [Parameter]
+    public bool CloseOnBackdropClick { get; set; } = true;
+
+    [Parameter]
+    public bool CloseOnEscape { get; set; } = true;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public DialogSize Size { get; set; } = DialogSize.Medium;
+
+    [Parameter]
+    public DialogVariant Variant { get; set; } = DialogVariant.Default;
+
+    private string DialogClass => Size switch
+    {
+        DialogSize.Small => "bg-white dark:bg-secondary-800 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4",
+        DialogSize.Large => "bg-white dark:bg-secondary-800 rounded-lg shadow-xl p-6 max-w-lg w-full mx-4",
+        DialogSize.ExtraLarge => "bg-white dark:bg-secondary-800 rounded-lg shadow-xl p-6 max-w-xl w-full mx-4",
+        _ => "bg-white dark:bg-secondary-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+    };
+
+    private string IconContainerClass => Variant switch
+    {
+        DialogVariant.Danger => "shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center",
+        DialogVariant.Warning => "shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center",
+        DialogVariant.Success => "shrink-0 w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center",
+        DialogVariant.Primary => "shrink-0 w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center",
+        _ => "shrink-0 w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center"
+    };
+
+    private string BodyClass => ShowHeader ? "" : "";
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        if (CloseOnBackdropClick)
+        {
+            await Close();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && CloseOnEscape)
+        {
+            await Close();
+        }
+    }
+}
