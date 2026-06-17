@@ -12,6 +12,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Fido2.AspNet" Version="4.0.0" />
+		<PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.14" />
 	</ItemGroup>
 
 	<ItemGroup>
