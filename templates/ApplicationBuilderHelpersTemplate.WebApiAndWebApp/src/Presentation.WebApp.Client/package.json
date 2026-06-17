@@ -1,0 +1,13 @@
+{
+  "name": "presentation.webapp.client",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "tailwind:build": "npx tailwindcss -i ./wwwroot/css/tailwind.css -o ./wwwroot/css/tailwind.generated.css --minify --content \"**/*.razor, **/*.cshtml, **/*.html\"",
+    "tailwind:watch": "npx tailwindcss -i ./wwwroot/css/tailwind.css -o ./wwwroot/css/tailwind.generated.css --watch --content \"**/*.razor, **/*.cshtml, **/*.html\""
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.18",
+    "tailwindcss": "^4.1.18"
+  }
+}

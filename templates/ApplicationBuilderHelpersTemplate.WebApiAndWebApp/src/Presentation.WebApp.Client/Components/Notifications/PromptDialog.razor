@@ -1,0 +1,69 @@
+@using Presentation.WebApp.Client.Components.Notifications.Models
+
+<DialogBase Title="@Request.Title"
+            Variant="DialogVariant.Default"
+            CloseOnBackdropClick="true"
+            CloseOnEscape="true"
+            OnClose="Cancel">
+    <BodyContent>
+        <p class="text-secondary-600 dark:text-secondary-400 mb-4">@Request.Message</p>
+
+        <input type="text"
+               @ref="_inputElement"
+               @bind="_inputValue"
+               @bind:event="oninput"
+               @onkeydown="HandleKeyDown"
+               placeholder="@Request.Placeholder"
+               class="w-full px-3 py-2 border border-secondary-300 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-700 text-secondary-900 dark:text-white placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+    </BodyContent>
+    <FooterContent>
+        <Button Variant="Button.ButtonVariant.Secondary" OnClick="Cancel">
+            @Request.CancelText
+        </Button>
+        <Button Variant="Button.ButtonVariant.Primary" OnClick="Confirm">
+            @Request.ConfirmText
+        </Button>
+    </FooterContent>
+</DialogBase>
+
+@code {
+    [Parameter, EditorRequired]
+    public PromptDialogRequest Request { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<string?> OnResult { get; set; }
+
+    private string _inputValue = "";
+    private ElementReference _inputElement;
+
+    protected override void OnInitialized()
+    {
+        _inputValue = Request.DefaultValue ?? "";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _inputElement.FocusAsync();
+        }
+    }
+
+    private async Task Confirm()
+    {
+        await OnResult.InvokeAsync(_inputValue);
+    }
+
+    private async Task Cancel()
+    {
+        await OnResult.InvokeAsync(null);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await Confirm();
+        }
+    }
+}

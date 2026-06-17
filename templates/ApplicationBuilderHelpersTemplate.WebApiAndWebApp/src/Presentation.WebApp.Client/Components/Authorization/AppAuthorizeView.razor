@@ -1,0 +1,99 @@
+@using Application.Client.Identity.Interfaces.Inbound
+@using Application.Client.Authorization.Interfaces
+@inject IAuthStateProvider AuthStateProvider
+@inject IClientPermissionService PermissionService
+
+@* 
+    Authorization view component.
+    When Permission/Permissions are specified, checks those permissions.
+    When no parameters are provided, acts as a simple auth check (IsAuthenticated).
+    
+    Supports two usage patterns:
+    1. Simple: <AppAuthorizeView>content</AppAuthorizeView>
+    2. Full:   <AppAuthorizeView><Authorized>...</Authorized><NotAuthorized>...</NotAuthorized></AppAuthorizeView>
+*@
+
+@if (_isAuthorized)
+{
+    @if (Authorized is not null)
+    {
+        @Authorized
+    }
+    else
+    {
+        @ChildContent
+    }
+}
+else
+{
+    @NotAuthorized
+}
+
+@code {
+    /// <summary>
+    /// Single permission to check. Use this OR Permissions, not both.
+    /// </summary>
+    [Parameter]
+    public string? Permission { get; set; }
+
+    /// <summary>
+    /// Multiple permissions to check. Use this OR Permission, not both.
+    /// </summary>
+    [Parameter]
+    public string[]? Permissions { get; set; }
+
+    /// <summary>
+    /// If true, requires ALL permissions. If false (default), requires ANY permission.
+    /// Only applies when Permissions array is used.
+    /// </summary>
+    [Parameter]
+    public bool RequireAll { get; set; }
+
+    /// <summary>
+    /// Content to render when the user is authorized.
+    /// Use this for the simple pattern: &lt;AppAuthorizeView&gt;content&lt;/AppAuthorizeView&gt;
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Content to render when the user is authorized.
+    /// Use this for the full pattern: &lt;AppAuthorizeView&gt;&lt;Authorized&gt;...&lt;/Authorized&gt;&lt;/AppAuthorizeView&gt;
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Authorized { get; set; }
+
+    /// <summary>
+    /// Content to render when the user is not authorized.
+    /// If not provided, nothing is rendered.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? NotAuthorized { get; set; }
+
+    private bool _isAuthorized;
+
+    protected override void OnParametersSet()
+    {
+        _isAuthorized = EvaluateAuthorization();
+    }
+
+    private bool EvaluateAuthorization()
+    {
+        // Single permission check
+        if (!string.IsNullOrEmpty(Permission))
+        {
+            return PermissionService.HasPermission(Permission);
+        }
+
+        // Multiple permissions check
+        if (Permissions is { Length: > 0 })
+        {
+            return RequireAll
+                ? PermissionService.HasAllPermissions(Permissions)
+                : PermissionService.HasAnyPermission(Permissions);
+        }
+
+        // No permission specified - just check if authenticated
+        return AuthStateProvider.CurrentState.IsAuthenticated;
+    }
+}

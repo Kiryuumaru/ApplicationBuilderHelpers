@@ -1,0 +1,67 @@
+@inherits LayoutComponentBase
+@inject IAuthStateProvider AuthStateProvider
+@inject IAuthenticationClient AuthClient
+@inject NavigationManager Navigation
+
+<ToastContainer />
+<DialogContainer />
+
+<div class="min-h-screen bg-secondary-50 dark:bg-secondary-900">
+    <Navbar OnToggleSidebar="ToggleSidebar" />
+    
+    <div class="pt-16">
+        <main class="p-4 md:ml-64">
+            <Sidebar IsOpen="_sidebarOpen" OnClose="CloseSidebar" />
+            <div class="p-4">
+                @Body
+            </div>
+        </main>
+    </div>
+</div>
+
+@* Mobile sidebar backdrop *@
+@if (_sidebarOpen)
+{
+    <div class="fixed inset-0 z-30 bg-black/50 md:hidden" @onclick="CloseSidebar"></div>
+}
+
+@code {
+    private bool _isAuthenticated;
+    private bool _sidebarOpen;
+
+    protected override void OnInitialized()
+    {
+        _isAuthenticated = AuthStateProvider.CurrentState.IsAuthenticated;
+        AuthStateProvider.OnStateChanged += HandleAuthStateChanged;
+    }
+
+    private void HandleAuthStateChanged()
+    {
+        var wasAuthenticated = _isAuthenticated;
+        _isAuthenticated = AuthStateProvider.CurrentState.IsAuthenticated;
+        
+        // Redirect to login when auth state is cleared (session revoked, token expired, etc.)
+        if (wasAuthenticated && !_isAuthenticated)
+        {
+            var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+            Navigation.NavigateTo($"auth/login?returnUrl={returnUrl}", forceLoad: false);
+        }
+        
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleSidebar()
+    {
+        _sidebarOpen = !_sidebarOpen;
+    }
+
+    private void CloseSidebar()
+    {
+        _sidebarOpen = false;
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.OnStateChanged -= HandleAuthStateChanged;
+    }
+}

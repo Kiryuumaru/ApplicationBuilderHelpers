@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<LangVersion>14</LangVersion>
+		<TargetFramework>net10.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<RootNamespace></RootNamespace>
+		<Nullable>enable</Nullable>
+		<NoWarn>CS0649;CS0169;CA1050;CA1822;CA2211;IDE1006;IDE0051</NoWarn>
+		<NukeRootDirectory>..\..</NukeRootDirectory>
+		<NukeScriptDirectory>..\..</NukeScriptDirectory>
+		<NukeTelemetryVersion>1</NukeTelemetryVersion>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Nuke.Common" Version="10.1.0" />
+		<PackageReference Include="NukeBuildHelpers" Version="9.0.7" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\src\Application\Application.csproj" />
+	  <ProjectReference Include="..\src\Presentation\Presentation.csproj" />
+	</ItemGroup>
+
+</Project>

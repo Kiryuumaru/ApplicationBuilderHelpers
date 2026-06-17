@@ -1,0 +1,25 @@
+<Project>
+	<PropertyGroup Condition="'$(GenerateBuildConstants)' == 'true'">
+		<AssemblyName Condition="'$(AssemblyName)' == ''">sampleapp</AssemblyName>
+		<AssemblyTitle Condition="'$(AssemblyTitle)' == ''">Sample Application</AssemblyTitle>
+		<Description Condition="'$(Description)' == ''">Sample Application</Description>
+		<FullVersion Condition="'$(FullVersion)' == ''">0.0.0-prerelease.0+build.local</FullVersion>
+		<InformationalVersion Condition="'$(InformationalVersion)' == ''">$(FullVersion)</InformationalVersion>
+		<AppTag Condition="'$(AppTag)' == ''">prerelease</AppTag>
+		<CredsJsonPath Condition="'$(CredsJsonPath)' == ''">$(MSBuildThisFileDirectory)creds.json</CredsJsonPath>
+		<BaseCommandType Condition="'$(BaseCommandType)' == ''"></BaseCommandType>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(GenerateBuildConstants)' == 'true'">
+		<ProjectReference Include="$(MSBuildThisFileDirectory)src\Domain.SourceGenerators\Domain.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<AdditionalFiles Include="$(CredsJsonPath)" />
+		<CompilerVisibleProperty Include="GenerateBuildConstants" />
+		<CompilerVisibleProperty Include="BaseCommandType" />
+		<CompilerVisibleProperty Include="AssemblyName" />
+		<CompilerVisibleProperty Include="AssemblyTitle" />
+		<CompilerVisibleProperty Include="Description" />
+		<CompilerVisibleProperty Include="FullVersion" />
+		<CompilerVisibleProperty Include="AppTag" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,174 @@
+@page "/account/api-keys"
+@attribute [Authorize]
+@using Presentation.WebApp.Client.Components.Shared.Dialogs
+@using Presentation.WebApp.Client.Components.Notifications.Interfaces
+@using Presentation.WebApp.Client.Components.Notifications.Models
+@inject IApiKeysClient ApiKeysClient
+@inject IAuthStateProvider AuthStateProvider
+@inject IToastService ToastService
+@inject IConfirmDialogService ConfirmDialog
+
+<PageTitle>API Keys</PageTitle>
+
+<div class="max-w-4xl">
+    <Card>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-secondary-900 dark:text-white">API Keys</h2>
+            <Button OnClick="() => _showCreateDialog = true">
+                Create New Key
+            </Button>
+        </div>
+        
+        @if (_isLoading)
+        {
+            <LoadingSpinner />
+        }
+        else if (_apiKeys.Count == 0)
+        {
+            <p class="text-secondary-500 dark:text-secondary-400">No API keys found. Create one to get started.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-secondary-500 dark:text-secondary-400">
+                    <thead class="text-xs text-secondary-700 uppercase bg-secondary-50 dark:bg-secondary-700 dark:text-secondary-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Name</th>
+                            <th scope="col" class="px-6 py-3">Created</th>
+                            <th scope="col" class="px-6 py-3">Last Used</th>
+                            <th scope="col" class="px-6 py-3">Expires</th>
+                            <th scope="col" class="px-6 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var key in _apiKeys)
+                        {
+                            <tr class="bg-white border-b dark:bg-secondary-800 dark:border-secondary-700">
+                                <td class="px-6 py-4 font-medium text-secondary-900 dark:text-white">
+                                    @key.Name
+                                </td>
+                                <td class="px-6 py-4">
+                                    @key.CreatedAt.ToString("MMM dd, yyyy")
+                                </td>
+                                <td class="px-6 py-4">
+                                    @(key.LastUsedAt?.ToString("MMM dd, yyyy") ?? "Never")
+                                </td>
+                                <td class="px-6 py-4">
+                                    @(key.ExpiresAt?.ToString("MMM dd, yyyy") ?? "Never")
+                                </td>
+                                <td class="px-6 py-4">
+                                    <Button Variant="Button.ButtonVariant.Danger" Size="Button.ButtonSize.Small" OnClick="() => RevokeKey(key.Id, key.Name)">
+                                        Revoke
+                                    </Button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Card>
+</div>
+
+<CreateApiKeyDialog @bind-IsOpen="_showCreateDialog" OnResult="HandleCreateResult" />
+<SecretDialog @bind-IsOpen="_showSecretDialog" Secret="@_newApiKey" Title="API Key Created" Message="Your new API key has been created successfully." />
+
+@code {
+    private List<ApiKeyInfo> _apiKeys = [];
+    private bool _isLoading = true;
+    private bool _showCreateDialog;
+    private bool _showSecretDialog;
+    private string _newApiKey = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadApiKeys();
+    }
+
+    private async Task LoadApiKeys()
+    {
+        _isLoading = true;
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            _apiKeys = await ApiKeysClient.ListApiKeysAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error($"Failed to load API keys: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleCreateResult(CreateApiKeyDialog.CreateApiKeyResult? result)
+    {
+        if (result == null)
+            return;
+
+        await CreateApiKey(result.Name, result.ExpiryDays);
+    }
+
+    private async Task CreateApiKey(string name, int expiryDays)
+    {
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            DateTimeOffset? expiresAt = expiryDays > 0 
+                ? DateTimeOffset.UtcNow.AddDays(expiryDays) 
+                : null;
+
+            var result = await ApiKeysClient.CreateApiKeyAsync(userId, name, expiresAt);
+
+            if (result != null)
+            {
+                _newApiKey = result.Key;
+                _showSecretDialog = true;
+                await LoadApiKeys();
+            }
+            else
+            {
+                ToastService.Error("Failed to create API key");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error($"An error occurred: {ex.Message}");
+        }
+    }
+
+    private async Task RevokeKey(Guid keyId, string keyName)
+    {
+        var confirmed = await ConfirmDialog.ConfirmAsync(
+            $"Are you sure you want to revoke the API key \"{keyName}\"? This action cannot be undone.",
+            title: "Revoke API Key",
+            confirmText: "Revoke",
+            cancelText: "Cancel",
+            variant: DialogVariant.Danger);
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            var result = await ApiKeysClient.RevokeApiKeyAsync(userId, keyId);
+            if (result)
+            {
+                ToastService.Success("API key revoked successfully");
+                await LoadApiKeys();
+            }
+            else
+            {
+                ToastService.Error("Failed to revoke API key");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error($"An error occurred: {ex.Message}");
+        }
+    }
+}

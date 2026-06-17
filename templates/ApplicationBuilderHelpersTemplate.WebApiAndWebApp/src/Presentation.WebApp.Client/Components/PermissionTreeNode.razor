@@ -1,0 +1,72 @@
+@using Application.Client.Authorization.Models
+
+<div class="@(Level > 0 ? "ms-6 border-l-2 border-secondary-200 dark:border-secondary-700 ps-4" : "")">
+    <div class="py-2">
+        <div class="flex items-start gap-3">
+            @if (Permission?.Children?.Any() == true)
+            {
+                <button @onclick="ToggleExpanded" class="mt-0.5 text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-300 transition-transform @(_expanded ? "rotate-90" : "")">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+            }
+            else
+            {
+                <span class="w-4"></span>
+            }
+            
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <code class="text-sm font-mono bg-secondary-100 dark:bg-secondary-700 px-2 py-0.5 rounded text-secondary-800 dark:text-secondary-200">
+                        @Permission?.Path
+                    </code>
+                    @if (Permission?.Parameters?.Any() == true)
+                    {
+                        @foreach (var param in Permission.Parameters)
+                        {
+                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+                                {@param}
+                            </span>
+                        }
+                    }
+                </div>
+                @if (!string.IsNullOrEmpty(Permission?.Description))
+                {
+                    <p class="text-sm text-secondary-500 dark:text-secondary-400 mt-1">@Permission.Description</p>
+                }
+            </div>
+        </div>
+        
+        @if (_expanded && Permission?.Children?.Any() == true)
+        {
+            <div class="mt-2">
+                @foreach (var child in Permission.Children)
+                {
+                    <PermissionTreeNode Permission="child" SearchTerm="@SearchTerm" Level="@(Level + 1)" />
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public IamPermission? Permission { get; set; }
+    [Parameter] public string SearchTerm { get; set; } = string.Empty;
+    [Parameter] public int Level { get; set; } = 0;
+
+    private bool _expanded = true;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            _expanded = true;
+        }
+    }
+
+    private void ToggleExpanded()
+    {
+        _expanded = !_expanded;
+    }
+}

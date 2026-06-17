@@ -1,0 +1,12 @@
+<Project>
+
+	<PropertyGroup Condition="!$(MSBuildProjectName.Contains('SourceGenerators'))">
+		<TargetFramework>net10.0</TargetFramework>
+		<LangVersion>14</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsTrimmable>true</IsTrimmable>
+		<EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+	</PropertyGroup>
+
+</Project>

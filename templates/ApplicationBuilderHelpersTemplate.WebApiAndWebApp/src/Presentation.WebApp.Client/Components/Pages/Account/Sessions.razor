@@ -1,0 +1,167 @@
+@page "/account/sessions"
+@attribute [Authorize]
+@using Presentation.WebApp.Client.Components.Notifications.Interfaces
+@using Presentation.WebApp.Client.Components.Notifications.Models
+@inject ISessionsClient SessionsClient
+@inject IAuthStateProvider AuthStateProvider
+@inject IConfirmDialogService ConfirmDialog
+@inject IToastService Toast
+@inject NavigationManager Navigation
+
+<PageTitle>Active Sessions</PageTitle>
+
+<div class="max-w-4xl">
+    <Card>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-secondary-900 dark:text-white">Active Sessions</h2>
+            <Button Variant="Button.ButtonVariant.Danger" OnClick="RevokeAllSessionsWithConfirmation" Loading="_isRevokingAll" LoadingText="Revoking...">
+                Revoke All Sessions
+            </Button>
+        </div>
+        
+        @if (_isLoading)
+        {
+            <LoadingSpinner />
+        }
+        else if (_sessions.Count == 0)
+        {
+            <p class="text-secondary-500 dark:text-secondary-400">No active sessions found.</p>
+        }
+        else
+        {
+            <div class="space-y-4">
+                @foreach (var session in _sessions)
+                {
+                    <div class="flex justify-between items-center p-4 bg-secondary-50 dark:bg-secondary-700 rounded-lg @(session.IsCurrent ? "border-2 border-primary-500" : "")">
+                        <div class="flex items-center space-x-4">
+                            <div class="text-2xl">
+                                @GetDeviceIcon(session.UserAgent)
+                            </div>
+                            <div>
+                                <p class="font-medium text-secondary-900 dark:text-white">
+                                    @(session.DeviceName ?? session.UserAgent ?? "Unknown Device")
+                                    @if (session.IsCurrent)
+                                    {
+                                        <span class="ml-2 text-xs bg-primary-100 text-primary-800 px-2 py-1 rounded-full dark:bg-primary-900 dark:text-primary-300">Current</span>
+                                    }
+                                </p>
+                                <p class="text-sm text-secondary-500 dark:text-secondary-400">
+                                    Created @session.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                                </p>
+                                <p class="text-xs text-secondary-400 dark:text-secondary-500">
+                                    IP: @(session.IpAddress ?? "Unknown")
+                                </p>
+                            </div>
+                        </div>
+                        @if (!session.IsCurrent)
+                        {
+                            <Button Variant="Button.ButtonVariant.Secondary" Size="Button.ButtonSize.Small" OnClick="() => RevokeSession(session.Id)">
+                                Revoke
+                            </Button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </Card>
+</div>
+
+@code {
+    private List<SessionInfo> _sessions = new();
+    private bool _isLoading = true;
+    private bool _isRevokingAll;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSessions();
+    }
+
+    private async Task LoadSessions()
+    {
+        _isLoading = true;
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            _sessions = await SessionsClient.ListSessionsAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"Failed to load sessions: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RevokeSession(Guid sessionId)
+    {
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            var result = await SessionsClient.RevokeSessionAsync(userId, sessionId);
+            if (result)
+            {
+                Toast.Success("Session revoked successfully");
+                await LoadSessions();
+            }
+            else
+            {
+                Toast.Error("Failed to revoke session");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"An error occurred: {ex.Message}");
+        }
+    }
+
+    private async Task RevokeAllSessionsWithConfirmation()
+    {
+        var confirmed = await ConfirmDialog.ConfirmAsync(
+            "Are you sure you want to revoke all sessions? This will log you out from all devices, including this one. You will need to log in again.",
+            title: "Revoke All Sessions",
+            confirmText: "Revoke All & Log Out",
+            cancelText: "Cancel",
+            variant: DialogVariant.Danger);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _isRevokingAll = true;
+        StateHasChanged();
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            await SessionsClient.RevokeAllSessionsAsync(userId);
+            
+            await AuthStateProvider.ClearStateAsync();
+            // Navigation handled by MainLayout reacting to auth state change
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"An error occurred: {ex.Message}");
+        }
+        finally
+        {
+            _isRevokingAll = false;
+        }
+    }
+
+    private string GetDeviceIcon(string? userAgent)
+    {
+        if (string.IsNullOrEmpty(userAgent))
+            return "🖥️";
+            
+        var ua = userAgent.ToLowerInvariant();
+        if (ua.Contains("mobile") || ua.Contains("android") || ua.Contains("iphone"))
+            return "📱";
+        if (ua.Contains("tablet") || ua.Contains("ipad"))
+            return "📱";
+        return "💻";
+    }
+}

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<LangVersion>14</LangVersion>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<TrimmerSingleWarn>false</TrimmerSingleWarn>
+		<EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+		<IsTrimmable>true</IsTrimmable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Application.Server\Application.Server.csproj" />
+		<ProjectReference Include="..\Infrastructure.EFCore.Sqlite\Infrastructure.EFCore.Sqlite.csproj" />
+	</ItemGroup>
+
+</Project>

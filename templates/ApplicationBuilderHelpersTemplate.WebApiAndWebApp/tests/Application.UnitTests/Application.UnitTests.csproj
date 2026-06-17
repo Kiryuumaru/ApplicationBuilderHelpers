@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<LangVersion>14</LangVersion>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="GitHubActionsTestLogger" Version="3.0.1">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="coverlet.collector" Version="6.0.4" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.2" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+		<PackageReference Include="NSubstitute" Version="5.3.0" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Application\Application.csproj" />
+		<ProjectReference Include="..\..\src\Application.Client\Application.Client.csproj" />
+		<ProjectReference Include="..\..\src\Application.Server\Application.Server.csproj" />
+		<ProjectReference Include="..\..\src\Domain\Domain.csproj" />
+		<ProjectReference Include="..\..\src\Infrastructure.EFCore.Server.Identity\Infrastructure.EFCore.Server.Identity.csproj" />
+		<ProjectReference Include="..\..\src\Infrastructure.Server.Identity\Infrastructure.Server.Identity.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+</Project>

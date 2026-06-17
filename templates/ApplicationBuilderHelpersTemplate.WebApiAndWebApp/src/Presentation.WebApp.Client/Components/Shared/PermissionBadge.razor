@@ -1,0 +1,57 @@
+@* Displays a permission directive as a badge with optional remove button *@
+
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium @GetBadgeClass()">
+    <span class="@GetIconClass()">
+        @if (IsAllow)
+        {
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        }
+        else
+        {
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        }
+    </span>
+    <span class="font-mono">@GetPermissionPath()</span>
+    @if (OnRemove.HasDelegate)
+    {
+        <button type="button"
+                @onclick="OnRemove"
+                @onclick:stopPropagation="true"
+                class="ml-1 hover:opacity-75 transition-opacity">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    }
+</span>
+
+@code {
+    [Parameter] public string Directive { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnRemove { get; set; }
+
+    private bool IsAllow => Directive.StartsWith("allow;", StringComparison.OrdinalIgnoreCase);
+
+    private string GetPermissionPath()
+    {
+        var parts = Directive.Split(';', 2);
+        return parts.Length > 1 ? parts[1] : Directive;
+    }
+
+    private string GetBadgeClass()
+    {
+        return IsAllow
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+    }
+
+    private string GetIconClass()
+    {
+        return IsAllow
+            ? "text-green-600 dark:text-green-400"
+            : "text-red-600 dark:text-red-400";
+    }
+}

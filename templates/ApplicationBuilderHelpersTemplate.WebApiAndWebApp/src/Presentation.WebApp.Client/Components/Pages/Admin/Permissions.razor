@@ -1,0 +1,69 @@
+@page "/admin/permissions"
+@attribute [Authorize]
+@using Domain.Authorization.Constants
+@using Presentation.WebApp.Client.Components.Authorization
+@inject IPermissionsClient PermissionsClient
+
+<PermissionPage Permission="@PermissionIds.Api.Iam.Permissions.Write.Identifier">
+    <PageTitle>Permission Management</PageTitle>
+
+    <div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-secondary-900 dark:text-white">Permission Management</h1>
+    </div>
+    
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <Alert Type="Alert.AlertType.Error" Message="@_errorMessage" Dismissible="true" OnDismissed="() => _errorMessage = null" />
+    }
+    
+    <Card>
+        @if (_isLoading)
+        {
+            <LoadingSpinner />
+        }
+        else if (_permissions.Count == 0)
+        {
+            <p class="text-secondary-500 dark:text-secondary-400">No permissions found.</p>
+        }
+        else
+        {
+            <div class="space-y-2">
+                @foreach (var permission in _permissions)
+                {
+                    <PermissionTreeNode Permission="permission" Level="0" />
+                }
+            </div>
+        }
+    </Card>
+</div>
+</PermissionPage>
+
+@code {
+    private List<IamPermission> _permissions = new();
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+    }
+
+    private async Task LoadPermissions()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _permissions = await PermissionsClient.ListPermissionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load permissions: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}
