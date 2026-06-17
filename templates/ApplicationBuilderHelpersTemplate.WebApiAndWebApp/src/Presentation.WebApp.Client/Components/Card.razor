@@ -1,0 +1,50 @@
+<div class="@CardClass" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrEmpty(ImageUrl))
+    {
+        <a href="@ImageLink">
+            <img class="rounded-t-lg" src="@ImageUrl" alt="@ImageAlt" />
+        </a>
+    }
+    <div class="@BodyClass">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <h5 class="mb-2 text-2xl font-bold tracking-tight text-secondary-900 dark:text-white">@Title</h5>
+        }
+        @ChildContent
+    </div>
+    @if (Footer != null)
+    {
+        <div class="px-5 py-3 border-t border-secondary-200 dark:border-secondary-700">
+            @Footer
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Footer { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? ImageUrl { get; set; }
+
+    [Parameter]
+    public string? ImageAlt { get; set; }
+
+    [Parameter]
+    public string? ImageLink { get; set; }
+
+    [Parameter]
+    public string Padding { get; set; } = "p-5";
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CardClass => "bg-white border border-secondary-200 rounded-lg shadow-sm dark:bg-secondary-800 dark:border-secondary-700";
+    private string BodyClass => Padding;
+}

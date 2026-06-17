@@ -1,0 +1,152 @@
+@using Application.Client.Authorization.Interfaces
+@using Application.Client.Authorization.Models
+@inject IPermissionsClient PermissionsClient
+
+<div class="space-y-4">
+    <TextInput Placeholder="Search permissions..."
+               Value="@_searchTerm"
+               ValueChanged="OnSearchChanged" />
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (_permissions.Count == 0)
+    {
+        <p class="text-secondary-500 dark:text-secondary-400 text-sm">No permissions found.</p>
+    }
+    else
+    {
+        <div class="border border-secondary-200 dark:border-secondary-700 rounded-lg max-h-96 overflow-y-auto">
+            @foreach (var permission in GetFilteredPermissions())
+            {
+                <PermissionTreePickerNode Permission="permission"
+                                          Level="0"
+                                          SelectedDirectives="@_selectedDirectives"
+                                          OnSelectionChanged="OnSelectionChanged"
+                                          SearchTerm="@_searchTerm" />
+            }
+        </div>
+    }
+
+    @if (_selectedDirectives.Count > 0)
+    {
+        <div class="mt-4">
+            <h4 class="text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-2">
+                Selected Permissions (@_selectedDirectives.Count)
+            </h4>
+            <div class="flex flex-wrap gap-2">
+                @foreach (var directive in _selectedDirectives)
+                {
+                    <PermissionBadge Directive="@directive"
+                                     OnRemove="() => RemoveDirective(directive)" />
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<string> SelectedPermissions { get; set; } = new();
+    [Parameter] public EventCallback<List<string>> SelectedPermissionsChanged { get; set; }
+
+    private List<IamPermission> _permissions = new();
+    private HashSet<string> _selectedDirectives = new();
+    private string _searchTerm = string.Empty;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _selectedDirectives = new HashSet<string>(SelectedPermissions);
+        await LoadPermissions();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!_selectedDirectives.SetEquals(SelectedPermissions))
+        {
+            _selectedDirectives = new HashSet<string>(SelectedPermissions);
+        }
+    }
+
+    private async Task LoadPermissions()
+    {
+        _isLoading = true;
+        try
+        {
+            _permissions = await PermissionsClient.ListPermissionsAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private List<IamPermission> GetFilteredPermissions()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            return _permissions;
+        }
+
+        return FilterPermissions(_permissions, _searchTerm.ToLowerInvariant());
+    }
+
+    private List<IamPermission> FilterPermissions(List<IamPermission> permissions, string searchTerm)
+    {
+        var result = new List<IamPermission>();
+
+        foreach (var permission in permissions)
+        {
+            var matchesSelf = permission.Path.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                              permission.Identifier.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                              (permission.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false);
+
+            var filteredChildren = FilterPermissions(permission.Children, searchTerm);
+
+            if (matchesSelf || filteredChildren.Count > 0)
+            {
+                result.Add(new IamPermission
+                {
+                    Path = permission.Path,
+                    Identifier = permission.Identifier,
+                    Description = permission.Description,
+                    Parameters = permission.Parameters,
+                    Children = matchesSelf ? permission.Children : filteredChildren
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _searchTerm = value;
+    }
+
+    private async Task OnSelectionChanged((string directive, bool isSelected) args)
+    {
+        if (args.isSelected)
+        {
+            _selectedDirectives.Add(args.directive);
+        }
+        else
+        {
+            _selectedDirectives.Remove(args.directive);
+        }
+
+        await NotifySelectionChanged();
+    }
+
+    private async Task RemoveDirective(string directive)
+    {
+        _selectedDirectives.Remove(directive);
+        await NotifySelectionChanged();
+    }
+
+    private async Task NotifySelectionChanged()
+    {
+        await SelectedPermissionsChanged.InvokeAsync(_selectedDirectives.ToList());
+    }
+}

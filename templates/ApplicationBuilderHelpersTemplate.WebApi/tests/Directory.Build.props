@@ -1,0 +1,39 @@
+<Project>
+  <!-- Apply global VSTest settings to all test projects.
+       This file is in the tests/ folder so it only applies to test projects. -->
+  <PropertyGroup>
+    <!-- Run test assemblies in parallel (0 = use all available CPUs) -->
+    <VSTestMaxCpuCount>0</VSTestMaxCpuCount>
+    
+    <!-- Enable blame-hang to detect and terminate individual tests that hang -->
+    <VSTestBlameHang>true</VSTestBlameHang>
+    <VSTestBlameHangTimeout>2min</VSTestBlameHangTimeout>
+  </PropertyGroup>
+
+  <!-- xUnit parallel configuration - generates xunit.runner.json at build time -->
+  <PropertyGroup>
+    <!-- Use 0 for unlimited (auto-detect based on CPU cores) to avoid resource exhaustion -->
+    <XUnitMaxParallelThreads>0</XUnitMaxParallelThreads>
+  </PropertyGroup>
+
+  <Target Name="GenerateXunitRunnerJson" BeforeTargets="Build" Outputs="$(IntermediateOutputPath)xunit.runner.json">
+    <PropertyGroup>
+      <XunitRunnerJsonPath>$(IntermediateOutputPath)xunit.runner.json</XunitRunnerJsonPath>
+      <XunitRunnerJsonContent><![CDATA[{
+  "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
+  "parallelizeTestCollections": true,
+  "maxParallelThreads": $(XUnitMaxParallelThreads)
+}]]></XunitRunnerJsonContent>
+    </PropertyGroup>
+    <MakeDir Directories="$(IntermediateOutputPath)" Condition="!Exists('$(IntermediateOutputPath)')" />
+    <WriteLinesToFile File="$(XunitRunnerJsonPath)" Lines="$(XunitRunnerJsonContent)" Overwrite="true" />
+  </Target>
+
+  <Target Name="CopyXunitRunnerJson" AfterTargets="GenerateXunitRunnerJson" BeforeTargets="Build">
+    <Copy SourceFiles="$(IntermediateOutputPath)xunit.runner.json" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.3" />
+  </ItemGroup>
+</Project>

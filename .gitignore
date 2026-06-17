@@ -48,6 +48,10 @@ Generated\ Files/
 # NUnit
 *.VisualState.xml
 TestResult.xml
+
+# Agent prompts and memory
+/.prompts/
+/.memory/
 nunit-*.xml
 
 # Build Results of an ATL Project

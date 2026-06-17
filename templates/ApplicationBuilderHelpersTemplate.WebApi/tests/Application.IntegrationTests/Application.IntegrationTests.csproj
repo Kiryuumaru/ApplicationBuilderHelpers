@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<LangVersion>14</LangVersion>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsPackable>false</IsPackable>
+		<!-- Integration tests share database state - run sequentially -->
+		<xUnitParallelizeTestCollections>false</xUnitParallelizeTestCollections>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="coverlet.collector" Version="6.0.4" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.2" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Application layer - tests integration through DI -->
+		<ProjectReference Include="..\..\src\Application\Application.csproj" />
+		<!-- Infrastructure implementations for integration testing -->
+		<ProjectReference Include="..\..\src\Infrastructure.EFCore\Infrastructure.EFCore.csproj" />
+		<ProjectReference Include="..\..\src\Infrastructure.EFCore.Identity\Infrastructure.EFCore.Identity.csproj" />
+		<ProjectReference Include="..\..\src\Infrastructure.EFCore.LocalStore\Infrastructure.EFCore.LocalStore.csproj" />
+		<ProjectReference Include="..\..\src\Infrastructure.EFCore.Sqlite\Infrastructure.EFCore.Sqlite.csproj" />
+		<ProjectReference Include="..\..\src\Infrastructure.Identity\Infrastructure.Identity.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,37 @@
+@using Application.Client.Authorization.Interfaces
+@inject IClientPermissionService PermissionService
+
+@*
+    Page-level permission wrapper component.
+    Shows ChildContent if user has permission, otherwise shows AccessDenied.
+*@
+
+@if (_hasPermission)
+{
+    @ChildContent
+}
+else
+{
+    <AccessDenied Permission="@Permission" />
+}
+
+@code {
+    /// <summary>
+    /// The permission required to view this page.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Permission { get; set; } = "";
+
+    /// <summary>
+    /// The page content to render when the user has permission.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool _hasPermission;
+
+    protected override void OnParametersSet()
+    {
+        _hasPermission = !string.IsNullOrEmpty(Permission) && PermissionService.HasPermission(Permission);
+    }
+}

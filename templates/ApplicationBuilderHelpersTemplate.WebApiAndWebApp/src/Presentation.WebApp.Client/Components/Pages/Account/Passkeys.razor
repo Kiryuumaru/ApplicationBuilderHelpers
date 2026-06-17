@@ -1,0 +1,366 @@
+@page "/account/passkeys"
+@attribute [Authorize]
+@inject IPasskeysClient PasskeysClient
+@inject IAuthStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Passkeys</PageTitle>
+
+<div class="max-w-4xl">
+    <Card>
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-secondary-900 dark:text-white">Passkeys</h2>
+                <p class="text-sm text-secondary-500 dark:text-secondary-400 mt-1">
+                    Passkeys provide passwordless authentication using biometrics or security keys.
+                </p>
+            </div>
+            <Button OnClick="StartAddPasskey" Loading="_isRegistering" LoadingText="Adding...">
+                Add Passkey
+            </Button>
+        </div>
+        
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <Alert Type="Alert.AlertType.Success" Message="@_successMessage" Dismissible="true" OnDismissed="() => _successMessage = null" />
+        }
+        
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <Alert Type="Alert.AlertType.Error" Message="@_errorMessage" Dismissible="true" OnDismissed="() => _errorMessage = null" />
+        }
+        
+        @if (_isLoading)
+        {
+            <LoadingSpinner />
+        }
+        else if (_passkeys.Count == 0)
+        {
+            <div class="text-center py-8">
+                <div class="text-4xl mb-4">🔐</div>
+                <p class="text-secondary-500 dark:text-secondary-400">No passkeys registered yet.</p>
+                <p class="text-sm text-secondary-400 dark:text-secondary-500 mt-2">
+                    Add a passkey to enable secure, passwordless sign-in.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-4">
+                @foreach (var passkey in _passkeys)
+                {
+                    <div class="flex justify-between items-center p-4 bg-secondary-50 dark:bg-secondary-700 rounded-lg">
+                        <div class="flex items-center space-x-4">
+                            <div class="text-2xl">🔑</div>
+                            <div class="flex-1">
+                                @if (_editingPasskeyId == passkey.Id)
+                                {
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" 
+                                               @bind="_editingPasskeyName"
+                                               @bind:event="oninput"
+                                               class="px-2 py-1 border border-secondary-300 rounded text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-600 dark:border-secondary-500 dark:text-white"
+                                               disabled="@_isSaving" />
+                                        <button type="button" 
+                                                @onclick="SavePasskeyName" 
+                                                disabled="@_isSaving"
+                                                class="text-primary-600 hover:text-primary-700 text-sm">
+                                            Save
+                                        </button>
+                                        <button type="button" 
+                                                @onclick="CancelEdit" 
+                                                disabled="@_isSaving"
+                                                class="text-secondary-500 hover:text-secondary-600 text-sm">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-medium text-secondary-900 dark:text-white">
+                                            @passkey.Name
+                                        </p>
+                                        <button type="button" 
+                                                @onclick="() => StartEditPasskey(passkey)"
+                                                class="text-primary-600 hover:text-primary-700 text-xs">
+                                            Edit
+                                        </button>
+                                    </div>
+                                }
+                                <p class="text-sm text-secondary-500 dark:text-secondary-400">
+                                    Registered @passkey.RegisteredAt.ToString("MMM dd, yyyy")
+                                </p>
+                                @if (passkey.LastUsedAt.HasValue)
+                                {
+                                    <p class="text-xs text-secondary-400 dark:text-secondary-500">
+                                        Last used @passkey.LastUsedAt.Value.ToString("MMM dd, yyyy HH:mm")
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                        <Button Variant="Button.ButtonVariant.Danger" 
+                                Size="Button.ButtonSize.Small" 
+                                OnClick="() => DeletePasskey(passkey.Id)"
+                                Loading="_deletingPasskeyId == passkey.Id"
+                                LoadingText="Deleting...">
+                            Delete
+                        </Button>
+                    </div>
+                }
+            </div>
+        }
+    </Card>
+</div>
+
+@* Modal for adding new passkey *@
+@if (_showAddModal)
+{
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @onclick="CancelAddPasskey">
+        <div class="bg-white dark:bg-secondary-800 rounded-lg p-6 max-w-md w-full mx-4" @onclick:stopPropagation>
+            <h3 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Add New Passkey</h3>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">Passkey Name</label>
+                <input type="text" 
+                       @bind="_newPasskeyName"
+                       @bind:event="oninput"
+                       placeholder="e.g., MacBook Pro, iPhone 15"
+                       class="w-full px-3 py-2 border border-secondary-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:border-secondary-600 dark:text-white" />
+                <p class="text-xs text-secondary-400 dark:text-secondary-500 mt-1">
+                    Give your passkey a name to help you identify it later.
+                </p>
+            </div>
+            
+            <div class="flex justify-end gap-2">
+                <Button Variant="Button.ButtonVariant.Secondary" OnClick="CancelAddPasskey">
+                    Cancel
+                </Button>
+                <Button OnClick="RegisterPasskey" 
+                        Loading="_isRegistering" 
+                        LoadingText="Registering..."
+                        Disabled="@string.IsNullOrWhiteSpace(_newPasskeyName)">
+                    Continue
+                </Button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<PasskeyInfo> _passkeys = new();
+    private bool _isLoading = true;
+    private bool _isRegistering;
+    private bool _isSaving;
+    private Guid? _deletingPasskeyId;
+    private Guid? _editingPasskeyId;
+    private string _editingPasskeyName = string.Empty;
+    private string? _successMessage;
+    private string? _errorMessage;
+    
+    private bool _showAddModal;
+    private string _newPasskeyName = string.Empty;
+    private Guid? _pendingChallengeId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPasskeys();
+    }
+
+    private async Task LoadPasskeys()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            var (passkeys, error) = await PasskeysClient.ListPasskeysAsync(userId);
+            
+            if (passkeys is not null)
+            {
+                _passkeys = passkeys;
+            }
+            else
+            {
+                _errorMessage = error ?? "Failed to load passkeys";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load passkeys: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void StartAddPasskey()
+    {
+        _newPasskeyName = string.Empty;
+        _showAddModal = true;
+    }
+
+    private void CancelAddPasskey()
+    {
+        _showAddModal = false;
+        _newPasskeyName = string.Empty;
+        _pendingChallengeId = null;
+    }
+
+    private async Task RegisterPasskey()
+    {
+        if (string.IsNullOrWhiteSpace(_newPasskeyName))
+        {
+            return;
+        }
+
+        _isRegistering = true;
+        _errorMessage = null;
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            
+            // Get registration options from the server
+            var (options, optionsError) = await PasskeysClient.GetRegistrationOptionsAsync(userId, _newPasskeyName);
+            
+            if (options is null)
+            {
+                _errorMessage = optionsError ?? "Failed to get registration options";
+                return;
+            }
+
+            _pendingChallengeId = options.ChallengeId;
+
+            // Call browser WebAuthn API via JS interop
+            var attestationJson = await JSRuntime.InvokeAsync<string?>(
+                "webAuthnInterop.createCredential",
+                options.OptionsJson);
+
+            if (string.IsNullOrEmpty(attestationJson))
+            {
+                _errorMessage = "Passkey registration was cancelled or failed";
+                return;
+            }
+
+            // Complete registration on the server
+            var (result, registerError) = await PasskeysClient.RegisterPasskeyAsync(
+                userId,
+                options.ChallengeId,
+                attestationJson);
+
+            if (result is not null)
+            {
+                _successMessage = $"Passkey '{_newPasskeyName}' registered successfully";
+                _showAddModal = false;
+                _newPasskeyName = string.Empty;
+                await LoadPasskeys();
+            }
+            else
+            {
+                _errorMessage = registerError ?? "Failed to register passkey";
+            }
+        }
+        catch (JSException ex) when (ex.Message.Contains("NotAllowedError") || ex.Message.Contains("cancelled"))
+        {
+            _errorMessage = "Passkey registration was cancelled";
+        }
+        catch (JSException ex) when (ex.Message.Contains("NotSupportedError"))
+        {
+            _errorMessage = "Passkeys are not supported on this device or browser";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _isRegistering = false;
+            _pendingChallengeId = null;
+        }
+    }
+
+    private void StartEditPasskey(PasskeyInfo passkey)
+    {
+        _editingPasskeyId = passkey.Id;
+        _editingPasskeyName = passkey.Name;
+    }
+
+    private void CancelEdit()
+    {
+        _editingPasskeyId = null;
+        _editingPasskeyName = string.Empty;
+    }
+
+    private async Task SavePasskeyName()
+    {
+        if (_editingPasskeyId is null || string.IsNullOrWhiteSpace(_editingPasskeyName))
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            var (success, error) = await PasskeysClient.RenamePasskeyAsync(
+                userId,
+                _editingPasskeyId.Value,
+                _editingPasskeyName);
+
+            if (success)
+            {
+                _successMessage = "Passkey renamed successfully";
+                _editingPasskeyId = null;
+                _editingPasskeyName = string.Empty;
+                await LoadPasskeys();
+            }
+            else
+            {
+                _errorMessage = error ?? "Failed to rename passkey";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeletePasskey(Guid credentialId)
+    {
+        _deletingPasskeyId = credentialId;
+        _errorMessage = null;
+
+        try
+        {
+            var userId = AuthStateProvider.CurrentState.UserId;
+            var (success, error) = await PasskeysClient.DeletePasskeyAsync(userId, credentialId);
+
+            if (success)
+            {
+                _successMessage = "Passkey deleted successfully";
+                await LoadPasskeys();
+            }
+            else
+            {
+                _errorMessage = error ?? "Failed to delete passkey";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _deletingPasskeyId = null;
+        }
+    }
+}

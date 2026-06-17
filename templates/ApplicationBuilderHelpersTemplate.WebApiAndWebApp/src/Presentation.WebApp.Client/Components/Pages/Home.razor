@@ -1,0 +1,104 @@
+@page "/"
+@using Application.Client.Identity.Interfaces.Inbound
+@using Application.Shared.Interfaces.Inbound
+@attribute [Authorize]
+@inject IAuthStateProvider AuthStateProvider
+
+<PageTitle>Dashboard</PageTitle>
+
+<AppAuthorizeView>
+
+        <div class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-secondary-900 dark:text-white">Dashboard</h1>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-secondary-500 dark:text-secondary-400">Welcome back</p>
+                            <p class="text-xl font-bold text-secondary-900 dark:text-white">@AuthStateProvider.CurrentState.Username</p>
+                        </div>
+                        <div class="text-3xl">👋</div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-secondary-500 dark:text-secondary-400">Your Roles</p>
+                            <p class="text-xl font-bold text-secondary-900 dark:text-white">@AuthStateProvider.CurrentState.Roles.Count</p>
+                        </div>
+                        <div class="text-3xl">🔐</div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-secondary-500 dark:text-secondary-400">Account Status</p>
+                            <p class="text-xl font-bold text-success-600 dark:text-success-400">Active</p>
+                        </div>
+                        <div class="text-3xl">✓</div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-secondary-500 dark:text-secondary-400">App Version</p>
+                            <p class="text-xl font-bold text-secondary-900 dark:text-white">@ApplicationConstants.Version</p>
+                        </div>
+                        <div class="text-3xl">📦</div>
+                    </div>
+                </Card>
+            </div>
+
+            <div class="grid gap-6 md:grid-cols-2">
+                <Card>
+                    <h2 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Quick Actions</h2>
+                    <div class="space-y-2">
+                        <a href="account/profile"
+                            class="flex items-center p-3 text-secondary-900 rounded-lg dark:text-white hover:bg-secondary-100 dark:hover:bg-secondary-700">
+                            <span class="mr-3">👤</span>
+                            <span>View Profile</span>
+                        </a>
+                        <a href="account/sessions"
+                            class="flex items-center p-3 text-secondary-900 rounded-lg dark:text-white hover:bg-secondary-100 dark:hover:bg-secondary-700">
+                            <span class="mr-3">🔒</span>
+                            <span>Manage Sessions</span>
+                        </a>
+                        <a href="account/change-password"
+                            class="flex items-center p-3 text-secondary-900 rounded-lg dark:text-white hover:bg-secondary-100 dark:hover:bg-secondary-700">
+                            <span class="mr-3">🔑</span>
+                            <span>Change Password</span>
+                        </a>
+                        <a href="account/two-factor"
+                            class="flex items-center p-3 text-secondary-900 rounded-lg dark:text-white hover:bg-secondary-100 dark:hover:bg-secondary-700">
+                            <span class="mr-3">📱</span>
+                            <span>Two-Factor Authentication</span>
+                        </a>
+                    </div>
+                </Card>
+
+                <Card>
+                    <h2 class="text-lg font-bold text-secondary-900 dark:text-white mb-4">Your Roles</h2>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var role in AuthStateProvider.CurrentState.Roles)
+                        {
+                            <span
+                                class="px-3 py-1 text-sm rounded-full bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300">
+                                @role
+                            </span>
+                        }
+                    </div>
+                </Card>
+            </div>
+        </div>
+</AppAuthorizeView>
+
+@code {
+    [Inject]
+    private IApplicationConstants ApplicationConstants { get; set; } = null!;
+}

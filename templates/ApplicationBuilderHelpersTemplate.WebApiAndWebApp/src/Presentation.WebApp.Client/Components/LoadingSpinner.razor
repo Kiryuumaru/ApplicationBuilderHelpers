@@ -1,0 +1,11 @@
+<div data-loading-spinner class="flex justify-center items-center @CssClass">
+    <div class="animate-spin rounded-full h-@Size w-@Size border-b-2 border-primary-600"></div>
+</div>
+
+@code {
+    [Parameter]
+    public string Size { get; set; } = "8";
+
+    [Parameter]
+    public string CssClass { get; set; } = "";
+}

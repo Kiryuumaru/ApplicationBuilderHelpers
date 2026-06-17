@@ -1,0 +1,339 @@
+@page "/account/profile"
+@attribute [Authorize]
+@inject IUserProfileClient ProfileClient
+@inject NavigationManager NavigationManager
+
+<PageTitle>Profile</PageTitle>
+
+<div class="max-w-2xl space-y-6">
+    <Card>
+        <h2 class="text-xl font-bold text-secondary-900 dark:text-white mb-6">Profile Information</h2>
+        
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <Alert Type="Alert.AlertType.Success" Message="@_successMessage" Dismissible="true" OnDismissed="() => _successMessage = null" />
+        }
+        
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <Alert Type="Alert.AlertType.Error" Message="@_errorMessage" Dismissible="true" OnDismissed="() => _errorMessage = null" />
+        }
+        
+        @if (_isLoading)
+        {
+            <LoadingSpinner />
+        }
+        else if (_profile != null)
+        {
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">User ID</label>
+                    <p class="text-secondary-900 dark:text-white font-mono text-sm">@_profile.Id</p>
+                </div>
+                
+                <!-- Username Field with Edit -->
+                <div>
+                    <label class="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">Username</label>
+                    @if (_editingUsername)
+                    {
+                        <div class="flex gap-2">
+                            <input type="text" 
+                                   @bind="_newUsername" 
+                                   @bind:event="oninput"
+                                   class="flex-1 px-3 py-2 border border-secondary-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:border-secondary-600 dark:text-white"
+                                   disabled="@_isSaving" />
+                            <button type="button" 
+                                    @onclick="SaveUsernameAsync" 
+                                    disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newUsername))"
+                                    class="px-3 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                @if (_isSaving) { <span>Saving...</span> } else { <span>Save</span> }
+                            </button>
+                            <button type="button" 
+                                    @onclick="CancelUsernameEdit" 
+                                    disabled="@_isSaving"
+                                    class="px-3 py-2 bg-secondary-200 text-secondary-700 rounded-md hover:bg-secondary-300 dark:bg-secondary-600 dark:text-secondary-200 dark:hover:bg-secondary-500 disabled:opacity-50">
+                                Cancel
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex items-center gap-2">
+                            <p class="text-secondary-900 dark:text-white">@_profile.Username</p>
+                            <button type="button" 
+                                    @onclick="StartUsernameEdit" 
+                                    class="text-primary-600 hover:text-primary-700 dark:text-primary-400 text-sm">
+                                Edit
+                            </button>
+                        </div>
+                    }
+                </div>
+                
+                <!-- Email Field with Edit -->
+                <div>
+                    <label class="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">Email</label>
+                    @if (_editingEmail)
+                    {
+                        <div class="flex gap-2">
+                            <input type="email" 
+                                   @bind="_newEmail" 
+                                   @bind:event="oninput"
+                                   class="flex-1 px-3 py-2 border border-secondary-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-700 dark:border-secondary-600 dark:text-white"
+                                   disabled="@_isSaving" />
+                            <button type="button" 
+                                    @onclick="SaveEmailAsync" 
+                                    disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newEmail))"
+                                    class="px-3 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                @if (_isSaving) { <span>Saving...</span> } else { <span>Save</span> }
+                            </button>
+                            <button type="button" 
+                                    @onclick="CancelEmailEdit" 
+                                    disabled="@_isSaving"
+                                    class="px-3 py-2 bg-secondary-200 text-secondary-700 rounded-md hover:bg-secondary-300 dark:bg-secondary-600 dark:text-secondary-200 dark:hover:bg-secondary-500 disabled:opacity-50">
+                                Cancel
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex items-center gap-2">
+                            <p class="text-secondary-900 dark:text-white">@(_profile.Email ?? "Not set")</p>
+                            <button type="button" 
+                                    @onclick="StartEmailEdit" 
+                                    class="text-primary-600 hover:text-primary-700 dark:text-primary-400 text-sm">
+                                @if (string.IsNullOrEmpty(_profile.Email)) { <span>Add</span> } else { <span>Edit</span> }
+                            </button>
+                        </div>
+                    }
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">Roles</label>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var role in _profile.Roles)
+                        {
+                            <span class="px-2 py-1 text-xs rounded-full bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300">
+                                @role
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </Card>
+    
+    <!-- Security Section -->
+    @if (_profile != null)
+    {
+        <Card>
+            <h2 class="text-xl font-bold text-secondary-900 dark:text-white mb-6">Security</h2>
+            
+            <div class="space-y-4">
+                <!-- Password -->
+                <div class="flex items-center justify-between py-3 border-b border-secondary-200 dark:border-secondary-700">
+                    <div>
+                        <h3 class="text-sm font-medium text-secondary-900 dark:text-white">Password</h3>
+                        <p class="text-sm text-secondary-500 dark:text-secondary-400">
+                            Secure your account with a strong password
+                        </p>
+                    </div>
+                    <a href="account/change-password" 
+                       class="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+                        Change password
+                    </a>
+                </div>
+                
+                <!-- Two-Factor Authentication -->
+                <div class="flex items-center justify-between py-3 border-b border-secondary-200 dark:border-secondary-700">
+                    <div>
+                        <h3 class="text-sm font-medium text-secondary-900 dark:text-white">Two-Factor Authentication</h3>
+                        <p class="text-sm text-secondary-500 dark:text-secondary-400">
+                            @if (_profile.TwoFactorEnabled)
+                            {
+                                <span class="inline-flex items-center gap-1">
+                                    <svg class="w-4 h-4 text-success-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span class="text-success-600 dark:text-success-400">Enabled</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-warning-600 dark:text-warning-400">Not enabled - add an extra layer of security</span>
+                            }
+                        </p>
+                    </div>
+                    <a href="account/two-factor" 
+                       class="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+                        @if (_profile.TwoFactorEnabled) { <span>Manage</span> } else { <span>Set up</span> }
+                    </a>
+                </div>
+                
+                <!-- Sessions -->
+                <div class="flex items-center justify-between py-3 border-b border-secondary-200 dark:border-secondary-700">
+                    <div>
+                        <h3 class="text-sm font-medium text-secondary-900 dark:text-white">Active Sessions</h3>
+                        <p class="text-sm text-secondary-500 dark:text-secondary-400">
+                            Manage your active sessions and sign out of other devices
+                        </p>
+                    </div>
+                    <a href="account/sessions" 
+                       class="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+                        View sessions
+                    </a>
+                </div>
+                
+                <!-- Passkeys -->
+                <div class="flex items-center justify-between py-3">
+                    <div>
+                        <h3 class="text-sm font-medium text-secondary-900 dark:text-white">Passkeys</h3>
+                        <p class="text-sm text-secondary-500 dark:text-secondary-400">
+                            Sign in securely without a password using biometrics or security keys
+                        </p>
+                    </div>
+                    <a href="account/passkeys" 
+                       class="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+                        Manage passkeys
+                    </a>
+                </div>
+            </div>
+        </Card>
+    }
+</div>
+
+@code {
+    private UserProfile? _profile;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _successMessage;
+    private string? _errorMessage;
+    
+    private bool _editingUsername;
+    private string _newUsername = string.Empty;
+    
+    private bool _editingEmail;
+    private string _newEmail = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private async Task LoadProfile()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _profile = await ProfileClient.GetCurrentUserAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load profile: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+    
+    private void StartUsernameEdit()
+    {
+        _newUsername = _profile?.Username ?? string.Empty;
+        _editingUsername = true;
+        _errorMessage = null;
+        _successMessage = null;
+    }
+    
+    private void CancelUsernameEdit()
+    {
+        _editingUsername = false;
+        _newUsername = string.Empty;
+    }
+    
+    private async Task SaveUsernameAsync()
+    {
+        if (_profile is null || string.IsNullOrWhiteSpace(_newUsername))
+        {
+            return;
+        }
+        
+        _isSaving = true;
+        _errorMessage = null;
+        _successMessage = null;
+        
+        try
+        {
+            var (updatedProfile, error) = await ProfileClient.ChangeUsernameAsync(_profile.Id, _newUsername.Trim());
+            
+            if (updatedProfile is not null)
+            {
+                _profile = updatedProfile;
+                _editingUsername = false;
+                _successMessage = "Username updated successfully.";
+            }
+            else
+            {
+                _errorMessage = error ?? "Failed to update username.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+    
+    private void StartEmailEdit()
+    {
+        _newEmail = _profile?.Email ?? string.Empty;
+        _editingEmail = true;
+        _errorMessage = null;
+        _successMessage = null;
+    }
+    
+    private void CancelEmailEdit()
+    {
+        _editingEmail = false;
+        _newEmail = string.Empty;
+    }
+    
+    private async Task SaveEmailAsync()
+    {
+        if (_profile is null || string.IsNullOrWhiteSpace(_newEmail))
+        {
+            return;
+        }
+        
+        _isSaving = true;
+        _errorMessage = null;
+        _successMessage = null;
+        
+        try
+        {
+            var (updatedProfile, error) = await ProfileClient.ChangeEmailAsync(_profile.Id, _newEmail.Trim());
+            
+            if (updatedProfile is not null)
+            {
+                _profile = updatedProfile;
+                _editingEmail = false;
+                _successMessage = "Email updated successfully.";
+            }
+            else
+            {
+                _errorMessage = error ?? "Failed to update email.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

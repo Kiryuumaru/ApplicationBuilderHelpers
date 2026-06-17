@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<LangVersion>14</LangVersion>
+		<GenerateBuildConstants>true</GenerateBuildConstants>
+		<BaseCommandType>Presentation.Commands.BaseCommand</BaseCommandType>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<OutputType>Exe</OutputType>
+		<InvariantGlobalization>true</InvariantGlobalization>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Copyright>Copyright (C) 2025 Sample</Copyright>
+		<Company>Sample Company</Company>
+		<AssemblyTitle>Application Builder Helpers Template</AssemblyTitle>
+		<AssemblyName>sampleapp</AssemblyName>
+		<Description>A clean architecture application template for building .NET applications with authentication, authorization, and user management out of the box. Built with .NET 10 and Clean Architecture principles.</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Asp.Versioning.Mvc" Version="8.1.1" />
+		<PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.1" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.2" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.2.0" />
+		<PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="10.2.0" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
+		<PackageReference Include="Scalar.AspNetCore" Version="2.12.6" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="10.1.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Application\Application.csproj" />
+		<ProjectReference Include="..\Infrastructure.Mock\Infrastructure.Mock.csproj" />
+		<ProjectReference Include="..\Infrastructure.OpenTelemetry\Infrastructure.OpenTelemetry.csproj" />
+		<ProjectReference Include="..\Presentation\Presentation.csproj" />
+		<ProjectReference Include="..\Infrastructure.EFCore\Infrastructure.EFCore.csproj" />
+		<ProjectReference Include="..\Infrastructure.EFCore.Identity\Infrastructure.EFCore.Identity.csproj" />
+		<ProjectReference Include="..\Infrastructure.EFCore.LocalStore\Infrastructure.EFCore.LocalStore.csproj" />
+		<ProjectReference Include="..\Infrastructure.EFCore.Sqlite\Infrastructure.EFCore.Sqlite.csproj" />
+		<ProjectReference Include="..\Infrastructure.Identity\Infrastructure.Identity.csproj" />
+		<ProjectReference Include="..\Infrastructure.Passkeys\Infrastructure.Passkeys.csproj" />
+	</ItemGroup>
+
+</Project>

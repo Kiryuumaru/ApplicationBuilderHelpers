@@ -1,0 +1,104 @@
+@using Presentation.WebApp.Client.Components.Notifications.Models
+
+<div class="@ContainerClass" role="alert">
+    <div class="flex items-start">
+        <div class="@IconContainerClass">
+            @switch (Toast.Type)
+            {
+                case ToastType.Success:
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    break;
+                case ToastType.Error:
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    break;
+                case ToastType.Warning:
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    break;
+                case ToastType.Info:
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    break;
+            }
+        </div>
+        <div class="ml-3 flex-1">
+            @if (!string.IsNullOrEmpty(Toast.Title))
+            {
+                <p class="@TitleClass">@Toast.Title</p>
+            }
+            <p class="@MessageClass">@Toast.Message</p>
+        </div>
+        <button type="button" class="@CloseButtonClass" @onclick="() => OnDismiss.InvokeAsync(Toast.Id)">
+            <span class="sr-only">Close</span>
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+        </button>
+    </div>
+    <div class="@ProgressBarClass">
+        <div class="@ProgressFillClass" style="animation: toast-progress @(Toast.DurationMs)ms linear forwards;"></div>
+    </div>
+</div>
+
+<style>
+    @@keyframes toast-progress {
+        from { width: 100%; }
+        to { width: 0%; }
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public ToastMessage Toast { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<Guid> OnDismiss { get; set; }
+
+    private string ContainerClass => Toast.Type switch
+    {
+        ToastType.Success => "bg-green-100 border border-green-500 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200 rounded-lg shadow-lg p-4 relative overflow-hidden",
+        ToastType.Error => "bg-red-100 border border-red-500 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200 rounded-lg shadow-lg p-4 relative overflow-hidden",
+        ToastType.Warning => "bg-amber-100 border border-amber-500 text-amber-800 dark:bg-amber-900 dark:border-amber-700 dark:text-amber-200 rounded-lg shadow-lg p-4 relative overflow-hidden",
+        ToastType.Info => "bg-blue-100 border border-blue-500 text-blue-800 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200 rounded-lg shadow-lg p-4 relative overflow-hidden",
+        _ => "bg-secondary-100 border border-secondary-500 text-secondary-800 dark:bg-secondary-900 dark:border-secondary-700 dark:text-secondary-200 rounded-lg shadow-lg p-4 relative overflow-hidden"
+    };
+
+    private string IconContainerClass => Toast.Type switch
+    {
+        ToastType.Success => "shrink-0 text-green-600 dark:text-green-400",
+        ToastType.Error => "shrink-0 text-red-600 dark:text-red-400",
+        ToastType.Warning => "shrink-0 text-amber-600 dark:text-amber-400",
+        ToastType.Info => "shrink-0 text-blue-600 dark:text-blue-400",
+        _ => "shrink-0 text-secondary-600 dark:text-secondary-400"
+    };
+
+    private string TitleClass => "font-semibold text-sm";
+
+    private string MessageClass => Toast.Title != null ? "text-sm mt-1" : "text-sm";
+
+    private string CloseButtonClass => Toast.Type switch
+    {
+        ToastType.Success => "ml-3 -mr-1 -mt-1 p-1 rounded hover:bg-green-200 dark:hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500",
+        ToastType.Error => "ml-3 -mr-1 -mt-1 p-1 rounded hover:bg-red-200 dark:hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500",
+        ToastType.Warning => "ml-3 -mr-1 -mt-1 p-1 rounded hover:bg-amber-200 dark:hover:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500",
+        ToastType.Info => "ml-3 -mr-1 -mt-1 p-1 rounded hover:bg-blue-200 dark:hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500",
+        _ => "ml-3 -mr-1 -mt-1 p-1 rounded hover:bg-secondary-200 dark:hover:bg-secondary-800 focus:outline-none focus:ring-2 focus:ring-secondary-500"
+    };
+
+    private string ProgressBarClass => "absolute bottom-0 left-0 right-0 h-1 bg-black/10 dark:bg-white/10";
+
+    private string ProgressFillClass => Toast.Type switch
+    {
+        ToastType.Success => "h-full bg-green-600 dark:bg-green-400",
+        ToastType.Error => "h-full bg-red-600 dark:bg-red-400",
+        ToastType.Warning => "h-full bg-amber-600 dark:bg-amber-400",
+        ToastType.Info => "h-full bg-blue-600 dark:bg-blue-400",
+        _ => "h-full bg-secondary-600 dark:bg-secondary-400"
+    };
+}

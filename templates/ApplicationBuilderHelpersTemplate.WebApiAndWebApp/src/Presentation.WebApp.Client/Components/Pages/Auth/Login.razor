@@ -1,0 +1,137 @@
+@page "/auth/login"
+@layout AuthLayout
+@inject IAuthenticationClient AuthClient
+@inject IAuthStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Sign In</PageTitle>
+
+<Card>
+    <h1 class="text-xl font-bold leading-tight tracking-tight text-secondary-900 md:text-2xl dark:text-white mb-6">
+        Sign in to your account
+    </h1>
+    
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <Alert Type="Alert.AlertType.Error" Message="@_errorMessage" Dismissible="true" OnDismissed="() => _errorMessage = null" />
+    }
+    
+    <EditForm Model="_model" OnValidSubmit="HandleLogin" FormName="login">
+        <DataAnnotationsValidator />
+        
+        <TextInput Id="email" 
+                   Type="email" 
+                   Label="Your email" 
+                   Placeholder="name@company.com" 
+                   @bind-Value="_model.Email"
+                   Required="true"
+                   ErrorMessage="@GetValidationError(nameof(_model.Email))" />
+        
+        <TextInput Id="password" 
+                   Type="password" 
+                   Label="Password" 
+                   Placeholder="••••••••" 
+                   @bind-Value="_model.Password"
+                   Required="true"
+                   ErrorMessage="@GetValidationError(nameof(_model.Password))" />
+        
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-start">
+                <div class="flex items-center h-5">
+                    <input id="remember" type="checkbox" @bind="_model.RememberMe" class="w-4 h-4 border border-secondary-300 rounded bg-secondary-50 focus:ring-3 focus:ring-primary-300 dark:bg-secondary-700 dark:border-secondary-600 dark:focus:ring-primary-600 dark:ring-offset-secondary-800" />
+                </div>
+                <div class="ml-3 text-sm">
+                    <label for="remember" class="text-secondary-500 dark:text-secondary-300">Remember me</label>
+                </div>
+            </div>
+            <a href="auth/forgot-password" class="text-sm font-medium text-primary-600 hover:underline dark:text-primary-500">Forgot password?</a>
+        </div>
+        
+        <Button Type="submit" Loading="_isLoading" LoadingText="Signing in..." class="w-full">
+            Sign in
+        </Button>
+        
+        <p class="text-sm font-light text-secondary-500 dark:text-secondary-400 mt-4">
+            Don't have an account yet? <a href="auth/register" class="font-medium text-primary-600 hover:underline dark:text-primary-500">Sign up</a>
+        </p>
+    </EditForm>
+</Card>
+
+@code {
+    private LoginModel _model = new();
+    private bool _isLoading;
+    private string? _errorMessage;
+    private ValidationMessageStore? _messageStore;
+    private EditContext? _editContext;
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_model);
+        _messageStore = new ValidationMessageStore(_editContext);
+    }
+
+    private async Task HandleLogin()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var result = await AuthClient.LoginAsync(_model.Email!, _model.Password!);
+
+            if (result.Success)
+            {
+                var credentials = new StoredCredentials
+                {
+                    AccessToken = result.AccessToken!,
+                    RefreshToken = result.RefreshToken!,
+                    AccessTokenExpiry = DateTimeOffset.UtcNow.AddSeconds(result.ExpiresIn),
+                    RefreshTokenExpiry = DateTimeOffset.UtcNow.AddDays(7),
+                    Roles = result.Roles.ToList(),
+                    Permissions = result.Permissions.ToList()
+                };
+
+                await AuthStateProvider.UpdateStateAsync(credentials);
+                
+                var returnUrl = string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl);
+                Navigation.NavigateTo(returnUrl);
+            }
+            else if (result.RequiresTwoFactor)
+            {
+                Navigation.NavigateTo($"auth/two-factor?token={Uri.EscapeDataString(result.TwoFactorToken ?? "")}");
+            }
+            else
+            {
+                _errorMessage = result.ErrorMessage ?? "Login failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string? GetValidationError(string fieldName)
+    {
+        return _editContext?.GetValidationMessages(new FieldIdentifier(_model, fieldName)).FirstOrDefault();
+    }
+
+    private class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Email is required")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Invalid email address")]
+        public string? Email { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Password is required")]
+        public string? Password { get; set; }
+
+        public bool RememberMe { get; set; }
+    }
+}

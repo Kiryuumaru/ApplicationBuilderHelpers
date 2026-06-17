@@ -1,0 +1,131 @@
+<div class="@WrapperClass">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label for="@Id" class="block mb-2 text-sm font-medium text-secondary-900 dark:text-secondary-100">
+            @Label
+            @if (Required)
+            {
+                <span class="text-error-500">*</span>
+            }
+        </label>
+    }
+    
+    <div class="relative">
+        @if (!string.IsNullOrEmpty(LeadingIcon))
+        {
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+                @((MarkupString)LeadingIcon)
+            </div>
+        }
+        
+        <input type="@Type"
+               id="@Id"
+               name="@Name"
+               value="@Value"
+               placeholder="@Placeholder"
+               disabled="@Disabled"
+               required="@Required"
+               class="@InputClass"
+               @oninput="OnInput"
+               @onblur="OnBlur"
+               @attributes="AdditionalAttributes" />
+               
+        @if (!string.IsNullOrEmpty(TrailingIcon))
+        {
+            <div class="absolute inset-y-0 end-0 flex items-center pe-3.5 pointer-events-none">
+                @((MarkupString)TrailingIcon)
+            </div>
+        }
+    </div>
+    
+    @if (!string.IsNullOrEmpty(HelperText))
+    {
+        <p class="@HelperTextClass">@HelperText</p>
+    }
+    
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <p class="mt-2 text-sm text-error-600 dark:text-error-400">@ErrorMessage</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter]
+    public string? Name { get; set; }
+
+    [Parameter]
+    public string Type { get; set; } = "text";
+
+    [Parameter]
+    public string? Label { get; set; }
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    [Parameter]
+    public string? HelperText { get; set; }
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public bool Required { get; set; } = false;
+
+    [Parameter]
+    public bool Disabled { get; set; } = false;
+
+    [Parameter]
+    public string? LeadingIcon { get; set; }
+
+    [Parameter]
+    public string? TrailingIcon { get; set; }
+
+    [Parameter]
+    public string WrapperClass { get; set; } = "mb-4";
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString();
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private void OnBlur(FocusEventArgs e)
+    {
+        // Can be extended for validation
+    }
+
+    private string InputClass
+    {
+        get
+        {
+            var baseClass = "block w-full text-sm rounded-lg";
+            var paddingClass = !string.IsNullOrEmpty(LeadingIcon) ? "ps-10" : "ps-4";
+            paddingClass += !string.IsNullOrEmpty(TrailingIcon) ? " pe-10" : " pe-4";
+            paddingClass += " py-2.5";
+
+            var stateClass = !string.IsNullOrEmpty(ErrorMessage)
+                ? "bg-error-50 border border-error-500 text-error-900 placeholder-error-400 focus:ring-error-500 focus:border-error-500 dark:bg-secondary-800 dark:text-error-400 dark:placeholder-error-500 dark:border-error-500"
+                : "bg-secondary-50 border border-secondary-300 text-secondary-900 focus:ring-primary-500 focus:border-primary-500 dark:bg-secondary-800 dark:border-secondary-600 dark:placeholder-secondary-400 dark:text-secondary-100 dark:focus:ring-primary-500 dark:focus:border-primary-500";
+
+            var disabledClass = Disabled ? "cursor-not-allowed opacity-50" : "";
+
+            return $"{baseClass} {paddingClass} {stateClass} {disabledClass}";
+        }
+    }
+
+    private string HelperTextClass => !string.IsNullOrEmpty(ErrorMessage)
+        ? "mt-2 text-sm text-error-600 dark:text-error-400"
+        : "mt-2 text-sm text-secondary-500 dark:text-secondary-400";
+}

@@ -1,0 +1,116 @@
+@using Presentation.WebApp.Client.Components.Notifications.Interfaces
+@using Presentation.WebApp.Client.Components.Notifications.Models
+@using Presentation.WebApp.Client.Components.Notifications.Services
+@inject IConfirmDialogService ConfirmDialogService
+@inject IAlertDialogService AlertDialogService
+@inject IPromptDialogService PromptDialogService
+@implements IDisposable
+
+@if (_confirmRequest != null)
+{
+    <ConfirmDialog Request="_confirmRequest" OnResult="HandleConfirmResult" />
+}
+
+@if (_alertRequest != null)
+{
+    <AlertDialog Request="_alertRequest" OnResult="HandleAlertResult" />
+}
+
+@if (_promptRequest != null)
+{
+    <PromptDialog Request="_promptRequest" OnResult="HandlePromptResult" />
+}
+
+@code {
+    private ConfirmDialogRequest? _confirmRequest;
+    private AlertDialogRequest? _alertRequest;
+    private PromptDialogRequest? _promptRequest;
+
+    protected override void OnInitialized()
+    {
+        if (ConfirmDialogService is ConfirmDialogService confirmService)
+        {
+            confirmService.OnConfirmRequested += HandleConfirmRequested;
+        }
+
+        if (AlertDialogService is AlertDialogService alertService)
+        {
+            alertService.OnAlertRequested += HandleAlertRequested;
+        }
+
+        if (PromptDialogService is PromptDialogService promptService)
+        {
+            promptService.OnPromptRequested += HandlePromptRequested;
+        }
+    }
+
+    private void HandleConfirmRequested(ConfirmDialogRequest request)
+    {
+        InvokeAsync(() =>
+        {
+            _confirmRequest = request;
+            StateHasChanged();
+        });
+    }
+
+    private void HandleAlertRequested(AlertDialogRequest request)
+    {
+        InvokeAsync(() =>
+        {
+            _alertRequest = request;
+            StateHasChanged();
+        });
+    }
+
+    private void HandlePromptRequested(PromptDialogRequest request)
+    {
+        InvokeAsync(() =>
+        {
+            _promptRequest = request;
+            StateHasChanged();
+        });
+    }
+
+    private void HandleConfirmResult(bool result)
+    {
+        _confirmRequest?.TaskCompletionSource.TrySetResult(result);
+        _confirmRequest = null;
+        StateHasChanged();
+    }
+
+    private void HandleAlertResult()
+    {
+        _alertRequest?.TaskCompletionSource.TrySetResult();
+        _alertRequest = null;
+        StateHasChanged();
+    }
+
+    private void HandlePromptResult(string? result)
+    {
+        _promptRequest?.TaskCompletionSource.TrySetResult(result);
+        _promptRequest = null;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        if (ConfirmDialogService is ConfirmDialogService confirmService)
+        {
+            confirmService.OnConfirmRequested -= HandleConfirmRequested;
+        }
+
+        if (AlertDialogService is AlertDialogService alertService)
+        {
+            alertService.OnAlertRequested -= HandleAlertRequested;
+        }
+
+        if (PromptDialogService is PromptDialogService promptService)
+        {
+            promptService.OnPromptRequested -= HandlePromptRequested;
+        }
+
+        _confirmRequest?.TaskCompletionSource.TrySetResult(false);
+        _alertRequest?.TaskCompletionSource.TrySetResult();
+        _promptRequest?.TaskCompletionSource.TrySetResult(null);
+    }
+}

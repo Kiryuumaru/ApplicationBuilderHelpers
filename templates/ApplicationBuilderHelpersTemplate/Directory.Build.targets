@@ -1,0 +1,72 @@
+<Project>
+	<PropertyGroup Condition="'$(BaseCommandType)' != ''">
+		<GenerateBuildConstants>true</GenerateBuildConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(GenerateBuildConstants)' == 'true'">
+		<AssemblyName Condition="'$(AssemblyName)' == ''">sampleapp</AssemblyName>
+		<AssemblyTitle Condition="'$(AssemblyTitle)' == ''">Sample Application</AssemblyTitle>
+		<Description Condition="'$(Description)' == ''">Sample Application</Description>
+		<FullVersion Condition="'$(FullVersion)' == ''">0.0.0-prerelease.0+build.local</FullVersion>
+		<InformationalVersion Condition="'$(InformationalVersion)' == ''">$(FullVersion)</InformationalVersion>
+		<AppTag Condition="'$(AppTag)' == ''">prerelease</AppTag>
+		<EmbeddedConfigFileName Condition="'$(EmbeddedConfigFileName)' == ''">embedded-config.json</EmbeddedConfigFileName>
+		<EmbeddedConfigPath Condition="'$(EmbeddedConfigPath)' == ''">$(MSBuildThisFileDirectory)$(EmbeddedConfigFileName)</EmbeddedConfigPath>
+		<BaseCommandType Condition="'$(BaseCommandType)' == ''"></BaseCommandType>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(GenerateBuildConstants)' == 'true'">
+		<ProjectReference Include="$(MSBuildThisFileDirectory)src\Domain.SourceGenerators\Domain.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<AdditionalFiles Include="$(EmbeddedConfigPath)" />
+		<CompilerVisibleProperty Include="GenerateBuildConstants" />
+		<CompilerVisibleProperty Include="BaseCommandType" />
+		<CompilerVisibleProperty Include="AssemblyName" />
+		<CompilerVisibleProperty Include="AssemblyTitle" />
+		<CompilerVisibleProperty Include="Description" />
+		<CompilerVisibleProperty Include="FullVersion" />
+		<CompilerVisibleProperty Include="AppTag" />
+		<CompilerVisibleProperty Include="EmbeddedConfigFileName" />
+	</ItemGroup>
+
+	<!-- NsDepCop Configuration - exclude SourceGenerators and tests -->
+	<PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('src')) AND !$(MSBuildProjectDirectory.Contains('SourceGenerators'))">
+		<EnableNsDepCop>true</EnableNsDepCop>
+		<WarningsAsErrors>$(WarningsAsErrors);NSDEPCOP01</WarningsAsErrors>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(EnableNsDepCop)' == 'true'">
+		<PackageReference Include="NsDepCop" Version="2.7.0" PrivateAssets="all" />
+	</ItemGroup>
+
+	<PropertyGroup Condition="'$(EnableNsDepCop)' == 'true'">
+		<NsDepCopConfigContent>
+<![CDATA[<?xml version="1.0" encoding="utf-8"?>
+<NsDepCopConfig IsEnabled="true" ChildCanDependOnParentImplicitly="true" MaxIssueCount="100">
+	<!-- Architecture layer violations -->
+	<Disallowed From="Domain.*" To="Application.*" />
+	<Disallowed From="Domain.*" To="Infrastructure.*" />
+	<Disallowed From="Domain.*" To="Presentation.*" />
+	<Disallowed From="Application.*" To="Infrastructure.*" />
+	<Disallowed From="Application.*" To="Presentation.*" />
+	<Disallowed From="Infrastructure.*" To="Presentation.*" />
+
+	<!-- Presentation cannot access Outbound or internal interfaces -->
+	<Disallowed From="Presentation.*" To="*.Interfaces.Outbound.*" />
+	<Disallowed From="Presentation.*" To="Application.Shared.Interfaces" />
+	<Disallowed From="Presentation.*" To="Application.*.Interfaces" />
+
+	<!-- Allow everything else (third-party libs, framework, etc.) -->
+	<Allowed From="*" To="*" />
+</NsDepCopConfig>]]>
+		</NsDepCopConfigContent>
+		<NsDepCopConfigPath>$(IntermediateOutputPath)config.nsdepcop</NsDepCopConfigPath>
+	</PropertyGroup>
+
+	<Target Name="GenerateNsDepCopConfig" BeforeTargets="CoreCompile" Condition="'$(EnableNsDepCop)' == 'true'">
+		<WriteLinesToFile File="$(NsDepCopConfigPath)" Lines="$(NsDepCopConfigContent)" Overwrite="true" />
+		<ItemGroup>
+			<AdditionalFiles Include="$(NsDepCopConfigPath)" />
+		</ItemGroup>
+	</Target>
+
+</Project>
