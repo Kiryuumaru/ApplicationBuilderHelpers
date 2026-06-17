@@ -18,7 +18,7 @@ jobs:
     runs-on:
       labels: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         fetch-tags: true
@@ -64,14 +64,14 @@ jobs:
     name: Test - application_builder_helpers (ApplicationBuilderHelpersTest)
     runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_RUNS_ON) }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_FETCH_DEPTH }}
         fetch-tags: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_FETCH_TAGS }}
         submodules: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CHECKOUT_SUBMODULES }}
         persist-credentials: true
     - name: Cache Run
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ./.nuke/temp/cache
         key: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_CACHE_KEY }}
@@ -82,14 +82,14 @@ jobs:
       name: Run Nuke ApplicationBuilderHelpersTest
       run: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSTEST_RUN_SCRIPT }} Run --args "ApplicationBuilderHelpersTest"
     - name: Upload application_builder_helpers pre_test artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: pre_test___application_builder_helpers___APPLICATIONBUILDERHELPERSTEST
         path: ./.nuke/temp/artifacts-upload/application_builder_helpers/*
         if-no-files-found: error
         retention-days: 1
     - name: Upload common pre_test artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: pre_test___$common___APPLICATIONBUILDERHELPERSTEST
         path: ./.nuke/temp/artifacts-upload/$common/*
@@ -104,19 +104,19 @@ jobs:
     name: Build - application_builder_helpers (ApplicationBuilderHelpersBuild)
     runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_RUNS_ON) }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CHECKOUT_FETCH_DEPTH }}
         fetch-tags: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CHECKOUT_FETCH_TAGS }}
         submodules: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CHECKOUT_SUBMODULES }}
         persist-credentials: true
     - name: Download application_builder_helpers pre_test artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ./.nuke/temp/artifacts-download
         pattern: pre_test___application_builder_helpers___*
     - name: Cache Run
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ./.nuke/temp/cache
         key: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_CACHE_KEY }}
@@ -127,14 +127,14 @@ jobs:
       name: Run Nuke ApplicationBuilderHelpersBuild
       run: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSBUILD_RUN_SCRIPT }} Run --args "ApplicationBuilderHelpersBuild"
     - name: Upload application_builder_helpers build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: build___application_builder_helpers___APPLICATIONBUILDERHELPERSBUILD
         path: ./.nuke/temp/artifacts-upload/application_builder_helpers/*
         if-no-files-found: error
         retention-days: 1
     - name: Upload common build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: build___$common___APPLICATIONBUILDERHELPERSBUILD
         path: ./.nuke/temp/artifacts-upload/$common/*
@@ -150,29 +150,29 @@ jobs:
     name: Publish - application_builder_helpers (ApplicationBuilderHelpersPublish)
     runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_RUNS_ON) }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_DEPTH }}
         fetch-tags: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_FETCH_TAGS }}
         submodules: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CHECKOUT_SUBMODULES }}
         persist-credentials: true
     - name: Download application_builder_helpers pre_test artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ./.nuke/temp/artifacts-download
         pattern: pre_test___application_builder_helpers___*
     - name: Download application_builder_helpers build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ./.nuke/temp/artifacts-download
         pattern: build___application_builder_helpers___*
     - name: Download application_builder_helpers post_test artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ./.nuke/temp/artifacts-download
         pattern: post_test___application_builder_helpers___*
     - name: Cache Run
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ./.nuke/temp/cache
         key: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CACHE_KEY }}
@@ -183,7 +183,7 @@ jobs:
       name: Run Nuke ApplicationBuilderHelpersPublish
       run: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_RUN_SCRIPT }} Run --args "ApplicationBuilderHelpersPublish"
     - name: Upload common publish artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: publish___$common___APPLICATIONBUILDERHELPERSPUBLISH
         path: ./.nuke/temp/artifacts-upload/$common/*
@@ -201,14 +201,14 @@ jobs:
     runs-on:
       labels: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         fetch-tags: true
         submodules: recursive
         persist-credentials: true
     - name: Download artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ./.nuke/temp/artifacts-download
         pattern: '*___*'
