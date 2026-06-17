@@ -15,3 +15,4 @@ updates:
       - dependency-name: "Microsoft.NET.ILLink.*"
       - dependency-name: "Microsoft.DotNet.*"
       - dependency-name: "Microsoft.Build.*"
+      - dependency-name: "ApplicationBuilderHelpers"
