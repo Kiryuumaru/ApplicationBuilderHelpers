@@ -20,12 +20,13 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// Command line parser that supports hierarchical subcommands with option/argument inheritance.
 /// Implements the processing order: Build hierarchy first, then parse arguments.
 /// </summary>
-internal class CommandLineParser(ApplicationBuilder applicationBuilder)
+internal class CommandLineParser(ApplicationBuilder applicationBuilder, ConsoleOutput? consoleOutput = null)
 {
     public ApplicationBuilder ApplicationBuilder { get; } = applicationBuilder;
     public ICommandBuilder CommandBuilder { get; } = applicationBuilder;
     public ICommandTypeParserCollection CommandTypeParserCollection { get; } = applicationBuilder;
     public IApplicationDependencyCollection ApplicationDependencyCollection { get; } = applicationBuilder;
+    internal ConsoleOutput ConsoleOutput { get; } = consoleOutput ?? new ConsoleOutput();
 
     private SubCommandInfo? _rootCommand;
     private readonly Dictionary<string, SubCommandInfo> _allCommands = [];
@@ -803,94 +804,109 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+        ConsoleCancelEventHandler cancelKeyPressHandler = (sender, e) =>
+        {
+            cancellationTokenSource.Cancel();
+            e.Cancel = true;
+        };
+
+        bool cancelKeyPressSubscribed = false;
         try
         {
-            Console.CancelKeyPress += (sender, e) =>
-            {
-                cancellationTokenSource.Cancel();
-                e.Cancel = true;
-            };
+            ConsoleOutput.CancelKeyPress += cancelKeyPressHandler;
+            cancelKeyPressSubscribed = true;
         }
         catch (PlatformNotSupportedException)
         {
-            Console.WriteLine("Note: Console.CancelKeyPress is not supported on this platform.");
+            ConsoleOutput.WriteLineError("Note: Console.CancelKeyPress is not supported on this platform.");
         }
         catch (IOException)
         {
-            Console.WriteLine("Note: Console.CancelKeyPress is unavailable (I/O).");
-        }
-
-        var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
-        LifetimeGlobalService lifetimeGlobalService = new();
-        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
-
-        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
-        applicationBuilder.Services.AddScoped<LifetimeService>();
-
-        applicationBuilder.ApplicationDependencies.Add(command);
-        foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
-        {
-            applicationBuilder.ApplicationDependencies.Add(dependency);
-        }
-
-        ApplicationHost applicationHost = applicationBuilder.BuildInternal();
-        ValueTask commandRun = command.RunInternal(applicationHost, cancellationTokenSource);
-
-        if (cancellationTokenSource.Token.IsCancellationRequested)
-        {
-            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
-            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
-            return;
+            ConsoleOutput.WriteLineError("Note: Console.CancelKeyPress is unavailable (I/O).");
         }
 
         try
         {
-            using var runtimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
-            await Task.WhenAll(
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await commandRun;
-                    }
-                    catch
-                    {
-                        runtimeCts.Cancel();
-                        throw;
-                    }
+            var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
+            LifetimeGlobalService lifetimeGlobalService = new();
+            cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
 
-                }, runtimeCts.Token),
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        int exitCode = await applicationHost.Run(runtimeCts.Token);
-                        if (exitCode != 0)
-                        {
-                            throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
-                        }
-                    }
-                    catch
-                    {
-                        runtimeCts.Cancel();
-                        throw;
-                    }
-                }, runtimeCts.Token));
+            applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+            applicationBuilder.Services.AddScoped<LifetimeService>();
 
-            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
-        }
-        catch (OperationCanceledException)
-        {
-            // Handle cancellation gracefully
-            if (!cancellationTokenSource.IsCancellationRequested)
+            applicationBuilder.ApplicationDependencies.Add(command);
+            foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
             {
-                throw; // Rethrow if cancellation was not requested by the caller
+                applicationBuilder.ApplicationDependencies.Add(dependency);
+            }
+
+            ApplicationHost applicationHost = applicationBuilder.BuildInternal();
+            applicationHost.ConsoleOutput = ConsoleOutput;
+            ValueTask commandRun = command.RunInternal(applicationHost, cancellationTokenSource);
+
+            if (cancellationTokenSource.Token.IsCancellationRequested)
+            {
+                await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+                await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
+                return;
+            }
+
+            try
+            {
+                using var runtimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
+                await Task.WhenAll(
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await commandRun;
+                        }
+                        catch
+                        {
+                            runtimeCts.Cancel();
+                            throw;
+                        }
+
+                    }, runtimeCts.Token),
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            int exitCode = await applicationHost.Run(runtimeCts.Token);
+                            if (exitCode != 0)
+                            {
+                                throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
+                            }
+                        }
+                        catch
+                        {
+                            runtimeCts.Cancel();
+                            throw;
+                        }
+                    }, runtimeCts.Token));
+
+                await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation gracefully
+                if (!cancellationTokenSource.IsCancellationRequested)
+                {
+                    throw; // Rethrow if cancellation was not requested by the caller
+                }
+            }
+            finally
+            {
+                // Ensure we clean up the lifetime service
+                await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
             }
         }
         finally
         {
-            // Ensure we clean up the lifetime service
-            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
+            if (cancelKeyPressSubscribed)
+            {
+                ConsoleOutput.CancelKeyPress -= cancelKeyPressHandler;
+            }
         }
     }
 
@@ -952,20 +968,20 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
 
     private void ShowGlobalHelp()
     {
-        var helpFormatter = new HelpFormatter(CommandBuilder, _rootCommand, _allCommands);
+        var helpFormatter = new HelpFormatter(CommandBuilder, _rootCommand, _allCommands, ConsoleOutput);
         helpFormatter.ShowGlobalHelp();
     }
 
     private void ShowCommandHelp(SubCommandInfo commandInfo)
     {
-        var helpFormatter = new HelpFormatter(CommandBuilder, _rootCommand, _allCommands);
+        var helpFormatter = new HelpFormatter(CommandBuilder, _rootCommand, _allCommands, ConsoleOutput);
         helpFormatter.ShowCommandHelp(commandInfo);
     }
 
     private void ShowVersion()
     {
         var version = CommandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
-        Console.WriteLine(version);
+        ConsoleOutput.WriteLine(version);
     }
 
     /// <summary>
@@ -976,24 +992,14 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
         var theme = CommandBuilder.Theme;
         // Use auto-detection for null ExecutableName
         var executableName = CommandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
-        
+
         // Show the error message in red color if theme is available
         var errorColor = theme?.RequiredColor ?? ConsoleColor.Red;
-        var originalColor = Console.ForegroundColor;
-        
-        try
-        {
-            Console.ForegroundColor = errorColor;
-            Console.Error.WriteLine($"Error: {message}");
-        }
-        finally
-        {
-            Console.ForegroundColor = originalColor;
-        }
+        ConsoleOutput.WriteLineError($"Error: {message}", errorColor);
 
         // Add helpful footer message based on error type
-        Console.Error.WriteLine();
-        
+        ConsoleOutput.WriteLineError();
+
         if (message.Contains("requires a subcommand"))
         {
             // Extract command name if present for more specific help
@@ -1002,25 +1008,25 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
                 var commandName = message[1..message.IndexOf('\'', 1)];
                 if (!string.IsNullOrEmpty(commandName))
                 {
-                    Console.Error.WriteLine($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
+                    ConsoleOutput.WriteLineError($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
                 }
                 else
                 {
-                    Console.Error.WriteLine($"Run '{executableName} --help' to see available commands and options.");
+                    ConsoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
                 }
             }
             else
             {
-                Console.Error.WriteLine($"Run '{executableName} --help' to see available commands and options.");
+                ConsoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
             }
         }
         else if (message.Contains("Unknown option") || message.Contains("Missing required"))
         {
-            Console.Error.WriteLine($"Run '{executableName} <command> --help' for more information on specific command options.");
+            ConsoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
         }
         else
         {
-            Console.Error.WriteLine($"Run '{executableName} --help' for more information on available commands and options.");
+            ConsoleOutput.WriteLineError($"Run '{executableName} --help' for more information on available commands and options.");
         }
     }
 

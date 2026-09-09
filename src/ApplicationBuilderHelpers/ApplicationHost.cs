@@ -1,4 +1,5 @@
-﻿using ApplicationBuilderHelpers.Exceptions;
+﻿using ApplicationBuilderHelpers.CommandLineParser;
+using ApplicationBuilderHelpers.Exceptions;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -22,6 +23,8 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     /// Gets the <see cref="IServiceProvider"/> associated with the <see cref="Host"/>.
     /// </summary>
     public new IServiceProvider Services => Host.Services;
+
+    internal ConsoleOutput ConsoleOutput { get; set; } = new ConsoleOutput();
 
     /// <summary>
     /// Runs the configured application.
@@ -56,7 +59,7 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
         }
         catch (CommandException ex)
         {
-            Console.WriteLine(ex.Message);
+            ConsoleOutput.WriteLineError(ex.Message);
             return ex.ExitCode;
         }
 
