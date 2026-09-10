@@ -43,7 +43,7 @@ public abstract class Command<THostApplicationBuilder> : ApplicationDependency, 
 
 | Member | Returns | Description |
 |---|---|---|
-| `Run(ApplicationHost<THostApplicationBuilder>, CancellationTokenSource)` | `ValueTask` | Command logic |
+| `Run(ApplicationHost<THostApplicationBuilder>, CancellationToken)` | `ValueTask` | Command logic (return normally on success; throw `CommandException` for errors; cancellation maps to 130) |
 | `ApplicationBuilder(CancellationToken)` | `ValueTask<THostApplicationBuilder>` | Create host builder (only on generic variant) |
 
 ### Inherited from ApplicationDependency
@@ -210,6 +210,14 @@ public class CommandArgumentAttribute : Attribute
 ## Exceptions
 
 ### CommandException
+
+Exit contract for `RunAsync`:
+
+| Outcome | Exit code |
+|---|---|
+| `Run` returns normally | `0` |
+| `Run` throws `CommandException` | `ex.ExitCode` |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
 ```csharp
 public class CommandException : Exception

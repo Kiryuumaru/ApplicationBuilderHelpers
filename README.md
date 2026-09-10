@@ -42,10 +42,9 @@ public class GreetCommand : Command
     [CommandArgument(Name = "name", Position = 0, Description = "Who to greet")]
     public string Name { get; set; } = "World";
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Hello, {Name}!");
-        cts.Cancel();
         return ValueTask.CompletedTask;
     }
 }
@@ -69,10 +68,9 @@ public class BuildCommand : Command
     [CommandOption('v', "verbose", Description = "Enable verbose output")]
     public bool Verbose { get; set; }
 
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // ...build logic...
-        cts.Cancel();
     }
 }
 ```
@@ -104,7 +102,15 @@ public class DeployProductionCommand : Command { /* ... */ }
 
 ### Exit Codes
 
-Throw `CommandException` to return a non-zero exit code from `RunAsync`:
+`RunAsync` returns an exit code:
+
+| Outcome | Exit code |
+|---|---|
+| `Run` returns normally | `0` |
+| `Run` throws `CommandException` | `ex.ExitCode` |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+
+Return normally on success. Throw `CommandException` for errors to return a non-zero exit code from `RunAsync`:
 
 ```csharp
 throw new CommandException("Operation failed", exitCode: 1);

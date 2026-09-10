@@ -95,14 +95,29 @@ internal class CommandLineParser
             // Step 8: Set property values on command instance
             SetCommandValues(parseResult);
 
-            // Step 9: Execute the command
+            // Step 9: Execute the command. A normal return means success (exit code 0).
             await ExecuteCommand(parseResult.TargetCommand, cancellationToken);
             return 0;
+        }
+        catch (CommandExecutor.ExternalCancellationException)
+        {
+            // Cancellation was requested: 128 + SIGINT.
+            return CommandExecutor.CanceledExitCode;
         }
         catch (CommandException ex)
         {
             ShowErrorMessage(ex.Message);
             return ex.ExitCode;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Cancelled before execution could map the outcome (e.g. pre-cancelled token).
+            return CommandExecutor.CanceledExitCode;
+        }
+        catch (OperationCanceledException)
+        {
+            // Success path — never let OperationCanceledException escape the int contract.
+            return 0;
         }
     }
 

@@ -27,7 +27,7 @@ internal class ConfigGetCommand : ConfigCommand
     [CommandOption("default", Description = "Default value if key not found")]
     public string? DefaultValue { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -72,7 +72,6 @@ internal class ConfigGetCommand : ConfigCommand
             Console.WriteLine("Configuration retrieval completed!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

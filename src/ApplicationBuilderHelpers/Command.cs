@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using System;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics.CodeAnalysis;
@@ -22,12 +23,29 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     protected abstract ValueTask<THostApplicationBuilder> ApplicationBuilder(CancellationToken stoppingToken);
 
     /// <summary>
-    /// Runs the application.
+    /// Runs the application. A normal return signals success (exit code 0);
+    /// throw <see cref="Exceptions.CommandException"/> for a non-zero exit code.
+    /// </summary>
+    /// <param name="applicationHost">The application host.</param>
+    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException($"Override {nameof(Run)}({nameof(ApplicationHost<THostApplicationBuilder>)}, {nameof(CancellationToken)}) instead.");
+    }
+
+    /// <summary>
+    /// Runs the application. A normal return signals success (exit code 0);
+    /// throw <see cref="Exceptions.CommandException"/> for a non-zero exit code.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
     /// <param name="cancellationTokenSource">A token source to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    protected abstract ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource);
+    [Obsolete("Override Run(ApplicationHost<THostApplicationBuilder>, CancellationToken) instead and simply return on success. This overload will be removed in a future major version.")]
+    protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    {
+        return Run(applicationHost, cancellationTokenSource.Token);
+    }
 
     /// <summary>
     /// Internal method for command preparation.
@@ -53,11 +71,34 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     /// Internal method for running the application.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
-    /// <param name="cancellationTokenSource">A token source to cancel the operation.</param>
+    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    ValueTask ICommand.RunInternal(ApplicationHost applicationHost, CancellationTokenSource cancellationTokenSource)
+    async ValueTask ICommand.RunInternal(ApplicationHost applicationHost, CancellationToken cancellationToken)
     {
-        return Run((applicationHost as ApplicationHost<THostApplicationBuilder>)!, cancellationTokenSource);
+        var typedHost = (applicationHost as ApplicationHost<THostApplicationBuilder>)!;
+        var tokenOverload = typeof(Command<THostApplicationBuilder>).GetMethod(
+            nameof(Run),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            binder: null,
+            types: [typeof(ApplicationHost<THostApplicationBuilder>), typeof(CancellationToken)],
+            modifiers: null);
+        var overrideMethod = GetType().GetMethod(
+            tokenOverload!.Name,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            binder: null,
+            types: [typeof(ApplicationHost<THostApplicationBuilder>), typeof(CancellationToken)],
+            modifiers: null);
+        if (overrideMethod?.DeclaringType != typeof(Command<THostApplicationBuilder>))
+        {
+            await Run(typedHost, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        // Fallback to the CancellationTokenSource overload.
+#pragma warning disable CS0618 // Legacy overload is intentionally supported here for one version.
+        using var shim = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await Run(typedHost, shim).ConfigureAwait(false);
+#pragma warning restore CS0618
     }
 }
 
