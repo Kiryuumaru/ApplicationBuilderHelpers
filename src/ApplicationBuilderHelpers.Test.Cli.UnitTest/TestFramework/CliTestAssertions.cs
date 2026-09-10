@@ -72,7 +72,7 @@ public abstract class CliTestBase : IAsyncLifetime
         _testExecutablePath ??= GetTestExecutablePath();
         if (_testExecutablePath == null)
         {
-            throw new InvalidOperationException("Could not find test.exe. Please build ApplicationBuilderHelpers.Test.Cli first.");
+            throw new InvalidOperationException("Could not find test executable (test/test.exe/test.dll). Please build ApplicationBuilderHelpers.Test.Cli first.");
         }
 
         Runner = new CliTestRunner(_testExecutablePath, verbose: false);
@@ -91,14 +91,67 @@ public abstract class CliTestBase : IAsyncLifetime
 
     private static string? GetTestExecutablePath()
     {
+        var baseDir = AppContext.BaseDirectory;
+        var nativeName = OperatingSystem.IsWindows() ? "test.exe" : "test";
+        var apphostNames = OperatingSystem.IsWindows()
+            ? new[] { "test.exe" }
+            : new[] { "test", "test.exe" };
+        // Prefer the CLI binary matching this test run's own configuration (avoids stale cross-config picks).
+        var configs = baseDir.Contains($"{Path.DirectorySeparatorChar}Debug{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+            ? new[] { "Debug", "Release" }
+            : new[] { "Release", "Debug" };
+
+        // 1) Anchor off the test assembly directory: <...>/ApplicationBuilderHelpers.Test.Cli.UnitTest/bin/<Config>/<TFM>/
+        //    so resolution is independent of the test runner's CWD.
+        var testAssemblyDir = new DirectoryInfo(baseDir);
+        for (var dir = testAssemblyDir; dir != null; dir = dir.Parent)
+        {
+            if (string.Equals(dir.Name, "ApplicationBuilderHelpers.Test.Cli.UnitTest", StringComparison.OrdinalIgnoreCase))
+            {
+                var srcDir = dir.Parent;
+                if (srcDir != null)
+                {
+                    var cliOutDir = Path.Combine(srcDir.FullName, "ApplicationBuilderHelpers.Test.Cli", "bin");
+                    var found = ProbeCliOutput(cliOutDir, apphostNames, configs);
+                    if (found != null)
+                    {
+                        return found;
+                    }
+                }
+                break;
+            }
+        }
+
+        // 2) Sibling CLI output relative to the test assembly output (covers non-standard layouts).
+        foreach (var tfm in new[] { "net10.0", "net9.0" })
+        {
+            foreach (var config in configs)
+            {
+                foreach (var fileName in apphostNames.Concat(new[] { "test.dll" }))
+                {
+                    var candidate = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..",
+                        "ApplicationBuilderHelpers.Test.Cli", "bin", config, tfm, fileName));
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        // 3) Legacy CWD-relative probes (kept for back-compat), extended to net10.0 + OS-aware names.
         var possiblePaths = new[]
         {
+            "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/" + nativeName,
+            "../ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/" + nativeName,
             "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net9.0/test.exe",
             "../ApplicationBuilderHelpers.Test.Cli/bin/Release/net9.0/test.exe",
+            "ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/" + nativeName,
+            "ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/" + nativeName,
             "ApplicationBuilderHelpers.Test.Cli/bin/Debug/net9.0/test.exe",
             "ApplicationBuilderHelpers.Test.Cli/bin/Release/net9.0/test.exe",
-            "./test.exe",
-            "test.exe"
+            "./" + nativeName,
+            nativeName
         };
 
         foreach (var path in possiblePaths)
@@ -106,6 +159,45 @@ public abstract class CliTestBase : IAsyncLifetime
             if (File.Exists(path))
             {
                 return Path.GetFullPath(path);
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ProbeCliOutput(string cliBinDir, string[] apphostNames, string[] configs)
+    {
+        if (!Directory.Exists(cliBinDir))
+        {
+            return null;
+        }
+
+        // Prefer net10.0 apphost in matching config, then net9.0 legacy, then framework-dependent test.dll.
+        foreach (var tfm in new[] { "net10.0", "net9.0" })
+        {
+            foreach (var config in configs)
+            {
+                var configDir = Path.Combine(cliBinDir, config, tfm);
+                foreach (var fileName in apphostNames)
+                {
+                    var candidate = Path.Combine(configDir, fileName);
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        foreach (var tfm in new[] { "net10.0", "net9.0" })
+        {
+            foreach (var config in configs)
+            {
+                var candidate = Path.Combine(cliBinDir, config, tfm, "test.dll");
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
             }
         }
 
