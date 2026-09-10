@@ -247,7 +247,7 @@ internal class SubCommandOptionInfo
 
     /// <summary>
     /// Validates the option value against constraints (only required field validation now)
-    /// ValidValues validation is now handled in CommandLineParser.ValidateStringValue
+    /// ValidValues validation is now handled in ValueBinder.ValidateStringValue
     /// </summary>
     public void ValidateValue(object? value)
     {
@@ -256,7 +256,7 @@ internal class SubCommandOptionInfo
             throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 1);
         }
 
-        // Note: ValidValues validation is now handled in CommandLineParser.ValidateStringValue
+        // Note: ValidValues validation is now handled in ValueBinder.ValidateStringValue
         // before type conversion to ensure consistent error messages regardless of type parsing success
     }
 
