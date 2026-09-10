@@ -36,7 +36,7 @@ internal class BuildCommand : BaseCommand
     [CommandArgument("project", Description = "Project file to build", Position = 0, Required = true)]
     public required string ProjectFile { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -69,7 +69,6 @@ internal class BuildCommand : BaseCommand
             Console.WriteLine("Build completed successfully!");
         }
 
-        cancellationTokenSource.Cancel(); // Cancel the application host to stop further processing
         return ValueTask.CompletedTask;
     }
 }

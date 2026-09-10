@@ -12,10 +12,9 @@ using Microsoft.Extensions.Hosting;
 [Command("build", description: "Build the project")]
 public class BuildCommand : Command
 {
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-        // Command logic here
-        cts.Cancel();
+        // Command logic here. A normal return means success (exit 0).
     }
 }
 ```
@@ -113,7 +112,7 @@ public string? DestPath { get; set; }
 Use the service locator from `applicationHost.Services`:
 
 ```csharp
-protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
 {
     var logger = applicationHost.Services.GetRequiredService<ILogger<MyCommand>>();
     var service = applicationHost.Services.GetRequiredService<IMyService>();
@@ -126,6 +125,14 @@ protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> a
 Commands inherit the full `ApplicationDependency` lifecycle. See [Application Dependencies](application-dependencies.md) for details on `AddServices`, `AddConfigurations`, `AddMiddlewares`, `AddMappings`, `RunPreparation`, and `RunPreparationAsync`.
 
 ## Exit Codes
+
+| Outcome | Exit code |
+|---|---|
+| `Run` returns normally | `0` |
+| `Run` throws `CommandException` | `ex.ExitCode` |
+| External cancel (outer `CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+
+Internal framework shutdown cancellation is excluded: a command that merely observes it and returns normally still exits `0`.
 
 Throw `CommandException` for non-zero exit:
 

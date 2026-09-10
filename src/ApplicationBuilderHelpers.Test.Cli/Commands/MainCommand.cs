@@ -15,7 +15,7 @@ internal class MainCommand : BaseCommand
     [CommandOption("timeout", Description = "Timeout in seconds")]
     public int Timeout { get; set; } = 30;
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Always print debug info first if enabled
         PrintDebugInfo();
@@ -54,8 +54,6 @@ internal class MainCommand : BaseCommand
         }
         
         Console.WriteLine("Use --help to see available commands and options.");
-
-        cancellationTokenSource.Cancel(); // Cancel the application host to stop further processing
 
         return ValueTask.CompletedTask;
     }

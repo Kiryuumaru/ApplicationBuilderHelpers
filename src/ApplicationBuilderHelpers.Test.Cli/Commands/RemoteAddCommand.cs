@@ -27,7 +27,7 @@ internal class RemoteAddCommand : BaseCommand
     [CommandOption("set-head", Description = "Set default branch for remote")]
     public string? DefaultBranch { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -54,7 +54,6 @@ internal class RemoteAddCommand : BaseCommand
             Console.WriteLine("Remote repository added successfully!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

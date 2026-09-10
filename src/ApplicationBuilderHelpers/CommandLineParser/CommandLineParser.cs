@@ -79,14 +79,31 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             // Step 8: Set property values on command instance
             SetCommandValues(parseResult);
 
-            // Step 9: Execute the command
+            // Step 9: Execute the command. A normal return means success (0);
+            // a legacy Cancel()-then-return is bridged as success inside RunInternal.
             await ExecuteCommand(parseResult.TargetCommand, cancellationToken);
             return 0;
+        }
+        catch (ExternalCancellationException)
+        {
+            // External abort (outer token / Ctrl+C). Not an error message: 128 + SIGINT.
+            return CanceledExitCode;
         }
         catch (CommandException ex)
         {
             ShowErrorMessage(ex.Message);
             return ex.ExitCode;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Cancelled before execution could map the outcome (e.g. pre-cancelled token).
+            return CanceledExitCode;
+        }
+        catch (OperationCanceledException)
+        {
+            // Framework/shim OCE without external request (internal shutdown):
+            // success path — never let OCE escape the int contract.
+            return 0;
         }
     }
 
@@ -795,21 +812,55 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
     }
 
     /// <summary>
-    /// Executes the target command
+    /// Exit code returned when execution is aborted by an external cancellation
+    /// request (the outer <see cref="CancellationToken"/> passed to
+    /// <see cref="RunAsync"/> or Ctrl+C). Follows the 128 + SIGINT convention.
+    /// </summary>
+    internal const int CanceledExitCode = 130;
+
+    /// <summary>
+    /// Marker for an externally-requested abort (outer token / Ctrl+C).
+    /// Internal framework shutdown cancellation never surfaces as this type,
+    /// so it always maps to <see cref="CanceledExitCode"/> (130).
+    /// </summary>
+    private sealed class ExternalCancellationException : OperationCanceledException
+    {
+        public ExternalCancellationException()
+            : base("The command was canceled.")
+        {
+        }
+    }
+
+    /// <summary>
+    /// Executes the target command. Normal return means success: the framework
+    /// stops the host after the command returns. The command receives an
+    /// observe-only token; only the framework cancels its sources (external
+    /// abort vs. internal shutdown), and only an external abort maps to 130.
     /// </summary>
     private async Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken)
     {
         var command = commandInfo.Command!;
 
-        using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var shutdownCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+        // Ctrl+C cancels our framework-owned source but not the outer token, so it
+        // is tracked separately: only external aborts (outer token / Ctrl+C) map
+        // to 130, while internal shutdown cancellation stays success.
+        bool ctrlCCanceled = false;
+        LifetimeGlobalService? lifetimeGlobalService = null;
+
+        ConsoleCancelEventHandler? cancelHandler = null;
+        bool cancelHandlerAttached = false;
         try
         {
-            Console.CancelKeyPress += (sender, e) =>
+            cancelHandler = (sender, e) =>
             {
-                cancellationTokenSource.Cancel();
+                ctrlCCanceled = true;
+                shutdownCts.Cancel();
                 e.Cancel = true;
             };
+            Console.CancelKeyPress += cancelHandler;
+            cancelHandlerAttached = true;
         }
         catch (PlatformNotSupportedException)
         {
@@ -820,77 +871,115 @@ internal class CommandLineParser(ApplicationBuilder applicationBuilder)
             Console.WriteLine("Note: Console.CancelKeyPress is unavailable (I/O).");
         }
 
-        var applicationBuilder = await command.ApplicationBuilderInternal(cancellationTokenSource.Token);
-        LifetimeGlobalService lifetimeGlobalService = new();
-        cancellationTokenSource.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
-
-        applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
-        applicationBuilder.Services.AddScoped<LifetimeService>();
-
-        applicationBuilder.ApplicationDependencies.Add(command);
-        foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
-        {
-            applicationBuilder.ApplicationDependencies.Add(dependency);
-        }
-
-        ApplicationHost applicationHost = applicationBuilder.BuildInternal();
-        ValueTask commandRun = command.RunInternal(applicationHost, cancellationTokenSource);
-
-        if (cancellationTokenSource.Token.IsCancellationRequested)
-        {
-            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
-            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
-            return;
-        }
-
         try
         {
-            using var runtimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
-            await Task.WhenAll(
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await commandRun;
-                    }
-                    catch
-                    {
-                        runtimeCts.Cancel();
-                        throw;
-                    }
+            var applicationBuilder = await command.ApplicationBuilderInternal(shutdownCts.Token);
+            lifetimeGlobalService = new LifetimeGlobalService();
+            shutdownCts.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
 
-                }, runtimeCts.Token),
-                Task.Run(async () =>
+            applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+            applicationBuilder.Services.AddScoped<LifetimeService>();
+
+            applicationBuilder.ApplicationDependencies.Add(command);
+            foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
+            {
+                applicationBuilder.ApplicationDependencies.Add(dependency);
+            }
+
+            ApplicationHost applicationHost = applicationBuilder.BuildInternal();
+
+            try
+            {
+                using var hostCts = CancellationTokenSource.CreateLinkedTokenSource(shutdownCts.Token);
+                Task commandTask = command.RunInternal(applicationHost, shutdownCts.Token).AsTask();
+                Task<int> hostTask = applicationHost.Run(hostCts.Token);
+
+                Task finished = await Task.WhenAny(commandTask, hostTask);
+
+                if (ReferenceEquals(finished, commandTask))
                 {
-                    try
+                    // Command finished first: normal return = success, so stop the host.
+                    if (commandTask.IsFaulted)
                     {
-                        int exitCode = await applicationHost.Run(runtimeCts.Token);
-                        if (exitCode != 0)
+                        hostCts.Cancel();
+                        try { await hostTask; } catch { /* Host outcome is irrelevant: the command failed. */ }
+                        await commandTask;
+                    }
+                    else if (commandTask.IsCanceled)
+                    {
+                        hostCts.Cancel();
+                        try { await hostTask; } catch { /* Host outcome is irrelevant: the command was canceled. */ }
+                        ThrowIfExternalAbort(shutdownCts, cancellationToken, ctrlCCanceled);
+                        await commandTask;
+                    }
+                    else
+                    {
+                        await commandTask;
+                        hostCts.Cancel();
+                        try { await hostTask; } catch (OperationCanceledException) { /* Expected: framework stopped the host after command success. */ }
+                    }
+                }
+                else
+                {
+                    // Host stopped first (e.g. IHost.StopAsync): drain the command so a
+                    // faulted/canceled command is still observed, then honor its outcome.
+                    if (hostTask.IsFaulted)
+                    {
+                        try { await commandTask; } catch { /* Command outcome is irrelevant: the host failed. */ }
+                        _ = await hostTask;
+                    }
+                    else if (hostTask.IsCanceled)
+                    {
+                        try { await commandTask; } catch { /* Command outcome is irrelevant: the host was canceled. */ }
+                        _ = await hostTask;
+                    }
+                    else
+                    {
+                        int hostExitCode = await hostTask;
+                        await commandTask;
+                        if (hostExitCode != 0)
                         {
-                            throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {exitCode}", exitCode);
+                            throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {hostExitCode}", hostExitCode);
                         }
                     }
-                    catch
-                    {
-                        runtimeCts.Cancel();
-                        throw;
-                    }
-                }, runtimeCts.Token));
+                }
 
-            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
-        }
-        catch (OperationCanceledException)
-        {
-            // Handle cancellation gracefully
-            if (!cancellationTokenSource.IsCancellationRequested)
-            {
-                throw; // Rethrow if cancellation was not requested by the caller
+                await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
             }
+            finally
+            {
+                // Ensure we clean up the lifetime service on both 0 and 130 paths.
+                // Null-guarded: service may not exist on early-abort paths.
+                await (lifetimeGlobalService?.InvokeApplicationExitedCallbacksAsync() ?? Task.CompletedTask);
+            }
+        }
+        catch (OperationCanceledException ex) when (ex is not ExternalCancellationException && shutdownCts.IsCancellationRequested && (cancellationToken.IsCancellationRequested || ctrlCCanceled))
+        {
+            // External abort only: either the caller cancelled the outer token or
+            // Ctrl+C fired our handler (both cancel the framework-owned source).
+            // Internal shutdown cancellation never reaches here with the outer
+            // token cancelled, so it stays success instead of 130.
+            throw new ExternalCancellationException();
         }
         finally
         {
-            // Ensure we clean up the lifetime service
-            await lifetimeGlobalService.InvokeApplicationExitedCallbacksAsync();
+            if (cancelHandlerAttached && cancelHandler is not null)
+            {
+                Console.CancelKeyPress -= cancelHandler;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="ExternalCancellationException"/> when the shutdown was
+    /// requested externally (outer token / Ctrl+C). A command that merely
+    /// observes internal shutdown cancellation returns normally (success).
+    /// </summary>
+    private static void ThrowIfExternalAbort(CancellationTokenSource shutdownCts, CancellationToken outerToken, bool ctrlCCanceled)
+    {
+        if (shutdownCts.IsCancellationRequested && (outerToken.IsCancellationRequested || ctrlCCanceled))
+        {
+            throw new ExternalCancellationException();
         }
     }
 
