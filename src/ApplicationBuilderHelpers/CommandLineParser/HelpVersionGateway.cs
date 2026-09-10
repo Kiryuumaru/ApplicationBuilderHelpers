@@ -32,6 +32,16 @@ internal sealed class HelpVersionGateway(
         return args.Contains("--version") || args.Contains("-V");
     }
 
+    internal static bool IsHelpToken(string token)
+    {
+        return token == "--help" || token == "-h";
+    }
+
+    internal static bool IsVersionToken(string token)
+    {
+        return token == "--version" || token == "-V";
+    }
+
     internal void ShowGlobalHelp(SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
     {
         var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, allCommands, consoleOutput);

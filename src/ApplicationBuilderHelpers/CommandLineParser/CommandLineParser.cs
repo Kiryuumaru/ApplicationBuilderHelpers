@@ -63,27 +63,28 @@ internal class CommandLineParser
             BuildCommandHierarchy();
             ValidateCommandHierarchy();
 
-            // Step 3: Handle basic help/version before parsing
+            // Step 3: Handle bare single --help before parsing
             if (ShouldShowGlobalHelp(args))
             {
                 ShowGlobalHelp();
                 return 0;
             }
 
-            if (ShouldShowVersion(args))
+            // Step 4: Parse command line arguments
+            var parseResult = ParseCommandLine(args);
+
+            // Step 4b: Post-parse version check on leftover unconsumed tokens (consumed option values never trigger)
+            if (parseResult.ShowVersion)
             {
                 ShowVersion();
                 return 0;
             }
 
-            // Step 4: Parse command line arguments
-            var parseResult = ParseCommandLine(args);
-
             // Step 5: Prepare application builder with dependencies
             parseResult.TargetCommand.Command?.CommandPreparation(ApplicationBuilder);
 
-            // Step 6: Handle command-specific help
-            if (parseResult.ShowHelp)
+            // Step 6: Handle bare command help (no values collected)
+            if (parseResult.ShowHelp && parseResult.OptionValues.Count == 0 && parseResult.ArgumentValues.Count == 0)
             {
                 ShowCommandHelp(parseResult.TargetCommand);
                 return 0;
@@ -91,6 +92,13 @@ internal class CommandLineParser
 
             // Step 7: Validate required options and arguments
             ValidateRequiredParameters(parseResult);
+
+            // Step 7b: Handle command help when values were collected
+            if (parseResult.ShowHelp)
+            {
+                ShowCommandHelp(parseResult.TargetCommand);
+                return 0;
+            }
 
             // Step 8: Set property values on command instance
             SetCommandValues(parseResult);
@@ -174,6 +182,7 @@ internal class ParseResult
 {
     public SubCommandInfo TargetCommand { get; set; } = null!;
     public bool ShowHelp { get; set; }
+    public bool ShowVersion { get; set; }
     public Dictionary<SubCommandOptionInfo, List<string>> OptionValues { get; set; } = [];
     public Dictionary<SubCommandArgumentInfo, List<string>> ArgumentValues { get; set; } = [];
 

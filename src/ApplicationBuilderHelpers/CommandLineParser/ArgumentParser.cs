@@ -36,17 +36,29 @@ internal sealed class ArgumentParser
             }
         }
 
-        // Check for help flag in remaining arguments before validating
-        var hasHelpFlag = args.Skip(argIndex).Any(arg => arg == "--help" || arg == "-h");
-        if (hasHelpFlag)
+        // Zero-match unknown command must error, not show help
+        if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-'))
         {
-            result.ShowHelp = true;
+            throw new CommandException($"No command found for '{args[0]}'", 1);
+        }
+
+        // Version resolves after the command path is walked, before hierarchy errors
+        // (root/abstract levels would otherwise throw before the token is collected)
+        if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).Any(HelpVersionGateway.IsVersionToken))
+        {
+            result.ShowVersion = true;
             return result;
         }
 
         // If we ended up on a command without implementation, check if it requires subcommands
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
+            // Prefix-match + help shows parent help instead of erroring
+            if (argIndex > 0 && args.Skip(argIndex).Any(HelpVersionGateway.IsHelpToken))
+            {
+                result.ShowHelp = true;
+                return result;
+            }
             // This is an abstract command that requires a subcommand
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = string.IsNullOrEmpty(result.TargetCommand.FullCommandName) ? "" : result.TargetCommand.FullCommandName;
@@ -85,6 +97,13 @@ internal sealed class ArgumentParser
                 continue;
             }
 
+            // Check for version flag (only leftover unconsumed tokens reach here)
+            if (HelpVersionGateway.IsVersionToken(arg))
+            {
+                result.ShowVersion = true;
+                continue;
+            }
+
             // Check if this is an option
             var matchedOption = allOptions.FirstOrDefault(o => o.MatchesArgument(arg));
             if (matchedOption != null)
@@ -93,7 +112,8 @@ internal sealed class ArgumentParser
                 var value = matchedOption.ExtractValue(arg, nextArg);
 
                 // If value came from next argument, skip it
-                if (value == nextArg && !(nextArg?.StartsWith('-') == true && !IsNumericValue(nextArg)))
+                // Non-flag options always consume nextArg as value even if flag-looking (e.g. --config --version)
+                if (value == nextArg && (!matchedOption.IsFlag || !(nextArg?.StartsWith('-') == true && !IsNumericValue(nextArg))))
                     i++;
 
                 result.AddOptionValue(matchedOption, value);
