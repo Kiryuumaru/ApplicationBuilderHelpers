@@ -53,6 +53,17 @@ public sealed class AllowedValueMessageTests
         Assert.Contains("Must be one of: json, xml", error);
     }
 
+    [Fact]
+    public async Task OptionAllowedValueMessage_MatchesArgumentMessageShape()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["shapemsg", "--mode", "yaml"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Value 'yaml' is not valid for option '--mode'", error);
+        Assert.Contains("Must be one of: json, xml", error);
+    }
+
     private static ApplicationBuilder CreateBuilder()
     {
         return ApplicationBuilder.Create()

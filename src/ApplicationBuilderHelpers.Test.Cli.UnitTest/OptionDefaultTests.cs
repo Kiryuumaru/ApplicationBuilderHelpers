@@ -42,6 +42,9 @@ public sealed class OptionDefaultTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
+    // White-box exception: DefaultValue metadata has no public surface (help text
+    // reads the live property initializer instead), so this pins it directly via
+    // reflection. The public fallback behavior is covered above.
     [Fact]
     public void OmittedOption_DefaultValueMetadataStaysUnset()
     {

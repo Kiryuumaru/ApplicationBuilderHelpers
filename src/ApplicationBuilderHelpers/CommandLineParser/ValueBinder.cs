@@ -25,9 +25,14 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             EnvVarFallback.Apply(result, option, requiredOnly: false);
         }
 
-        // Set option values
-        foreach (var (option, values) in result.OptionValues)
+        // Set option values (grouped by canonical key so global-copy
+        // identities bind one logical option once with merged CLI-wins values)
+        foreach (var group in result.OptionValues.GroupBy(
+            entry => ParseResult.GetCanonicalOptionKey(entry.Key),
+            StringComparer.OrdinalIgnoreCase))
         {
+            var option = group.First().Key;
+            var values = group.SelectMany(entry => entry.Value).ToList();
             if (values.Count == 0) continue;
 
             object? propertyValue;

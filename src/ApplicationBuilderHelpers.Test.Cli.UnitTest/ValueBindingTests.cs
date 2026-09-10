@@ -620,7 +620,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(1, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid value 'medium' for argument 'level'", error);
+        Assert.Contains("Value 'medium' is not valid for argument 'level'", error);
+        Assert.Contains("Must be one of: low, high", error);
     }
 
     [Fact]

@@ -96,6 +96,17 @@ internal sealed class ArgumentParser
                 if (value == nextArg && !(nextArg?.StartsWith('-') == true && !IsNumericValue(nextArg)))
                     i++;
 
+                if (!matchedOption.IsArray
+                    && value != null
+                    && !IsValuelessFlagOccurrence(matchedOption, arg, nextArg, value)
+                    && result.TryGetMergedOptionValues(matchedOption, out _))
+                {
+                    var name = matchedOption.LongName != null
+                        ? $"--{matchedOption.LongName}"
+                        : $"-{matchedOption.ShortName}";
+                    throw new CommandException($"Duplicate option '{name}' specified multiple times.", 1);
+                }
+
                 result.AddOptionValue(matchedOption, value);
             }
             else if (arg.StartsWith('-') && !IsNumericValue(arg))
@@ -125,6 +136,14 @@ internal sealed class ArgumentParser
             }
         }
     }
+
+    /// <summary>
+    /// Valueless bool flags (bare <c>--verbose</c>, defaulting to "true") are
+    /// exempt from duplicate rejection; a bool with an explicit value
+    /// (<c>--verbose=true</c>, <c>--verbose false</c>) is not exempt.
+    /// </summary>
+    private static bool IsValuelessFlagOccurrence(SubCommandOptionInfo matchedOption, string arg, string? nextArg, string value) =>
+        matchedOption.IsFlag && value != nextArg && !arg.Contains('=');
 
     /// <summary>
     /// Adds an argument value to the parse result
