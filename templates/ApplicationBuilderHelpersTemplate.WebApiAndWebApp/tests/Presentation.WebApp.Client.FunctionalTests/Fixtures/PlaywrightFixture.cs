@@ -13,7 +13,7 @@ public class PlaywrightFixture : IAsyncLifetime
     public IBrowser Browser => _browser ?? throw new InvalidOperationException("Browser not initialized");
     public IPlaywright Playwright => _playwright ?? throw new InvalidOperationException("Playwright not initialized");
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         Console.WriteLine("[PLAYWRIGHT] Initializing...");
 
@@ -35,7 +35,7 @@ public class PlaywrightFixture : IAsyncLifetime
         Console.WriteLine("[PLAYWRIGHT] Browser launched");
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         Console.WriteLine("[PLAYWRIGHT] Disposing...");
 

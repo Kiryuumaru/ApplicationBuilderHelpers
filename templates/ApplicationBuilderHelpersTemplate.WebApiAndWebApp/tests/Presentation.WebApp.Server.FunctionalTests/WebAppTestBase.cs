@@ -26,14 +26,14 @@ public abstract class WebAppTestBase : IAsyncLifetime
         Output = output;
     }
 
-    public virtual async Task InitializeAsync()
+    public virtual async ValueTask InitializeAsync()
     {
         // Create a new host with a random port for this test class
         _host = new WebApiTestHost(Output);
         await _host.StartAsync(TimeSpan.FromSeconds(60));
     }
 
-    public virtual async Task DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
         if (_host != null)
         {

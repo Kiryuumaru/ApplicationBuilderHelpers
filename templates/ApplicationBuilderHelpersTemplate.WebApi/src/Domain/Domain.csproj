@@ -15,9 +15,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="ApplicationBuilderHelpers" Version="4.1.86" />
-		<PackageReference Include="DisposableHelpers" Version="1.2.152" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+		<PackageReference Include="ApplicationBuilderHelpers" Version="4.1.134" />
+		<PackageReference Include="DisposableHelpers" Version="1.2.213" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
 	</ItemGroup>
 
 </Project>

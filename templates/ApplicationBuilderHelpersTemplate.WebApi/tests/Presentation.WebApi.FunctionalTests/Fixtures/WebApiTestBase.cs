@@ -44,7 +44,7 @@ public abstract class WebApiTestBase : IAsyncLifetime
         Output = output;
     }
 
-    public virtual async Task InitializeAsync()
+    public virtual async ValueTask InitializeAsync()
     {
         Output.WriteLine("[TEST] Initializing WebApi test host with random port...");
         _host = new WebApiTestHost(Output);
@@ -52,7 +52,7 @@ public abstract class WebApiTestBase : IAsyncLifetime
         Output.WriteLine($"[TEST] WebApi started at {_host.BaseUrl}");
     }
 
-    public virtual async Task DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
         Output.WriteLine("[TEST] Disposing WebApi test host...");
         if (_host != null)

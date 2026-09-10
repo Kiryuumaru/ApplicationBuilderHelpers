@@ -1,39 +1,37 @@
 <Project>
-  <!-- Apply global VSTest settings to all test projects.
-       This file is in the tests/ folder so it only applies to test projects. -->
+
   <PropertyGroup>
-    <!-- Run test assemblies in parallel (0 = use all available CPUs) -->
-    <VSTestMaxCpuCount>0</VSTestMaxCpuCount>
-    
-    <!-- Enable blame-hang to detect and terminate individual tests that hang -->
-    <VSTestBlameHang>true</VSTestBlameHang>
-    <VSTestBlameHangTimeout>2min</VSTestBlameHangTimeout>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- xunit v3 test projects must be executables (https://xunit.net/docs/getting-started/v3/migration#convert-to-executable-project) -->
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <LangVersion>14</LangVersion>
   </PropertyGroup>
-
-  <!-- xUnit parallel configuration - generates xunit.runner.json at build time -->
-  <PropertyGroup>
-    <!-- Use 0 for unlimited (auto-detect based on CPU cores) to avoid resource exhaustion -->
-    <XUnitMaxParallelThreads>0</XUnitMaxParallelThreads>
-  </PropertyGroup>
-
-  <Target Name="GenerateXunitRunnerJson" BeforeTargets="Build" Outputs="$(IntermediateOutputPath)xunit.runner.json">
-    <PropertyGroup>
-      <XunitRunnerJsonPath>$(IntermediateOutputPath)xunit.runner.json</XunitRunnerJsonPath>
-      <XunitRunnerJsonContent><![CDATA[{
-  "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
-  "parallelizeTestCollections": true,
-  "maxParallelThreads": $(XUnitMaxParallelThreads)
-}]]></XunitRunnerJsonContent>
-    </PropertyGroup>
-    <MakeDir Directories="$(IntermediateOutputPath)" Condition="!Exists('$(IntermediateOutputPath)')" />
-    <WriteLinesToFile File="$(XunitRunnerJsonPath)" Lines="$(XunitRunnerJsonContent)" Overwrite="true" />
-  </Target>
-
-  <Target Name="CopyXunitRunnerJson" AfterTargets="GenerateXunitRunnerJson" BeforeTargets="Build">
-    <Copy SourceFiles="$(IntermediateOutputPath)xunit.runner.json" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
-  </Target>
 
   <ItemGroup>
-    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.3" />
+    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
+    <!-- MTP-native coverage: coverlet.collector is VSTest-only and exits 5 under MTP.
+         Microsoft.Testing.Extensions.CodeCoverage auto-registers via MSBuild; run
+         dotnet test with coverage flags for cobertura output. -->
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
+    <!-- Peer dependency of GitHubActionsTestLogger in MTP mode (recommended latest). -->
+    <PackageReference Include="Microsoft.Testing.Platform" Version="2.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
+    <!-- xunit.v3 4.0.0 defaults to MTP v2 (depends on xunit.v3.mtp-v2), so base package stays. -->
+    <PackageReference Include="xunit.v3" Version="4.0.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageReference Include="NSubstitute" Version="6.2.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+
 </Project>

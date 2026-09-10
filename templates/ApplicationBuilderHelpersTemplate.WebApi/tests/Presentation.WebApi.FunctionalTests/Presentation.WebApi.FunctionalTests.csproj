@@ -1,32 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<LangVersion>14</LangVersion>
-		<TargetFramework>net10.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
-		<IsPackable>false</IsPackable>
-		<UserSecretsId>webapi-functional-tests-9f3c7d2a</UserSecretsId>
-		<!-- Functional tests share server state - run sequentially -->
-		<xUnitParallelizeTestCollections>false</xUnitParallelizeTestCollections>
-	</PropertyGroup>
+  <PropertyGroup>
+    <UserSecretsId>webapi-functional-tests-9f3c7d2a</UserSecretsId>
+    <!-- Functional tests share server state - run sequentially -->
+    <xUnitParallelizeTestCollections>false</xUnitParallelizeTestCollections>
+  </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="coverlet.collector" Version="10.0.1" />
-		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.9" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
-		<PackageReference Include="xunit" Version="2.9.3" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\..\src\Presentation.WebApi\Presentation.WebApi.csproj" ReferenceOutputAssembly="false" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Using Include="Xunit" />
-		<Using Include="Xunit.Abstractions" />
-	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Presentation.WebApi\Presentation.WebApi.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
 
 </Project>

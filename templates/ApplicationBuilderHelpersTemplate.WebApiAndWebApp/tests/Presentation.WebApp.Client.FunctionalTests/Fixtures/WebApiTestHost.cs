@@ -91,9 +91,16 @@ public class WebApiTestHost : IAsyncDisposable
 
         _output.WriteLine("[WEBAPI] Publish completed");
 
-        // Find the exe file in publish output
-        var exePath = Directory.GetFiles(_publishDir, "*.exe")
-            .FirstOrDefault(f => !Path.GetFileName(f).StartsWith("createdump", StringComparison.OrdinalIgnoreCase));
+        // Find the apphost executable in publish output (extensionless on Linux/macOS,
+        // .exe on Windows). Fall back to the server dll launched via the SDK's dotnet
+        // (PATH inside tests resolves to the system 8.x SDK, which cannot run net10
+        // appdlls — hence prefer the apphost which carries its own apphost resolver).
+        var exeCandidates = Directory.GetFiles(_publishDir, "sampleapp")
+            .Concat(Directory.GetFiles(_publishDir, "sampleapp.exe"))
+            .Where(f => !Path.GetFileName(f).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+            .Where(File.Exists)
+            .ToList();
+        var exePath = exeCandidates.FirstOrDefault();
 
         if (exePath == null || !File.Exists(exePath))
         {
