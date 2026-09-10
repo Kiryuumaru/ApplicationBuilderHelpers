@@ -27,9 +27,15 @@ internal sealed class HelpVersionGateway(
         return false;
     }
 
+    /// <summary>
+    /// Legacy contains-anywhere version check. Obsolete: version is resolved
+    /// post-parse from leftover unconsumed tokens via <see cref="IsVersionToken"/>,
+    /// so consumed option values never trigger version output.
+    /// </summary>
+    [Obsolete("Use IsVersionToken on leftover unconsumed tokens instead.")]
     internal static bool ShouldShowVersion(string[] args)
     {
-        return args.Contains("--version") || args.Contains("-V");
+        return args.Any(IsVersionToken);
     }
 
     internal static bool IsHelpToken(string token)

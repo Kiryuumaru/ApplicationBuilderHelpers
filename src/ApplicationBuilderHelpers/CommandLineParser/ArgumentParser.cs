@@ -42,6 +42,9 @@ internal sealed class ArgumentParser
             throw new CommandException($"No command found for '{args[0]}'", 1);
         }
 
+        // Version asymmetry is intentional: a zero-match unknown command (e.g. "deply --version")
+        // errors with "No command found" to catch typos, while a known abstract command
+        // (e.g. "config --version") resolves version because the command path is valid.
         // Version resolves after the command path is walked, before hierarchy errors
         // (root/abstract levels would otherwise throw before the token is collected)
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).Any(HelpVersionGateway.IsVersionToken))
@@ -91,7 +94,7 @@ internal sealed class ArgumentParser
             var arg = args[i];
 
             // Check for help flag
-            if (arg == "--help" || arg == "-h")
+            if (HelpVersionGateway.IsHelpToken(arg))
             {
                 result.ShowHelp = true;
                 continue;

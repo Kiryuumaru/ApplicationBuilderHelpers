@@ -159,8 +159,6 @@ internal class CommandLineParser
 
     private static bool ShouldShowGlobalHelp(string[] args) => HelpVersionGateway.ShouldShowGlobalHelp(args);
 
-    private static bool ShouldShowVersion(string[] args) => HelpVersionGateway.ShouldShowVersion(args);
-
     private void ShowGlobalHelp() => _helpGateway.ShowGlobalHelp(_rootCommand, _allCommands);
 
     private void ShowCommandHelp(SubCommandInfo commandInfo) => _helpGateway.ShowCommandHelp(commandInfo, _rootCommand, _allCommands);
