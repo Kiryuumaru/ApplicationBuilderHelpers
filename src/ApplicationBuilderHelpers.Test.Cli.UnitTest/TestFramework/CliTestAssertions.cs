@@ -93,6 +93,10 @@ public abstract class CliTestBase : IAsyncLifetime
     {
         var possiblePaths = new[]
         {
+            "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/test.exe",
+            "../ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/test.exe",
+            "ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/test.exe",
+            "ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/test.exe",
             "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net9.0/test.exe",
             "../ApplicationBuilderHelpers.Test.Cli/bin/Release/net9.0/test.exe",
             "ApplicationBuilderHelpers.Test.Cli/bin/Debug/net9.0/test.exe",
