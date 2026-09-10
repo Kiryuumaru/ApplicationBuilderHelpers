@@ -17,7 +17,7 @@ internal sealed class ParameterValidator
         // Check required options
         foreach (var option in result.TargetCommand.AllOptions.Where(o => o.IsRequired))
         {
-            if (!result.OptionValues.TryGetValue(option, out List<string>? value) || value.Count == 0)
+            if (!result.TryGetMergedOptionValues(option, out _))
             {
                 // Check for environment variable fallback
                 if (EnvVarFallback.Apply(result, option, requiredOnly: true))

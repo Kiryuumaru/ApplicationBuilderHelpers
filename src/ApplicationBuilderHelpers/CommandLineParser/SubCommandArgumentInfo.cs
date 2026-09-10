@@ -305,8 +305,8 @@ internal class SubCommandArgumentInfo
             {
                 var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
                 throw new CommandException(
-                    $"Invalid value '{value}' for argument '{DisplayName}'. " +
-                    $"Valid values are: {validValuesString}", 1);
+                    $"Value '{value}' is not valid for argument '{DisplayName}'. " +
+                    $"Must be one of: {validValuesString}", 1);
             }
         }
 
