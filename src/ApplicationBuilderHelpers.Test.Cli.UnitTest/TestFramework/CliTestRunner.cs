@@ -4,7 +4,7 @@ using System.Text;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 
 /// <summary>
-/// Provides utilities for running CLI tests with the test.exe
+/// Provides utilities for running CLI tests with the test executable
 /// </summary>
 public class CliTestRunner
 {
@@ -74,9 +74,10 @@ public class CliTestRunner
     public async Task<CliTestResult> RunAsync(TimeSpan timeout, Dictionary<string, string>? environmentVariables, params string[] args)
     {
         using var process = new Process();
+        var isFrameworkDependentDll = string.Equals(Path.GetExtension(_executablePath), ".dll", StringComparison.OrdinalIgnoreCase);
         process.StartInfo = new ProcessStartInfo
         {
-            FileName = _executablePath,
+            FileName = isFrameworkDependentDll ? "dotnet" : _executablePath,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -84,6 +85,11 @@ public class CliTestRunner
             CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(_executablePath)
         };
+
+        if (isFrameworkDependentDll)
+        {
+            process.StartInfo.ArgumentList.Add(_executablePath);
+        }
 
         // Add arguments to the process
         foreach (var arg in args)
@@ -186,13 +192,14 @@ public class CliTestRunner
             }
         }
 
+        var invokedCommand = isFrameworkDependentDll ? $"dotnet {_executablePath}" : _executablePath;
         return new CliTestResult
         {
             ExitCode = process.ExitCode,
             StandardOutput = outputBuilder.ToString().TrimEnd(),
             StandardError = errorBuilder.ToString().TrimEnd(),
             ExecutionTime = stopwatch.Elapsed,
-            Command = $"{_executablePath} {string.Join(" ", args)}",
+            Command = $"{invokedCommand} {string.Join(" ", args)}",
             EnvironmentVariables = allEnvironmentVariables
         };
     }
