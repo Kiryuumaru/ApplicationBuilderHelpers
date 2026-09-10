@@ -29,6 +29,8 @@ public sealed class ApplicationHostTests
 {
     private static readonly SemaphoreSlim ConsoleGate = new(1, 1);
 
+    private const int CanceledExitCode = 130;
+
     [Command("hostprobe", "Probes host accessor properties.")]
     public sealed class HostProbeCommand : Command
     {
@@ -365,7 +367,7 @@ public sealed class ApplicationHostTests
     }
 
     [Fact]
-    public async Task DeferredRun_WithExternalCancellation_ExitsZero()
+    public async Task DeferredRun_WithExternalCancellation_MapsToCanceledExitCode()
     {
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(500);
@@ -373,7 +375,7 @@ public sealed class ApplicationHostTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<HostWaitCommand>(), ["hostwait"], cts.Token);
 
-        Assert.Equal(0, exitCode);
+        Assert.Equal(CanceledExitCode, exitCode);
         Assert.Contains("waiting on host", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
