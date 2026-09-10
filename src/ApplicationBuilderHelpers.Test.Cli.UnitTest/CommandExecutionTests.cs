@@ -325,13 +325,14 @@ public sealed class CommandExecutionTests
     }
 
     [Fact]
-    public async Task UnrequestedCancellation_RethrowsToCaller()
+    public async Task UnrequestedCancellation_SignalsSuccess()
     {
-        var (exception, output, _) = await RunCapturedThrowsAsync<OperationCanceledException>(
+        var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<BareOperationCancelledCommand>(), ["execocebare"]);
 
-        Assert.Contains("bare cancel", exception.Message);
+        Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -346,7 +347,7 @@ public sealed class CommandExecutionTests
     }
 
     [Fact]
-    public async Task ExternalCancellation_ExitsZero()
+    public async Task ExternalCancellation_MapsToCanceledExitCode()
     {
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(500);
@@ -354,21 +355,21 @@ public sealed class CommandExecutionTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<WaitForCancellationCommand>(), ["execwait"], cts.Token);
 
-        Assert.Equal(0, exitCode);
+        Assert.Equal(130, exitCode);
         Assert.Contains("waiting", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task GuardedBuilderWithCancelledToken_PropagatesCancellation()
+    public async Task GuardedBuilderWithCancelledToken_MapsToCanceledExitCode()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var (exception, _, _) = await RunCapturedThrowsAsync<OperationCanceledException>(
+        var (exitCode, _, _) = await RunCapturedAsync(
             () => CreateBuilder<GuardedBuilderCommand>(), ["execguarded"], cts.Token);
 
-        Assert.IsType<OperationCanceledException>(exception);
+        Assert.Equal(130, exitCode);
     }
 
     [Fact]
