@@ -117,8 +117,9 @@ public sealed class AbsolutePathAndLifetimeTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<AbsolutePathOptionCommand>(), ["abspathopt", "--path=/tmp"]);
 
+        Assert.True(AbsolutePath.TryParse("/tmp", out var expected), "Expected '/tmp' to parse as AbsolutePath.");
         Assert.Equal(0, exitCode);
-        Assert.Contains("Path: /tmp", output);
+        Assert.Contains($"Path: {expected}", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
@@ -139,8 +140,9 @@ public sealed class AbsolutePathAndLifetimeTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<AbsolutePathArgumentCommand>(), ["abspatharg", "/tmp"]);
 
+        Assert.True(AbsolutePath.TryParse("/tmp", out var expected), "Expected '/tmp' to parse as AbsolutePath.");
         Assert.Equal(0, exitCode);
-        Assert.Contains("Path: /tmp", output);
+        Assert.Contains($"Path: {expected}", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
