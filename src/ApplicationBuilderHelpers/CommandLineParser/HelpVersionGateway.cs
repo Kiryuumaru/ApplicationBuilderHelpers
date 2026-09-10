@@ -2,7 +2,6 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -17,7 +16,7 @@ internal sealed class HelpVersionGateway(
     internal static bool ShouldShowGlobalHelp(string[] args)
     {
         // Only show global help if explicitly requested with --help/-h
-        if (args.Length == 1 && (args[0] == "--help" || args[0] == "-h"))
+        if (args.Length == 1 && IsHelpToken(args[0]))
         {
             return true;
         }
@@ -27,9 +26,14 @@ internal sealed class HelpVersionGateway(
         return false;
     }
 
-    internal static bool ShouldShowVersion(string[] args)
+    internal static bool IsHelpToken(string token)
     {
-        return args.Contains("--version") || args.Contains("-V");
+        return token == "--help" || token == "-h";
+    }
+
+    internal static bool IsVersionToken(string token)
+    {
+        return token == "--version" || token == "-V";
     }
 
     internal void ShowGlobalHelp(SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
