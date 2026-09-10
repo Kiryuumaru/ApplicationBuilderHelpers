@@ -32,14 +32,16 @@ dotnet publish src/Presentation.Cli -o publish
 
 ### Running Published Application
 
+The published binary name follows `AssemblyName` (defaults to `sampleapp`; renames automatically with it — substitute `<YourApp>` with your actual name):
+
 ```powershell
-./publish/sampleapp
+./publish/<YourApp>
 ```
 
 ### Stop Running Instance
 
 ```powershell
-Get-Process sampleapp -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process <YourApp> -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
 ### First-Time Setup

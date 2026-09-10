@@ -1,8 +1,11 @@
 // Blazor JS Initializer - WASM Cache Implementation
 // 
 // IMPORTANT: This file MUST be named "{AssemblyName}.lib.module.js"
-// If you rename the project, rename this file to match the new assembly name.
-// Example: MyApp.lib.module.js for assembly "MyApp"
+// Blazor discovers JS initializers by the fixed pattern "<AssemblyName>.lib.module.js"
+// in wwwroot, so renaming <AssemblyName> without renaming this file silently skips
+// beforeWebStart. The Presentation.WebApp.Server build auto-copies this default file
+// to wwwroot/$(AssemblyName).lib.module.js when missing and fails loudly if the
+// expected file is still missing — but prefer renaming this file to the new name.
 //
 // This workaround uses the Cache API since .NET 10's built-in HTTP cache 
 // with force-cache doesn't work reliably in browsers.

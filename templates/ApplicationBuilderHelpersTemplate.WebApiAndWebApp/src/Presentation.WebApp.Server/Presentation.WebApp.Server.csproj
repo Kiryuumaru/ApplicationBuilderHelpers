@@ -50,4 +50,20 @@
 		<ProjectReference Include="..\Infrastructure.Mock\Infrastructure.Mock.csproj" />
 	</ItemGroup>
 
+	<!-- Blazor discovers JS initializers as wwwroot/$(AssemblyName).lib.module.js.
+	     Keep the beforeWebStart hook rename-safe: seed the renamed file from the
+	     checked-in default, then fail loudly instead of silently skipping it.
+	     Runs before ResolveProjectStaticWebAssets so static-web-asset discovery
+	     sees the seeded file on first build. The seeded file is a working-tree
+	     side-effect — commit the renamed file. -->
+	<Target Name="EnsureBlazorJsInitializerName" BeforeTargets="ResolveProjectStaticWebAssets;BeforeBuild">
+		<Copy
+			SourceFiles="$(MSBuildProjectDirectory)/wwwroot/sampleapp.lib.module.js"
+			DestinationFiles="$(MSBuildProjectDirectory)/wwwroot/$(AssemblyName).lib.module.js"
+			Condition="'$(AssemblyName)' != 'sampleapp' AND !Exists('$(MSBuildProjectDirectory)/wwwroot/$(AssemblyName).lib.module.js') AND Exists('$(MSBuildProjectDirectory)/wwwroot/sampleapp.lib.module.js')" />
+		<Error
+			Text="Blazor JS initializer wwwroot/$(AssemblyName).lib.module.js is missing, so beforeWebStart would silently never run. Rename wwwroot/sampleapp.lib.module.js to match AssemblyName '$(AssemblyName)'."
+			Condition="!Exists('$(MSBuildProjectDirectory)/wwwroot/$(AssemblyName).lib.module.js')" />
+	</Target>
+
 </Project>

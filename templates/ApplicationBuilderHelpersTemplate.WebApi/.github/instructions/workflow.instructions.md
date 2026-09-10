@@ -35,10 +35,10 @@ dotnet publish src/Presentation.WebApp.Server -o publish
 
 ### Running Published Application
 
-Use single combined command with absolute path:
+Use single combined command with absolute path. The published binary name follows `AssemblyName` (defaults to `sampleapp`; renames automatically with it — substitute `<YourApp>` with your actual name):
 
 ```powershell
-Push-Location "C:\path\to\publish"; & "C:\path\to\publish\sampleapp.exe" --urls "http://0.0.0.0:5000"
+Push-Location "C:\path\to\publish"; & "C:\path\to\publish\<YourApp>.exe" --urls "http://0.0.0.0:5000"
 ```
 
 | Flag | Description |
@@ -49,7 +49,7 @@ Push-Location "C:\path\to\publish"; & "C:\path\to\publish\sampleapp.exe" --urls 
 ### Stop Running Instance
 
 ```powershell
-Get-Process sampleapp -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process <YourApp> -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
 ### First-Time Setup
