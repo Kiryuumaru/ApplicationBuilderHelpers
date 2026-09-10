@@ -110,6 +110,7 @@ internal sealed class CommandExecutor(
                     {
                         hostCts.Cancel();
                         try { await hostTask; } catch { /* Host outcome is irrelevant: the command was canceled. */ }
+                        await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
                         ThrowIfExternalAbort(shutdownCts, cancellationToken, ctrlCCanceled);
                         await commandTask;
                     }

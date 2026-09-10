@@ -88,7 +88,7 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
             binder: null,
             types: [typeof(ApplicationHost<THostApplicationBuilder>), typeof(CancellationToken)],
             modifiers: null);
-        if (overrideMethod?.GetBaseDefinition() != tokenOverload)
+        if (overrideMethod?.DeclaringType != typeof(Command<THostApplicationBuilder>))
         {
             await Run(typedHost, cancellationToken).ConfigureAwait(false);
             return;
