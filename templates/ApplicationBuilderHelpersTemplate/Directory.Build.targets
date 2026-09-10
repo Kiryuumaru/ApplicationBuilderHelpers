@@ -35,7 +35,7 @@
 	</PropertyGroup>
 
 	<ItemGroup Condition="'$(EnableNsDepCop)' == 'true'">
-		<PackageReference Include="NsDepCop" Version="2.7.0" PrivateAssets="all" />
+		<PackageReference Include="NsDepCop" Version="3.1.0" PrivateAssets="all" />
 	</ItemGroup>
 
 	<PropertyGroup Condition="'$(EnableNsDepCop)' == 'true'">

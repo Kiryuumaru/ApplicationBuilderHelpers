@@ -37,11 +37,6 @@ partial class Build : BaseNukeBuildHelpers
                         .SetProjectFile(projFile));
                     DotNetTasks.DotNetTest(_ => _
                         .SetNoBuild(true)
-                        .SetProcessAdditionalArguments(
-                            "--logger \"GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true\" " +
-                            "-- " +
-                            "RunConfiguration.CollectSourceInformation=true " +
-                            "DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencovere ")
                         .SetProjectFile(projFile));
                     return Task.CompletedTask;
                 })));
