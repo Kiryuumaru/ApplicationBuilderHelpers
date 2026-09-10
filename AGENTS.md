@@ -8,4 +8,4 @@
 6. **Keep docs in sync.** If behavior changes, update the affected doc in the same pass. Stale docs mislead.
 7. **Debug honestly.** No blame without proof. No masking workarounds that hide root cause. Test-first when cheap. No scope-creep changes.
 8. **Always respond visibly.** Never end with silent thinking-only. Every turn produces a visible message.
-9. **No git writes ever.** Banned: commit, push, reset, restore, checkout, stash, clean, revert, rebase, and equivalents. Read-only git (`status`, `diff`, `log`) allowed.
+9. **No git writes.** Banned by default: commit, push, reset, restore, checkout, stash, clean, revert, rebase, and equivalents. Read-only git (`status`, `diff`, `log`) allowed. Do not suggest writes. You may only perform git writes if the user explicitly asks you to, but you must ask for confirmation first.
