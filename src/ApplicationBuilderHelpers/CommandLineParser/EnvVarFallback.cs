@@ -26,7 +26,7 @@ internal static class EnvVarFallback
         if (string.IsNullOrEmpty(option.EnvironmentVariable))
             return false;
 
-        if (result.OptionValues.TryGetValue(option, out var existing) && existing.Count != 0)
+        if (result.TryGetMergedOptionValues(option, out _))
             return false;
 
         // Single read: guard and use the same value, matching the original single-lookup.
