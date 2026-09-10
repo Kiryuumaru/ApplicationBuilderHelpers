@@ -11,9 +11,15 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="coverlet.collector" Version="10.0.1" />
 		<PackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
+		<!-- MTP-native coverage: coverlet.collector is VSTest-only and exits 5 under MTP.
+		     Microsoft.Testing.Extensions.CodeCoverage auto-registers via MSBuild; run with
+		     dotnet test with coverage flags for cobertura output. -->
+		<PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
+		<!-- Peer dependency of GitHubActionsTestLogger in MTP mode (recommended latest). -->
+		<PackageReference Include="Microsoft.Testing.Platform" Version="2.4.0" />
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
+		<!-- xunit.v3 4.0.0 defaults to MTP v2 (depends on xunit.v3.mtp-v2), so base package stays. -->
 		<PackageReference Include="xunit.v3" Version="4.0.0" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
 		<PackageReference Include="NSubstitute" Version="6.2.0" />
