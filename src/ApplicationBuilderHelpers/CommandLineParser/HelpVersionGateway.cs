@@ -2,7 +2,6 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -17,7 +16,7 @@ internal sealed class HelpVersionGateway(
     internal static bool ShouldShowGlobalHelp(string[] args)
     {
         // Only show global help if explicitly requested with --help/-h
-        if (args.Length == 1 && (args[0] == "--help" || args[0] == "-h"))
+        if (args.Length == 1 && IsHelpToken(args[0]))
         {
             return true;
         }
@@ -25,17 +24,6 @@ internal sealed class HelpVersionGateway(
         // Never show global help for empty args - let ParseCommandLine handle it
         // This allows root commands to execute normally or show subcommand requirements
         return false;
-    }
-
-    /// <summary>
-    /// Legacy contains-anywhere version check. Obsolete: version is resolved
-    /// post-parse from leftover unconsumed tokens via <see cref="IsVersionToken"/>,
-    /// so consumed option values never trigger version output.
-    /// </summary>
-    [Obsolete("Use IsVersionToken on leftover unconsumed tokens instead.")]
-    internal static bool ShouldShowVersion(string[] args)
-    {
-        return args.Any(IsVersionToken);
     }
 
     internal static bool IsHelpToken(string token)
