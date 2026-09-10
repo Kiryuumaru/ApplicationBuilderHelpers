@@ -59,7 +59,7 @@ public abstract class WebAppTestBase : IAsyncLifetime
         Output = output;
     }
 
-    public virtual async Task InitializeAsync()
+    public virtual async ValueTask InitializeAsync()
     {
         Output.WriteLine("[TEST] Starting isolated WebApiTestHost...");
 
@@ -93,7 +93,7 @@ public abstract class WebAppTestBase : IAsyncLifetime
         Output.WriteLine($"[TEST] Browser context ready. WebApp at {WebAppUrl}");
     }
 
-    public virtual async Task DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
         Output.WriteLine("[TEST] Disposing test resources...");
 
