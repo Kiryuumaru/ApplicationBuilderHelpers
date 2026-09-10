@@ -140,14 +140,20 @@ public abstract class CliTestBase : IAsyncLifetime
         }
 
         // 3) Legacy CWD-relative probes (kept for back-compat), extended to net10.0 + OS-aware names.
+        // Hybrid union: branch nativeName entries plus master's 4 literal net10.0/test.exe
+        // paths (M1-M4), so the literal superset holds on every OS.
         var possiblePaths = new[]
         {
             "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/" + nativeName,
             "../ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/" + nativeName,
+            "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/test.exe",
+            "../ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/test.exe",
             "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net9.0/test.exe",
             "../ApplicationBuilderHelpers.Test.Cli/bin/Release/net9.0/test.exe",
             "ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/" + nativeName,
             "ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/" + nativeName,
+            "ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/test.exe",
+            "ApplicationBuilderHelpers.Test.Cli/bin/Release/net10.0/test.exe",
             "ApplicationBuilderHelpers.Test.Cli/bin/Debug/net9.0/test.exe",
             "ApplicationBuilderHelpers.Test.Cli/bin/Release/net9.0/test.exe",
             "./" + nativeName,
