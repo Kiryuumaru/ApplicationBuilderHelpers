@@ -24,7 +24,7 @@ internal class RequiredTestCommand : BaseCommand
     [CommandArgument("source", Description = "Source argument (optional)", Position = 1, Required = false)]
     public string? Source { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -42,7 +42,6 @@ internal class RequiredTestCommand : BaseCommand
             Console.WriteLine("Required test command completed successfully!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

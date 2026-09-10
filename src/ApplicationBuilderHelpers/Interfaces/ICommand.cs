@@ -14,5 +14,5 @@ public interface ICommand : IApplicationDependency
 
     internal ValueTask<ApplicationHostBuilder> ApplicationBuilderInternal(CancellationToken stoppingToken);
 
-    internal ValueTask RunInternal(ApplicationHost applicationHost, CancellationTokenSource cancellationTokenSource);
+    internal ValueTask RunInternal(ApplicationHost applicationHost, CancellationToken cancellationToken);
 }

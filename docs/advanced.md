@@ -8,10 +8,9 @@ Build hierarchical command structures with space-separated names:
 [Command("deploy", description: "Deployment operations")]
 public class DeployCommand : Command
 {
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         Console.WriteLine("Use a sub-command: deploy prod, deploy staging");
-        cts.Cancel();
         return ValueTask.CompletedTask;
     }
 }
@@ -50,7 +49,7 @@ public class WebCommand : Command<WebApplicationBuilder>
         return new ValueTask<WebApplicationBuilder>(builder);
     }
 
-    protected override async ValueTask Run(ApplicationHost<WebApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override async ValueTask Run(ApplicationHost<WebApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         var app = applicationHost.Builder.Build();
         app.MapGet("/", () => "Hello World");
@@ -62,6 +61,14 @@ public class WebCommand : Command<WebApplicationBuilder>
 Any type implementing `IHostApplicationBuilder` is supported.
 
 ## Exit Codes
+
+| Outcome | Exit code |
+|---|---|
+| `Run` returns normally | `0` |
+| `Run` throws `CommandException` | `ex.ExitCode` |
+| External cancel (outer `CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+
+Internal framework shutdown cancellation is excluded: a command that merely observes it and returns normally still exits `0`.
 
 `RunAsync` returns `Task<int>`:
 
