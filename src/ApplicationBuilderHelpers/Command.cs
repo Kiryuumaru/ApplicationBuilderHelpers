@@ -25,11 +25,9 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     /// <summary>
     /// Runs the application. A normal return signals success (exit code 0);
     /// throw <see cref="Exceptions.CommandException"/> for a non-zero exit code.
-    /// The token is observe-only: the framework owns cancellation (outer token / Ctrl+C)
-    /// and maps external cancellation to exit code 130.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
-    /// <param name="cancellationToken">An observe-only token to observe cancellation.</param>
+    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
@@ -37,9 +35,8 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     }
 
     /// <summary>
-    /// Legacy overload kept for one-version compatibility. Do not call
-    /// <c>CancellationTokenSource.Cancel()</c> to signal success — simply return.
-    /// A legacy <c>Cancel()</c>-then-return is treated as success (exit code 0).
+    /// Runs the application. A normal return signals success (exit code 0);
+    /// throw <see cref="Exceptions.CommandException"/> for a non-zero exit code.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
     /// <param name="cancellationTokenSource">A token source to cancel the operation.</param>
@@ -74,7 +71,7 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     /// Internal method for running the application.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
-    /// <param name="cancellationToken">An observe-only token to observe cancellation.</param>
+    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     async ValueTask ICommand.RunInternal(ApplicationHost applicationHost, CancellationToken cancellationToken)
     {
@@ -97,8 +94,7 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
             return;
         }
 
-        // Legacy path: the command only overrides Run(host, CTS). Bridge it with a
-        // framework-owned shim source so a legacy Cancel()-then-return maps to success.
+        // Fallback to the CancellationTokenSource overload.
 #pragma warning disable CS0618 // Legacy overload is intentionally supported here for one version.
         using var shim = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await Run(typedHost, shim).ConfigureAwait(false);

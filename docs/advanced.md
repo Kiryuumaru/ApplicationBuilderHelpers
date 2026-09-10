@@ -66,9 +66,9 @@ Any type implementing `IHostApplicationBuilder` is supported.
 |---|---|
 | `Run` returns normally | `0` |
 | `Run` throws `CommandException` | `ex.ExitCode` |
-| External cancel (outer `CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
-Internal framework shutdown cancellation is excluded: a command that merely observes it and returns normally still exits `0`.
+Return normally on success.
 
 `RunAsync` returns `Task<int>`:
 
