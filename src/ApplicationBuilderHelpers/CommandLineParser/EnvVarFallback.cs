@@ -5,7 +5,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <summary>
 /// Applies environment-variable fallback for options, preserving the exact
 /// single-read semantics of the original CommandLineParser:
-/// a single lookup whose value is both guarded on null-or-empty and used.
+/// a single lookup whose value is both guarded on null-or-whitespace and used.
 /// </summary>
 internal static class EnvVarFallback
 {
@@ -31,7 +31,7 @@ internal static class EnvVarFallback
 
         // Single read: guard and use the same value, matching the original single-lookup.
         var envValue = Environment.GetEnvironmentVariable(option.EnvironmentVariable);
-        if (string.IsNullOrEmpty(envValue))
+        if (string.IsNullOrWhiteSpace(envValue))
             return false;
 
         result.AddOptionValue(option, envValue);
