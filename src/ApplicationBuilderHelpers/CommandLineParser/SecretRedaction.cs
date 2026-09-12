@@ -76,6 +76,16 @@ internal static class SecretRedaction
     }
 
     /// <summary>
+    /// Error message when the binder cannot create the backing array itself
+    /// (type-level failure, before any per-value conversion runs). Carries the
+    /// element type and count, never the provided value.
+    /// </summary>
+    public static string ArrayCreationMessage(string elementTypeName, int length)
+    {
+        return $"Cannot create array of {elementTypeName} with length {length}";
+    }
+
+    /// <summary>
     /// Error message for a value that fails type conversion.
     /// </summary>
     public static string InvalidFormatMessage(string providedValue, string targetTypeName, bool isSecret)

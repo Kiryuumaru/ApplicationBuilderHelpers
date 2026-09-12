@@ -212,7 +212,8 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Creates a list of SubCommandOptionInfo objects from a command type
     /// </summary>
-    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
+    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var options = new List<SubCommandOptionInfo>();
         var properties = GetAllProperties(commandType);
@@ -234,6 +235,7 @@ internal class SubCommandOptionInfo
     /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts)
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var options = new List<SubCommandOptionInfo>();
@@ -259,7 +261,8 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Gets all properties including inherited ones from base classes
     /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
+    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type type)
     {
         var properties = new List<PropertyInfo>();
         var currentType = type;

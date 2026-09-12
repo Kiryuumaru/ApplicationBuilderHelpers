@@ -29,6 +29,7 @@ internal sealed class CommandHierarchyBuilder(
     /// <summary>
     /// Builds the command hierarchy from registered commands
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     public void BuildCommandHierarchy()
     {
         RootCommand = new SubCommandInfo
@@ -74,6 +75,7 @@ internal sealed class CommandHierarchyBuilder(
     /// <summary>
     /// Inserts a command into the appropriate place in the hierarchy
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     private void InsertCommandIntoHierarchy(SubCommandInfo commandInfo)
     {
         if (commandInfo.CommandParts.Length == 0)
@@ -122,7 +124,8 @@ internal sealed class CommandHierarchyBuilder(
     /// <summary>
     /// Creates an intermediate command, checking for abstract base class information
     /// </summary>
-    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
+    private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type leafCommandType)
     {
         // Look for abstract base class that matches this intermediate command path
         var leafDescriptor = reflectionCache.GetOrAdd(leafCommandType);
@@ -169,7 +172,8 @@ internal sealed class CommandHierarchyBuilder(
     /// <summary>
     /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
     /// </summary>
-    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType, CommandTypeDescriptor leafDescriptor)
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
+    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type leafCommandType, CommandTypeDescriptor leafDescriptor)
     {
         var currentType = leafCommandType.BaseType;
         var targetCommandName = string.Join(" ", commandParts);

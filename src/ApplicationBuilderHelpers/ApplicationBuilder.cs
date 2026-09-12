@@ -105,6 +105,7 @@ public class ApplicationBuilder : ICommandBuilder
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="args"/> is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown when no commands have been configured or when command parsing fails due to invalid configuration.</exception>
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(args, nameof(args));

@@ -8,7 +8,7 @@ A quick guide to building your first CLI application with ApplicationBuilderHelp
 dotnet add package ApplicationBuilderHelpers
 ```
 
-The package targets `net6.0` through `net10.0` and is AOT-compatible.
+The package targets `net6.0` through `net10.0` and is trimmable and trim-tested for the smoked graph; AOT publish is verified separately via `Test.Cli` (`PublishAot`).
 
 ## Minimal Application
 

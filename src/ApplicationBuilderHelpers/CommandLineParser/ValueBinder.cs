@@ -142,7 +142,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         if (targetType == typeof(string))
             return value;
 
-        if (targetType.IsEnum && Enum.TryParse(targetType, value, !isCaseSensitive, out var typedVal))
+        if (targetType.IsEnum && CommandReflectionCache.TryParseEnum(targetType, value, !isCaseSensitive, out var typedVal))
             return typedVal;
 
         // Handle nullable types
@@ -180,7 +180,18 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             }
         }
 
-        // For other types, create a generic object array to maintain AOT compatibility
-        return new object?[length];
+        // Fall back to an array of the real element type so Property.SetValue
+        // receives a correctly-typed array (never object?[]). Creation failure
+        // is type-level (bad element type), not value-format: report the type
+        // and length instead of blaming one provided value.
+        try
+        {
+            return CommandReflectionCache.CreateTypedArray(elementType, length);
+        }
+        catch (Exception)
+        {
+            throw new CommandException(
+                SecretRedaction.ArrayCreationMessage(elementType.FullName!, length), 2, CommandErrorKind.InvalidValue);
+        }
     }
 }

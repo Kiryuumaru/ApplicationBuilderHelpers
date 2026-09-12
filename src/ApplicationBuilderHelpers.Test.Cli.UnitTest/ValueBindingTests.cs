@@ -189,6 +189,84 @@ public sealed class ValueBindingTests
         }
     }
 
+    public enum ProbeMode
+    {
+        Json,
+        Xml
+    }
+
+    [Command("bindmode", "Probes enum option binding.")]
+    public sealed class ModeBindCommand : Command
+    {
+        [CommandOption("mode", Description = "Output mode.")]
+        public ProbeMode Mode { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Mode: {Mode}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Flags]
+    public enum ProbePermissions
+    {
+        None = 0,
+        Read = 1,
+        Write = 2,
+        Special = -4
+    }
+
+    [Command("bindflags", "Probes flags enum option binding.")]
+    public sealed class FlagsBindCommand : Command
+    {
+        [CommandOption("perms", Description = "Permissions.")]
+        public ProbePermissions Perms { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Perms: {(int)Perms}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("bindflagsarg", "Probes flags enum argument binding.")]
+    public sealed class FlagsArgumentBindCommand : Command
+    {
+        [CommandArgument("perms", Description = "Permissions.", Position = 0)]
+        public ProbePermissions Perms { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Perms: {(int)Perms}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    public abstract class LoggingBaseCommand : Command
+    {
+        [CommandOption("log-level", Description = "Log level.")]
+        public string? LogLevel { get; set; }
+    }
+
+    [Command("bindinherit", "Probes inherited option binding.")]
+    public sealed class InheritedBindCommand : LoggingBaseCommand
+    {
+        [CommandOption("text", Description = "Text value.")]
+        public string? Text { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"LogLevel: {LogLevel ?? "null"}");
+            Console.WriteLine($"Text: {Text ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Fact]
     public async Task Scalar_String_BindsValue()
     {
@@ -573,6 +651,128 @@ public sealed class ValueBindingTests
     }
 
     [Fact]
+    public async Task Array_IntegersWithoutElementParser_BindsValues()
+    {
+        var builder = CreateBuilder();
+        ((ICommandTypeParserCollection)builder).TypeParsers.Remove(typeof(int));
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["bindchoice", "--scores=1", "--scores=2"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Scores: 1,2", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Array_IntegersWithoutElementParser_InvalidElement_ReportsStyledError()
+    {
+        var builder = CreateBuilder();
+        ((ICommandTypeParserCollection)builder).TypeParsers.Remove(typeof(int));
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["bindchoice", "--scores=1", "--scores=abc"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid format for value 'abc' of type System.Int32", error);
+        Assert.DoesNotContain("ArgumentException", error);
+    }
+
+    [Fact]
+    public async Task ModeEnum_MatchingIgnoresCase()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindmode", "--mode=JSON"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Mode: Json", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task ModeEnum_PaddedValue_ReportsAllowedValues()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindmode", "--mode= json "]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Value ' json ' is not valid for option '--mode'", error);
+        Assert.Contains("Must be one of:", error);
+    }
+
+    [Fact]
+    public async Task ModeEnum_Invalid_ReportsAllowedValues()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindmode", "--mode=yaml"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Value 'yaml' is not valid for option '--mode'", error);
+        Assert.Contains("Must be one of:", error);
+        Assert.Contains("Json", error);
+    }
+
+    [Fact]
+    public async Task FlagsOption_NegativeMember_BindsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindflags", "--perms=Special"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Perms: -4", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task FlagsOption_CommaWithNegativeMember_ReportsAllowedValues()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindflags", "--perms=Read, Special"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Value 'Read, Special' is not valid for option '--perms'", error);
+        Assert.Contains("Must be one of:", error);
+        Assert.DoesNotContain("Overflow", error);
+        Assert.DoesNotContain("UInt64", error);
+    }
+
+    [Fact]
+    public async Task FlagsArgument_NegativeMember_BindsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindflagsarg", "Special"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Perms: -4", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task FlagsArgument_CommaWithNegativeMember_BindsCombinedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindflagsarg", "Read, Special"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Perms: -3", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task InheritedOption_BindsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindinherit", "--log-level=debug", "--text=hello"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("LogLevel: debug", output);
+        Assert.Contains("Text: hello", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task InheritedOption_AppearsInHelp()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindinherit", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--log-level", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task Argument_StringAndInteger_BindByPosition()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindargs", "Alice", "3"]);
@@ -665,7 +865,11 @@ public sealed class ValueBindingTests
             .AddCommand<ConstrainedBindCommand>()
             .AddCommand<ArgumentBindCommand>()
             .AddCommand<ArrayArgumentBindCommand>()
-            .AddCommand<IntArrayArgumentBindCommand>();
+            .AddCommand<IntArrayArgumentBindCommand>()
+            .AddCommand<ModeBindCommand>()
+            .AddCommand<FlagsBindCommand>()
+            .AddCommand<FlagsArgumentBindCommand>()
+            .AddCommand<InheritedBindCommand>();
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(string[] args)

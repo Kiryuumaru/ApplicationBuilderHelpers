@@ -152,7 +152,9 @@ internal sealed class ArgumentParser
                 {
                     var name = arg[..arg.IndexOf('=')];
                     var rejected = arg[(arg.IndexOf('=') + 1)..];
-                    throw new CommandException($"Option '{name}' does not accept a value '{rejected}'. Use bare '{name}' to set the flag to 'false'.", 2, CommandErrorKind.InvalidValue);
+                    var negatedLongName = name["--no-".Length..];
+                    var owner = allOptions.FirstOrDefault(o => o.LongName != null && o.LongName.Equals(negatedLongName, StringComparison.OrdinalIgnoreCase));
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, owner?.IsSecret ?? false), 2, CommandErrorKind.InvalidValue);
                 }
 
                 // Combined short cluster (-abc bool chain, -abdvalue last-takes-value).

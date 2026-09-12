@@ -4,6 +4,7 @@ using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -42,6 +43,7 @@ internal sealed class CommandExecutor(
     /// the host is stopped after the command returns.
     /// Cancellation token for cooperative cancellation.
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     public async Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken)
     {
         var command = commandInfo.Command!;
@@ -213,6 +215,7 @@ internal sealed class CommandExecutor(
     /// or a future framework retargeting to properties).
     /// </para>
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     internal static void InjectServiceProperties(SubCommandInfo commandInfo, IServiceProvider scopedProvider)
     {
         var command = commandInfo.Command!;

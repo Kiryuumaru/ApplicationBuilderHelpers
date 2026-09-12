@@ -2,6 +2,7 @@ using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,6 +50,7 @@ internal class CommandLineParser
     /// <summary>
     /// Main entry point - builds hierarchy then parses and executes
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
     {
         try
@@ -135,6 +137,7 @@ internal class CommandLineParser
         }
     }
 
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     private void BuildCommandHierarchy()
     {
         _hierarchy.BuildCommandHierarchy();
@@ -158,6 +161,7 @@ internal class CommandLineParser
 
     private void SetCommandValues(ParseResult result) => _binder.SetCommandValues(result);
 
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
     private Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken) =>
         _executor.ExecuteCommand(commandInfo, cancellationToken);
 

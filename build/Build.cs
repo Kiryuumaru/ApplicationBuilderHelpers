@@ -1,3 +1,4 @@
+using Nuke.Common;
 using Nuke.Common.IO;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
@@ -23,6 +24,11 @@ class Build : BaseNukeBuildHelpers
     [SecretVariable("GITHUB_TOKEN")]
     readonly string? GithubToken;
 
+    // Trim smoke target: single source of truth for TFM/RID so the publish
+    // settings and the expected output path cannot drift apart.
+    const string TestCliTfm = "net10.0";
+    const string TestCliRid = "win-x64";
+
     public TestEntry ApplicationBuilderHelpersTest => _ => _
         .AppId("application_builder_helpers")
         .RunnerOS(RunnerOS.Windows2022)
@@ -43,6 +49,28 @@ class Build : BaseNukeBuildHelpers
                     "DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencovere ")
                 .SetProjectFile(RootDirectory / "src" / "ApplicationBuilderHelpers.Test.Cli.UnitTest" / "ApplicationBuilderHelpers.Test.Cli.UnitTest.csproj")
                 .SetConfiguration("Release"));
+            // Trim/AOT intent is explicit here (not inherited silently):
+            // PublishTrimmed is set on the publish invocation below.
+            // PublishAot stays sourced from Test.Cli.csproj (PublishAot=true)
+            // by design: passing /p:PublishAot=true globally from this
+            // invocation flows into the multi-targeted library reference and
+            // fails with NETSDK1207 (AOT not supported for net6.0) --
+            // reproduced locally, so it is not set here.
+            DotNetTasks.DotNetPublish(_ => _
+                .SetProject(RootDirectory / "src" / "ApplicationBuilderHelpers.Test.Cli" / "ApplicationBuilderHelpers.Test.Cli.csproj")
+                .SetConfiguration("Release")
+                .SetFramework(TestCliTfm)
+                .SetSelfContained(true)
+                .SetRuntime(TestCliRid)
+                .EnablePublishTrimmed());
+            var publishedCli = RootDirectory / "src" / "ApplicationBuilderHelpers.Test.Cli" / "bin" / "Release" / TestCliTfm / TestCliRid / "publish" / "test.exe";
+            Assert.FileExists(publishedCli);
+            ProcessTasks.StartProcess(publishedCli, "--help").AssertZeroExitCode();
+            // Extended trim smoke: one enum bind + one string[] array bind + one int[] parser-less array bind + one inherited-option bind.
+            ProcessTasks.StartProcess(publishedCli, "enum-test --enum-level=Warning").AssertZeroExitCode();
+            ProcessTasks.StartProcess(publishedCli, "test --tags=a --tags=b").AssertZeroExitCode();
+            ProcessTasks.StartProcess(publishedCli, "test --shard-indexes=1 --shard-indexes=2").AssertZeroExitCode();
+            ProcessTasks.StartProcess(publishedCli, "test --log-level=debug").AssertZeroExitCode();
         });
 
     public BuildEntry ApplicationBuilderHelpersBuild => _ => _

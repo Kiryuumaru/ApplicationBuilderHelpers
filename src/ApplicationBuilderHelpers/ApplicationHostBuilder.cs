@@ -52,8 +52,10 @@ public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder
 public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : 
     ApplicationHostBuilderBase(builder, applicationDependencies)
 {
+    [RequiresUnreferencedCode("Calls the builder's Build method. Unknown builder types fall back to reflection.")]
     internal abstract ApplicationHost Build();
 
+    [RequiresUnreferencedCode("Calls the builder's Build method. Unknown builder types fall back to reflection.")]
     internal ApplicationHost BuildInternal()
     {
         foreach (var applicationDependency in ApplicationDependencies)
@@ -77,6 +79,7 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
 /// Represents a builder for managing application dependencies for a specific host application builder type.
 /// </summary>
 /// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
+// DAM(All) retained: BuildViaReflection resolves the Build method by name on unknown builder types.
 public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder) : ApplicationHostBuilder(builder)
     where THostApplicationBuilder : IHostApplicationBuilder
 {
@@ -109,7 +112,27 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
         return this;
     }
 
+    [RequiresUnreferencedCode("Calls the builder's Build method. Unknown builder types fall back to reflection.")]
     internal override ApplicationHost Build()
+    {
+        IHost host;
+        if (Builder is HostApplicationBuilder hostApplicationBuilder)
+        {
+            host = hostApplicationBuilder.Build();
+        }
+        else
+        {
+            host = BuildViaReflection();
+        }
+
+        return new ApplicationHost<THostApplicationBuilder>(Builder, host)
+        {
+            ApplicationDependencies = ApplicationDependencies,
+        };
+    }
+
+    [RequiresUnreferencedCode("Resolves the Build method by name for builder types without a statically visible Build method.")]
+    private IHost BuildViaReflection()
     {
         if (typeof(THostApplicationBuilder).GetMethod("Build") is not MethodInfo builderBuildethodInfo)
         {
@@ -123,9 +146,6 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
             throw new Exception($"App does not support type {appObj?.GetType()?.FullName}.");
         }
 
-        return new ApplicationHost<THostApplicationBuilder>(Builder, host)
-        {
-            ApplicationDependencies = ApplicationDependencies,
-        };
+        return host;
     }
 }

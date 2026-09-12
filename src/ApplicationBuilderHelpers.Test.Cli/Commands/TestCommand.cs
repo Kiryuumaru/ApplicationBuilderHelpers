@@ -24,6 +24,9 @@ internal class TestCommand : BaseCommand
     [CommandOption('e', "exclude", Description = "Test patterns to exclude")]
     public string[] ExcludePatterns { get; set; } = [];
 
+    [CommandOption("shard-indexes", Description = "Test shard indexes to include")]
+    public int[] ShardIndexes { get; set; } = [];
+
     [CommandOption("filter", Description = "Test filter expression")]
     public string? Filter { get; set; }
 
@@ -156,7 +159,7 @@ internal class TestCommand : BaseCommand
             }
 
             // Test Selection
-            if (Tags.Length > 0 || ExcludePatterns.Length > 0 || !string.IsNullOrEmpty(Filter) || Seed.HasValue)
+            if (Tags.Length > 0 || ExcludePatterns.Length > 0 || ShardIndexes.Length > 0 || !string.IsNullOrEmpty(Filter) || Seed.HasValue)
             {
                 Console.WriteLine("[SEL] Test Selection:");
                 if (Tags.Length > 0)
@@ -166,6 +169,10 @@ internal class TestCommand : BaseCommand
                 if (ExcludePatterns.Length > 0)
                 {
                     Console.WriteLine($"   Exclude: {string.Join(", ", ExcludePatterns)}");
+                }
+                if (ShardIndexes.Length > 0)
+                {
+                    Console.WriteLine($"   Shard Indexes: {string.Join(", ", ShardIndexes)}");
                 }
                 if (!string.IsNullOrEmpty(Filter))
                 {
@@ -227,6 +234,7 @@ internal class TestCommand : BaseCommand
         if (Parallel) nonDefaultOptions.Add("parallel=true");
         if (Tags.Length > 0) nonDefaultOptions.Add($"tags=[{string.Join(", ", Tags)}]");
         if (ExcludePatterns.Length > 0) nonDefaultOptions.Add($"exclude=[{string.Join(", ", ExcludePatterns)}]");
+        if (ShardIndexes.Length > 0) nonDefaultOptions.Add($"shard-indexes=[{string.Join(", ", ShardIndexes)}]");
         if (!string.IsNullOrEmpty(Filter)) nonDefaultOptions.Add($"filter=\"{Filter}\"");
         if (OutputFormat != "console") nonDefaultOptions.Add($"output-format={OutputFormat}");
         if (EnableCoverage) nonDefaultOptions.Add("coverage=true");

@@ -319,6 +319,37 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
+    public async Task SecretStringOption_NegatedWithValue_OmitsRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-secret-token=s3cr3t-no-value"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-secret-token' does not accept a value.", error);
+        Assert.DoesNotContain("s3cr3t-no-value", error);
+    }
+
+    [Fact]
+    public async Task PlainStringOption_NegatedWithValue_EchoesRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-plain-token=plainoops"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-plain-token' does not accept a value 'plainoops'.", error);
+    }
+
+    [Fact]
+    public async Task UnknownNegatedOption_NegatedWithValue_EchoesRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-suchopt=mystery"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-suchopt' does not accept a value 'mystery'.", error);
+    }
+
+    [Fact]
     public async Task SharedSecretOption_PromotedToGlobalHelpMaskedAndRedactedOnLeaves()
     {
         var (helpCode, helpOutput, helpError) = await RunCapturedAsync(CreateVaultBuilder, ["--help"]);

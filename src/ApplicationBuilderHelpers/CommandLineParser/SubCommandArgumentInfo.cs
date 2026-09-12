@@ -170,7 +170,8 @@ internal class SubCommandArgumentInfo
     /// <summary>
     /// Creates a list of SubCommandArgumentInfo objects from a command type
     /// </summary>
-    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
+    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
         var arguments = new List<SubCommandArgumentInfo>();
         var properties = GetAllProperties(commandType);
@@ -192,7 +193,8 @@ internal class SubCommandArgumentInfo
     /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts)
     /// </summary>
-    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
+    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
         var arguments = new List<SubCommandArgumentInfo>();
         var properties = commandType.GetProperties(
@@ -217,7 +219,8 @@ internal class SubCommandArgumentInfo
     /// <summary>
     /// Gets all properties including inherited ones from base classes
     /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
+    [RequiresUnreferencedCode("Uses reflection to discover command options and arguments.")]
+    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type type)
     {
         var properties = new List<PropertyInfo>();
         var currentType = type;
@@ -326,6 +329,14 @@ internal class SubCommandArgumentInfo
             return null;
 
         var targetType = IsArray ? ElementType! : PropertyType;
+
+        // Unwrap Nullable<T> so nullable enums/values convert like their
+        // underlying type (mirrors ValueBinder's nullable handling).
+        var underlyingNullable = Nullable.GetUnderlyingType(targetType);
+        if (underlyingNullable is not null)
+        {
+            targetType = underlyingNullable;
+        }
         
         // First validate against valid values if specified
         if (ValidValues?.Length > 0)
@@ -358,7 +369,7 @@ internal class SubCommandArgumentInfo
         try
         {
             if (targetType.IsEnum)
-                return Enum.Parse(targetType, value, !IsCaseSensitive);
+                return CommandReflectionCache.ParseEnum(targetType, value, !IsCaseSensitive);
 
             return Convert.ChangeType(value, targetType);
         }
