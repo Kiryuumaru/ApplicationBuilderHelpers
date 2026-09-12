@@ -121,16 +121,64 @@ public string? DestPath { get; set; }
 
 ## Accessing Services
 
-Use the service locator from `applicationHost.Services`:
+Mark a writable instance property with `[FromServices]` (unkeyed) or
+`[FromKeyedServices(key)]` (keyed). The executor creates one
+`IServiceScope` per command run, injects those properties from
+`scope.ServiceProvider` after CLI binding, runs the command, then disposes
+the scope after the lifetime callbacks. Scoped services are therefore
+isolated to one command run; resolve additional services inside `Run` from
+`applicationHost.Services` only when property injection does not fit.
 
 ```csharp
-protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+public class BuildCommand : Command
 {
-    var logger = applicationHost.Services.GetRequiredService<ILogger<MyCommand>>();
-    var service = applicationHost.Services.GetRequiredService<IMyService>();
-    // ...
+    [FromServices]
+    public IMyService Service { get; set; } = null!;
+
+    // Schematic — the upstream FromKeyedServicesAttribute targets parameters
+    // only, so this line does NOT compile against the real framework
+    // attribute (CS0592). Use the property-capable shim below instead.
+    [FromKeyedServices("primary")]
+    public IMyService Primary { get; set; } = null!;
+
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+    {
+        // Service and Primary are already injected from the per-command scope.
+    }
 }
 ```
+
+Compilable keyed path: define a same-named property-capable shim (or a
+`using`-alias to one). The executor matches by attribute name and reads the
+key from attribute metadata, so no new library dependency is needed. This is
+exactly what `ServicePropertyInjectionTests` proves:
+
+```csharp
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+public sealed class FromKeyedServicesAttribute(object key) : Attribute
+{
+    public object Key { get; } = key;
+}
+```
+
+Rules:
+
+- Disjoint sets: CLI-bound properties (`[CommandOption]` /
+  `[CommandArgument]`) are never injected. A property marked with both a
+  CLI attribute and a service attribute throws `InvalidOperationException`
+  (surfaces as a fault, exit 1, never a usage error). Injection runs after
+  binding, so CLI values are never overwritten.
+- Keyed services resolve from the same per-command scope via
+  `GetRequiredKeyedService(type, key)`.
+- A missing service throws out of the executor and maps to a fault
+  (exit 1), never a usage error (exit 2).
+- Help, version, and validation paths return before the executor, so they
+  construct zero scopes.
+- No new attribute types: reuse the framework `[FromServices]` /
+  `[FromKeyedServices]` markers. Note the upstream
+  `FromKeyedServicesAttribute` targets parameters only, so compiler-applied
+  property use is rejected (CS0592); the executor matches by attribute name
+  and reads the key from attribute metadata.
 
 ## Command Lifecycle
 
