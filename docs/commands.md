@@ -184,6 +184,10 @@ Rules:
 
 Commands inherit the full `ApplicationDependency` lifecycle. See [Application Dependencies](application-dependencies.md) for details on `AddServices`, `AddConfigurations`, `AddMiddlewares`, `AddMappings`, `RunPreparation`, and `RunPreparationAsync`.
 
+### Lifetime Callbacks
+
+Register via `LifetimeService` (`applicationHost.Services.GetRequiredService<LifetimeService>()`): `ApplicationExitingCallback` runs when the command/host is stopping, `ApplicationExitedCallback` runs after shutdown. On success and cancellation (`130`) paths — whether the command or the host wins the shutdown race — each runs exactly once per `RunAsync`. On fault paths the exception rethrows before the trailing `Exiting` invocation, so only `Exited` runs.
+
 ## Command Registration
 
 Register a command by type with `AddCommand<TCommand>()` or by instance with `AddCommand(ICommand)`. Type registrations resolve a fresh instance on each `RunAsync` call so bound option values reset between runs; instance registrations reuse the same reference across runs. The command topology is rebuilt on every `RunAsync` from live registrations, so commands added between runs are visible on the next run.

@@ -140,6 +140,7 @@ internal sealed class CommandExecutor(
                     else if (hostTask.IsCanceled)
                     {
                         try { await commandTask; } catch { /* Command outcome is irrelevant: the host was canceled. */ }
+                        await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
                         _ = await hostTask;
                     }
                     else
