@@ -14,6 +14,13 @@ internal class LifetimeGlobalService
     private readonly List<Func<Task>> ApplicationExitingTaskCallback = [];
     private readonly List<Func<Task>> ApplicationExitedTaskCallback = [];
 
+    // Exactly-once guards: CommandExecutor invokes Exiting from the
+    // command-wins-canceled, host-wins-canceled, and trailing success paths,
+    // where early rethrows can otherwise skip or repeat a call site.
+    // The first caller wins via Interlocked.Exchange; late callers no-op.
+    private int exitingInvoked;
+    private int exitedInvoked;
+
     public CancellationTokenSource CreateCancellationTokenSource()
     {
         return CancellationTokenSource.CreateLinkedTokenSource(CancellationTokenSource.Token);
@@ -44,8 +51,17 @@ internal class LifetimeGlobalService
         ApplicationExitedTaskCallback.Add(callback);
     }
 
+    /// <summary>
+    /// Invokes registered ApplicationExiting callbacks exactly once.
+    /// The first caller runs the callbacks; concurrent or late callers no-op.
+    /// </summary>
     public Task InvokeApplicationExitingCallbacksAsync()
     {
+        if (Interlocked.Exchange(ref exitingInvoked, 1) == 1)
+        {
+            return Task.CompletedTask;
+        }
+
         List<Task> tasks = [];
         foreach (var action in applicationExitingActionCallback)
         {
@@ -58,8 +74,17 @@ internal class LifetimeGlobalService
         return Task.WhenAll(tasks);
     }
 
+    /// <summary>
+    /// Invokes registered ApplicationExited callbacks exactly once.
+    /// The finally-path owner wins; repeat invocations no-op.
+    /// </summary>
     public Task InvokeApplicationExitedCallbacksAsync()
     {
+        if (Interlocked.Exchange(ref exitedInvoked, 1) == 1)
+        {
+            return Task.CompletedTask;
+        }
+
         List<Task> tasks = [];
         foreach (var action in applicationExitedActionCallback)
         {

@@ -55,6 +55,7 @@ public sealed class CancellationExitCodeTests
     {
         public static int ExitingCount;
         public static int ExitedCount;
+        public static TaskCompletionSource<bool> CallbacksRegistered = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private readonly int _delayMs;
 
@@ -70,6 +71,7 @@ public sealed class CancellationExitCodeTests
             var lifetime = applicationHost.Services.GetRequiredService<LifetimeService>();
             lifetime.ApplicationExitingCallback(() => Interlocked.Increment(ref ExitingCount));
             lifetime.ApplicationExitedCallback(() => Interlocked.Increment(ref ExitedCount));
+            CallbacksRegistered.TrySetResult(true);
             if (_delayMs > 0)
             {
                 await Task.Delay(_delayMs, cancellationToken);
@@ -203,15 +205,31 @@ public sealed class CancellationExitCodeTests
     {
         CallbackCountingCommand.ExitingCount = 0;
         CallbackCountingCommand.ExitedCount = 0;
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        CallbackCountingCommand.CallbacksRegistered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cts = new CancellationTokenSource();
+        Task<int> runTask = RunCapturedAsync(() => CreateBuilder(() => new CallbackCountingCommand(60_000)).RunAsync([], cts.Token));
+        try
+        {
+            // Gate the 250ms cancel budget on observed callback registration so
+            // slow executor startup cannot consume it before the command runs.
+            Task registration = await Task.WhenAny(
+                CallbackCountingCommand.CallbacksRegistered.Task,
+                Task.Delay(TimeSpan.FromSeconds(10)));
+            Assert.Same(CallbackCountingCommand.CallbacksRegistered.Task, registration);
+            await CallbackCountingCommand.CallbacksRegistered.Task;
+            cts.CancelAfter(TimeSpan.FromMilliseconds(250));
 
-        var exitCode = await RunCapturedAsync(() => CreateBuilder(() => new CallbackCountingCommand(60_000)).RunAsync([], cts.Token));
+            var exitCode = await runTask;
 
-        Assert.Equal(CanceledExitCode, exitCode);
-        // Stable contract only (Athena recommendation (b)): exit 130 + Exited == 1.
-        // ApplicationExiting may be skipped on the canceled path (ExitingCount observed {0,1})
-        // until https://github.com/Kiryuumaru/ApplicationBuilderHelpers/issues/400 is fixed.
-        Assert.Equal(1, CallbackCountingCommand.ExitedCount);
+            Assert.Equal(CanceledExitCode, exitCode);
+            Assert.Equal(1, CallbackCountingCommand.ExitingCount);
+            Assert.Equal(1, CallbackCountingCommand.ExitedCount);
+        }
+        finally
+        {
+            cts.Cancel();
+            await runTask;
+        }
     }
 
     [Fact]

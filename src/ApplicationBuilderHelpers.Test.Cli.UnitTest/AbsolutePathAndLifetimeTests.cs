@@ -219,6 +219,46 @@ public sealed class AbsolutePathAndLifetimeTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
+    [Fact]
+    public async Task LifetimeGlobalService_ExitingDoubleInvoke_RunsOnce()
+    {
+        var service = new LifetimeGlobalService();
+        int actionCount = 0;
+        int taskCount = 0;
+        service.ApplicationExitingCallback(() => Interlocked.Increment(ref actionCount));
+        service.ApplicationExitingCallback(async () =>
+        {
+            Interlocked.Increment(ref taskCount);
+            await Task.Yield();
+        });
+
+        await service.InvokeApplicationExitingCallbacksAsync();
+        await service.InvokeApplicationExitingCallbacksAsync();
+
+        Assert.Equal(1, actionCount);
+        Assert.Equal(1, taskCount);
+    }
+
+    [Fact]
+    public async Task LifetimeGlobalService_ExitedDoubleInvoke_RunsOnce()
+    {
+        var service = new LifetimeGlobalService();
+        int actionCount = 0;
+        int taskCount = 0;
+        service.ApplicationExitedCallback(() => Interlocked.Increment(ref actionCount));
+        service.ApplicationExitedCallback(async () =>
+        {
+            Interlocked.Increment(ref taskCount);
+            await Task.Yield();
+        });
+
+        await service.InvokeApplicationExitedCallbacksAsync();
+        await service.InvokeApplicationExitedCallbacksAsync();
+
+        Assert.Equal(1, actionCount);
+        Assert.Equal(1, taskCount);
+    }
+
     private static ApplicationBuilder CreateBuilder<TCommand>()
         where TCommand : ICommand
     {
