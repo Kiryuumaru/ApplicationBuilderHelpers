@@ -271,6 +271,7 @@ internal sealed class CommandHierarchyBuilder(
                 var allIdentical = optionInfos.All(oi =>
                     oi.option.PropertyType == firstOption.PropertyType &&
                     oi.option.IsRequired == firstOption.IsRequired &&
+                    oi.option.IsSecret == firstOption.IsSecret &&
                     oi.option.ShortName == firstOption.ShortName &&
                     oi.option.LongName == firstOption.LongName &&
                     ArraysEqual(oi.option.ValidValues, firstOption.ValidValues));
@@ -394,6 +395,7 @@ internal sealed class CommandHierarchyBuilder(
             EnvironmentVariable = original.EnvironmentVariable,
             ValidValues = original.ValidValues,
             IsCaseSensitive = original.IsCaseSensitive,
+            IsSecret = original.IsSecret,
             DefaultValue = original.DefaultValue,
             IsGlobal = true,
             IsInherited = true

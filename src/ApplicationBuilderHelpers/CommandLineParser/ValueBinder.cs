@@ -50,7 +50,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                         ValidateStringValue(values[i], option);
                     }
 
-                    var convertedValue = ConvertValue(values[i], elementType, option.IsCaseSensitive);
+                    var convertedValue = ConvertValue(values[i], elementType, option.IsCaseSensitive, option.IsSecret);
                     array.SetValue(convertedValue, i);
                 }
 
@@ -64,7 +64,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                     ValidateStringValue(values[0], option);
                 }
 
-                propertyValue = ConvertValue(values[0], option.PropertyType, option.IsCaseSensitive);
+                propertyValue = ConvertValue(values[0], option.PropertyType, option.IsCaseSensitive, option.IsSecret);
             }
 
             // Note: We don't call option.ValidateValue here anymore for ValidValues validation
@@ -119,8 +119,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             {
                 var validValuesString = string.Join(", ", option.ValidValues.Select(v => v?.ToString()));
                 throw new CommandException(
-                    $"Value '{value}' is not valid for option '--{option.LongName ?? option.ShortName?.ToString()}'. " +
-                    $"Must be one of: {validValuesString}", 2, CommandErrorKind.InvalidValue);
+                    SecretRedaction.InvalidOptionValueMessage(value, $"--{option.LongName ?? option.ShortName?.ToString()}", validValuesString, option.IsSecret), 2, CommandErrorKind.InvalidValue);
             }
         }
     }
@@ -128,7 +127,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
     /// <summary>
     /// Converts a string value to the specified type
     /// </summary>
-    private object? ConvertValue(string? value, Type targetType, bool isCaseSensitive)
+    private object? ConvertValue(string? value, Type targetType, bool isCaseSensitive, bool isSecret = false)
     {
         if (value == null) return null;
 
@@ -136,7 +135,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         {
             var result = parser.Parse(value, out var error);
             if (error != null)
-                throw new CommandException(error, 2, CommandErrorKind.InvalidValue);
+                throw new CommandException(SecretRedaction.RedactParserError(error, value, isSecret)!, 2, CommandErrorKind.InvalidValue);
             return result;
         }
 
@@ -150,7 +149,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
         {
             var underlyingType = Nullable.GetUnderlyingType(targetType)!;
-            return ConvertValue(value, underlyingType, isCaseSensitive);
+            return ConvertValue(value, underlyingType, isCaseSensitive, isSecret);
         }
 
         try
@@ -159,7 +158,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         }
         catch (Exception)
         {
-            throw new CommandException($"Invalid format for value '{value}' of type {targetType.FullName}", 2, CommandErrorKind.InvalidValue);
+            throw new CommandException(SecretRedaction.InvalidFormatMessage(value, targetType.FullName!, isSecret), 2, CommandErrorKind.InvalidValue);
         }
     }
 

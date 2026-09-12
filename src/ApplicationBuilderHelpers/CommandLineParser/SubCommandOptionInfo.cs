@@ -62,6 +62,11 @@ internal class SubCommandOptionInfo
     public bool IsCaseSensitive { get; set; }
 
     /// <summary>
+    /// Whether this option value is a secret (redacted in help and errors)
+    /// </summary>
+    public bool IsSecret { get; set; }
+
+    /// <summary>
     /// Default value for the option
     /// </summary>
     public object? DefaultValue { get; set; }
@@ -116,6 +121,7 @@ internal class SubCommandOptionInfo
             EnvironmentVariable = attribute.EnvironmentVariable,
             ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
+            IsSecret = attribute.Secret,
             OwnerCommand = ownerCommand
         };
 
@@ -366,7 +372,7 @@ internal class SubCommandOptionInfo
             if (argument.StartsWith($"--no-{LongName}="))
             {
                 var rejected = argument[$"--no-{LongName}=".Length..];
-                throw new CommandException($"Option '--no-{LongName}' does not accept a value '{rejected}'. Use bare '--no-{LongName}' to set '--{LongName}' to 'false'.", 2, CommandErrorKind.InvalidValue);
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--no-{LongName}", rejected, IsSecret), 2, CommandErrorKind.InvalidValue);
             }
 
             return "false";
@@ -416,7 +422,7 @@ internal class SubCommandOptionInfo
     private void ValidateFlagLiteral(string literal)
     {
         if (!IsBooleanValue(literal))
-            throw new CommandException($"Invalid Boolean value '{literal}' for option '--{LongName ?? ShortName?.ToString()}'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", 2, CommandErrorKind.InvalidValue);
+            throw new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, $"--{LongName ?? ShortName?.ToString()}", IsSecret), 2, CommandErrorKind.InvalidValue);
     }
 
     /// <summary>

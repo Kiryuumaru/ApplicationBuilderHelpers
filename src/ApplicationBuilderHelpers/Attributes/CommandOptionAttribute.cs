@@ -73,4 +73,10 @@ public class CommandOptionAttribute : Attribute
     /// Gets or sets a value indicating whether the possible values for the command option are case sensitive.
     /// </summary>
     public bool CaseSensitive { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the command option value is a secret.
+    /// Secret values are redacted as [REDACTED] in help defaults and omit the provided value in error messages.
+    /// </summary>
+    public bool Secret { get; set; } = false;
 }

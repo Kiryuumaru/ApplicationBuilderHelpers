@@ -76,6 +76,7 @@ public int Timeout { get; set; } = 30;
 | `Required` | `bool` | Must be provided |
 | `FromAmong` | `object[]` | Restrict to specific values |
 | `CaseSensitive` | `bool` | Case-sensitive matching for FromAmong |
+| `Secret` | `bool` | Redact value: help default shows `[REDACTED]`, errors omit the provided value |
 
 ### Restricted Values
 
@@ -116,6 +117,7 @@ public string? DestPath { get; set; }
 | `Required` | `bool` | Must be provided |
 | `FromAmong` | `object[]` | Restrict to specific values |
 | `CaseSensitive` | `bool` | Case-sensitive matching |
+| `Secret` | `bool` | Redact value: errors omit the provided value |
 
 ## Accessing Services
 

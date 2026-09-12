@@ -57,6 +57,11 @@ internal class SubCommandArgumentInfo
     public bool IsCaseSensitive { get; set; }
 
     /// <summary>
+    /// Whether this argument value is a secret (redacted in errors)
+    /// </summary>
+    public bool IsSecret { get; set; }
+
+    /// <summary>
     /// Default value for the argument
     /// </summary>
     public object? DefaultValue { get; set; }
@@ -109,6 +114,7 @@ internal class SubCommandArgumentInfo
             IsRequired = attribute.Required || isRequiredByKeyword,
             ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
+            IsSecret = attribute.Secret,
             OwnerCommand = ownerCommand
         };
 
@@ -305,8 +311,7 @@ internal class SubCommandArgumentInfo
             {
                 var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
                 throw new CommandException(
-                    $"Value '{value}' is not valid for argument '{DisplayName}'. " +
-                    $"Must be one of: {validValuesString}", 2, CommandErrorKind.InvalidValue);
+                    SecretRedaction.InvalidArgumentValueMessage(value, DisplayName, validValuesString, IsSecret), 2, CommandErrorKind.InvalidValue);
             }
         }
 
@@ -315,7 +320,7 @@ internal class SubCommandArgumentInfo
         {
             var result = parser.Parse(value, out var error);
             if (error != null)
-                throw new CommandException($"Invalid value '{value}' for argument '{DisplayName}': {error}", 2, CommandErrorKind.InvalidValue);
+                throw new CommandException(SecretRedaction.RedactParserError($"Invalid value '{value}' for argument '{DisplayName}': {error}", value, IsSecret)!, 2, CommandErrorKind.InvalidValue);
             return result;
         }
 
@@ -323,16 +328,16 @@ internal class SubCommandArgumentInfo
         if (targetType == typeof(string))
             return value;
 
-        if (targetType.IsEnum)
-            return Enum.Parse(targetType, value, !IsCaseSensitive);
-
         try
         {
+            if (targetType.IsEnum)
+                return Enum.Parse(targetType, value, !IsCaseSensitive);
+
             return Convert.ChangeType(value, targetType);
         }
         catch (Exception ex)
         {
-            throw new CommandException($"Cannot convert '{value}' to {targetType.Name} for argument '{DisplayName}': {ex.Message}", 2, CommandErrorKind.InvalidValue);
+            throw new CommandException(SecretRedaction.InvalidArgumentFormatMessage(value, DisplayName, targetType.Name, IsSecret) + (IsSecret ? string.Empty : $": {ex.Message}"), 2, CommandErrorKind.InvalidValue);
         }
     }
 
