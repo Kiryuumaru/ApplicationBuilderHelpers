@@ -119,6 +119,13 @@ public string? DestPath { get; set; }
 | `CaseSensitive` | `bool` | Case-sensitive matching |
 | `Secret` | `bool` | Redact value: errors omit the provided value |
 
+## Shell Completion
+
+Reserved gateway words intercepted after hierarchy build, before help/parsing (never dispatch to registered commands):
+
+- `complete --position N "<commandline>"` — `N` is a 0-based character offset into the full command-line string (clamped to its length; defaults to end). Probes the hierarchy tolerantly, prints one candidate per line on stdout, exits `0`. Bare `complete` (no command line) lists root subcommands; other malformed input prints nothing, still `0`.
+- `completions script <bash|zsh|pwsh|powershell|fish>` — prints a dotnet-style shim that re-invokes `complete --position N "<commandline>"` per TAB.
+
 ## Accessing Services
 
 Mark a writable instance property with `[FromServices]` (unkeyed) or
