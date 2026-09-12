@@ -45,7 +45,7 @@ internal class PluginCommand : BaseCommand
     [CommandOption("no-dependencies", Description = "Skip dependency installation")]
     public bool NoDependencies { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -117,7 +117,6 @@ internal class PluginCommand : BaseCommand
             Console.WriteLine($"Plugin {Action} completed successfully!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

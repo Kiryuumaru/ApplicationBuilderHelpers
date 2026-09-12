@@ -79,9 +79,14 @@ public class WebApiTestHost : IAsyncDisposable
 
         // Find the executable dynamically by looking for .runtimeconfig.json files
         // The main application executable has a matching .runtimeconfig.json (dependency dlls do not)
-        // File is like "sampleapp.runtimeconfig.json", we need to extract "sampleapp"
+        // File is like "<AssemblyName>.runtimeconfig.json", we need to extract "<AssemblyName>"
+        // Skip Blazor WASM client runtimeconfigs (*.client.*) — those are browser
+        // assets without a framework host and cannot be launched via `dotnet`.
         var exePath = Directory.GetFiles(webApiOutputDir, "*.runtimeconfig.json")
-            .Select(rc => Path.GetFileName(rc).Replace(".runtimeconfig.json", ""))
+            .Where(rc => !Path.GetFileName(rc).Contains(".client.", StringComparison.OrdinalIgnoreCase))
+            // Single apphost assumption: one non-client runtimeconfig is expected; sort so any extra match picks deterministically.
+            .OrderBy(rc => Path.GetFileName(rc), StringComparer.OrdinalIgnoreCase)
+            .Select(rc => Path.GetFileName(rc).Replace(".runtimeconfig.json", "", StringComparison.OrdinalIgnoreCase))
             .Select(name => Path.Combine(webApiOutputDir, name + ".exe"))
             .FirstOrDefault(File.Exists);
 
@@ -89,7 +94,9 @@ public class WebApiTestHost : IAsyncDisposable
         if (exePath == null)
         {
             exePath = Directory.GetFiles(webApiOutputDir, "*.runtimeconfig.json")
-                .Select(rc => Path.GetFileName(rc).Replace(".runtimeconfig.json", ""))
+                .Where(rc => !Path.GetFileName(rc).Contains(".client.", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(rc => Path.GetFileName(rc), StringComparer.OrdinalIgnoreCase)
+                .Select(rc => Path.GetFileName(rc).Replace(".runtimeconfig.json", "", StringComparison.OrdinalIgnoreCase))
                 .Select(name => Path.Combine(webApiOutputDir, name + ".dll"))
                 .FirstOrDefault(File.Exists);
             _output.WriteLine($"[HOST] No .exe found, trying DLL: {exePath}");

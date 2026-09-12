@@ -16,7 +16,7 @@ internal class EnumTestCommand : Command
     [CommandArgument("target", Description = "Target to process", Position = 0, Required = false)]
     public string? Target { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         Console.WriteLine($"EnumTest Command executed successfully!");
         Console.WriteLine($"Target: {Target ?? "default"}");
@@ -38,7 +38,6 @@ internal class EnumTestCommand : Command
             Console.WriteLine("===================================");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

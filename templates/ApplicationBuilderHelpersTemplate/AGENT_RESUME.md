@@ -162,7 +162,7 @@ Each layer has an `ApplicationDependency` at its root that registers services vi
 Ensure `ApplicationBuilderHelpers` is referenced in `Domain.csproj` (all layers inherit this transitively through Domain):
 
 ```xml
-<PackageReference Include="ApplicationBuilderHelpers" Version="4.1.86" />
+<PackageReference Include="ApplicationBuilderHelpers" Version="4.1.134" />
 ```
 
 Check the latest version on [NuGet](https://www.nuget.org/packages/ApplicationBuilderHelpers) and update accordingly.

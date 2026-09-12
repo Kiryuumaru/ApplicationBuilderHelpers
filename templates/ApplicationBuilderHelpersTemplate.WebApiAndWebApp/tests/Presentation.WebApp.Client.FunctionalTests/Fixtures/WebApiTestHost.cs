@@ -91,9 +91,24 @@ public class WebApiTestHost : IAsyncDisposable
 
         _output.WriteLine("[WEBAPI] Publish completed");
 
-        // Find the exe file in publish output
-        var exePath = Directory.GetFiles(_publishDir, "*.exe")
-            .FirstOrDefault(f => !Path.GetFileName(f).StartsWith("createdump", StringComparison.OrdinalIgnoreCase));
+        // Find the apphost executable in publish output (extensionless on Linux/macOS,
+        // .exe on Windows). Fall back to the server dll launched via the SDK's dotnet
+        // (PATH inside tests resolves to the system 8.x SDK, which cannot run net10
+        // appdlls — hence prefer the apphost which carries its own apphost resolver).
+        // Derive the executable name from the published *.runtimeconfig.json so renaming
+        // <AssemblyName> keeps working. Skip Blazor WASM client runtimeconfigs
+        // (*.client.*) — those are browser assets without a native apphost.
+        var exeCandidates = Directory.GetFiles(_publishDir, "*.runtimeconfig.json")
+            .Where(rc => !Path.GetFileName(rc).Contains(".client.", StringComparison.OrdinalIgnoreCase))
+            // Single apphost assumption: one non-client runtimeconfig is expected; sort so any extra match picks deterministically.
+            .OrderBy(rc => Path.GetFileName(rc), StringComparer.OrdinalIgnoreCase)
+            .Select(rc => Path.GetFileName(rc).Replace(".runtimeconfig.json", "", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(name => new[] { name, name + ".exe" })
+            .Select(name => Path.Combine(_publishDir, name))
+            .Where(f => !Path.GetFileName(f).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+            .Where(File.Exists)
+            .ToList();
+        var exePath = exeCandidates.FirstOrDefault();
 
         if (exePath == null || !File.Exists(exePath))
         {

@@ -8,10 +8,9 @@ Build hierarchical command structures with space-separated names:
 [Command("deploy", description: "Deployment operations")]
 public class DeployCommand : Command
 {
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         Console.WriteLine("Use a sub-command: deploy prod, deploy staging");
-        cts.Cancel();
         return ValueTask.CompletedTask;
     }
 }
@@ -50,7 +49,7 @@ public class WebCommand : Command<WebApplicationBuilder>
         return new ValueTask<WebApplicationBuilder>(builder);
     }
 
-    protected override async ValueTask Run(ApplicationHost<WebApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override async ValueTask Run(ApplicationHost<WebApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         var app = applicationHost.Builder.Build();
         app.MapGet("/", () => "Hello World");
@@ -62,6 +61,15 @@ public class WebCommand : Command<WebApplicationBuilder>
 Any type implementing `IHostApplicationBuilder` is supported.
 
 ## Exit Codes
+
+| Outcome | Exit code |
+|---|---|
+| `Run` returns normally (also `--help` / `--version`) | `0` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+
+Return normally on success.
 
 `RunAsync` returns `Task<int>`:
 

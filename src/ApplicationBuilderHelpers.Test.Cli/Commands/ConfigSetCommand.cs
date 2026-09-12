@@ -27,7 +27,7 @@ internal class ConfigSetCommand : ConfigCommand
     [CommandOption("encrypt", Description = "Encrypt the value")]
     public bool Encrypt { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -51,7 +51,6 @@ internal class ConfigSetCommand : ConfigCommand
             Console.WriteLine("Configuration set completed successfully!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

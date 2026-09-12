@@ -36,7 +36,7 @@ internal class ServeCommand : BaseCommand
     [CommandOption('m', "middleware", Description = "Additional middleware to enable")]
     public string[] Middleware { get; set; } = [];
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -68,7 +68,6 @@ internal class ServeCommand : BaseCommand
             Console.WriteLine("Development server started successfully!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

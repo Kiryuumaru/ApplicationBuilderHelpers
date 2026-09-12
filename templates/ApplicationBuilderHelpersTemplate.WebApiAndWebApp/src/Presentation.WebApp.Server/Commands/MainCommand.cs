@@ -78,6 +78,7 @@ internal class MainCommand : Build.BaseCommand<WebApplicationBuilder>
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.ApiVersionSelector = new CurrentImplementationApiVersionSelector(options);
             })
+            .AddMvc()
             .AddApiExplorer(options =>
             {
                 options.GroupNameFormat = "'v'VVV";

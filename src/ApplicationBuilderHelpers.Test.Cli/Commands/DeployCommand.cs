@@ -39,7 +39,7 @@ internal class DeployCommand : BaseCommand
     [CommandOption("rollback-on-failure", Description = "Automatically rollback on deployment failure")]
     public bool RollbackOnFailure { get; set; } = true;
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -75,7 +75,6 @@ internal class DeployCommand : BaseCommand
             Console.WriteLine("Deployment completed successfully!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

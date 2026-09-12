@@ -10,12 +10,13 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <summary>
 /// Handles formatting and display of help content with theming and two-column layout
 /// </summary>
-internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
+internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands, ConsoleOutput? consoleOutput = null)
 {
     private readonly ICommandBuilder _commandBuilder = commandBuilder;
     private readonly SubCommandInfo? _rootCommand = rootCommand;
     private readonly Dictionary<string, SubCommandInfo> _allCommands = allCommands;
     private readonly ICommandTypeParserCollection _typeParserCollection = commandBuilder;
+    internal ConsoleOutput ConsoleOutput { get; } = consoleOutput ?? new ConsoleOutput();
 
     public void ShowGlobalHelp()
     {
@@ -27,23 +28,23 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         var executableTitle = _commandBuilder.ExecutableTitle ?? AssemblyHelpers.GetAutoDetectedExecutableTitle();
         var executableVersion = _commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
         
-        HelpFormatter.WriteColored($"{executableName} v{executableVersion} - {executableTitle}", theme?.HeaderColor);
-        Console.WriteLine();
+        WriteColored($"{executableName} v{executableVersion} - {executableTitle}", theme?.HeaderColor);
+        ConsoleOutput.WriteLine();
 
         // Usage section
-        HelpFormatter.WriteColored("USAGE:", theme?.HeaderColor);
+        WriteColored("USAGE:", theme?.HeaderColor);
         var usageText = $"    {executableName} [OPTIONS] <COMMAND> [ARGS...]";
         WriteWrappedContent(usageText, helpWidth, 0, theme);
-        Console.WriteLine();
+        ConsoleOutput.WriteLine();
 
         // Description section - use auto-detection for null values
         var executableDescription = _commandBuilder.ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription();
         if (!string.IsNullOrEmpty(executableDescription))
         {
-            HelpFormatter.WriteColored("DESCRIPTION:", theme?.HeaderColor);
+            WriteColored("DESCRIPTION:", theme?.HeaderColor);
             var descriptionText = $"    {executableDescription}";
             WriteWrappedContent(descriptionText, helpWidth, 0, theme);
-            Console.WriteLine();
+            ConsoleOutput.WriteLine();
         }
 
         // Separate options into categories
@@ -151,7 +152,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         var executableVersion = _commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
         
         WriteColored($"{executableName} v{executableVersion} - {executableTitle}", theme?.HeaderColor);
-        Console.WriteLine();
+        ConsoleOutput.WriteLine();
 
         WriteColored("USAGE:", theme?.HeaderColor);
 
@@ -168,14 +169,14 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         }
         
         WriteWrappedContent(usage.ToString(), helpWidth, 0, theme);
-        Console.WriteLine();
+        ConsoleOutput.WriteLine();
 
         if (!string.IsNullOrEmpty(commandInfo.Description))
         {
-            HelpFormatter.WriteColored("DESCRIPTION:", theme?.HeaderColor);
+            WriteColored("DESCRIPTION:", theme?.HeaderColor);
             var descriptionText = $"    {commandInfo.Description}";
             WriteWrappedContent(descriptionText, helpWidth, 0, theme);
-            Console.WriteLine();
+            ConsoleOutput.WriteLine();
         }
 
         var commandSpecificOptions = new List<SubCommandOptionInfo>();
@@ -326,7 +327,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
     {
         if (items.Count == 0) return;
 
-        HelpFormatter.WriteColored(sectionHeader, theme?.HeaderColor);
+        WriteColored(sectionHeader, theme?.HeaderColor);
 
         const int Padding = 2;
         
@@ -340,7 +341,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
             if (leftDisplayWidth > leftColumnWidth)
             {
                 // Left content is too long - put right content on next line
-                Console.WriteLine(leftColumn);
+                ConsoleOutput.WriteLine(leftColumn);
                 WriteWrappedText(rightColumn, totalWidth - 4, 4, theme);
             }
             else
@@ -348,12 +349,12 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
                 // Standard two-column layout with fixed left column width
                 var rightColumnWidth = totalWidth - leftColumnWidth - Padding;
 
-                Console.Write(leftColumn);
-                Console.Write(new string(' ', leftColumnWidth - leftDisplayWidth + Padding));
+                ConsoleOutput.Write(leftColumn);
+                ConsoleOutput.Write(new string(' ', leftColumnWidth - leftDisplayWidth + Padding));
                 WriteWrappedText(rightColumn, rightColumnWidth, leftColumnWidth + Padding, theme);
             }
         }
-        Console.WriteLine();
+        ConsoleOutput.WriteLine();
     }
 
     private int CalculateOptimalLeftColumnWidth(List<string> leftColumnItems, int totalWidth)
@@ -516,7 +517,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
     {
         if (string.IsNullOrEmpty(text))
         {
-            Console.WriteLine();
+            ConsoleOutput.WriteLine();
             return;
         }
 
@@ -529,8 +530,8 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         {
             if (!firstLine)
             {
-                Console.WriteLine();
-                Console.Write(indentStr);
+                ConsoleOutput.WriteLine();
+                ConsoleOutput.Write(indentStr);
             }
 
             // Special handling for "Possible values:" lines to maximize space usage
@@ -543,7 +544,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
                     var valuesText = line[(colonIndex + 1)..].Trim(); // The actual values
 
                     // Write the prefix with secondary color
-                    HelpFormatter.WriteColoredText(prefix, theme?.SecondaryColor);
+                    WriteColoredText(prefix, theme?.SecondaryColor);
                     var currentPos = GetDisplayWidth(prefix);
                     
                     if (!string.IsNullOrEmpty(valuesText))
@@ -560,15 +561,15 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
                             // Check if it fits on current line with some buffer
                             if (currentPos + textLength < width - 2) // Leave 2 chars buffer
                             {
-                                HelpFormatter.WriteColoredText(textToAdd, theme?.ParameterColor);
+                                WriteColoredText(textToAdd, theme?.ParameterColor);
                                 currentPos += textLength;
                             }
                             else
                             {
                                 // Move to next line
-                                Console.WriteLine();
-                                Console.Write(indentStr);
-                                HelpFormatter.WriteColoredText(value, theme?.ParameterColor);
+                                ConsoleOutput.WriteLine();
+                                ConsoleOutput.Write(indentStr);
+                                WriteColoredText(value, theme?.ParameterColor);
                                 currentPos = indent + GetDisplayWidth(value);
                             }
                         }
@@ -590,7 +591,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
 
                     WriteColoredText(prefix, theme?.SecondaryColor);
 
-                    HelpFormatter.WriteColoredText($" {valueText}", theme?.ParameterColor);
+                    WriteColoredText($" {valueText}", theme?.ParameterColor);
                 }
                 else
                 {
@@ -606,8 +607,8 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
                     var valueText = line[(colonIndex + 1)..].Trim(); // The default value
 
 
-                    HelpFormatter.WriteColoredText(prefix, theme?.SecondaryColor);
-                    HelpFormatter.WriteColoredText($" {valueText}", theme?.ParameterColor);
+                    WriteColoredText(prefix, theme?.SecondaryColor);
+                    WriteColoredText($" {valueText}", theme?.ParameterColor);
                 }
                 else
                 {
@@ -623,7 +624,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
             firstLine = false;
         }
         
-        Console.WriteLine();
+        ConsoleOutput.WriteLine();
     }
 
     private void WriteWrappedLine(string line, int width, int currentIndent, string indentStr)
@@ -638,59 +639,39 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
             
             if (lineStarted && currentLineLength + wordLength + 1 > width)
             {
-                Console.WriteLine();
-                Console.Write(indentStr);
+                ConsoleOutput.WriteLine();
+                ConsoleOutput.Write(indentStr);
                 currentLineLength = indentStr.Length;
                 lineStarted = false;
             }
 
             if (lineStarted)
             {
-                Console.Write(" ");
+                ConsoleOutput.Write(" ");
                 currentLineLength++;
             }
 
-            HelpFormatter.WriteColoredText(word, null); // No coloring for regular words
+            WriteColoredText(word, null); // No coloring for regular words
             currentLineLength += wordLength;
             lineStarted = true;
         }
     }
 
-    private static void WriteColored(string text, ConsoleColor? color)
+    private void WriteColored(string text, ConsoleColor? color)
     {
-        if (color.HasValue)
-        {
-            var originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = color.Value;
-            Console.WriteLine(text);
-            Console.ForegroundColor = originalColor;
-        }
-        else
-        {
-            Console.WriteLine(text);
-        }
+        ConsoleOutput.WriteLine(text, color);
     }
 
-    private static void WriteColoredText(string text, ConsoleColor? color)
+    private void WriteColoredText(string text, ConsoleColor? color)
     {
-        if (color.HasValue)
-        {
-            var originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = color.Value;
-            Console.Write(text);
-            Console.ForegroundColor = originalColor;
-        }
-        else
-        {
-            Console.Write(text);
-        }
+        ConsoleOutput.Write(text, color);
     }
 
     private void WriteWrappedContent(string text, int maxWidth, int indent, IConsoleTheme? theme)
     {
         if (string.IsNullOrEmpty(text))
         {
-            Console.WriteLine();
+            ConsoleOutput.WriteLine();
             return;
         }
 
@@ -709,8 +690,8 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
             // Check if we need to wrap to next line
             if (lineStarted && currentLineLength + wordLength + 1 > availableWidth)
             {
-                Console.WriteLine();
-                Console.Write(indentStr);
+                ConsoleOutput.WriteLine();
+                ConsoleOutput.Write(indentStr);
                 currentLineLength = 0;
                 lineStarted = false;
             }
@@ -718,21 +699,21 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
             // Add space before word if not at line start
             if (lineStarted)
             {
-                Console.Write(" ");
+                ConsoleOutput.Write(" ");
                 currentLineLength++;
             }
             else if (indent > 0)
             {
-                Console.Write(indentStr);
+                ConsoleOutput.Write(indentStr);
                 currentLineLength = indent;
             }
 
-            HelpFormatter.WriteColoredText(word, theme?.DescriptionColor);
+            WriteColoredText(word, theme?.DescriptionColor);
             currentLineLength += wordLength;
             lineStarted = true;
         }
         
-        Console.WriteLine();
+        ConsoleOutput.WriteLine();
     }
 
     private static string? GetParentCommandName(SubCommandInfo commandInfo)
