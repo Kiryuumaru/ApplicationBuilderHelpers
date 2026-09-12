@@ -176,7 +176,7 @@ public static class ICommandBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(commandBuilder);
         ArgumentNullException.ThrowIfNull(command);
-        commandBuilder.Commands.Add(new Models.TypedCommandHolder(command.GetType(), command));
+        commandBuilder.Commands.Add(new Models.TypedCommandHolder(command.GetType(), command, isInstanceRegistration: true));
         return commandBuilder;
     }
 
@@ -195,7 +195,7 @@ public static class ICommandBuilderExtensions
         ArgumentNullException.ThrowIfNull(commandBuilder);
         var command = Activator.CreateInstance<TCommand>();
         ArgumentNullException.ThrowIfNull(command);
-        commandBuilder.Commands.Add(new Models.TypedCommandHolder(typeof(TCommand), command));
+        commandBuilder.Commands.Add(new Models.TypedCommandHolder(typeof(TCommand), command, isInstanceRegistration: false));
         return commandBuilder;
     }
 }

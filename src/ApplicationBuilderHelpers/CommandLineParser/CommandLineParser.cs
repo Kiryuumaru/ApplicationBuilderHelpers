@@ -30,7 +30,7 @@ internal class CommandLineParser
     private readonly CommandExecutor _executor;
     private readonly HelpVersionGateway _helpGateway;
 
-    internal CommandLineParser(ApplicationBuilder applicationBuilder, ConsoleOutput? consoleOutput = null)
+    internal CommandLineParser(ApplicationBuilder applicationBuilder, CommandReflectionCache? reflectionCache = null, ConsoleOutput? consoleOutput = null)
     {
         ApplicationBuilder = applicationBuilder;
         CommandBuilder = applicationBuilder;
@@ -38,7 +38,7 @@ internal class CommandLineParser
         ApplicationDependencyCollection = applicationBuilder;
         ConsoleOutput = consoleOutput ?? new ConsoleOutput();
 
-        _hierarchy = new CommandHierarchyBuilder(CommandBuilder, CommandTypeParserCollection);
+        _hierarchy = new CommandHierarchyBuilder(CommandBuilder, CommandTypeParserCollection, reflectionCache ?? new CommandReflectionCache());
         _parser = new ArgumentParser();
         _validator = new ParameterValidator();
         _binder = new ValueBinder(CommandTypeParserCollection);

@@ -125,6 +125,33 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
+    /// Creates a per-run copy from a cached descriptor. Descriptor primitives
+    /// are copied onto a fresh node; inheritance uses the existing name-based
+    /// scope, applied to the per-run copy only.
+    /// </summary>
+    public static SubCommandArgumentInfo FromDescriptor(CommandArgumentDescriptor descriptor, SubCommandInfo? ownerCommand)
+    {
+        var argumentInfo = new SubCommandArgumentInfo
+        {
+            Property = descriptor.Property,
+            PropertyType = descriptor.PropertyType,
+            Name = descriptor.Name,
+            Description = descriptor.Description,
+            Position = descriptor.Position,
+            IsRequired = descriptor.Required || descriptor.IsRequiredByKeyword,
+            ValidValues = descriptor.FromAmong,
+            IsCaseSensitive = descriptor.IsCaseSensitive,
+            IsSecret = descriptor.IsSecret,
+            OwnerCommand = ownerCommand
+        };
+
+        // Determine if this argument should be inherited
+        argumentInfo.DetermineInheritanceScope();
+
+        return argumentInfo;
+    }
+
+    /// <summary>
     /// Checks if a property has the C# required keyword by looking for RequiredMemberAttribute
     /// </summary>
     private static bool IsPropertyRequired(PropertyInfo property)
