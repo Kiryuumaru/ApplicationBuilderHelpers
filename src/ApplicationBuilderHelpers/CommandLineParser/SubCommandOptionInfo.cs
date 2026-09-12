@@ -318,6 +318,11 @@ internal class SubCommandOptionInfo
         if (LongName != null && (argument == $"--{LongName}" || argument.StartsWith($"--{LongName}=")))
             return true;
 
+        // Negated flag format: --no-<name> or --no-<name>=value, flags only.
+        // Bare binds false; =-form is rejected in ExtractValue.
+        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=")))
+            return true;
+
         // Short option format: -o or -o=value or -ovalue (compact)
         if (ShortName.HasValue)
         {
@@ -340,13 +345,31 @@ internal class SubCommandOptionInfo
         // Handle --option=value format
         if (LongName != null && argument.StartsWith($"--{LongName}="))
         {
-            return argument[$"--{LongName}=".Length..];
+            var literal = argument[$"--{LongName}=".Length..];
+            if (IsFlag)
+                ValidateFlagLiteral(literal);
+            return literal;
         }
 
         // Handle -o=value format
         if (ShortName.HasValue && argument.StartsWith($"-{ShortName}="))
         {
-            return argument[$"-{ShortName}=".Length..];
+            var literal = argument[$"-{ShortName}=".Length..];
+            if (IsFlag)
+                ValidateFlagLiteral(literal);
+            return literal;
+        }
+
+        // Handle --no-<name> negation for boolean flags: bare binds false, =-form is rejected
+        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=")))
+        {
+            if (argument.StartsWith($"--no-{LongName}="))
+            {
+                var rejected = argument[$"--no-{LongName}=".Length..];
+                throw new CommandException($"Option '--no-{LongName}' does not accept a value '{rejected}'. Use bare '--no-{LongName}' to set '--{LongName}' to 'false'.", 2, CommandErrorKind.InvalidValue);
+            }
+
+            return "false";
         }
 
         // Handle compact format -ovalue
@@ -361,11 +384,7 @@ internal class SubCommandOptionInfo
         {
             if (IsFlag)
             {
-                // For boolean flags, check if next argument is a boolean value
-                if (nextArgument != null && IsBooleanValue(nextArgument))
-                    return nextArgument;
-                else
-                    return "true"; // Flag without value means true
+                return "true"; // Flag without value means true; never consume next token
             }
             else
             {
@@ -389,6 +408,15 @@ internal class SubCommandOptionInfo
                value.Equals("off", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Validates a flag =-form literal; invalid throws a value error naming the option
+    /// </summary>
+    private void ValidateFlagLiteral(string literal)
+    {
+        if (!IsBooleanValue(literal))
+            throw new CommandException($"Invalid Boolean value '{literal}' for option '--{LongName ?? ShortName?.ToString()}'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", 2, CommandErrorKind.InvalidValue);
     }
 
     /// <summary>
