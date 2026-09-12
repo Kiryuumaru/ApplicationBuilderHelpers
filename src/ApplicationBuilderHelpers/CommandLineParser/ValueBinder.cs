@@ -1,4 +1,4 @@
-using ApplicationBuilderHelpers.Exceptions;
+using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -7,8 +7,10 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Binds parsed values onto the command instance.
-/// Moved verbatim from CommandLineParser (mechanical split, no behavior change).
+/// Binds parsed values onto the command instance via the shared
+/// <see cref="TypeConversion.TypeConversion"/> scalar pipeline and <see cref="CollectionShape"/>
+/// collection materialization (per-element conversion for collections,
+/// scalar conversion otherwise).
 /// </summary>
 internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollection)
 {
@@ -35,41 +37,30 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             var values = group.SelectMany(entry => entry.Value).ToList();
             if (values.Count == 0) continue;
 
+            var displayName = GetOptionDisplayName(option);
             object? propertyValue;
 
-            if (option.IsArray)
+            if (CollectionShape.IsCollection(option.PropertyType)
+                && CollectionShape.TryGetElementType(option.PropertyType, out var elementType)
+                && elementType is not null)
             {
-                var elementType = option.ElementType!;
-                var array = CreateTypedArray(elementType, values.Count);
-
-                for (int i = 0; i < values.Count; i++)
+                var converted = new List<object?>(values.Count);
+                foreach (var raw in values)
                 {
-                    // Validate string value first if ValidValues are specified
-                    if (option.ValidValues?.Length > 0)
-                    {
-                        ValidateStringValue(values[i], option);
-                    }
-
-                    var convertedValue = ConvertValue(values[i], elementType, option.IsCaseSensitive, option.IsSecret);
-                    array.SetValue(convertedValue, i);
+                    converted.Add(TypeConversion.TypeConversion.Convert(
+                        raw, elementType, option.IsCaseSensitive, option.ValidValues, displayName, typeParserCollection, option.IsSecret, isArgument: false));
                 }
 
-                propertyValue = array;
+                propertyValue = CollectionShape.Create(option.PropertyType, elementType, converted, typeParserCollection);
             }
             else
             {
-                // Validate string value first if ValidValues are specified
-                if (option.ValidValues?.Length > 0)
-                {
-                    ValidateStringValue(values[0], option);
-                }
-
-                propertyValue = ConvertValue(values[0], option.PropertyType, option.IsCaseSensitive, option.IsSecret);
+                propertyValue = TypeConversion.TypeConversion.Convert(values[0], option, displayName, typeParserCollection);
             }
 
-            // Note: We don't call option.ValidateValue here anymore for ValidValues validation
-            // since we already validated the string value above. ValidateValue is now only used
-            // for required field validation in ValidateRequiredParameters.
+            // Note: FromAmong (ValidValues) validation is applied inside
+            // TypeConversion.Convert (convert-then-compare). ValidateValue is only
+            // used for required field validation in ValidateRequiredParameters.
 
             option.Property.SetValue(command, propertyValue);
         }
@@ -79,108 +70,38 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         {
             if (values.Count == 0) continue;
 
+            var displayName = GetArgumentDisplayName(argument);
             object? propertyValue;
 
-            if (argument.IsArray)
+            if (CollectionShape.IsCollection(argument.PropertyType)
+                && CollectionShape.TryGetElementType(argument.PropertyType, out var elementType)
+                && elementType is not null)
             {
-                var elementType = argument.ElementType!;
-                var array = CreateTypedArray(elementType, values.Count);
-
-                for (int i = 0; i < values.Count; i++)
+                var converted = new List<object?>(values.Count);
+                foreach (var raw in values)
                 {
-                    var convertedValue = argument.ConvertValue(values[i], typeParserCollection);
-                    array.SetValue(convertedValue, i);
+                    string? normalized = raw.Length == 0 ? null : raw;
+                    converted.Add(TypeConversion.TypeConversion.Convert(
+                        normalized, elementType, argument.IsCaseSensitive, argument.ValidValues, displayName, typeParserCollection, argument.IsSecret, isArgument: true));
                 }
 
-                propertyValue = array;
+                propertyValue = CollectionShape.Create(argument.PropertyType, elementType, converted, typeParserCollection);
             }
             else
             {
-                propertyValue = argument.ConvertValue(values[0], typeParserCollection);
+                string? raw = values[0];
+                string? normalized = raw.Length == 0 ? null : raw;
+                propertyValue = TypeConversion.TypeConversion.Convert(
+                    normalized, argument, displayName, typeParserCollection);
             }
 
             argument.Property.SetValue(command, propertyValue);
         }
     }
 
-    /// <summary>
-    /// Validates a string value against the option's ValidValues before conversion
-    /// </summary>
-    private static void ValidateStringValue(string value, SubCommandOptionInfo option)
-    {
-        if (option.ValidValues?.Length > 0)
-        {
-            var comparisonType = option.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+    private static string GetOptionDisplayName(SubCommandOptionInfo option) =>
+        $"option '--{option.LongName ?? option.ShortName?.ToString() ?? option.Property.Name}'";
 
-            var isValid = option.ValidValues.Any(validValue =>
-                string.Equals(validValue?.ToString(), value, comparisonType));
-
-            if (!isValid)
-            {
-                var validValuesString = string.Join(", ", option.ValidValues.Select(v => v?.ToString()));
-                throw new CommandException(
-                    SecretRedaction.InvalidOptionValueMessage(value, $"--{option.LongName ?? option.ShortName?.ToString()}", validValuesString, option.IsSecret), 2, CommandErrorKind.InvalidValue);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Converts a string value to the specified type
-    /// </summary>
-    private object? ConvertValue(string? value, Type targetType, bool isCaseSensitive, bool isSecret = false)
-    {
-        if (value == null) return null;
-
-        if (typeParserCollection.TypeParsers.TryGetValue(targetType, out var parser))
-        {
-            var result = parser.Parse(value, out var error);
-            if (error != null)
-                throw new CommandException(SecretRedaction.RedactParserError(error, value, isSecret)!, 2, CommandErrorKind.InvalidValue);
-            return result;
-        }
-
-        if (targetType == typeof(string))
-            return value;
-
-        if (targetType.IsEnum && Enum.TryParse(targetType, value, !isCaseSensitive, out var typedVal))
-            return typedVal;
-
-        // Handle nullable types
-        if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
-        {
-            var underlyingType = Nullable.GetUnderlyingType(targetType)!;
-            return ConvertValue(value, underlyingType, isCaseSensitive, isSecret);
-        }
-
-        try
-        {
-            return Convert.ChangeType(value, targetType);
-        }
-        catch (Exception)
-        {
-            throw new CommandException(SecretRedaction.InvalidFormatMessage(value, targetType.FullName!, isSecret), 2, CommandErrorKind.InvalidValue);
-        }
-    }
-
-    /// <summary>
-    /// Creates a typed array for AOT compatibility
-    /// </summary>
-    private Array CreateTypedArray(Type elementType, int length)
-    {
-        // First try to use the registered type parser to create the array
-        if (typeParserCollection.TypeParsers.TryGetValue(elementType, out var parser))
-        {
-            try
-            {
-                return parser.CreateTypedArray(length);
-            }
-            catch
-            {
-                // If the type parser fails, fall back to manual creation
-            }
-        }
-
-        // For other types, create a generic object array to maintain AOT compatibility
-        return new object?[length];
-    }
+    private static string GetArgumentDisplayName(SubCommandArgumentInfo argument) =>
+        $"argument '{argument.DisplayName}'";
 }
