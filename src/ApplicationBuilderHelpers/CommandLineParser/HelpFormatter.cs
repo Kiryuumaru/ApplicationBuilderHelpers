@@ -428,7 +428,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         {
             var defaultValue = GetOptionDefaultValue(option);
             if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-                parts.Add($"Default: {defaultValue}");
+                parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, option.IsSecret)}");
         }
 
         // Use proper line breaks between different description parts for better readability

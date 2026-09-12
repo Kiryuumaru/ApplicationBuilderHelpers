@@ -53,4 +53,10 @@ public class CommandArgumentAttribute : Attribute
     /// Gets or sets a value indicating whether the possible values for the command argument are case sensitive.
     /// </summary>
     public bool CaseSensitive { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the command argument value is a secret.
+    /// Secret values omit the provided value in error messages.
+    /// </summary>
+    public bool Secret { get; set; } = false;
 }

@@ -187,6 +187,7 @@ public class CommandOptionAttribute : Attribute
     public string? Description { get; set; }
     public object[] FromAmong { get; set; }
     public bool CaseSensitive { get; set; }
+    public bool Secret { get; set; }
 }
 ```
 
@@ -204,6 +205,7 @@ public class CommandArgumentAttribute : Attribute
     public bool Required { get; set; }
     public object[] FromAmong { get; set; }
     public bool CaseSensitive { get; set; }
+    public bool Secret { get; set; }
 }
 ```
 
