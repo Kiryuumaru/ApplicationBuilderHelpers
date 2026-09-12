@@ -1,4 +1,6 @@
-﻿using ApplicationBuilderHelpers.Exceptions;
+﻿using ApplicationBuilderHelpers.CommandLineParser;
+using ApplicationBuilderHelpers.Exceptions;
+using ApplicationBuilderHelpers.Extensions;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -23,6 +25,8 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     /// </summary>
     public new IServiceProvider Services => Host.Services;
 
+    internal ConsoleOutput ConsoleOutput { get; set; } = new ConsoleOutput();
+
     /// <summary>
     /// Runs the configured application.
     /// </summary>
@@ -46,8 +50,6 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
             applicationDependency.RunPreparation(this);
         }
 
-        await Task.WhenAll(ApplicationDependencies.Select(ad => Task.Run(() => ad.RunPreparation(this))));
-        
         await Task.WhenAll(ApplicationDependencies.Select(ad => Task.Run(async () => await ad.RunPreparationAsync(this, cancellationToken), cancellationToken)));
 
         try
@@ -56,11 +58,48 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
         }
         catch (CommandException ex)
         {
-            Console.WriteLine(ex.Message);
+            ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName);
             return ex.ExitCode;
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Shows a styled error message with helpful footer information, mirroring the
+    /// command-line gateway path. Uses the auto-detected executable name and the
+    /// default error color since no <see cref="Interfaces.ICommandBuilder"/> theme
+    /// is reachable here without new coupling.
+    /// Footer selection dispatches on <see cref="CommandErrorKind"/>, never on message text.
+    /// </summary>
+    private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName)
+    {
+        var executableName = AssemblyHelpers.GetAutoDetectedExecutableName();
+
+        ConsoleOutput.WriteLineError($"Error: {message}", ConsoleColor.Red);
+
+        ConsoleOutput.WriteLineError();
+
+        switch (kind)
+        {
+            case CommandErrorKind.RequiresSubcommand:
+                if (!string.IsNullOrEmpty(commandName))
+                {
+                    ConsoleOutput.WriteLineError($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
+                }
+                else
+                {
+                    ConsoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
+                }
+                break;
+            case CommandErrorKind.UnknownOption:
+            case CommandErrorKind.MissingRequired:
+                ConsoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
+                break;
+            default:
+                ConsoleOutput.WriteLineError($"Run '{executableName} --help' for more information on available commands and options.");
+                break;
+        }
     }
 }
 

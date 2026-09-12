@@ -9,7 +9,7 @@ Since WebApi uses `ApplicationBuilderHelpers.ApplicationBuilder.Create()` patter
 │  Test Process (xUnit)                                                   │
 │  ┌───────────────────────────────────────────────────────────────────┐ │
 │  │  SharedWebApiHost (ICollectionFixture)                            │ │
-│  │  - Starts WebApi.exe subprocess on port 5199                      │ │
+│  │  - Starts <YourApp>.exe subprocess on port 5199                   │ │
 │  │  - Shared by all tests via [Collection("WebApi Tests")]           │ │
 │  │  - Disables parallel execution to avoid port conflicts            │ │
 │  └───────────────────────────────────────────────────────────────────┘ │
@@ -18,12 +18,14 @@ Since WebApi uses `ApplicationBuilderHelpers.ApplicationBuilder.Create()` patter
 │                                      ▼                                  │
 │  ┌───────────────────────────────────────────────────────────────────┐ │
 │  │  WebApiTestHost                                                   │ │
-│  │  - Runs: src/Presentation.WebApp/bin/Debug/net10.0/WebApi.exe    │ │
+│  │  - Runs: src/Presentation.WebApp/bin/Debug/net10.0/<YourApp>.exe │ │
 │  │  - Uses ASPNETCORE_URLS env var for URL configuration            │ │
 │  │  - Waits for server ready via polling                             │ │
 │  └───────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+> The binary name follows `AssemblyName` (defaults to `sampleapp`; substitute `<YourApp>` with your actual name). The test host discovers it dynamically via the `*.runtimeconfig.json` wildcard, so no hardcoded exe name is needed.
 
 ## Key Files
 

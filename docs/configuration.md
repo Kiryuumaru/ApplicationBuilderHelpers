@@ -91,4 +91,6 @@ if (configuration.TryGetRefValue("ConnectionString", out var resolved))
 
 References can be chained: `"A": "@ref:B"` → `"B": "@ref:C"` → `"C": "actual-value"`.
 
+Resolution reads the key's direct value first: a plain value wins, while an `@ref:` value triggers one hop, repeating until a terminal (non-`@ref:`) value or the bound. Chains resolve at most 32 hops (case-insensitive); a cycle (revisiting a key) or overflow (exceeding the depth) fails to resolve.
+
 Throws `NoConfigValueException` if a reference can't be resolved.

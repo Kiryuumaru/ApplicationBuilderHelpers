@@ -36,10 +36,9 @@ public class HelloCommand : Command
     [CommandArgument(Name = "name", Position = 0, Description = "Who to greet")]
     public string Name { get; set; } = "World";
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Hello, {Name}!");
-        cts.Cancel();
         return ValueTask.CompletedTask;
     }
 }
@@ -68,11 +67,10 @@ public class GreetCommand : Command
         services.AddSingleton<IGreetingService, GreetingService>();
     }
 
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         var greeter = applicationHost.Services.GetRequiredService<IGreetingService>();
         Console.WriteLine(greeter.GetGreeting());
-        cts.Cancel();
     }
 }
 ```

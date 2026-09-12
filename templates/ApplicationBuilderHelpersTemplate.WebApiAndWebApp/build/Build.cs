@@ -46,11 +46,11 @@ partial class Build : BaseNukeBuildHelpers
                     }
                     DotNetTasks.DotNetTest(_ => _
                         .SetNoBuild(true)
-                        .SetProcessAdditionalArguments(
-                            "--logger \"GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true\" " +
-                            "-- " +
-                            "RunConfiguration.CollectSourceInformation=true " +
-                            "DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencovere ")
+                        // MTP mode (see global.json test.runner): GitHubActionsTestLogger
+                        // auto-registers via MSBuild and Microsoft.Testing.Extensions.CodeCoverage
+                        // provides --coverage. VSTest-only flags (--logger, RunConfiguration,
+                        // DataCollector) exit 5 under MTP and must not be restored.
+                        .SetProcessAdditionalArguments("--report-github --coverage --coverage-output-format cobertura")
                         .SetProjectFile(projFile));
                 })));
 

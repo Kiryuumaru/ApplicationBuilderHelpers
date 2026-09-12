@@ -27,7 +27,7 @@ internal class DatabaseMigrateCommand : BaseCommand
     [CommandOption("timeout", Description = "Command timeout in seconds")]
     public int CommandTimeout { get; set; } = 300;
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         // Print debug info if requested
         PrintDebugInfo();
@@ -46,7 +46,6 @@ internal class DatabaseMigrateCommand : BaseCommand
             Console.WriteLine("Database migration completed successfully!");
         }
 
-        cancellationTokenSource.Cancel();
         return ValueTask.CompletedTask;
     }
 }

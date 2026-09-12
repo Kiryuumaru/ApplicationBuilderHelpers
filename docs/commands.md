@@ -12,10 +12,9 @@ using Microsoft.Extensions.Hosting;
 [Command("build", description: "Build the project")]
 public class BuildCommand : Command
 {
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-        // Command logic here
-        cts.Cancel();
+        // Command logic here. A normal return means success (exit 0).
     }
 }
 ```
@@ -113,7 +112,7 @@ public string? DestPath { get; set; }
 Use the service locator from `applicationHost.Services`:
 
 ```csharp
-protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cts)
+protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
 {
     var logger = applicationHost.Services.GetRequiredService<ILogger<MyCommand>>();
     var service = applicationHost.Services.GetRequiredService<IMyService>();
@@ -127,7 +126,14 @@ Commands inherit the full `ApplicationDependency` lifecycle. See [Application De
 
 ## Exit Codes
 
-Throw `CommandException` for non-zero exit:
+| Outcome | Exit code |
+|---|---|
+| `Run` returns normally (also `--help` / `--version`) | `0` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+
+Return normally on success. Throw `CommandException` for errors:
 
 ```csharp
 throw new CommandException("Operation failed", exitCode: 1);

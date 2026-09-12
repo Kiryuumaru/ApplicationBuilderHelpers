@@ -305,8 +305,8 @@ internal class SubCommandArgumentInfo
             {
                 var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
                 throw new CommandException(
-                    $"Invalid value '{value}' for argument '{DisplayName}'. " +
-                    $"Valid values are: {validValuesString}", 1);
+                    $"Value '{value}' is not valid for argument '{DisplayName}'. " +
+                    $"Must be one of: {validValuesString}", 2, CommandErrorKind.InvalidValue);
             }
         }
 
@@ -315,7 +315,7 @@ internal class SubCommandArgumentInfo
         {
             var result = parser.Parse(value, out var error);
             if (error != null)
-                throw new CommandException($"Invalid value '{value}' for argument '{DisplayName}': {error}", 1);
+                throw new CommandException($"Invalid value '{value}' for argument '{DisplayName}': {error}", 2, CommandErrorKind.InvalidValue);
             return result;
         }
 
@@ -332,7 +332,7 @@ internal class SubCommandArgumentInfo
         }
         catch (Exception ex)
         {
-            throw new CommandException($"Cannot convert '{value}' to {targetType.Name} for argument '{DisplayName}': {ex.Message}", 1);
+            throw new CommandException($"Cannot convert '{value}' to {targetType.Name} for argument '{DisplayName}': {ex.Message}", 2, CommandErrorKind.InvalidValue);
         }
     }
 

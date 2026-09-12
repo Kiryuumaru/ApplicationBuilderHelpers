@@ -81,7 +81,7 @@ internal class TestCommand : BaseCommand
     [CommandArgument("target", Description = "Target to test", Position = 0, Required = false)]
     public string? Target { get; set; }
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
         PrintDebugInfo();
 
@@ -212,8 +212,6 @@ internal class TestCommand : BaseCommand
         Console.WriteLine("[SUM] PARSED OPTIONS SUMMARY:");
         Console.WriteLine("-----------------------------------------------");
         PrintOptionsSummary();
-
-        cancellationTokenSource.Cancel(); // Cancel the application host to stop further processing
 
         return ValueTask.CompletedTask;
     }

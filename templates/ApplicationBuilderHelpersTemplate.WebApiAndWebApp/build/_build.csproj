@@ -14,8 +14,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="DisposableHelpers" Version="1.2.213" />
 		<PackageReference Include="Nuke.Common" Version="10.1.0" />
-		<PackageReference Include="NukeBuildHelpers" Version="9.0.7" />
+		<PackageReference Include="NukeBuildHelpers" Version="9.0.43" />
+		<PackageReference Include="NuGet.Packaging" Version="7.9.0" />
+		<PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
 	</ItemGroup>
 
 	<ItemGroup>

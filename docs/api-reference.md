@@ -43,7 +43,7 @@ public abstract class Command<THostApplicationBuilder> : ApplicationDependency, 
 
 | Member | Returns | Description |
 |---|---|---|
-| `Run(ApplicationHost<THostApplicationBuilder>, CancellationTokenSource)` | `ValueTask` | Command logic |
+| `Run(ApplicationHost<THostApplicationBuilder>, CancellationToken)` | `ValueTask` | Command logic (return normally on success; throw `CommandException` for errors; cancellation maps to 130) |
 | `ApplicationBuilder(CancellationToken)` | `ValueTask<THostApplicationBuilder>` | Create host builder (only on generic variant) |
 
 ### Inherited from ApplicationDependency
@@ -211,12 +211,37 @@ public class CommandArgumentAttribute : Attribute
 
 ### CommandException
 
+Exit contract for `RunAsync`:
+
+| Outcome | Exit code |
+|---|---|
+| `Run` returns normally (also `--help` / `--version`) | `0` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+
 ```csharp
+public enum CommandErrorKind
+{
+    Fault,
+    UnknownOption,
+    MissingRequired,
+    RequiresSubcommand,
+    InvalidValue,
+    UnknownCommand,
+    DuplicateOption,
+    NoImplementation,
+}
+
 public class CommandException : Exception
 {
     public int ExitCode { get; }
+    public CommandErrorKind Kind { get; }
+    public string? CommandName { get; }
     public CommandException(int exitCode);
     public CommandException(string message, int exitCode);
+    public CommandException(string message, int exitCode, CommandErrorKind kind, string? commandName = null);
+    public CommandException(int exitCode, CommandErrorKind kind);
 }
 ```
 
