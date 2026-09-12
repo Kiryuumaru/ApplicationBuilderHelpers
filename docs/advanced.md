@@ -90,6 +90,21 @@ throw new CommandException("Configuration missing", exitCode: 2);
 
 The library catches `CommandException` during execution and returns its exit code. Other unhandled exceptions will propagate.
 
+### Did-You-Mean Suggestions
+
+At CLI dead-ends the parser appends a `Did you mean 'x'?` suggestion when the
+input is close to a known name (true Damerau-Levenshtein with adjacent
+transposition costing 1; case-insensitive; leading dashes stripped;
+`--opt=value` compares only the part before `=`; single best match; ties break
+by same-first-character prefix, then alphabetical). Admission rule: distance
+≤ 2 suggests; a shared normalized first character (prefix bonus) extends
+admission to distance ≤ 4; anything farther stays silent.
+
+- Unknown option: `Unknown option: --verbosit. Did you mean '--verbosity'?`
+- Unknown command: `No command found for 'deply'. Did you mean 'deploy'?`
+- Unknown subcommand (surplus close to a child name): `Unknown subcommand 'gett'. Did you mean 'get'?`
+- Unexpected extra argument (surplus far from all children): `Unexpected argument 'zzzzqqqq'` (no suggestion)
+
 ## Help System
 
 Help is automatically generated from command attributes:

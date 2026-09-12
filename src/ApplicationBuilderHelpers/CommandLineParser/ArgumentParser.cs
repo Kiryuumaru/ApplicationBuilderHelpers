@@ -39,7 +39,11 @@ internal sealed class ArgumentParser
         // Zero-match unknown command must error, not show help
         if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-'))
         {
-            throw new CommandException($"No command found for '{args[0]}'", 1);
+            var zeroMatchSuggestion = DidYouMean.FindBestMatch(
+                args[0],
+                DidYouMean.SubCommandCandidates(rootCommand.Children.Keys));
+            throw new CommandException(
+                DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 1);
         }
 
         // Version asymmetry is intentional: a zero-match unknown command (e.g. "deply --version")
@@ -134,7 +138,11 @@ internal sealed class ArgumentParser
             }
             else if (arg.StartsWith('-') && !IsNumericValue(arg))
             {
-                throw new CommandException($"Unknown option: {arg}", 1);
+                var optionSuggestion = DidYouMean.FindBestMatch(
+                    arg,
+                    DidYouMean.OptionCandidates(allOptions));
+                throw new CommandException(
+                    DidYouMean.WithSuggestion($"Unknown option: {arg}", optionSuggestion), 1);
             }
             else
             {
@@ -155,7 +163,14 @@ internal sealed class ArgumentParser
             }
             else
             {
-                throw new CommandException($"No command found for '{argumentValue}'", 1);
+                var subcommandSuggestion = DidYouMean.FindBestMatch(
+                    argumentValue,
+                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
+                var surplusMessage = subcommandSuggestion != null
+                    ? $"Unknown subcommand '{argumentValue}'"
+                    : $"Unexpected argument '{argumentValue}'";
+                throw new CommandException(
+                    DidYouMean.WithSuggestion(surplusMessage, subcommandSuggestion), 1);
             }
         }
     }

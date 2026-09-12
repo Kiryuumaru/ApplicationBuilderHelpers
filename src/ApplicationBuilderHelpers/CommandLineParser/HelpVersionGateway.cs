@@ -90,7 +90,7 @@ internal sealed class HelpVersionGateway(
                 consoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
             }
         }
-        else if (message.Contains("Unknown option") || message.Contains("Missing required"))
+        else if (message.Contains("Unknown option") || message.Contains("Unknown subcommand") || message.Contains("Unexpected argument") || message.Contains("Missing required"))
         {
             consoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
         }
