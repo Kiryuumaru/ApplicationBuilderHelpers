@@ -129,7 +129,7 @@ public sealed class AbsolutePathAndLifetimeTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<AbsolutePathOptionCommand>(), ["abspathopt", "--path="]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Invalid AbsolutePath value: ''.", error);
     }
@@ -152,7 +152,7 @@ public sealed class AbsolutePathAndLifetimeTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<AbsolutePathArgumentCommand>(), ["abspatharg", "   "]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Invalid AbsolutePath value: '   '.", error);
     }

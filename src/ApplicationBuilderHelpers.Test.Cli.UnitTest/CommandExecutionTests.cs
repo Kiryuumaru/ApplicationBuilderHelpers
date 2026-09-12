@@ -274,25 +274,27 @@ public sealed class CommandExecutionTests
     }
 
     [Fact]
-    public async Task SynchronousGenericException_PropagatesToCaller()
+    public async Task SynchronousGenericException_MapsToFaultExitCode()
     {
-        var (exception, output, error) = await RunCapturedThrowsAsync<InvalidOperationException>(
+        var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<SyncInvalidCommand>(), ["execsyncinvalid"]);
 
-        Assert.Contains("sync invalid", exception.Message);
+        Assert.Equal(1, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Contains("Error: sync invalid", error);
+        Assert.Contains("Run 'exec-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task AsynchronousGenericException_PropagatesToCaller()
+    public async Task AsynchronousGenericException_MapsToFaultExitCode()
     {
-        var (exception, output, error) = await RunCapturedThrowsAsync<InvalidOperationException>(
+        var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<AsyncInvalidCommand>(), ["execasyncinvalid"]);
 
-        Assert.Contains("async invalid", exception.Message);
+        Assert.Equal(1, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Contains("Error: async invalid", error);
+        Assert.Contains("Run 'exec-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
@@ -307,21 +309,25 @@ public sealed class CommandExecutionTests
     }
 
     [Fact]
-    public async Task HostGenericException_PropagatesToCaller()
+    public async Task HostGenericException_MapsToFaultExitCode()
     {
-        var (exception, _, _) = await RunCapturedThrowsAsync<InvalidOperationException>(
+        var (exitCode, _, error) = await RunCapturedAsync(
             () => CreateBuilder<DeferredCompleteCommand>().AddApplication<InvalidHostDependency>(), ["execdeferred"]);
 
-        Assert.Contains("host invalid", exception.Message);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Error: host invalid", error);
+        Assert.Contains("Run 'exec-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task HostPreparationException_PropagatesToCaller()
+    public async Task HostPreparationException_MapsToFaultExitCode()
     {
-        var (exception, _, _) = await RunCapturedThrowsAsync<InvalidOperationException>(
+        var (exitCode, _, error) = await RunCapturedAsync(
             () => CreateBuilder<DeferredCompleteCommand>().AddApplication<InvalidPreparationDependency>(), ["execdeferred"]);
 
-        Assert.Contains("preparation invalid", exception.Message);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Error: preparation invalid", error);
+        Assert.Contains("Run 'exec-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
@@ -440,33 +446,6 @@ public sealed class CommandExecutionTests
             outWriter.Flush();
             errorWriter.Flush();
             return (exitCode, outWriter.ToString(), errorWriter.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-            ConsoleGate.Release();
-        }
-    }
-
-    private static async Task<(TException Exception, string Output, string Error)> RunCapturedThrowsAsync<TException>(
-        Func<ApplicationBuilder> builderFactory, string[] args, CancellationToken cancellationToken = default)
-        where TException : Exception
-    {
-        await ConsoleGate.WaitAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        using var outWriter = new StringWriter();
-        using var errorWriter = new StringWriter();
-        Console.SetOut(outWriter);
-        Console.SetError(errorWriter);
-        try
-        {
-            var exception = await Assert.ThrowsAnyAsync<TException>(
-                () => builderFactory().RunAsync(args, cancellationToken));
-            outWriter.Flush();
-            errorWriter.Flush();
-            return (exception, outWriter.ToString(), errorWriter.ToString());
         }
         finally
         {

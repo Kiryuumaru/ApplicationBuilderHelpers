@@ -136,7 +136,7 @@ public sealed class AssemblyAutoDetectionTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateDefaultBuilder(), ["autoprobe", "--unknown-option"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
 
         var entryAssembly = Assembly.GetEntryAssembly();

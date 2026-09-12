@@ -39,7 +39,7 @@ internal sealed class ArgumentParser
         // Zero-match unknown command must error, not show help
         if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-'))
         {
-            throw new CommandException($"No command found for '{args[0]}'", 1);
+            throw new CommandException($"No command found for '{args[0]}'", 2, CommandErrorKind.UnknownCommand);
         }
 
         // Version asymmetry is intentional: a zero-match unknown command (e.g. "deply --version")
@@ -65,12 +65,12 @@ internal sealed class ArgumentParser
             // This is an abstract command that requires a subcommand
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = string.IsNullOrEmpty(result.TargetCommand.FullCommandName) ? "" : result.TargetCommand.FullCommandName;
-            throw new CommandException($"'{commandName}' requires a subcommand. Available subcommands: {availableSubcommands}", 1);
+            throw new CommandException($"'{commandName}' requires a subcommand. Available subcommands: {availableSubcommands}", 2, CommandErrorKind.RequiresSubcommand, commandName);
         }
 
         if (!result.TargetCommand.HasImplementation)
         {
-            throw new CommandException($"No implementation found for command '{result.TargetCommand.FullCommandName}'", 1);
+            throw new CommandException($"No implementation found for command '{result.TargetCommand.FullCommandName}'", 1, CommandErrorKind.NoImplementation);
         }
 
         // Parse remaining arguments as options and arguments
@@ -127,14 +127,14 @@ internal sealed class ArgumentParser
                     var name = matchedOption.LongName != null
                         ? $"--{matchedOption.LongName}"
                         : $"-{matchedOption.ShortName}";
-                    throw new CommandException($"Duplicate option '{name}' specified multiple times.", 1);
+                    throw new CommandException($"Duplicate option '{name}' specified multiple times.", 2, CommandErrorKind.DuplicateOption);
                 }
 
                 result.AddOptionValue(matchedOption, value);
             }
             else if (arg.StartsWith('-') && !IsNumericValue(arg))
             {
-                throw new CommandException($"Unknown option: {arg}", 1);
+                throw new CommandException($"Unknown option: {arg}", 2, CommandErrorKind.UnknownOption);
             }
             else
             {
@@ -155,7 +155,7 @@ internal sealed class ArgumentParser
             }
             else
             {
-                throw new CommandException($"No command found for '{argumentValue}'", 1);
+                throw new CommandException($"No command found for '{argumentValue}'", 2, CommandErrorKind.UnknownCommand);
             }
         }
     }
