@@ -127,4 +127,4 @@ myapp build --tag=a --tag=b file1.txt file2.txt
 
 ## FromAmong Validation
 
-`FromAmong` allowed values are compared after conversion (convert-then-compare): the CLI text is parsed to the property type first, then the converted value is compared against the allowed entries (string entries for the same type are parsed before comparison). Equivalent representations therefore match — `--level=02` satisfies `FromAmong = [1, 2, 3]`, and `--mode=0` matches an enum entry with value `0`.
+`FromAmong` allowed values are compared after conversion (convert-then-compare): the CLI text is parsed to the property type first, then the converted value is compared against the allowed entries (string entries for the same type are parsed before comparison). Equivalent representations therefore match — `--level=02` satisfies `FromAmong = [1, 2, 3]`, and `--mode=0` matches an enum entry with value `0`. When conversion itself fails and the raw text matches no allowed display string, the error reports the allowed list (`Must be one of: ...`) instead of a bare invalid-value error, so unparseable enum input such as `--color=Purple` still lists the allowed values.

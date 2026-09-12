@@ -382,7 +382,9 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid value 'Purple' for option '--color'", error);
+        Assert.Contains("Value 'Purple' is not valid for option '--color'", error);
+        Assert.Contains("Must be one of:", error);
+        Assert.Contains("Red", error);
     }
 
     [Fact]
