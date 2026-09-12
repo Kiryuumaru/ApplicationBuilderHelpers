@@ -128,8 +128,9 @@ Commands inherit the full `ApplicationDependency` lifecycle. See [Application De
 
 | Outcome | Exit code |
 |---|---|
-| `Run` returns normally | `0` |
-| `Run` throws `CommandException` | `ex.ExitCode` |
+| `Run` returns normally (also `--help` / `--version`) | `0` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
 Return normally on success. Throw `CommandException` for errors:

@@ -47,7 +47,7 @@ public sealed class AllowedValueMessageTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["shapemsgarg", "yaml"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Value 'yaml' is not valid for", error);
         Assert.Contains("Must be one of: json, xml", error);
@@ -58,7 +58,7 @@ public sealed class AllowedValueMessageTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["shapemsg", "--mode", "yaml"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Value 'yaml' is not valid for option '--mode'", error);
         Assert.Contains("Must be one of: json, xml", error);

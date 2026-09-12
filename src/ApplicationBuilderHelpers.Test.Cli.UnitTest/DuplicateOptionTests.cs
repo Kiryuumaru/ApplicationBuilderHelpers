@@ -74,7 +74,7 @@ public sealed class DuplicateOptionTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["dupscalar", "--text=a", "--text=b"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Duplicate option", error);
         Assert.Contains("--text", error);
@@ -105,7 +105,7 @@ public sealed class DuplicateOptionTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["dupflag", "--verbose=true", "--verbose=true"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Duplicate option", error);
         Assert.Contains("--verbose", error);
@@ -116,7 +116,7 @@ public sealed class DuplicateOptionTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["dupalias", "--text=a", "-t", "b"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Duplicate option", error);
         Assert.Contains("--text", error);

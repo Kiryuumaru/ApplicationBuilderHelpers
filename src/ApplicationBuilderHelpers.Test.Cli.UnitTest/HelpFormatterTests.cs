@@ -107,7 +107,7 @@ public sealed class HelpFormatterTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["boguscmd"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("--help", error);
     }

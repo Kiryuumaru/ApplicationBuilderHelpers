@@ -253,7 +253,7 @@ internal class SubCommandOptionInfo
     {
         if (IsRequired && value == null)
         {
-            throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 1);
+            throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 2, CommandErrorKind.MissingRequired);
         }
 
         // Note: ValidValues validation is now handled in ValueBinder.ValidateStringValue

@@ -56,7 +56,7 @@ public sealed class SubCommandInfoTests
     public async Task InvalidOptionValue_ReportsAllowedValues()
     {
         var (exitCode, _, error) = await RunCapturedAsync(CreateBuilder, ["subinfo", "alpha", "--mode=bad"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("--mode", error);
         Assert.Contains("Must be one of", error);
         Assert.Contains("json, xml", error);
@@ -82,7 +82,7 @@ public sealed class SubCommandInfoTests
         Assert.Contains("Fast", helpOutput);
         Assert.Contains("Slow", helpOutput);
         var (exitCode, _, error) = await RunCapturedAsync(CreateBuilder, ["subinfo", "alpha", "--kind=Bad"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("--kind", error);
         Assert.Contains("Fast", error);
     }
@@ -100,7 +100,7 @@ public sealed class SubCommandInfoTests
     public async Task InvalidArgumentValue_ReportsError()
     {
         var (exitCode, _, error) = await RunCapturedAsync(CreateBuilder, ["subinfo", "alpha", "mytarget", "notanum"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("level", error);
         Assert.Contains("notanum", error);
     }
@@ -129,7 +129,7 @@ public sealed class SubCommandInfoTests
     public async Task MissingRequiredOption_ReportsDisplayName()
     {
         var (exitCode, _, error) = await RunCapturedAsync(CreateBuilder, ["subinfo", "beta"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("--reason", error);
     }
 

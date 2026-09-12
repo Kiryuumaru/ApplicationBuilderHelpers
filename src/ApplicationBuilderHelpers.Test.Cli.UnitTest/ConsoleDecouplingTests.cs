@@ -87,7 +87,7 @@ public sealed class ConsoleDecouplingTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(() => CreateBuilder().RunAsync(["greet", "--unknown-option"]));
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Unknown option: --unknown-option", error);
         Assert.Contains("Run 'decouple-test <command> --help' for more information on specific command options.", error);
@@ -98,7 +98,7 @@ public sealed class ConsoleDecouplingTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(() => CreateBuilder().RunAsync(["publish"]));
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Missing required argument", error);
         Assert.Contains("Run 'decouple-test <command> --help' for more information on specific command options.", error);

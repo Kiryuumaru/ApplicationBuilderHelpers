@@ -87,7 +87,7 @@ public sealed class ConsoleOutputTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder(), ["coutgreet", "--unknown-option"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Unknown option: --unknown-option", error);
         Assert.Contains("Run 'cout-test <command> --help' for more information on specific command options.", error);
@@ -99,7 +99,7 @@ public sealed class ConsoleOutputTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder(), ["coutpublish"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Missing required argument", error);
         Assert.Contains("Run 'cout-test <command> --help' for more information on specific command options.", error);

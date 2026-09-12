@@ -386,27 +386,15 @@ public sealed class CommandHierarchyTests
     }
 
     [Fact]
-    public async Task DuplicateRoot_ThrowsInvalidOperation()
+    public async Task DuplicateRoot_MapsToFaultExitCode()
     {
-        await ConsoleGate.WaitAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        using var outWriter = new StringWriter();
-        using var errorWriter = new StringWriter();
-        Console.SetOut(outWriter);
-        Console.SetError(errorWriter);
-        try
-        {
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => CreateBuilder().AddCommand<RootOnlyCommand>().AddCommand<RootOnlyCommand>().RunAsync([]));
-            Assert.Contains("Cannot have more than one root command", exception.Message);
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-            ConsoleGate.Release();
-        }
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<RootOnlyCommand>().AddCommand<RootOnlyCommand>(), []);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Error: Cannot have more than one root command", error);
+        Assert.Contains("Run 'hier-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]

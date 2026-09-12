@@ -103,12 +103,14 @@ public sealed class HostRunTests
     }
 
     [Fact]
-    public async Task AsyncPreparationThrowingInvalidOperation_PropagatesToCaller()
+    public async Task AsyncPreparationThrowingInvalidOperation_MapsToFaultExitCode()
     {
-        var (exception, _, _) = await RunCapturedThrowsAsync<InvalidOperationException>(
+        var (exitCode, _, error) = await RunCapturedAsync(
             () => CreateBuilder<HostRunCommand>().AddApplication<HostRunInvalidPreparation>(), ["hostrun"]);
 
-        Assert.Contains("hostrun preparation invalid", exception.Message);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Error: hostrun preparation invalid", error);
+        Assert.Contains("Run 'host-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
@@ -180,33 +182,6 @@ public sealed class HostRunTests
             outWriter.Flush();
             errorWriter.Flush();
             return (exitCode, outWriter.ToString(), errorWriter.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-            ConsoleGate.Release();
-        }
-    }
-
-    private static async Task<(TException Exception, string Output, string Error)> RunCapturedThrowsAsync<TException>(
-        Func<ApplicationBuilder> builderFactory, string[] args, CancellationToken cancellationToken = default)
-        where TException : Exception
-    {
-        await ConsoleGate.WaitAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        using var outWriter = new StringWriter();
-        using var errorWriter = new StringWriter();
-        Console.SetOut(outWriter);
-        Console.SetError(errorWriter);
-        try
-        {
-            var exception = await Assert.ThrowsAsync<TException>(
-                () => builderFactory().RunAsync(args, cancellationToken));
-            outWriter.Flush();
-            errorWriter.Flush();
-            return (exception, outWriter.ToString(), errorWriter.ToString());
         }
         finally
         {

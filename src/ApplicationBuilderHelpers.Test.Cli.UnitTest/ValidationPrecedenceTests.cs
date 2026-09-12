@@ -81,7 +81,7 @@ public sealed class ValidationPrecedenceTests
         var (exitCode, output, error) = await RunCapturedAsync(["precedencereq", "--name", "Bob"],
             new Dictionary<string, string?> { [TokenVariable] = " " });
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Missing required option: --token", error);
     }
@@ -103,7 +103,7 @@ public sealed class ValidationPrecedenceTests
         var (exitCode, output, error) = await RunCapturedAsync(["precedencecheck"],
             new Dictionary<string, string?> { [ModeVariable] = "yaml", [CountVariable] = null });
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Value 'yaml' is not valid for option '--mode'", error);
         Assert.Contains("Must be one of: json, xml", error);
@@ -115,7 +115,7 @@ public sealed class ValidationPrecedenceTests
         var (exitCode, output, error) = await RunCapturedAsync(["precedencecheck"],
             new Dictionary<string, string?> { [ModeVariable] = null, [CountVariable] = "abc" });
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Invalid Int32 value: 'abc'", error);
     }
