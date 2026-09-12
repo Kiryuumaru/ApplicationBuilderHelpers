@@ -91,6 +91,105 @@ public sealed class ConfigurationRefValueTests
     }
 
     [Fact]
+    public void TryGetRefValue_SelfReference_ReturnsFalseWithNull()
+    {
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?> { ["Loop"] = "@ref:Loop" });
+
+        var found = configuration.TryGetRefValue("Loop", out var value);
+
+        Assert.False(found);
+        Assert.Null(value);
+        Assert.Throws<NoConfigValueException>(() => configuration.GetRefValue("Loop"));
+    }
+
+    [Fact]
+    public void TryGetRefValue_TwoKeyCycle_ReturnsFalseWithNull()
+    {
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["First"] = "@ref:Second",
+            ["Second"] = "@ref:First",
+        });
+
+        var found = configuration.TryGetRefValue("First", out var value);
+
+        Assert.False(found);
+        Assert.Null(value);
+        Assert.Throws<NoConfigValueException>(() => configuration.GetRefValue("First"));
+    }
+
+    [Fact]
+    public void TryGetRefValue_ExcessivelyDeepChain_ReturnsFalseWithNull()
+    {
+        var values = new Dictionary<string, string?>();
+        const int depth = 50;
+        for (var i = 0; i < depth; i++)
+        {
+            values[$"Key{i}"] = $"@ref:Key{i + 1}";
+        }
+        values[$"Key{depth}"] = "terminal-value";
+        IConfiguration configuration = CreateConfiguration(values);
+
+        var found = configuration.TryGetRefValue("Key0", out var value);
+
+        Assert.False(found);
+        Assert.Null(value);
+        Assert.Throws<NoConfigValueException>(() => configuration.GetRefValue("Key0"));
+    }
+
+    [Fact]
+    public void TryGetRefValue_ThreeHopChain_ResolvesFinalValue()
+    {
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["Final"] = "deep-value",
+            ["Third"] = "@ref:Final",
+            ["Second"] = "@ref:Third",
+            ["First"] = "@ref:Second",
+        });
+
+        var found = configuration.TryGetRefValue("First", out var value);
+
+        Assert.True(found);
+        Assert.Equal("deep-value", value);
+    }
+
+    [Fact]
+    public void TryGetRefValue_MixedCaseTwoKeyCycle_ReturnsFalseWithNull()
+    {
+        IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["First"] = "@ref:SECOND",
+            ["SECOND"] = "@ref:FIRST",
+            ["FIRST"] = "terminal-value",
+        });
+
+        var found = configuration.TryGetRefValue("First", out var value);
+
+        Assert.False(found);
+        Assert.Null(value);
+        Assert.Throws<NoConfigValueException>(() => configuration.GetRefValue("First"));
+    }
+
+    [Fact]
+    public void TryGetRefValue_32KeyChainResolvesAnd33KeyChainFails()
+    {
+        IConfiguration insideConfiguration = CreateConfiguration(BuildChain(32));
+        IConfiguration outsideConfiguration = CreateConfiguration(BuildChain(33));
+
+        var insideFound = insideConfiguration.TryGetRefValue("Key0", out var insideValue);
+
+        Assert.True(insideFound);
+        Assert.Equal("terminal-value", insideValue);
+
+        var outsideFound = outsideConfiguration.TryGetRefValue("Key0", out var outsideValue);
+
+        Assert.False(outsideFound);
+        Assert.Null(outsideValue);
+        Assert.Throws<NoConfigValueException>(() => outsideConfiguration.GetRefValue("Key0"));
+    }
+
+    [Fact]
     public void ContainsRefValue_ReflectsResolvability()
     {
         IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
@@ -140,6 +239,17 @@ public sealed class ConfigurationRefValueTests
 
     private static IConfiguration CreateConfiguration(Dictionary<string, string?> values) =>
         new InMemoryConfiguration(values);
+
+    private static Dictionary<string, string?> BuildChain(int visitedCount)
+    {
+        var values = new Dictionary<string, string?>();
+        for (var i = 0; i < visitedCount - 1; i++)
+        {
+            values[$"Key{i}"] = $"@ref:Key{i + 1}";
+        }
+        values[$"Key{visitedCount - 1}"] = "terminal-value";
+        return values;
+    }
 
     private sealed class InMemoryConfiguration(Dictionary<string, string?> values) : IConfiguration
     {

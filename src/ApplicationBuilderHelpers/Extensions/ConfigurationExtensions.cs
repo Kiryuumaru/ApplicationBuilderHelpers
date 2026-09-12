@@ -1,5 +1,7 @@
 ﻿using ApplicationBuilderHelpers.Exceptions;
 using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.Extensions;
@@ -21,12 +23,19 @@ public static class ConfigurationExtensions
     /// <returns>True if the value was found and resolved successfully; otherwise, false.</returns>
     public static bool TryGetRefValue(this IConfiguration configuration, string varName, [NotNullWhen(true)] out string? value)
     {
+        const int maxDepth = 32;
+        HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
         string? varValue = $"@ref:{varName}";
         while (true)
         {
             if (varValue.StartsWith("@ref:"))
             {
                 varName = varValue[5..];
+                if (!visited.Add(varName) || visited.Count > maxDepth)
+                {
+                    value = null;
+                    return false;
+                }
                 varValue = configuration[varName];
                 if (varValue == null || string.IsNullOrEmpty(varValue))
                 {
