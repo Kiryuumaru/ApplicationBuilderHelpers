@@ -84,7 +84,7 @@ public sealed class SubCommandInfoTests
         var (exitCode, _, error) = await RunCapturedAsync(CreateBuilder, ["subinfo", "alpha", "--kind=Bad"]);
         Assert.Equal(2, exitCode);
         Assert.Contains("--kind", error);
-        Assert.Contains("Fast", error);
+        Assert.Contains("Invalid value 'Bad' for option '--kind'", error);
     }
 
     [Fact]

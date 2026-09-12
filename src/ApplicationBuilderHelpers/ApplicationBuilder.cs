@@ -127,10 +127,12 @@ public class ApplicationBuilder : ICommandBuilder
         AddCommandTypeParser<BoolTypeParser>();
         AddCommandTypeParser<ByteTypeParser>();
         AddCommandTypeParser<CharTypeParser>();
-        AddCommandTypeParser<DateTimeOffsetTypeParser>();
+        AddCommandTypeParser<DateOnlyTypeParser>();
         AddCommandTypeParser<DateTimeTypeParser>();
+        AddCommandTypeParser<DateTimeOffsetTypeParser>();
         AddCommandTypeParser<DecimalTypeParser>();
         AddCommandTypeParser<DoubleTypeParser>();
+        AddCommandTypeParser<FileInfoTypeParser>();
         AddCommandTypeParser<FloatTypeParser>();
         AddCommandTypeParser<GuidTypeParser>();
         AddCommandTypeParser<IntTypeParser>();
@@ -138,8 +140,12 @@ public class ApplicationBuilder : ICommandBuilder
         AddCommandTypeParser<SByteTypeParser>();
         AddCommandTypeParser<ShortTypeParser>();
         AddCommandTypeParser<StringTypeParser>();
+        AddCommandTypeParser<TimeOnlyTypeParser>();
+        AddCommandTypeParser<TimeSpanTypeParser>();
         AddCommandTypeParser<UIntTypeParser>();
         AddCommandTypeParser<ULongTypeParser>();
+        AddCommandTypeParser<UriTypeParser>();
         AddCommandTypeParser<UShortTypeParser>();
+        AddCommandTypeParser<VersionTypeParser>();
     }
 }

@@ -1,4 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
@@ -87,14 +88,14 @@ internal class SubCommandOptionInfo
     public bool IsFlag => PropertyType == typeof(bool) || PropertyType == typeof(bool?);
 
     /// <summary>
-    /// Whether this option accepts multiple values (array type)
+    /// Whether this option accepts multiple values (collection type)
     /// </summary>
-    public bool IsArray => PropertyType.IsArray;
+    public bool IsCollection => CollectionShape.IsCollection(PropertyType);
 
     /// <summary>
-    /// The element type if this is an array option
+    /// The element type if this is a collection option
     /// </summary>
-    public Type? ElementType => IsArray ? PropertyType.GetElementType() : null;
+    public Type? ElementType => CollectionShape.TryGetElementType(PropertyType, out var elementType) ? elementType : null;
 
     /// <summary>
     /// The command this option belongs to
@@ -316,8 +317,8 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Validates the option value against constraints (only required field validation now)
-    /// ValidValues validation is now handled in ValueBinder.ValidateStringValue
+    /// Validates the option value against constraints (only required field validation now).
+    /// ValidValues validation is applied inside TypeConversion.Convert (convert-then-compare).
     /// </summary>
     public void ValidateValue(object? value)
     {
@@ -326,8 +327,8 @@ internal class SubCommandOptionInfo
             throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 2, CommandErrorKind.MissingRequired);
         }
 
-        // Note: ValidValues validation is now handled in ValueBinder.ValidateStringValue
-        // before type conversion to ensure consistent error messages regardless of type parsing success
+        // Note: ValidValues validation is applied inside TypeConversion.Convert
+        // (convert-then-compare) before type conversion completes, to keep error messages consistent.
     }
 
     /// <summary>
@@ -364,7 +365,7 @@ internal class SubCommandOptionInfo
     /// </summary>
     public string GetTypeName()
     {
-        var targetType = IsArray ? ElementType! : PropertyType;
+        var targetType = IsCollection ? ElementType! : PropertyType;
         
         return targetType.Name.ToLowerInvariant() switch
         {
