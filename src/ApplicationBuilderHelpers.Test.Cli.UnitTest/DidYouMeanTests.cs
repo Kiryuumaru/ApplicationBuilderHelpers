@@ -6,7 +6,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// Tests for issue #371 did-you-mean suggestions at CLI dead-ends.
-/// Exit-code contract: every scenario below fails with exit code 1.
+/// Exit-code contract: every scenario below fails with exit code 2
+/// (usage error per the structured CommandErrorKind contract).
 /// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
 /// console streams are process-global mutable state.
 /// </summary>
@@ -68,7 +69,7 @@ public sealed class DidYouMeanTests
     public async Task Unknown_Option_Typo_Suggests_Long_Name()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "--verbosit"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --verbosit", error);
         Assert.Contains("Did you mean '--verbosity'?", error);
     }
@@ -77,7 +78,7 @@ public sealed class DidYouMeanTests
     public async Task Unknown_Option_Case_Insensitive_Suggests()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "--VERBOSITY"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --VERBOSITY", error);
         Assert.Contains("Did you mean '--verbosity'?", error);
     }
@@ -86,7 +87,7 @@ public sealed class DidYouMeanTests
     public async Task Unknown_Option_Transposition_Suggests()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "--verbosiyt"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --verbosiyt", error);
         Assert.Contains("Did you mean '--verbosity'?", error);
     }
@@ -95,7 +96,7 @@ public sealed class DidYouMeanTests
     public async Task Unknown_Option_Far_Miss_Stays_Silent()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "--zzzzqqqq"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --zzzzqqqq", error);
         Assert.DoesNotContain("Did you mean", error);
     }
@@ -104,7 +105,7 @@ public sealed class DidYouMeanTests
     public async Task Unknown_Option_Same_Initial_Far_Miss_Stays_Silent()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "--verbosity-garbage-xyz"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --verbosity-garbage-xyz", error);
         Assert.DoesNotContain("Did you mean", error);
     }
@@ -113,7 +114,7 @@ public sealed class DidYouMeanTests
     public async Task Unknown_Option_Equals_Value_Typo_Suggests()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "--verbosit=quiet"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --verbosit=quiet", error);
         Assert.Contains("Did you mean '--verbosity'?", error);
     }
@@ -129,7 +130,7 @@ public sealed class DidYouMeanTests
     public async Task Zero_Match_Command_Typo_Suggests()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deply"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("No command found for 'deply'", error);
         Assert.Contains("Did you mean 'deploy'?", error);
     }
@@ -138,7 +139,7 @@ public sealed class DidYouMeanTests
     public async Task Zero_Match_Command_Far_Miss_Stays_Silent()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["zzzzqqqq"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("No command found for 'zzzzqqqq'", error);
         Assert.DoesNotContain("Did you mean", error);
     }
@@ -147,7 +148,7 @@ public sealed class DidYouMeanTests
     public async Task Surplus_Close_To_Child_Is_Unknown_Subcommand_With_Suggestion()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["config", "gett"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unknown subcommand 'gett'", error);
         Assert.Contains("Did you mean 'get'?", error);
     }
@@ -156,7 +157,7 @@ public sealed class DidYouMeanTests
     public async Task Surplus_Far_From_Children_Is_Unexpected_Argument()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["config", "zzzzqqqq"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unexpected argument 'zzzzqqqq'", error);
         Assert.DoesNotContain("Did you mean", error);
     }
@@ -165,7 +166,7 @@ public sealed class DidYouMeanTests
     public async Task Leaf_Surplus_Extra_Argument_Has_No_Suggestion()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "extra"]);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.Contains("Unexpected argument 'extra'", error);
         Assert.DoesNotContain("Did you mean", error);
     }

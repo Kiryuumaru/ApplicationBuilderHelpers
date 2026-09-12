@@ -120,7 +120,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                 var validValuesString = string.Join(", ", option.ValidValues.Select(v => v?.ToString()));
                 throw new CommandException(
                     $"Value '{value}' is not valid for option '--{option.LongName ?? option.ShortName?.ToString()}'. " +
-                    $"Must be one of: {validValuesString}", 1);
+                    $"Must be one of: {validValuesString}", 2, CommandErrorKind.InvalidValue);
             }
         }
     }
@@ -136,7 +136,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         {
             var result = parser.Parse(value, out var error);
             if (error != null)
-                throw new CommandException(error, 1);
+                throw new CommandException(error, 2, CommandErrorKind.InvalidValue);
             return result;
         }
 
@@ -159,7 +159,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         }
         catch (Exception)
         {
-            throw new CommandException($"Invalid format for value '{value}' of type {targetType.FullName}", 1);
+            throw new CommandException($"Invalid format for value '{value}' of type {targetType.FullName}", 2, CommandErrorKind.InvalidValue);
         }
     }
 

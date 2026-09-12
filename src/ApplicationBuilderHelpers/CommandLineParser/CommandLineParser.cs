@@ -114,7 +114,7 @@ internal class CommandLineParser
         }
         catch (CommandException ex)
         {
-            ShowErrorMessage(ex.Message);
+            ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName);
             return ex.ExitCode;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -126,6 +126,12 @@ internal class CommandLineParser
         {
             // Success path — never let OperationCanceledException escape the int contract.
             return 0;
+        }
+        catch (Exception ex)
+        {
+            // Unknown fault: styled stderr, exit 1. Never throws for expected failures.
+            ShowErrorMessage(ex.Message, CommandErrorKind.Fault, null);
+            return 1;
         }
     }
 
@@ -168,7 +174,7 @@ internal class CommandLineParser
     /// <summary>
     /// Shows a styled error message with helpful footer information
     /// </summary>
-    private void ShowErrorMessage(string message) => _helpGateway.ShowErrorMessage(message);
+    private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName) => _helpGateway.ShowErrorMessage(message, kind, commandName);
 
     #endregion
 }

@@ -193,7 +193,7 @@ public sealed class EnvironmentVariableFallbackTests
         var (exitCode, output, error) = await RunCapturedAsync(["envrequired", "--token", "s3cret"],
             new Dictionary<string, string?> { [TokenVariable] = "from-env", [ConfigVariable] = "nick" });
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Missing required option: --name", error);
     }
@@ -204,7 +204,7 @@ public sealed class EnvironmentVariableFallbackTests
         var (exitCode, output, error) = await RunCapturedAsync(["envrequired", "--name", "Bob"],
             new Dictionary<string, string?> { [TokenVariable] = null });
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Missing required option: --token", error);
     }
@@ -215,7 +215,7 @@ public sealed class EnvironmentVariableFallbackTests
         var (exitCode, output, error) = await RunCapturedAsync(["envrequired"],
             new Dictionary<string, string?> { [TokenVariable] = "s3cret" });
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Missing required option: --name", error);
     }
@@ -226,7 +226,7 @@ public sealed class EnvironmentVariableFallbackTests
         var (exitCode, output, error) = await RunCapturedAsync(["envrequired", "--name", "Bob"],
             new Dictionary<string, string?> { [TokenVariable] = string.Empty });
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Missing required option: --token", error);
     }

@@ -64,8 +64,9 @@ Any type implementing `IHostApplicationBuilder` is supported.
 
 | Outcome | Exit code |
 |---|---|
-| `Run` returns normally | `0` |
-| `Run` throws `CommandException` | `ex.ExitCode` |
+| `Run` returns normally (also `--help` / `--version`) | `0` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
 Return normally on success.
@@ -116,3 +117,13 @@ myapp --version    # Shows version number
 ```
 
 The `--help` and `--version` flags are handled automatically — you don't need to define them.
+
+## Tokenizer Behavior
+
+- Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.
+- `=`-form boolean literals accept `true/false/yes/no/on/off/1/0` (case-insensitive); anything else is an `InvalidValue` usage error (exit 2), e.g. `--verbose=maybe`.
+- The first bare `--` ends option matching; every following token is positional, including `--verbose` and `--help`.
+- Negative numbers (`-5`, `-1.5`) are positional without a separator.
+- Combined shorts expand left to right: `-abc` binds each flag `true`; the last short takes the attached remainder (`-abdvalue` binds `Data: value`); an unknown char rejects the whole token (`Unknown option: -abx`, exit 2, `UnknownOption`). `-h`/`-V` inside a cluster win as help/version even mid-cluster.
+- `--no-<name>` negates a boolean flag (`--no-verbose` binds `false`); `--no-<name>=value` is rejected as `InvalidValue` (exit 2). Unknown names report `Unknown option` (exit 2).
+- Bare-flag repetition is idempotent (`--verbose --verbose` succeeds); a valued repeat is a `DuplicateOption` usage error (exit 2).

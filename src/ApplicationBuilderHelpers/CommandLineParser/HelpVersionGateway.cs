@@ -1,3 +1,4 @@
+using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
@@ -55,9 +56,10 @@ internal sealed class HelpVersionGateway(
     }
 
     /// <summary>
-    /// Shows a styled error message with helpful footer information
+    /// Shows a styled error message with helpful footer information.
+    /// Footer selection dispatches on <see cref="CommandErrorKind"/>, never on message text.
     /// </summary>
-    internal void ShowErrorMessage(string message)
+    internal void ShowErrorMessage(string message, CommandErrorKind kind = CommandErrorKind.Fault, string? commandName = null)
     {
         var theme = commandBuilder.Theme;
         // Use auto-detection for null ExecutableName
@@ -67,15 +69,12 @@ internal sealed class HelpVersionGateway(
         var errorColor = theme?.RequiredColor ?? ConsoleColor.Red;
         consoleOutput.WriteLineError($"Error: {message}", errorColor);
 
-        // Add helpful footer message based on error type
+        // Add helpful footer message based on error kind
         consoleOutput.WriteLineError();
 
-        if (message.Contains("requires a subcommand"))
+        switch (kind)
         {
-            // Extract command name if present for more specific help
-            if (message.StartsWith('\'') && message.Contains('\''))
-            {
-                var commandName = message[1..message.IndexOf('\'', 1)];
+            case CommandErrorKind.RequiresSubcommand:
                 if (!string.IsNullOrEmpty(commandName))
                 {
                     consoleOutput.WriteLineError($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
@@ -84,19 +83,15 @@ internal sealed class HelpVersionGateway(
                 {
                     consoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
                 }
-            }
-            else
-            {
-                consoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
-            }
-        }
-        else if (message.Contains("Unknown option") || message.Contains("Unknown subcommand") || message.Contains("Unexpected argument") || message.Contains("Missing required"))
-        {
-            consoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
-        }
-        else
-        {
-            consoleOutput.WriteLineError($"Run '{executableName} --help' for more information on available commands and options.");
+                break;
+            case CommandErrorKind.UnknownOption:
+            case CommandErrorKind.MissingRequired:
+            case CommandErrorKind.UnknownCommand:
+                consoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
+                break;
+            default:
+                consoleOutput.WriteLineError($"Run '{executableName} --help' for more information on available commands and options.");
+                break;
         }
     }
 }

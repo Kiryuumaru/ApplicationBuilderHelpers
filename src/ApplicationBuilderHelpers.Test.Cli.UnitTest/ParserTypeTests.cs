@@ -131,7 +131,7 @@ public sealed class ParserTypeTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", $"--flag={input}"]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Invalid Boolean value", error);
     }
@@ -175,7 +175,7 @@ public sealed class ParserTypeTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains(expectedError, error);
     }
@@ -201,7 +201,7 @@ public sealed class ParserTypeTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains(expectedError, error);
     }
@@ -232,7 +232,7 @@ public sealed class ParserTypeTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains(expectedError, error);
     }
@@ -259,7 +259,7 @@ public sealed class ParserTypeTests
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains(expectedError, error);
     }

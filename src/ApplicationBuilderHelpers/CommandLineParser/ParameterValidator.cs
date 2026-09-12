@@ -23,7 +23,7 @@ internal sealed class ParameterValidator
                 if (EnvVarFallback.Apply(result, option, requiredOnly: true))
                     continue;
 
-                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 1);
+                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired);
             }
         }
 
@@ -32,7 +32,7 @@ internal sealed class ParameterValidator
         {
             if (!result.ArgumentValues.TryGetValue(argument, out List<string>? value) || value.Count == 0)
             {
-                throw new CommandException($"Missing required argument: {argument.DisplayName}", 1);
+                throw new CommandException($"Missing required argument: {argument.DisplayName}", 2, CommandErrorKind.MissingRequired);
             }
         }
     }
