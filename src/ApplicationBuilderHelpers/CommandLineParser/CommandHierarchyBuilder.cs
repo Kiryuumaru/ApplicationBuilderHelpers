@@ -11,11 +11,14 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Builds and validates the command hierarchy from registered commands.
-/// Moved verbatim from CommandLineParser (mechanical split, no behavior change).
+/// Each build resolves a per-run instance: type registrations get a fresh
+/// instance so bound values cannot leak across runs, while caller-supplied
+/// instance registrations keep their identity.
 /// </summary>
 internal sealed class CommandHierarchyBuilder(
     ICommandBuilder commandBuilder,
-    ICommandTypeParserCollection typeParserCollection)
+    ICommandTypeParserCollection typeParserCollection,
+    CommandReflectionCache reflectionCache)
 {
     public SubCommandInfo RootCommand { get; private set; } = null!;
 
@@ -36,17 +39,29 @@ internal sealed class CommandHierarchyBuilder(
         };
         _allCommands.Clear();
 
-        // Process all commands and build hierarchy
+        // Process all commands and build hierarchy. Each Build resolves a
+        // per-run instance so type-registered commands cannot leak bound values
+        // across repeated RunAsync calls on one builder; caller-supplied
+        // instance registrations keep identity.
         foreach (var typedCommandHolder in commandBuilder.Commands)
         {
             _ = typedCommandHolder.CommandType.GetCustomAttribute<CommandAttribute>();
+            var runCommand = typedCommandHolder.CreateRunInstance();
+            var typeDescriptor = reflectionCache.GetOrAdd(typedCommandHolder.CommandType);
 
             // Create SubCommandInfo for this command
-            var subCommandInfo = SubCommandInfo.FromCommand(typedCommandHolder.CommandType, typedCommandHolder.Command);
+            var subCommandInfo = SubCommandInfo.FromCommand(typedCommandHolder.CommandType, runCommand);
 
-            // Extract options and arguments - pass the type parser collection
-            subCommandInfo.Options = SubCommandOptionInfo.FromCommandType(typedCommandHolder.CommandType, subCommandInfo);
-            subCommandInfo.Arguments = SubCommandArgumentInfo.FromCommandType(typedCommandHolder.CommandType, subCommandInfo);
+            // Extract fresh per-run options and arguments from cached descriptors
+            subCommandInfo.Options = typeDescriptor.Options
+                .Select(descriptor => SubCommandOptionInfo.FromDescriptor(
+                    descriptor,
+                    subCommandInfo,
+                    SubCommandOptionInfo.ResolveValidValues(descriptor, typeParserCollection)))
+                .ToList();
+            subCommandInfo.Arguments = typeDescriptor.Arguments
+                .Select(descriptor => SubCommandArgumentInfo.FromDescriptor(descriptor, subCommandInfo))
+                .ToList();
 
             // Insert into hierarchy
             InsertCommandIntoHierarchy(subCommandInfo);
@@ -110,7 +125,8 @@ internal sealed class CommandHierarchyBuilder(
     private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         // Look for abstract base class that matches this intermediate command path
-        var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType);
+        var leafDescriptor = reflectionCache.GetOrAdd(leafCommandType);
+        var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType, leafDescriptor);
 
         SubCommandInfo result;
         if (intermediateCommandInfo != null)
@@ -153,7 +169,7 @@ internal sealed class CommandHierarchyBuilder(
     /// <summary>
     /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
     /// </summary>
-    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
+    private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType, CommandTypeDescriptor leafDescriptor)
     {
         var currentType = leafCommandType.BaseType;
         var targetCommandName = string.Join(" ", commandParts);
@@ -172,10 +188,21 @@ internal sealed class CommandHierarchyBuilder(
                     Description = commandAttr.Description
                 };
 
-                // For AOT compatibility, we need to avoid using methods that require specific DynamicallyAccessedMembers
-                // on types that don't have those annotations. Instead, we'll extract options and arguments manually.
-                baseCommandInfo.Options = ExtractOptionsFromTypeManually(currentType, baseCommandInfo);
-                baseCommandInfo.Arguments = ExtractArgumentsFromTypeManually(currentType, baseCommandInfo);
+                // Materialize only the members declared directly on the matched
+                // abstract base: filter the leaf descriptor by DeclaringType
+                // instead of re-walking properties via reflection.
+                var matchedBaseType = currentType;
+                baseCommandInfo.Options = leafDescriptor.Options
+                    .Where(d => d.DeclaringType == matchedBaseType)
+                    .Select(descriptor => SubCommandOptionInfo.FromDescriptor(
+                        descriptor,
+                        baseCommandInfo,
+                        SubCommandOptionInfo.ResolveValidValues(descriptor, typeParserCollection)))
+                    .ToList();
+                baseCommandInfo.Arguments = leafDescriptor.Arguments
+                    .Where(d => d.DeclaringType == matchedBaseType)
+                    .Select(descriptor => SubCommandArgumentInfo.FromDescriptor(descriptor, baseCommandInfo))
+                    .ToList();
 
                 return baseCommandInfo;
             }
@@ -183,56 +210,6 @@ internal sealed class CommandHierarchyBuilder(
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Manually extracts options from a type to avoid AOT warnings
-    /// </summary>
-    private List<SubCommandOptionInfo> ExtractOptionsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand)
-    {
-        var options = new List<SubCommandOptionInfo>();
-        var properties = commandType.GetProperties(
-            BindingFlags.DeclaredOnly |
-            BindingFlags.Public |
-            BindingFlags.NonPublic |
-            BindingFlags.Instance);
-
-        foreach (var property in properties)
-        {
-            var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
-            if (optionAttr != null)
-            {
-                var optionInfo = SubCommandOptionInfo.FromProperty(property, optionAttr, ownerCommand, typeParserCollection);
-                options.Add(optionInfo);
-            }
-        }
-
-        return options;
-    }
-
-    /// <summary>
-    /// Manually extracts arguments from a type to avoid AOT warnings
-    /// </summary>
-    private static List<SubCommandArgumentInfo> ExtractArgumentsFromTypeManually([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand)
-    {
-        var arguments = new List<SubCommandArgumentInfo>();
-        var properties = commandType.GetProperties(
-            BindingFlags.DeclaredOnly |
-            BindingFlags.Public |
-            BindingFlags.NonPublic |
-            BindingFlags.Instance);
-
-        foreach (var property in properties)
-        {
-            var argumentAttr = property.GetCustomAttribute<CommandArgumentAttribute>();
-            if (argumentAttr != null)
-            {
-                var argumentInfo = SubCommandArgumentInfo.FromProperty(property, argumentAttr, ownerCommand);
-                arguments.Add(argumentInfo);
-            }
-        }
-
-        return [.. arguments.OrderBy(a => a.Position)];
     }
 
     /// <summary>

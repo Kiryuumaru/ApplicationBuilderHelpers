@@ -27,6 +27,13 @@ public class ApplicationBuilder : ICommandBuilder
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
 
+    private readonly CommandLineParser.CommandReflectionCache _reflectionCache = new();
+
+    /// <summary>
+    /// Number of descriptor builds performed by the reflection cache (test hook).
+    /// </summary>
+    internal int ReflectionBuildCount => _reflectionCache.BuildCount;
+
     /// <summary>
     /// Sets the console theme for CLI help output using the specified theme type.
     /// </summary>
@@ -101,7 +108,7 @@ public class ApplicationBuilder : ICommandBuilder
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(args, nameof(args));
-        var commandLineParser = new CommandLineParser.CommandLineParser(this);
+        var commandLineParser = new CommandLineParser.CommandLineParser(this, _reflectionCache);
         return await commandLineParser.RunAsync(args, cancellationToken);
     }
 

@@ -101,6 +101,8 @@ ApplicationBuilder.Create()
     .RunAsync(args);
 ```
 
+Parsers added between runs are visible on the next `RunAsync` (topology and enum `FromAmong` resolution read the live collection); registering a custom parser for an enum type suppresses the automatic enum-value population.
+
 ## Built-in Parsers
 
 These are registered automatically and can be overridden:

@@ -132,25 +132,65 @@ internal class SubCommandOptionInfo
         }
 
         // Determine if this option should be inherited by checking if it comes from a base class
-        var declaringType = property.DeclaringType;
-        var targetType = ownerCommand?.Command?.GetType();
-
-        // If we have a concrete command instance, check if the property comes from a base class
-        if (targetType != null && declaringType != targetType && declaringType != null && declaringType.IsAssignableFrom(targetType))
-        {
-            optionInfo.IsInherited = true;
-            optionInfo.DetermineInheritanceScope();
-        }
-        // For abstract command processing (when we don't have a concrete command instance),
-        // we'll rely on the global option detection logic to determine inheritance patterns
-        else if (targetType == null && declaringType != null)
-        {
-            // This handles cases where we're processing abstract command hierarchies
-            // The inheritance will be determined later by the global option detection logic
-            optionInfo.IsInherited = false;
-        }
+        optionInfo.ApplyInheritanceScope(property.DeclaringType, ownerCommand);
 
         return optionInfo;
+    }
+
+    /// <summary>
+    /// Creates a per-run copy from a cached descriptor with parser-derived
+    /// <paramref name="resolvedValidValues"/>. Descriptor primitives are copied
+    /// onto a fresh node; inheritance uses the same declaringType-vs-targetType
+    /// check as <see cref="FromProperty"/>, applied to the per-run copy only.
+    /// </summary>
+    public static SubCommandOptionInfo FromDescriptor(CommandOptionDescriptor descriptor, SubCommandInfo? ownerCommand, object[]? resolvedValidValues)
+    {
+        var optionInfo = new SubCommandOptionInfo
+        {
+            Property = descriptor.Property,
+            PropertyType = descriptor.PropertyType,
+            ShortName = descriptor.ShortName,
+            LongName = descriptor.LongName,
+            Description = descriptor.Description,
+            // Required if explicitly set in attribute OR if property has required keyword
+            IsRequired = descriptor.Required || descriptor.IsRequiredByKeyword,
+            EnvironmentVariable = descriptor.EnvironmentVariable,
+            ValidValues = resolvedValidValues,
+            IsCaseSensitive = descriptor.IsCaseSensitive,
+            IsSecret = descriptor.IsSecret,
+            OwnerCommand = ownerCommand
+        };
+
+        // Determine if this option should be inherited by checking if it comes from a base class
+        optionInfo.ApplyInheritanceScope(descriptor.DeclaringType, ownerCommand);
+
+        return optionInfo;
+    }
+
+    /// <summary>
+    /// Resolves per-run valid values for a cached descriptor: explicit
+    /// <c>FromAmong</c> wins; else the frozen enum names iff the descriptor
+    /// carries an enum candidate and no live parser exists for that enum type
+    /// in the live collection; else null.
+    /// </summary>
+    internal static object[]? ResolveValidValues(CommandOptionDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
+    {
+        if (descriptor.FromAmong is { Length: > 0 })
+        {
+            return [.. descriptor.FromAmong];
+        }
+
+        if (descriptor.EnumCandidateType is null || descriptor.EnumCandidateNames is null)
+        {
+            return null;
+        }
+
+        if (typeParserCollection?.TypeParsers.ContainsKey(descriptor.EnumCandidateType) == true)
+        {
+            return null;
+        }
+
+        return [.. descriptor.EnumCandidateNames];
     }
 
     /// <summary>
@@ -238,6 +278,30 @@ internal class SubCommandOptionInfo
 
         properties.Reverse();
         return properties;
+    }
+
+    /// <summary>
+    /// Applies the declaringType-vs-targetType inheritance-scope decision shared by
+    /// <see cref="FromProperty"/> and <see cref="FromDescriptor"/>.
+    /// </summary>
+    private void ApplyInheritanceScope(Type? declaringType, SubCommandInfo? ownerCommand)
+    {
+        var targetType = ownerCommand?.Command?.GetType();
+
+        // If we have a concrete command instance, check if the property comes from a base class
+        if (targetType != null && declaringType != targetType && declaringType != null && declaringType.IsAssignableFrom(targetType))
+        {
+            IsInherited = true;
+            DetermineInheritanceScope();
+        }
+        // For abstract command processing (when we don't have a concrete command instance),
+        // we'll rely on the global option detection logic to determine inheritance patterns
+        else if (targetType == null && declaringType != null)
+        {
+            // This handles cases where we're processing abstract command hierarchies
+            // The inheritance will be determined later by the global option detection logic
+            IsInherited = false;
+        }
     }
 
     /// <summary>

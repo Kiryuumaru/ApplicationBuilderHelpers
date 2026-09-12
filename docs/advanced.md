@@ -106,6 +106,10 @@ admission to distance ≤ 4; anything farther stays silent.
 - Unknown subcommand (surplus close to a child name): `Unknown subcommand 'gett'. Did you mean 'get'?`
 - Unexpected extra argument (surplus far from all children): `Unexpected argument 'zzzzqqqq'` (no suggestion)
 
+## Repeated Runs, Caching, Thread-Safety
+
+Each `RunAsync` call builds a fresh parser and rebuilds the command topology from live registrations: type-registered commands get a fresh instance per run (bound values cannot leak across runs), instance registrations keep their identity, and late `AddCommand` / `AddCommandTypeParser` calls are visible on the next run. Per-`Type` reflection descriptors are cached per builder as immutable snapshots and reassembled into fresh per-run nodes; enum `FromAmong` auto-population is gated on the live parser collection, so a custom enum parser suppresses it. The cache layer is thread-safe (immutable descriptors with locked population plus per-run reassembly), but `ApplicationBuilder` collections, shared console output, instance-registered commands, and user command state remain caller-responsibility — do not mutate the builder or share instance registrations across concurrent runs.
+
 ## Help System
 
 Help is automatically generated from command attributes:
