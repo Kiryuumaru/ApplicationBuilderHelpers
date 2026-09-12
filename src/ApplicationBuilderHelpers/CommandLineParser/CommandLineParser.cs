@@ -3,6 +3,7 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -66,8 +67,8 @@ internal class CommandLineParser
             ValidateCommandHierarchy();
 
             // Step 2b: Pre-parse completion gateway (never touches the registered-command path)
-            if (TryHandleCompletionGateway(args))
-                return 0;
+            if (TryHandleCompletionGateway(args, out var completionExitCode))
+                return completionExitCode;
 
             // Step 3: Handle bare single --help before parsing
             if (ShouldShowGlobalHelp(args))
@@ -156,12 +157,13 @@ internal class CommandLineParser
 
     /// <summary>
     /// Pre-parse completion gateway. Intercepts <c>complete</c> and
-    /// <c>completions script</c> directly off the raw args before any
+    /// <c>completions script|install|uninstall</c> directly off the raw args before any
     /// help/parse/registered-command dispatch, so user-registered commands
-    /// with those names never run. Returns true when handled (exit 0).
+    /// with those names never run. Returns true when handled (exit via <paramref name="exitCode"/>).
     /// </summary>
-    private bool TryHandleCompletionGateway(string[] args)
+    private bool TryHandleCompletionGateway(string[] args, out int exitCode)
     {
+        exitCode = 0;
         if (args.Length == 0)
             return false;
 
@@ -171,11 +173,24 @@ internal class CommandLineParser
             return true;
         }
 
-        if (string.Equals(args[0], "completions", StringComparison.Ordinal)
-            && args.Length >= 3
-            && string.Equals(args[1], "script", StringComparison.Ordinal))
+        if (!string.Equals(args[0], "completions", StringComparison.Ordinal) || args.Length < 2)
+            return false;
+
+        if (string.Equals(args[1], "script", StringComparison.Ordinal))
         {
+            if (args.Length < 3)
+                return false;
             return TryHandleCompletionScript(args[2]);
+        }
+
+        if (string.Equals(args[1], "install", StringComparison.Ordinal)
+            || string.Equals(args[1], "uninstall", StringComparison.Ordinal))
+        {
+            var install = string.Equals(args[1], "install", StringComparison.Ordinal);
+            exitCode = install
+                ? HandleCompletionInstall(args[2..])
+                : HandleCompletionUninstall(args[2..]);
+            return true;
         }
 
         return false;
@@ -225,6 +240,107 @@ internal class CommandLineParser
         catch
         {
             // Tolerant probe: malformed input yields no candidates, still exit 0.
+        }
+    }
+
+    private int HandleCompletionInstall(string[] rest)
+    {
+        string? shellOption = null;
+        var dryRun = false;
+        for (var i = 0; i < rest.Length; i++)
+        {
+            var token = rest[i];
+            if (string.Equals(token, "--dry-run", StringComparison.Ordinal))
+            {
+                dryRun = true;
+            }
+            else if (string.Equals(token, "--shell", StringComparison.Ordinal) && i + 1 < rest.Length)
+            {
+                shellOption = rest[++i];
+            }
+            else if (token.StartsWith("--shell=", StringComparison.Ordinal))
+            {
+                shellOption = token["--shell=".Length..];
+            }
+            else
+            {
+                ConsoleOutput.WriteLineError($"Unknown option '{token}' for 'completions install'.");
+                return 2;
+            }
+        }
+
+        var shell = shellOption ?? CompletionInstaller.DetectShellFromEnvironment();
+        if (!CompletionInstaller.TryCanonicalizeShell(shell, out var canonical))
+        {
+            ConsoleOutput.WriteLineError(string.IsNullOrWhiteSpace(shell)
+                ? "Could not detect shell from $SHELL. Pass --shell <bash|zsh|pwsh|fish>."
+                : $"Unknown shell '{shell}'. Expected bash, zsh, pwsh, or fish.");
+            return 2;
+        }
+
+        try
+        {
+            var exe = CommandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
+            CompletionInstaller.Install(canonical, exe, dryRun, ConsoleOutput);
+            return 0;
+        }
+        catch (IOException ex)
+        {
+            ConsoleOutput.WriteLineError(ex.Message);
+            return 1;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            ConsoleOutput.WriteLineError(ex.Message);
+            return 1;
+        }
+    }
+
+    private int HandleCompletionUninstall(string[] rest)
+    {
+        string? shellOption = null;
+        for (var i = 0; i < rest.Length; i++)
+        {
+            var token = rest[i];
+            if (string.Equals(token, "--shell", StringComparison.Ordinal) && i + 1 < rest.Length)
+            {
+                shellOption = rest[++i];
+            }
+            else if (token.StartsWith("--shell=", StringComparison.Ordinal))
+            {
+                shellOption = token["--shell=".Length..];
+            }
+            else
+            {
+                ConsoleOutput.WriteLineError($"Unknown option '{token}' for 'completions uninstall'.");
+                return 2;
+            }
+        }
+
+        var shell = shellOption ?? CompletionInstaller.DetectShellFromEnvironment();
+        if (!CompletionInstaller.TryCanonicalizeShell(shell, out var canonical))
+        {
+            ConsoleOutput.WriteLineError(string.IsNullOrWhiteSpace(shell)
+                ? "Could not detect shell from $SHELL. Pass --shell <bash|zsh|pwsh|fish>."
+                : $"Unknown shell '{shell}'. Expected bash, zsh, pwsh, or fish.");
+            return 2;
+        }
+
+        try
+        {
+            var exe = CommandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
+            CompletionInstaller.Uninstall(canonical, exe, ConsoleOutput);
+            return 0;
+        }
+        catch (IOException ex)
+        {
+            ConsoleOutput.WriteLineError(ex.Message);
+            return 1;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            ConsoleOutput.WriteLineError(ex.Message);
+            return 1;
         }
     }
 

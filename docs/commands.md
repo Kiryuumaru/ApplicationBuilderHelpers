@@ -125,6 +125,9 @@ Reserved gateway words intercepted after hierarchy build, before help/parsing (n
 
 - `complete --position N "<commandline>"` — `N` is a 0-based character offset into the full command-line string (clamped to its length; defaults to end). Probes the hierarchy tolerantly, prints one candidate per line on stdout, exits `0`. Bare `complete` (no command line) lists root subcommands; other malformed input prints nothing, still `0`.
 - `completions script <bash|zsh|pwsh|powershell|fish>` — prints a dotnet-style shim that re-invokes `complete --position N "<commandline>"` per TAB.
+- `completions install [--shell <bash|zsh|pwsh|fish>] [--dry-run]` — writes the shim into the shell startup file inside a guarded `# >>> <exe> completion >>>` / `# <<< <exe> completion <<<` block (replace-in-place, append when absent; missing rc is created). Without `--shell`, the basename of `$SHELL` is used (`powershell` maps to `pwsh`). Targets: bash `~/.bashrc`, zsh `~/.zshrc`, pwsh per-OS profile (`~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` on Windows, `~/.config/powershell/...` elsewhere), fish `~/.config/fish/completions/<exe>.fish` (honors `XDG_CONFIG_HOME`). Byte-identical re-runs print `already installed` without rewriting; otherwise prints `installed: <path>`, exit `0`. `--dry-run` prints `would-write: <path>` plus the content and changes nothing.
+- `completions uninstall [--shell <...>]` — removes only the managed block; missing file or no block prints `not installed`, exit `0` (rc files are never deleted). A fish file without the managed block is left untouched and refused on stderr, exit `1`.
+- Unknown shells (including undetectable `$SHELL`) report on stderr, exit `2`; IO failures report on stderr, exit `1`.
 
 ## Accessing Services
 
