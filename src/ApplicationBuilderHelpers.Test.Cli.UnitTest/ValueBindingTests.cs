@@ -404,7 +404,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid format for value 'abc' of type System.TimeSpan", error);
+        Assert.Contains("Invalid value 'abc' for option '--duration'", error);
+        Assert.Contains("Invalid TimeSpan value: 'abc'", error);
     }
 
     [Fact]
@@ -548,7 +549,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid format for value 'abc' of type System.TimeSpan", error);
+        Assert.Contains("Invalid value 'abc' for option '--durations'", error);
+        Assert.Contains("Invalid TimeSpan value: 'abc'", error);
     }
 
     [Fact]

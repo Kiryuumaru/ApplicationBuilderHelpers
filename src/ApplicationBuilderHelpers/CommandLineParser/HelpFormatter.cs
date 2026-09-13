@@ -428,7 +428,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         {
             var defaultValue = GetOptionDefaultValue(option);
             if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-                parts.Add($"Default: {defaultValue}");
+                parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, option.IsSecret)}");
         }
 
         // Use proper line breaks between different description parts for better readability
@@ -440,7 +440,7 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         // Use lowercase format like <key> instead of <KEY>
         var name = argument.DisplayName;
         
-        if (argument.IsArray)
+        if (argument.IsCollection)
             name += "...";
             
         var bracketedName = argument.IsRequired ? $"<{name}>" : $"[{name}]";
@@ -468,11 +468,14 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
 
     private static string GetParameterName(SubCommandOptionInfo option)
     {
-        // Check if this is an array type
-        var isArray = option.PropertyType.IsArray;
-        var elementType = isArray ? option.PropertyType.GetElementType() : option.PropertyType;
-        
-        if (isArray)
+        // Check collection shape so help signatures match the binder (T[], List<T>,
+        // IEnumerable<T>, ICollection<T>, IList<T> all bind as repeatable options).
+        var isCollection = TypeConversion.CollectionShape.IsCollection(option.PropertyType);
+        var elementType = isCollection
+            ? TypeConversion.CollectionShape.TryGetElementType(option.PropertyType, out var resolved) ? resolved : option.PropertyType
+            : option.PropertyType;
+
+        if (isCollection)
         {
             var elementTypeName = elementType?.Name.ToUpperInvariant() ?? "VALUE";
             return elementTypeName switch

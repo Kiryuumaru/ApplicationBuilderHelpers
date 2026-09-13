@@ -1,6 +1,6 @@
 # Custom Type Parsers
 
-Type parsers convert between command-line strings and typed property values. The library ships with 18 built-in parsers, but you can add custom ones for any type.
+Type parsers convert between command-line strings and typed property values. The library ships with 24 built-in parsers, but you can add custom ones for any type.
 
 ## Interface
 
@@ -101,8 +101,30 @@ ApplicationBuilder.Create()
     .RunAsync(args);
 ```
 
+Parsers added between runs are visible on the next `RunAsync` (topology and enum `FromAmong` resolution read the live collection); registering a custom parser for an enum type suppresses the automatic enum-value population.
+
 ## Built-in Parsers
 
 These are registered automatically and can be overridden:
 
-`AbsolutePath`, `bool`, `byte`, `char`, `DateTime`, `DateTimeOffset`, `decimal`, `double`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `uint`, `ulong`, `ushort`
+`AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`, `DateTime`, `DateTimeOffset`, `decimal`, `double`, `FileInfo`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `TimeOnly`, `TimeSpan`, `uint`, `ulong`, `Uri`, `ushort`, `Version`
+
+## Collection Binding
+
+Repeatable options and multi-value arguments bind per element through the same pipeline. Supported shapes are `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, and `IList<T>` (interface shapes materialize as `List<T>`):
+
+```csharp
+[CommandOption("tag", Description = "Repeatable tags.")]
+public List<string>? Tags { get; set; }
+
+[CommandArgument("file", Description = "Input files.", Position = 0)]
+public IEnumerable<FileInfo>? Files { get; set; }
+```
+
+```sh
+myapp build --tag=a --tag=b file1.txt file2.txt
+```
+
+## FromAmong Validation
+
+`FromAmong` allowed values are compared after conversion (convert-then-compare): the CLI text is parsed to the property type first, then the converted value is compared against the allowed entries (string entries for the same type are parsed before comparison). Equivalent representations therefore match — `--level=02` satisfies `FromAmong = [1, 2, 3]`, and `--mode=0` matches an enum entry with value `0`. When conversion itself fails and the raw text matches no allowed display string, the error reports the allowed list (`Must be one of: ...`) instead of a bare invalid-value error, so unparseable enum input such as `--color=Purple` still lists the allowed values.

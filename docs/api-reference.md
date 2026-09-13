@@ -18,7 +18,8 @@ public class ApplicationBuilder : ICommandBuilder
 
 | Method | Returns | Description |
 |---|---|---|
-| `AddCommand<TCommand>()` | `ApplicationBuilder` | Register a command type |
+| `AddCommand<TCommand>()` | `ApplicationBuilder` | Register a command type (fresh instance per `RunAsync` run) |
+| `AddCommand(ICommand)` | `ApplicationBuilder` | Register a command instance (same reference reused across runs) |
 | `AddApplication<T>()` | `ApplicationBuilder` | Register an application dependency by type |
 | `AddApplication(IApplicationDependency)` | `ApplicationBuilder` | Register an application dependency instance |
 | `AddCommandTypeParser<T>()` | `ApplicationBuilder` | Register a custom type parser |
@@ -31,6 +32,8 @@ public class ApplicationBuilder : ICommandBuilder
 | `SetHelpWidth(int)` | `ApplicationBuilder` | Set help line width |
 | `SetHelpBorderWidth(int)` | `ApplicationBuilder` | Set help border indentation |
 | `RunAsync(string[], CancellationToken)` | `Task<int>` | Parse args and run |
+
+Repeated `RunAsync` calls rebuild the command topology from live registrations, so late `AddCommand` / `AddCommandTypeParser` calls are visible on the next run; type-registered commands get a fresh instance per run while instance registrations reuse the same reference. Per-`Type` reflection descriptors are cached per builder (immutable snapshots) and reassembled into fresh per-run nodes, with enum `FromAmong` auto-population suppressed when a live parser exists for that enum type. The cache layer is thread-safe via immutable descriptors with locked population plus per-run reassembly, but `ApplicationBuilder` collections, shared console output, instance-registered commands, and user command state remain caller-responsibility and are not safe for concurrent runs/mutation.
 
 ## Command
 
@@ -187,6 +190,7 @@ public class CommandOptionAttribute : Attribute
     public string? Description { get; set; }
     public object[] FromAmong { get; set; }
     public bool CaseSensitive { get; set; }
+    public bool Secret { get; set; }
 }
 ```
 
@@ -204,6 +208,7 @@ public class CommandArgumentAttribute : Attribute
     public bool Required { get; set; }
     public object[] FromAmong { get; set; }
     public bool CaseSensitive { get; set; }
+    public bool Secret { get; set; }
 }
 ```
 

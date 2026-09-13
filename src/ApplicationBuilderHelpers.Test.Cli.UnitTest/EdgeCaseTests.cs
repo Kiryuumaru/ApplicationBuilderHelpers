@@ -58,7 +58,7 @@ public class EdgeCaseTests : CliTestBase
             "--verbose",           // Flag
             "--timeout=60",       // Long with equals
             "-t=unit",           // Short with equals  
-            "--parallel", "true"); // Boolean with value
+            "--parallel=true"); // Boolean with value
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Timeout: 60s");
         CliTestAssertions.AssertOutputContains(result, "Tags: unit");

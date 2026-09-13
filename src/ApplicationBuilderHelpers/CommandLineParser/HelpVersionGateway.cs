@@ -86,6 +86,7 @@ internal sealed class HelpVersionGateway(
                 break;
             case CommandErrorKind.UnknownOption:
             case CommandErrorKind.MissingRequired:
+            case CommandErrorKind.UnknownCommand:
                 consoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
                 break;
             default:
