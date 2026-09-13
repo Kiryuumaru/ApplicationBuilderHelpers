@@ -140,6 +140,38 @@ public sealed class CancellationExitCodeTests
         }
     }
 
+    [Command("Cancellation exit-code probe.")]
+    private sealed class HostStoppedCanceledDrainCommand : Command
+    {
+        public static int ExitingCount;
+        public static int ExitedCount;
+        public static TaskCompletionSource<bool> CallbacksRegistered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public static TaskCompletionSource<bool> HostStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            var lifetime = applicationHost.Services.GetRequiredService<LifetimeService>();
+            lifetime.ApplicationExitingCallback(() => Interlocked.Increment(ref ExitingCount));
+            lifetime.ApplicationExitedCallback(() => Interlocked.Increment(ref ExitedCount));
+            CallbacksRegistered.TrySetResult(true);
+            await applicationHost.Host.StopAsync();
+            HostStopped.TrySetResult(true);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Hold the command open past the host's graceful stop so the
+                // executor drains the canceled path while cancel is pending
+                // (host-canceled or host-completed drain; no seam observes
+                // which drain is taken).
+                await Task.Delay(TimeSpan.FromMilliseconds(500));
+                throw;
+            }
+        }
+    }
+
     [Fact]
     public async Task NormalReturn_SignalsSuccess()
     {
@@ -224,6 +256,48 @@ public sealed class CancellationExitCodeTests
             Assert.Equal(CanceledExitCode, exitCode);
             Assert.Equal(1, CallbackCountingCommand.ExitingCount);
             Assert.Equal(1, CallbackCountingCommand.ExitedCount);
+        }
+        finally
+        {
+            cts.Cancel();
+            await runTask;
+        }
+    }
+
+    [Fact]
+    public async Task LifetimeCallbacks_RunOnHostStoppedCanceledDrain()
+    {
+        HostStoppedCanceledDrainCommand.ExitingCount = 0;
+        HostStoppedCanceledDrainCommand.ExitedCount = 0;
+        HostStoppedCanceledDrainCommand.CallbacksRegistered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        HostStoppedCanceledDrainCommand.HostStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cts = new CancellationTokenSource();
+        Task<int> runTask = RunCapturedAsync(() => CreateBuilder<HostStoppedCanceledDrainCommand>().RunAsync([], cts.Token));
+        try
+        {
+            // Canceled-path exactly-once guard covering both host-canceled
+            // and host-completed drains: no seam observes hostTask
+            // completion, so this cannot deterministically pin either branch.
+            Task registration = await Task.WhenAny(
+                HostStoppedCanceledDrainCommand.CallbacksRegistered.Task,
+                Task.Delay(TimeSpan.FromSeconds(10)));
+            Assert.Same(HostStoppedCanceledDrainCommand.CallbacksRegistered.Task, registration);
+            await HostStoppedCanceledDrainCommand.CallbacksRegistered.Task;
+            Task stopped = await Task.WhenAny(
+                HostStoppedCanceledDrainCommand.HostStopped.Task,
+                Task.Delay(TimeSpan.FromSeconds(10)));
+            Assert.Same(HostStoppedCanceledDrainCommand.HostStopped.Task, stopped);
+            await HostStoppedCanceledDrainCommand.HostStopped.Task;
+            // Gate cancel on observed host stop, then hold the command open
+            // so cancel lands while the host-stopped command is draining.
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            cts.Cancel();
+
+            var exitCode = await runTask;
+
+            Assert.Equal(CanceledExitCode, exitCode);
+            Assert.Equal(1, HostStoppedCanceledDrainCommand.ExitingCount);
+            Assert.Equal(1, HostStoppedCanceledDrainCommand.ExitedCount);
         }
         finally
         {

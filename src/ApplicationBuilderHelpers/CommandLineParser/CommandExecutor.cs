@@ -146,7 +146,12 @@ internal sealed class CommandExecutor(
                     else
                     {
                         int hostExitCode = await hostTask;
-                        await commandTask;
+                        try { await commandTask; }
+                        catch (OperationCanceledException) // Host won with success but command canceled: run Exiting once (Lifetime Callbacks contract); OCE-only so faults still run only Exited.
+                        {
+                            await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync();
+                            throw;
+                        }
                         if (hostExitCode != 0)
                         {
                             throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {hostExitCode}", hostExitCode);
