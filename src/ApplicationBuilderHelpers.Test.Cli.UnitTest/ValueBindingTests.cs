@@ -482,7 +482,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid format for value 'abc' of type System.TimeSpan", error);
+        Assert.Contains("Invalid value 'abc' for option '--duration'", error);
+        Assert.Contains("Invalid TimeSpan value: 'abc'", error);
     }
 
     [Fact]
@@ -626,7 +627,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid format for value 'abc' of type System.TimeSpan", error);
+        Assert.Contains("Invalid value 'abc' for option '--durations'", error);
+        Assert.Contains("Invalid TimeSpan value: 'abc'", error);
     }
 
     [Fact]
@@ -686,14 +688,13 @@ public sealed class ValueBindingTests
     }
 
     [Fact]
-    public async Task ModeEnum_PaddedValue_ReportsAllowedValues()
+    public async Task ModeEnum_PaddedValue_BindsTrimmed()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindmode", "--mode= json "]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Value ' json ' is not valid for option '--mode'", error);
-        Assert.Contains("Must be one of:", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Mode: Json", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]

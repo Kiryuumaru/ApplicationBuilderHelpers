@@ -16,3 +16,7 @@ Default five canonical labels. See `docs/agents/triage-labels.md`.
 ### Domain docs
 
 Single-context layout (`CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.
+
+### Pstack models
+
+Pstack per-role model choices map to opencode agents. See `docs/agents/pstack-models.md`.

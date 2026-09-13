@@ -225,10 +225,10 @@ public sealed class HierarchyCacheTests
     {
         var builder = CreateBuilder().AddCommand<CacheDurationCommand>();
 
-        var first = await RunCapturedAsync(builder, ["cachedur", "--duration=01:02:03"]);
+        var first = await RunCapturedAsync(builder, ["cachedur", "--duration=not-a-duration"]);
 
         Assert.Equal(2, first.ExitCode);
-        Assert.Contains("Invalid format for value '01:02:03' of type System.TimeSpan", first.Error);
+        Assert.Contains("not-a-duration", first.Error);
 
         builder.AddCommandTypeParser<CacheTimeSpanParser>();
 

@@ -11,6 +11,8 @@ public static class ICommandTypeParserCollectionExtensions
 {
     /// <summary>
     /// Adds a command type parser to the collection.
+    /// Replaces (upserts) any parser already registered for the same <see cref="ICommandTypeParser.Type"/>,
+    /// so user-registered parsers override the built-in defaults.
     /// </summary>
     /// <typeparam name="TICommandTypeParserCollection">The type of the command type parser collection.</typeparam>
     /// <param name="commandTypeParserCollection">The collection to add the parser to.</param>
@@ -22,12 +24,14 @@ public static class ICommandTypeParserCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(commandTypeParserCollection);
         ArgumentNullException.ThrowIfNull(commandTypeParser);
-        commandTypeParserCollection.TypeParsers.Add(commandTypeParser.Type, commandTypeParser);
+        commandTypeParserCollection.TypeParsers[commandTypeParser.Type] = commandTypeParser;
         return commandTypeParserCollection;
     }
 
     /// <summary>
     /// Adds a command type parser to the collection by creating an instance of the specified parser type.
+    /// Replaces (upserts) any parser already registered for the same <see cref="ICommandTypeParser.Type"/>,
+    /// so user-registered parsers override the built-in defaults.
     /// </summary>
     /// <typeparam name="TCommandTypeParser">The type of the command type parser to create and add.</typeparam>
     /// <typeparam name="TICommandTypeParserCollection">The type of the command type parser collection.</typeparam>
@@ -41,7 +45,7 @@ public static class ICommandTypeParserCollectionExtensions
         ArgumentNullException.ThrowIfNull(commandTypeParserCollection);
         var commandTypeParser = Activator.CreateInstance<TCommandTypeParser>();
         ArgumentNullException.ThrowIfNull(commandTypeParser);
-        commandTypeParserCollection.TypeParsers.Add(commandTypeParser.Type, commandTypeParser);
+        commandTypeParserCollection.TypeParsers[commandTypeParser.Type] = commandTypeParser;
         return commandTypeParserCollection;
     }
 }

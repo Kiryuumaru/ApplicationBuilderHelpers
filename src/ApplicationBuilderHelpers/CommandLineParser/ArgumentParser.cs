@@ -187,7 +187,7 @@ internal sealed class ArgumentParser
             if (targetArgument != null)
             {
                 AddArgumentValue(result, targetArgument, argumentValue);
-                if (!targetArgument.IsArray)
+                if (!targetArgument.IsCollection)
                     argumentIndex++;
             }
             else
@@ -210,7 +210,7 @@ internal sealed class ArgumentParser
     /// </summary>
     private static void AddParsedOptionValue(ParseResult result, SubCommandOptionInfo matchedOption, string? value, string arg, string? nextArg)
     {
-        if (!matchedOption.IsArray
+        if (!matchedOption.IsCollection
             && value != null
             && !IsValuelessFlagOccurrence(matchedOption, arg, nextArg, value)
             && result.TryGetMergedOptionValues(matchedOption, out _))
