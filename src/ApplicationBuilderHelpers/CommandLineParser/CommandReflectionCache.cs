@@ -249,10 +249,11 @@ internal sealed class CommandReflectionCache
     }
 
     /// <summary>
-    /// Gets all properties including inherited ones from base classes, base-first.
-    /// Mirrors SubCommandOptionInfo.GetAllProperties / SubCommandArgumentInfo.GetAllProperties.
+    /// Single owned BaseType walk: gets all properties including inherited ones
+    /// from base classes, base-first. Shared by
+    /// SubCommandOptionInfo / SubCommandArgumentInfo so the walk exists once.
     /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
+    internal static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
     {
         var properties = new List<PropertyInfo>();
         var currentType = type;

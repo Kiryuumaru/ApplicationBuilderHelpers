@@ -4,9 +4,16 @@
 		<LangVersion>14</LangVersion>
 		<TargetFrameworks>net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
-		<IsAotCompatible>true</IsAotCompatible>
-		<EnableTrimAnalyzer>true</EnableTrimAnalyzer>
 		<IsTrimmable>true</IsTrimmable>
+		<EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+		<!-- AOT floor net8+: IsAotCompatible is only meaningful where AOT
+		     analysis/publish is supported. net6.0/net7.0 stay trimmable with
+		     trim analysis on, but are not AOT-compat-declared. -->
+		<IsAotCompatible Condition="'$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net9.0' Or '$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>
+		<!-- Trim-analysis gate: IL2026/IL2070-family (trim/DAM dataflow) and
+		     IL3050 (runtime-directed code) warnings fail the build so trim
+		     hazards surface in Debug builds, not only in trimmed publishes. -->
+		<WarningsAsErrors>$(WarningsAsErrors);IL2026;IL2070;IL2072;IL2075;IL3050</WarningsAsErrors>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>

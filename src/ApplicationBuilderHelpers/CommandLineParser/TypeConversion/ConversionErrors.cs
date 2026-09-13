@@ -127,4 +127,29 @@ internal static class ConversionErrors
             2,
             CommandErrorKind.InvalidValue);
     }
+
+    /// <summary>
+    /// Creates a collection-materialization error for the <see cref="CollectionShape"/>
+    /// array path: the element parser is missing or its typed-array factory failed,
+    /// and no exactly-typed fallback exists. Never returns a wrong-typed array
+    /// (e.g. <c>object[]</c> for an <c>int[]</c> property, which would throw
+    /// <see cref="ArgumentException"/> at the bind site). Shape: exit code 2
+    /// with <see cref="CommandErrorKind.InvalidValue"/>.
+    /// </summary>
+    /// <param name="propertyType">The collection property type being materialized.</param>
+    /// <param name="elementType">The resolved element type.</param>
+    /// <param name="detail">Why materialization failed (missing parser or factory error).</param>
+    /// <param name="displayName">Display name including kind prefix, e.g. <c>"option '--scores'"</c>; included in the message so the error names the failing flag.</param>
+    internal static CommandException CollectionMaterialization(Type propertyType, Type elementType, string detail, string? displayName = null)
+    {
+        ArgumentNullException.ThrowIfNull(propertyType);
+        ArgumentNullException.ThrowIfNull(elementType);
+        string target = string.IsNullOrWhiteSpace(displayName)
+            ? $"collection of type '{propertyType.FullName}' with element type '{elementType.FullName}'"
+            : $"{displayName} (collection of type '{propertyType.FullName}' with element type '{elementType.FullName}')";
+        return new CommandException(
+            $"Cannot bind {target}: {detail}",
+            2,
+            CommandErrorKind.InvalidValue);
+    }
 }

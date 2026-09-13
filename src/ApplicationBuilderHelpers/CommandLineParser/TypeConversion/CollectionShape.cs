@@ -131,12 +131,20 @@ internal static class CollectionShape
 
     /// <summary>
     /// Materializes the already-converted element values into the target <paramref name="propertyType"/> shape.
-    /// Arrays go through the element parser's <c>CreateTypedArray</c> with an <c>object[]</c> fallback;
+    /// Arrays go through the element parser's <c>CreateTypedArray</c> (AOT-safe:
+    /// the generic <c>CommandTypeParser&lt;T&gt;</c> factory is <c>new T[length]</c>).
+    /// The only fallback is an exactly-typed <c>new object?[length]</c> when the
+    /// element type is <see cref="object"/> (which <em>is</em> the real element type,
+    /// so it stays assignable); any other missing parser or factory failure throws
+    /// a styled <see cref="ConversionErrors.CollectionMaterialization"/> error
+    /// (exit 2, <c>InvalidValue</c>) instead of returning a wrong-typed array
+    /// (assigning e.g. <c>object[]</c> into an <c>int[]</c> property throws
+    /// <see cref="ArgumentException"/> at the bind site).
     /// <c>List&lt;T&gt;</c>/<c>IEnumerable&lt;T&gt;</c>/<c>ICollection&lt;T&gt;</c>/<c>IList&lt;T&gt;</c>
     /// are built via <c>List&lt;T&gt;</c> construction (a <c>List&lt;T&gt;</c> instance satisfies
     /// all four interface/class shapes).
     /// </summary>
-    internal static object? Create(Type propertyType, Type elementType, IReadOnlyList<object?> converted, ICommandTypeParserCollection typeParsers)
+    internal static object? Create(Type propertyType, Type elementType, IReadOnlyList<object?> converted, ICommandTypeParserCollection typeParsers, string? displayName = null)
     {
         var kind = GetKind(propertyType);
 
@@ -149,14 +157,22 @@ internal static class CollectionShape
                 {
                     array = parser.CreateTypedArray(converted.Count);
                 }
-                catch
+                catch (Exception) when (elementType == typeof(object))
                 {
                     array = new object?[converted.Count];
                 }
+                catch (Exception ex)
+                {
+                    throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"The type parser for element type '{elementType.FullName}' failed to create a typed array: {ex.Message}", displayName);
+                }
+            }
+            else if (elementType == typeof(object))
+            {
+                array = new object?[converted.Count];
             }
             else
             {
-                array = new object?[converted.Count];
+                throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"No type parser is registered for element type '{elementType.FullName}'. Register one via AddCommandTypeParser.", displayName);
             }
 
             for (int i = 0; i < converted.Count; i++)
