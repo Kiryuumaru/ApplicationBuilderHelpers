@@ -76,6 +76,7 @@ public int Timeout { get; set; } = 30;
 | `Required` | `bool` | Must be provided |
 | `FromAmong` | `object[]` | Restrict to specific values |
 | `CaseSensitive` | `bool` | Case-sensitive matching for FromAmong |
+| `Secret` | `bool` | Redact value: help default shows `[REDACTED]`, errors omit the provided value |
 
 ### Restricted Values
 
@@ -83,6 +84,16 @@ public int Timeout { get; set; } = 30;
 [CommandOption('l', "level", FromAmong = new[] { "debug", "info", "warn", "error" })]
 public string Level { get; set; } = "info";
 ```
+
+### Tokenizer Behavior
+
+- Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.
+- `=`-form boolean literals accept `true/false/yes/no/on/off/1/0` (case-insensitive); anything else is an `InvalidValue` usage error (exit 2), e.g. `--verbose=maybe`.
+- The first bare `--` ends option matching; every following token is positional, including `--verbose` and `--help`.
+- Negative numbers (`-5`, `-1.5`) are positional without a separator.
+- Combined shorts expand left to right: `-abc` binds each flag `true`; the last short takes the attached remainder (`-abdvalue` binds `Data: value`); an unknown char rejects the whole token (`Unknown option: -abx`, exit 2, `UnknownOption`). `-h`/`-V` inside a cluster win as help/version even mid-cluster.
+- `--no-<name>` negates a boolean flag (`--no-verbose` binds `false`); `--no-<name>=value` is rejected as `InvalidValue` (exit 2). Unknown names report `Unknown option` (exit 2).
+- Bare-flag repetition is idempotent (`--verbose --verbose` succeeds); a valued repeat is a `DuplicateOption` usage error (exit 2).
 
 ## Arguments
 
@@ -106,23 +117,86 @@ public string? DestPath { get; set; }
 | `Required` | `bool` | Must be provided |
 | `FromAmong` | `object[]` | Restrict to specific values |
 | `CaseSensitive` | `bool` | Case-sensitive matching |
+| `Secret` | `bool` | Redact value: errors omit the provided value |
+
+## Shell Completion
+
+Reserved gateway words intercepted after hierarchy build, before help/parsing (never dispatch to registered commands):
+
+- `complete --position N "<commandline>"` — `N` is a 0-based character offset into the full command-line string (clamped to its length; defaults to end). Probes the hierarchy tolerantly, prints one candidate per line on stdout, exits `0`. Bare `complete` (no command line) lists root subcommands; other malformed input prints nothing, still `0`.
+- `completions script <bash|zsh|pwsh|powershell|fish>` — prints a dotnet-style shim that re-invokes `complete --position N "<commandline>"` per TAB.
+- `completions install [--shell <bash|zsh|pwsh|fish>] [--dry-run]` — writes the shim into the shell startup file inside a guarded `# >>> <exe> completion >>>` / `# <<< <exe> completion <<<` block (replace-in-place, append when absent; missing rc is created). Without `--shell`, the basename of `$SHELL` is used (`powershell` maps to `pwsh`). Targets: bash `~/.bashrc`, zsh `~/.zshrc`, pwsh per-OS profile (`~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` on Windows, `~/.config/powershell/...` elsewhere), fish `~/.config/fish/completions/<exe>.fish` (honors `XDG_CONFIG_HOME`). Byte-identical re-runs print `already installed` without rewriting; otherwise prints `installed: <path>`, exit `0`. `--dry-run` prints `would-write: <path>` plus the content and changes nothing.
+- `completions uninstall [--shell <...>]` — removes only the managed block; missing file or no block prints `not installed`, exit `0` (rc files are never deleted). A fish file without the managed block is left untouched and refused on stderr, exit `1`.
+- Unknown shells (including undetectable `$SHELL`) report on stderr, exit `2`; IO failures report on stderr, exit `1`.
 
 ## Accessing Services
 
-Use the service locator from `applicationHost.Services`:
+Mark a writable instance property with `[FromServices]` (unkeyed) or
+`[FromKeyedServices(key)]` (keyed). The executor creates one
+`IServiceScope` per command run, injects those properties from
+`scope.ServiceProvider` after CLI binding, runs the command, then disposes
+the scope after the lifetime callbacks. Scoped services are therefore
+isolated to one command run; resolve additional services inside `Run` from
+`applicationHost.Services` only when property injection does not fit.
 
 ```csharp
-protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+public class BuildCommand : Command
 {
-    var logger = applicationHost.Services.GetRequiredService<ILogger<MyCommand>>();
-    var service = applicationHost.Services.GetRequiredService<IMyService>();
-    // ...
+    [FromServices]
+    public IMyService Service { get; set; } = null!;
+
+    // Schematic — the upstream FromKeyedServicesAttribute targets parameters
+    // only, so this line does NOT compile against the real framework
+    // attribute (CS0592). Use the property-capable shim below instead.
+    [FromKeyedServices("primary")]
+    public IMyService Primary { get; set; } = null!;
+
+    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+    {
+        // Service and Primary are already injected from the per-command scope.
+    }
 }
 ```
+
+Compilable keyed path: define a same-named property-capable shim (or a
+`using`-alias to one). The executor matches by attribute name and reads the
+key from attribute metadata, so no new library dependency is needed. This is
+exactly what `ServicePropertyInjectionTests` proves:
+
+```csharp
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+public sealed class FromKeyedServicesAttribute(object key) : Attribute
+{
+    public object Key { get; } = key;
+}
+```
+
+Rules:
+
+- Disjoint sets: CLI-bound properties (`[CommandOption]` /
+  `[CommandArgument]`) are never injected. A property marked with both a
+  CLI attribute and a service attribute throws `InvalidOperationException`
+  (surfaces as a fault, exit 1, never a usage error). Injection runs after
+  binding, so CLI values are never overwritten.
+- Keyed services resolve from the same per-command scope via
+  `GetRequiredKeyedService(type, key)`.
+- A missing service throws out of the executor and maps to a fault
+  (exit 1), never a usage error (exit 2).
+- Help, version, and validation paths return before the executor, so they
+  construct zero scopes.
+- No new attribute types: reuse the framework `[FromServices]` /
+  `[FromKeyedServices]` markers. Note the upstream
+  `FromKeyedServicesAttribute` targets parameters only, so compiler-applied
+  property use is rejected (CS0592); the executor matches by attribute name
+  and reads the key from attribute metadata.
 
 ## Command Lifecycle
 
 Commands inherit the full `ApplicationDependency` lifecycle. See [Application Dependencies](application-dependencies.md) for details on `AddServices`, `AddConfigurations`, `AddMiddlewares`, `AddMappings`, `RunPreparation`, and `RunPreparationAsync`.
+
+## Command Registration
+
+Register a command by type with `AddCommand<TCommand>()` or by instance with `AddCommand(ICommand)`. Type registrations resolve a fresh instance on each `RunAsync` call so bound option values reset between runs; instance registrations reuse the same reference across runs. The command topology is rebuilt on every `RunAsync` from live registrations, so commands added between runs are visible on the next run.
 
 ## Exit Codes
 

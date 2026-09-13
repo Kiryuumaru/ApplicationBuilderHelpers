@@ -1,6 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
-using ApplicationBuilderHelpers.Exceptions;
-using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -57,6 +56,11 @@ internal class SubCommandArgumentInfo
     public bool IsCaseSensitive { get; set; }
 
     /// <summary>
+    /// Whether this argument value is a secret (redacted in errors)
+    /// </summary>
+    public bool IsSecret { get; set; }
+
+    /// <summary>
     /// Default value for the argument
     /// </summary>
     public object? DefaultValue { get; set; }
@@ -72,14 +76,14 @@ internal class SubCommandArgumentInfo
     public bool IsInherited { get; set; }
 
     /// <summary>
-    /// Whether this argument accepts multiple values (array type)
+    /// Whether this argument accepts multiple values (collection type)
     /// </summary>
-    public bool IsArray => PropertyType.IsArray;
+    public bool IsCollection => CollectionShape.IsCollection(PropertyType);
 
     /// <summary>
-    /// The element type if this is an array argument
+    /// The element type if this is a collection argument
     /// </summary>
-    public Type? ElementType => IsArray ? PropertyType.GetElementType() : null;
+    public Type? ElementType => CollectionShape.TryGetElementType(PropertyType, out var elementType) ? elementType : null;
 
     /// <summary>
     /// The command this argument belongs to
@@ -109,6 +113,34 @@ internal class SubCommandArgumentInfo
             IsRequired = attribute.Required || isRequiredByKeyword,
             ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
+            IsSecret = attribute.Secret,
+            OwnerCommand = ownerCommand
+        };
+
+        // Determine if this argument should be inherited
+        argumentInfo.DetermineInheritanceScope();
+
+        return argumentInfo;
+    }
+
+    /// <summary>
+    /// Creates a per-run copy from a cached descriptor. Descriptor primitives
+    /// are copied onto a fresh node; inheritance uses the existing name-based
+    /// scope, applied to the per-run copy only.
+    /// </summary>
+    public static SubCommandArgumentInfo FromDescriptor(CommandArgumentDescriptor descriptor, SubCommandInfo? ownerCommand)
+    {
+        var argumentInfo = new SubCommandArgumentInfo
+        {
+            Property = descriptor.Property,
+            PropertyType = descriptor.PropertyType,
+            Name = descriptor.Name,
+            Description = descriptor.Description,
+            Position = descriptor.Position,
+            IsRequired = descriptor.Required || descriptor.IsRequiredByKeyword,
+            ValidValues = descriptor.FromAmong,
+            IsCaseSensitive = descriptor.IsCaseSensitive,
+            IsSecret = descriptor.IsSecret,
             OwnerCommand = ownerCommand
         };
 
@@ -238,7 +270,7 @@ internal class SubCommandArgumentInfo
     {
         var name = DisplayName.ToUpperInvariant();
         
-        if (IsArray)
+        if (IsCollection)
             name += "...";
             
         if (IsRequired)
@@ -252,7 +284,7 @@ internal class SubCommandArgumentInfo
     /// </summary>
     public string GetTypeName()
     {
-        var targetType = IsArray ? ElementType! : PropertyType;
+        var targetType = IsCollection ? ElementType! : PropertyType;
         
         return targetType.Name.ToLowerInvariant() switch
         {
@@ -272,67 +304,15 @@ internal class SubCommandArgumentInfo
     /// </summary>
     public bool CanAcceptValueAtPosition(int position)
     {
-        if (IsArray)
+        if (IsCollection)
         {
-            // Array arguments can accept values at their position and beyond
+            // Collection arguments can accept values at their position and beyond
             return position >= Position;
         }
         else
         {
-            // Non-array arguments accept only at their exact position
+            // Non-collection arguments accept only at their exact position
             return position == Position;
-        }
-    }
-
-    /// <summary>
-    /// Converts a string value to the appropriate type for this argument
-    /// </summary>
-    public object? ConvertValue(string value, ICommandTypeParserCollection typeParserCollection)
-    {
-        if (string.IsNullOrEmpty(value))
-            return null;
-
-        var targetType = IsArray ? ElementType! : PropertyType;
-        
-        // First validate against valid values if specified
-        if (ValidValues?.Length > 0)
-        {
-            var comparisonType = IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            var isValid = ValidValues.Any(validValue => 
-                string.Equals(validValue?.ToString(), value, comparisonType));
-
-            if (!isValid)
-            {
-                var validValuesString = string.Join(", ", ValidValues.Select(v => v?.ToString()));
-                throw new CommandException(
-                    $"Value '{value}' is not valid for argument '{DisplayName}'. " +
-                    $"Must be one of: {validValuesString}", 2, CommandErrorKind.InvalidValue);
-            }
-        }
-
-        // Use the type parser collection to convert the value
-        if (typeParserCollection.TypeParsers.TryGetValue(targetType, out var parser))
-        {
-            var result = parser.Parse(value, out var error);
-            if (error != null)
-                throw new CommandException($"Invalid value '{value}' for argument '{DisplayName}': {error}", 2, CommandErrorKind.InvalidValue);
-            return result;
-        }
-
-        // Fallback to built-in conversion
-        if (targetType == typeof(string))
-            return value;
-
-        if (targetType.IsEnum)
-            return Enum.Parse(targetType, value, !IsCaseSensitive);
-
-        try
-        {
-            return Convert.ChangeType(value, targetType);
-        }
-        catch (Exception ex)
-        {
-            throw new CommandException($"Cannot convert '{value}' to {targetType.Name} for argument '{DisplayName}': {ex.Message}", 2, CommandErrorKind.InvalidValue);
         }
     }
 

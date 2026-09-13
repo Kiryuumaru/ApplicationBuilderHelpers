@@ -1,4 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
@@ -62,6 +63,11 @@ internal class SubCommandOptionInfo
     public bool IsCaseSensitive { get; set; }
 
     /// <summary>
+    /// Whether this option value is a secret (redacted in help and errors)
+    /// </summary>
+    public bool IsSecret { get; set; }
+
+    /// <summary>
     /// Default value for the option
     /// </summary>
     public object? DefaultValue { get; set; }
@@ -82,14 +88,14 @@ internal class SubCommandOptionInfo
     public bool IsFlag => PropertyType == typeof(bool) || PropertyType == typeof(bool?);
 
     /// <summary>
-    /// Whether this option accepts multiple values (array type)
+    /// Whether this option accepts multiple values (collection type)
     /// </summary>
-    public bool IsArray => PropertyType.IsArray;
+    public bool IsCollection => CollectionShape.IsCollection(PropertyType);
 
     /// <summary>
-    /// The element type if this is an array option
+    /// The element type if this is a collection option
     /// </summary>
-    public Type? ElementType => IsArray ? PropertyType.GetElementType() : null;
+    public Type? ElementType => CollectionShape.TryGetElementType(PropertyType, out var elementType) ? elementType : null;
 
     /// <summary>
     /// The command this option belongs to
@@ -116,6 +122,7 @@ internal class SubCommandOptionInfo
             EnvironmentVariable = attribute.EnvironmentVariable,
             ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
+            IsSecret = attribute.Secret,
             OwnerCommand = ownerCommand
         };
 
@@ -126,25 +133,65 @@ internal class SubCommandOptionInfo
         }
 
         // Determine if this option should be inherited by checking if it comes from a base class
-        var declaringType = property.DeclaringType;
-        var targetType = ownerCommand?.Command?.GetType();
-
-        // If we have a concrete command instance, check if the property comes from a base class
-        if (targetType != null && declaringType != targetType && declaringType != null && declaringType.IsAssignableFrom(targetType))
-        {
-            optionInfo.IsInherited = true;
-            optionInfo.DetermineInheritanceScope();
-        }
-        // For abstract command processing (when we don't have a concrete command instance),
-        // we'll rely on the global option detection logic to determine inheritance patterns
-        else if (targetType == null && declaringType != null)
-        {
-            // This handles cases where we're processing abstract command hierarchies
-            // The inheritance will be determined later by the global option detection logic
-            optionInfo.IsInherited = false;
-        }
+        optionInfo.ApplyInheritanceScope(property.DeclaringType, ownerCommand);
 
         return optionInfo;
+    }
+
+    /// <summary>
+    /// Creates a per-run copy from a cached descriptor with parser-derived
+    /// <paramref name="resolvedValidValues"/>. Descriptor primitives are copied
+    /// onto a fresh node; inheritance uses the same declaringType-vs-targetType
+    /// check as <see cref="FromProperty"/>, applied to the per-run copy only.
+    /// </summary>
+    public static SubCommandOptionInfo FromDescriptor(CommandOptionDescriptor descriptor, SubCommandInfo? ownerCommand, object[]? resolvedValidValues)
+    {
+        var optionInfo = new SubCommandOptionInfo
+        {
+            Property = descriptor.Property,
+            PropertyType = descriptor.PropertyType,
+            ShortName = descriptor.ShortName,
+            LongName = descriptor.LongName,
+            Description = descriptor.Description,
+            // Required if explicitly set in attribute OR if property has required keyword
+            IsRequired = descriptor.Required || descriptor.IsRequiredByKeyword,
+            EnvironmentVariable = descriptor.EnvironmentVariable,
+            ValidValues = resolvedValidValues,
+            IsCaseSensitive = descriptor.IsCaseSensitive,
+            IsSecret = descriptor.IsSecret,
+            OwnerCommand = ownerCommand
+        };
+
+        // Determine if this option should be inherited by checking if it comes from a base class
+        optionInfo.ApplyInheritanceScope(descriptor.DeclaringType, ownerCommand);
+
+        return optionInfo;
+    }
+
+    /// <summary>
+    /// Resolves per-run valid values for a cached descriptor: explicit
+    /// <c>FromAmong</c> wins; else the frozen enum names iff the descriptor
+    /// carries an enum candidate and no live parser exists for that enum type
+    /// in the live collection; else null.
+    /// </summary>
+    internal static object[]? ResolveValidValues(CommandOptionDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
+    {
+        if (descriptor.FromAmong is { Length: > 0 })
+        {
+            return [.. descriptor.FromAmong];
+        }
+
+        if (descriptor.EnumCandidateType is null || descriptor.EnumCandidateNames is null)
+        {
+            return null;
+        }
+
+        if (typeParserCollection?.TypeParsers.ContainsKey(descriptor.EnumCandidateType) == true)
+        {
+            return null;
+        }
+
+        return [.. descriptor.EnumCandidateNames];
     }
 
     /// <summary>
@@ -235,6 +282,30 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
+    /// Applies the declaringType-vs-targetType inheritance-scope decision shared by
+    /// <see cref="FromProperty"/> and <see cref="FromDescriptor"/>.
+    /// </summary>
+    private void ApplyInheritanceScope(Type? declaringType, SubCommandInfo? ownerCommand)
+    {
+        var targetType = ownerCommand?.Command?.GetType();
+
+        // If we have a concrete command instance, check if the property comes from a base class
+        if (targetType != null && declaringType != targetType && declaringType != null && declaringType.IsAssignableFrom(targetType))
+        {
+            IsInherited = true;
+            DetermineInheritanceScope();
+        }
+        // For abstract command processing (when we don't have a concrete command instance),
+        // we'll rely on the global option detection logic to determine inheritance patterns
+        else if (targetType == null && declaringType != null)
+        {
+            // This handles cases where we're processing abstract command hierarchies
+            // The inheritance will be determined later by the global option detection logic
+            IsInherited = false;
+        }
+    }
+
+    /// <summary>
     /// Determines whether this option should be inherited by child commands
     /// </summary>
     private void DetermineInheritanceScope()
@@ -246,8 +317,8 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Validates the option value against constraints (only required field validation now)
-    /// ValidValues validation is now handled in ValueBinder.ValidateStringValue
+    /// Validates the option value against constraints (only required field validation now).
+    /// ValidValues validation is applied inside TypeConversion.Convert (convert-then-compare).
     /// </summary>
     public void ValidateValue(object? value)
     {
@@ -256,8 +327,8 @@ internal class SubCommandOptionInfo
             throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 2, CommandErrorKind.MissingRequired);
         }
 
-        // Note: ValidValues validation is now handled in ValueBinder.ValidateStringValue
-        // before type conversion to ensure consistent error messages regardless of type parsing success
+        // Note: ValidValues validation is applied inside TypeConversion.Convert
+        // (convert-then-compare) before type conversion completes, to keep error messages consistent.
     }
 
     /// <summary>
@@ -294,7 +365,7 @@ internal class SubCommandOptionInfo
     /// </summary>
     public string GetTypeName()
     {
-        var targetType = IsArray ? ElementType! : PropertyType;
+        var targetType = IsCollection ? ElementType! : PropertyType;
         
         return targetType.Name.ToLowerInvariant() switch
         {
@@ -316,6 +387,11 @@ internal class SubCommandOptionInfo
     {
         // Long option format: --option or --option=value
         if (LongName != null && (argument == $"--{LongName}" || argument.StartsWith($"--{LongName}=")))
+            return true;
+
+        // Negated flag format: --no-<name> or --no-<name>=value, flags only.
+        // Bare binds false; =-form is rejected in ExtractValue.
+        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=")))
             return true;
 
         // Short option format: -o or -o=value or -ovalue (compact)
@@ -340,13 +416,31 @@ internal class SubCommandOptionInfo
         // Handle --option=value format
         if (LongName != null && argument.StartsWith($"--{LongName}="))
         {
-            return argument[$"--{LongName}=".Length..];
+            var literal = argument[$"--{LongName}=".Length..];
+            if (IsFlag)
+                ValidateFlagLiteral(literal);
+            return literal;
         }
 
         // Handle -o=value format
         if (ShortName.HasValue && argument.StartsWith($"-{ShortName}="))
         {
-            return argument[$"-{ShortName}=".Length..];
+            var literal = argument[$"-{ShortName}=".Length..];
+            if (IsFlag)
+                ValidateFlagLiteral(literal);
+            return literal;
+        }
+
+        // Handle --no-<name> negation for boolean flags: bare binds false, =-form is rejected
+        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=")))
+        {
+            if (argument.StartsWith($"--no-{LongName}="))
+            {
+                var rejected = argument[$"--no-{LongName}=".Length..];
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--no-{LongName}", rejected, IsSecret), 2, CommandErrorKind.InvalidValue);
+            }
+
+            return "false";
         }
 
         // Handle compact format -ovalue
@@ -361,11 +455,7 @@ internal class SubCommandOptionInfo
         {
             if (IsFlag)
             {
-                // For boolean flags, check if next argument is a boolean value
-                if (nextArgument != null && IsBooleanValue(nextArgument))
-                    return nextArgument;
-                else
-                    return "true"; // Flag without value means true
+                return "true"; // Flag without value means true; never consume next token
             }
             else
             {
@@ -389,6 +479,15 @@ internal class SubCommandOptionInfo
                value.Equals("off", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Validates a flag =-form literal; invalid throws a value error naming the option
+    /// </summary>
+    private void ValidateFlagLiteral(string literal)
+    {
+        if (!IsBooleanValue(literal))
+            throw new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, $"--{LongName ?? ShortName?.ToString()}", IsSecret), 2, CommandErrorKind.InvalidValue);
     }
 
     /// <summary>

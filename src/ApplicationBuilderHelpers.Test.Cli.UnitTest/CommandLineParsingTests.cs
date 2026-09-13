@@ -110,7 +110,7 @@ public class CommandLineParsingTests : CliTestBase
     [Fact]
     public async Task Boolean_With_True_Value()
     {
-        var result = await Runner.RunAsync("test", "target", "--diag", "true", "-v");
+        var result = await Runner.RunAsync("test", "target", "--diag=true", "-v");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: True");
     }
@@ -118,7 +118,7 @@ public class CommandLineParsingTests : CliTestBase
     [Fact]
     public async Task Boolean_With_False_Value()
     {
-        var result = await Runner.RunAsync("test", "target", "--diag", "false", "-v");
+        var result = await Runner.RunAsync("test", "target", "--diag=false", "-v");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: False");
     }

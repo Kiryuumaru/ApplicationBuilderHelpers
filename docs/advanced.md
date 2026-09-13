@@ -91,6 +91,25 @@ throw new CommandException("Configuration missing", exitCode: 2);
 
 The library catches `CommandException` during execution and returns its exit code. Other unhandled exceptions will propagate.
 
+### Did-You-Mean Suggestions
+
+At CLI dead-ends the parser appends a `Did you mean 'x'?` suggestion when the
+input is close to a known name (true Damerau-Levenshtein with adjacent
+transposition costing 1; case-insensitive; leading dashes stripped;
+`--opt=value` compares only the part before `=`; single best match; ties break
+by same-first-character prefix, then alphabetical). Admission rule: distance
+≤ 2 suggests; a shared normalized first character (prefix bonus) extends
+admission to distance ≤ 4; anything farther stays silent.
+
+- Unknown option: `Unknown option: --verbosit. Did you mean '--verbosity'?`
+- Unknown command: `No command found for 'deply'. Did you mean 'deploy'?`
+- Unknown subcommand (surplus close to a child name): `Unknown subcommand 'gett'. Did you mean 'get'?`
+- Unexpected extra argument (surplus far from all children): `Unexpected argument 'zzzzqqqq'` (no suggestion)
+
+## Repeated Runs, Caching, Thread-Safety
+
+Each `RunAsync` call builds a fresh parser and rebuilds the command topology from live registrations: type-registered commands get a fresh instance per run (bound values cannot leak across runs), instance registrations keep their identity, and late `AddCommand` / `AddCommandTypeParser` calls are visible on the next run. Per-`Type` reflection descriptors are cached per builder as immutable snapshots and reassembled into fresh per-run nodes; enum `FromAmong` auto-population is gated on the live parser collection, so a custom enum parser suppresses it. The cache layer is thread-safe (immutable descriptors with locked population plus per-run reassembly), but `ApplicationBuilder` collections, shared console output, instance-registered commands, and user command state remain caller-responsibility — do not mutate the builder or share instance registrations across concurrent runs.
+
 ## Help System
 
 Help is automatically generated from command attributes:
@@ -102,3 +121,13 @@ myapp --version    # Shows version number
 ```
 
 The `--help` and `--version` flags are handled automatically — you don't need to define them.
+
+## Tokenizer Behavior
+
+- Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.
+- `=`-form boolean literals accept `true/false/yes/no/on/off/1/0` (case-insensitive); anything else is an `InvalidValue` usage error (exit 2), e.g. `--verbose=maybe`.
+- The first bare `--` ends option matching; every following token is positional, including `--verbose` and `--help`.
+- Negative numbers (`-5`, `-1.5`) are positional without a separator.
+- Combined shorts expand left to right: `-abc` binds each flag `true`; the last short takes the attached remainder (`-abdvalue` binds `Data: value`); an unknown char rejects the whole token (`Unknown option: -abx`, exit 2, `UnknownOption`). `-h`/`-V` inside a cluster win as help/version even mid-cluster.
+- `--no-<name>` negates a boolean flag (`--no-verbose` binds `false`); `--no-<name>=value` is rejected as `InvalidValue` (exit 2). Unknown names report `Unknown option` (exit 2).
+- Bare-flag repetition is idempotent (`--verbose --verbose` succeeds); a valued repeat is a `DuplicateOption` usage error (exit 2).
