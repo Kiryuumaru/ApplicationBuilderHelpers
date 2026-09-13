@@ -2,7 +2,7 @@
 
 A .NET library for building command-line applications with a fluent API, dependency injection, and modular architecture.
 
-- **Targets**: `net6.0`–`net10.0` · **AOT-compatible design (Native AOT publish validation pending)** · **Trimmable**
+- **Targets**: `net6.0`–`net10.0` · **AOT-compatible** · **Trimmable**
 - **Dependencies**: `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.DependencyInjection.Abstractions`, `AbsolutePathHelpers`
 
 ## Features
