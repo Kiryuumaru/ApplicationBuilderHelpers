@@ -140,7 +140,8 @@ internal static class ConversionErrors
     /// <param name="elementType">The resolved element type.</param>
     /// <param name="detail">Why materialization failed (missing parser or factory error).</param>
     /// <param name="displayName">Display name including kind prefix, e.g. <c>"option '--scores'"</c>; included in the message so the error names the failing flag.</param>
-    internal static CommandException CollectionMaterialization(Type propertyType, Type elementType, string detail, string? displayName = null)
+    /// <param name="isSecret">Whether the target option/argument is secret. Collection-materialization details carry no raw values (type FullNames only), except a factory-failure tail already masked by the caller, so the message shape is identical; the flag is accepted for parity with <c>InvalidValue</c>/<c>NotAmong</c> and future-proofing.</param>
+    internal static CommandException CollectionMaterialization(Type propertyType, Type elementType, string detail, string? displayName = null, bool isSecret = false)
     {
         ArgumentNullException.ThrowIfNull(propertyType);
         ArgumentNullException.ThrowIfNull(elementType);
