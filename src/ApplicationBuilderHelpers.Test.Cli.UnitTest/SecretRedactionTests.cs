@@ -183,6 +183,102 @@ public sealed class SecretRedactionTests
         }
     }
 
+    public enum CollectionShade
+    {
+        Red,
+        Green,
+        Blue
+    }
+
+    [Command("seccoll", "Probes secret integer array materialization.")]
+    public sealed class SecretCollectionCommand : Command
+    {
+        [CommandOption("scores", Description = "Scores.", Secret = true)]
+        public int[]? Scores { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"seccoll:{(Scores is null ? "null" : string.Join(",", Scores))}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("plaincoll", "Probes plain integer array materialization.")]
+    public sealed class PlainCollectionCommand : Command
+    {
+        [CommandOption("scores", Description = "Scores.")]
+        public int[]? Scores { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"plaincoll:{(Scores is null ? "null" : string.Join(",", Scores))}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("secmissing", "Probes secret enum array without a registered parser.")]
+    public sealed class SecretMissingParserCommand : Command
+    {
+        [CommandOption("shades", Description = "Shades.", Secret = true)]
+        public CollectionShade[]? Shades { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"secmissing:{(Shades is null ? "null" : string.Join(",", Shades))}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("plainmissing", "Probes plain enum array without a registered parser.")]
+    public sealed class PlainMissingParserCommand : Command
+    {
+        [CommandOption("shades", Description = "Shades.")]
+        public CollectionShade[]? Shades { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"plainmissing:{(Shades is null ? "null" : string.Join(",", Shades))}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Custom <see cref="int"/> parser whose array factory echoes the last
+    /// parsed raw value in its failure, so the collection materialization
+    /// path must mask it for secret options. Registered through the public
+    /// <c>AddCommandTypeParser</c> entry point. Scalar parsing delegates to
+    /// <see cref="int.TryParse"/>.
+    /// </summary>
+    public sealed class EchoingIntArrayParser : ICommandTypeParser
+    {
+        public static string? LastRaw;
+
+        public Type Type => typeof(int);
+
+        public object? Parse(string? value, out string? validateError)
+        {
+            LastRaw = value;
+            if (int.TryParse(value, out var result))
+            {
+                validateError = null;
+                return result;
+            }
+
+            validateError = $"Invalid Int32 value: '{value}'. Expected a valid Int32.";
+            return null;
+        }
+
+        public string? GetString(object? value) => value?.ToString();
+
+        public object? GetDefaultValue() => default(int);
+
+        public Array CreateTypedArray(int length) => throw new InvalidOperationException($"Factory failure for '{LastRaw}'.");
+    }
+
     [Fact]
     public async Task SecretOptionHelp_MasksDefaultKeepsLabelAndEnvName()
     {
@@ -346,6 +442,88 @@ public sealed class SecretRedactionTests
         Assert.Contains("Value provided for option '--vault-token' is not valid.", beta.Error);
         Assert.Contains("Must be one of: red, blue", beta.Error);
         Assert.DoesNotContain("bogus", beta.Error);
+    }
+
+    [Fact]
+    public async Task SecretCollection_ArrayFactoryFailure_MasksValueKeepsNames()
+    {
+        EchoingIntArrayParser.LastRaw = null;
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateCollectionBuilder().AddCommandTypeParser<EchoingIntArrayParser>(),
+            ["seccoll", "--scores=7"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Cannot bind", error);
+        Assert.Contains("--scores", error);
+        Assert.Contains(typeof(int[]).FullName!, error);
+        Assert.Contains(typeof(int).FullName!, error);
+        Assert.Contains("[REDACTED]", error);
+        Assert.DoesNotContain("Factory failure for", error);
+        if (EchoingIntArrayParser.LastRaw is not null)
+        {
+            Assert.DoesNotContain($"'{EchoingIntArrayParser.LastRaw}'", error);
+        }
+    }
+
+    [Fact]
+    public async Task PlainCollection_ArrayFactoryFailure_EchoesValue()
+    {
+        EchoingIntArrayParser.LastRaw = null;
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateCollectionBuilder().AddCommandTypeParser<EchoingIntArrayParser>(),
+            ["plaincoll", "--scores=7"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Cannot bind", error);
+        Assert.Contains("--scores", error);
+        Assert.Contains(typeof(int[]).FullName!, error);
+        Assert.Contains(typeof(int).FullName!, error);
+        Assert.Contains("Factory failure for '7'", error);
+        Assert.DoesNotContain("[REDACTED]", error);
+    }
+
+    [Fact]
+    public async Task SecretCollection_MissingParser_KeepsNames()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateCollectionBuilder, ["secmissing", "--shades=Red"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Cannot bind", error);
+        Assert.Contains("--shades", error);
+        Assert.Contains(typeof(CollectionShade).FullName!, error);
+        Assert.Contains("No type parser is registered", error);
+        Assert.Contains("AddCommandTypeParser", error);
+    }
+
+    [Fact]
+    public async Task PlainCollection_MissingParser_KeepsNames()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateCollectionBuilder, ["plainmissing", "--shades=Red"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Cannot bind", error);
+        Assert.Contains("--shades", error);
+        Assert.Contains(typeof(CollectionShade).FullName!, error);
+        Assert.Contains("No type parser is registered", error);
+        Assert.Contains("AddCommandTypeParser", error);
+        Assert.DoesNotContain("[REDACTED]", error);
+    }
+
+    private static ApplicationBuilder CreateCollectionBuilder()
+    {
+        return ApplicationBuilder.Create()
+            .SetExecutableName("secret-test")
+            .SetExecutableTitle("Secret Test")
+            .SetExecutableDescription("Secret redaction verification CLI.")
+            .SetExecutableVersion("9.9.9")
+            .AddCommand<SecretCollectionCommand>()
+            .AddCommand<PlainCollectionCommand>()
+            .AddCommand<SecretMissingParserCommand>()
+            .AddCommand<PlainMissingParserCommand>();
     }
 
     private static ApplicationBuilder CreateBuilder()

@@ -144,7 +144,7 @@ internal static class CollectionShape
     /// are built via <c>List&lt;T&gt;</c> construction (a <c>List&lt;T&gt;</c> instance satisfies
     /// all four interface/class shapes).
     /// </summary>
-    internal static object? Create(Type propertyType, Type elementType, IReadOnlyList<object?> converted, ICommandTypeParserCollection typeParsers, string? displayName = null)
+    internal static object? Create(Type propertyType, Type elementType, IReadOnlyList<object?> converted, ICommandTypeParserCollection typeParsers, string? displayName = null, bool isSecret = false)
     {
         var kind = GetKind(propertyType);
 
@@ -163,7 +163,8 @@ internal static class CollectionShape
                 }
                 catch (Exception ex)
                 {
-                    throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"The type parser for element type '{elementType.FullName}' failed to create a typed array: {ex.Message}", displayName);
+                    string tail = isSecret ? SecretRedaction.Mask : ex.Message;
+                    throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"The type parser for element type '{elementType.FullName}' failed to create a typed array: {tail}", displayName, isSecret);
                 }
             }
             else if (elementType == typeof(object))
@@ -172,7 +173,7 @@ internal static class CollectionShape
             }
             else
             {
-                throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"No type parser is registered for element type '{elementType.FullName}'. Register one via AddCommandTypeParser.", displayName);
+                throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"No type parser is registered for element type '{elementType.FullName}'. Register one via AddCommandTypeParser.", displayName, isSecret);
             }
 
             for (int i = 0; i < converted.Count; i++)
