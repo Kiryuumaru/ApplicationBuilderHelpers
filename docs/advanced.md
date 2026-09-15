@@ -102,6 +102,7 @@ by same-first-character prefix, then alphabetical). Admission rule: distance
 admission to distance ≤ 4; anything farther stays silent.
 
 - Unknown option: `Unknown option: --verbosit. Did you mean '--verbosity'?`
+- Unknown option with `=value` reports name-only (fail-closed logging): `--verbosit=quiet` reports `Unknown option: --verbosit. Did you mean '--verbosity'?`, never echoing the value.
 - Unknown command: `No command found for 'deply'. Did you mean 'deploy'?`
 - Unknown subcommand (surplus close to a child name): `Unknown subcommand 'gett'. Did you mean 'get'?`
 - Unexpected extra argument (surplus far from all children): `Unexpected argument 'zzzzqqqq'` (no suggestion)
@@ -129,5 +130,5 @@ The `--help` and `--version` flags are handled automatically — you don't need 
 - The first bare `--` ends option matching; every following token is positional, including `--verbose` and `--help`.
 - Negative numbers (`-5`, `-1.5`) are positional without a separator.
 - Combined shorts expand left to right: `-abc` binds each flag `true`; the last short takes the attached remainder (`-abdvalue` binds `Data: value`); an unknown char rejects the whole token (`Unknown option: -abx`, exit 2, `UnknownOption`). `-h`/`-V` inside a cluster win as help/version even mid-cluster.
-- `--no-<name>` negates a boolean flag (`--no-verbose` binds `false`); `--no-<name>=value` is rejected as `InvalidValue` (exit 2). Unknown names report `Unknown option` (exit 2).
+- `--no-<name>` negates a boolean flag (`--no-verbose` binds `false`); `--no-<name>=value` never accepts a value. A known name (flag, valued, or collection — including secret valued options resolved through the command's full option scope) is rejected as `InvalidValue` (exit 2) with secret-aware text that omits the value for secrets; an unknown name reports `Unknown option: --no-<name>` (exit 2) with a name-only suggestion, never echoing the value; an empty base (`--no-=value`) fails closed as `InvalidValue` (exit 2) with redaction on.
 - Bare-flag repetition is idempotent (`--verbose --verbose` succeeds); a valued repeat is a `DuplicateOption` usage error (exit 2).

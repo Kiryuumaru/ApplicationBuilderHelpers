@@ -360,27 +360,43 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
+    /// Resolves a <c>--no-&lt;name&gt;=value</c> base name against the caller's
+    /// <see cref="SubCommandInfo.AllOptions"/> scope: Ordinal long-name match
+    /// across every option kind (flag, valued, collection). The returned node
+    /// is the scope's own copy, so <see cref="IsSecret"/> is preserved.
+    /// Returns null when the base is unknown or empty.
+    /// </summary>
+    internal static SubCommandOptionInfo? FindNoValueBase(IEnumerable<SubCommandOptionInfo> allOptions, string baseName)
+    {
+        if (string.IsNullOrEmpty(baseName))
+            return null;
+
+        return allOptions.FirstOrDefault(o =>
+            o.LongName != null && string.Equals(o.LongName, baseName, StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// Checks if this option matches the given argument
     /// </summary>
     public bool MatchesArgument(string argument)
     {
-        // Long option format: --option or --option=value
-        if (LongName != null && (argument == $"--{LongName}" || argument.StartsWith($"--{LongName}=")))
+        // Long option format: --option or --option=value (Ordinal kind matching)
+        if (LongName != null && (argument == $"--{LongName}" || argument.StartsWith($"--{LongName}=", StringComparison.Ordinal)))
             return true;
 
         // Negated flag format: --no-<name> or --no-<name>=value, flags only.
         // Bare binds false; =-form is rejected in ExtractValue.
-        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=")))
+        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
             return true;
 
         // Short option format: -o or -o=value or -ovalue (compact)
         if (ShortName.HasValue)
         {
-            if (argument == $"-{ShortName}" || argument.StartsWith($"-{ShortName}="))
+            if (argument == $"-{ShortName}" || argument.StartsWith($"-{ShortName}=", StringComparison.Ordinal))
                 return true;
 
             // Compact format for non-boolean options: -ovalue
-            if (!IsFlag && argument.StartsWith($"-{ShortName}") && argument.Length > 2)
+            if (!IsFlag && argument.StartsWith($"-{ShortName}", StringComparison.Ordinal) && argument.Length > 2)
                 return true;
         }
 
@@ -392,8 +408,8 @@ internal class SubCommandOptionInfo
     /// </summary>
     public string? ExtractValue(string argument, string? nextArgument = null)
     {
-        // Handle --option=value format
-        if (LongName != null && argument.StartsWith($"--{LongName}="))
+        // Handle --option=value format (Ordinal kind matching)
+        if (LongName != null && argument.StartsWith($"--{LongName}=", StringComparison.Ordinal))
         {
             var literal = argument[$"--{LongName}=".Length..];
             if (IsFlag)
@@ -402,7 +418,7 @@ internal class SubCommandOptionInfo
         }
 
         // Handle -o=value format
-        if (ShortName.HasValue && argument.StartsWith($"-{ShortName}="))
+        if (ShortName.HasValue && argument.StartsWith($"-{ShortName}=", StringComparison.Ordinal))
         {
             var literal = argument[$"-{ShortName}=".Length..];
             if (IsFlag)
@@ -411,9 +427,9 @@ internal class SubCommandOptionInfo
         }
 
         // Handle --no-<name> negation for boolean flags: bare binds false, =-form is rejected
-        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=")))
+        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
         {
-            if (argument.StartsWith($"--no-{LongName}="))
+            if (argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal))
             {
                 var rejected = argument[$"--no-{LongName}=".Length..];
                 throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--no-{LongName}", rejected, IsSecret), 2, CommandErrorKind.InvalidValue);
@@ -423,7 +439,7 @@ internal class SubCommandOptionInfo
         }
 
         // Handle compact format -ovalue
-        if (ShortName.HasValue && !IsFlag && argument.StartsWith($"-{ShortName}") && argument.Length > 2)
+        if (ShortName.HasValue && !IsFlag && argument.StartsWith($"-{ShortName}", StringComparison.Ordinal) && argument.Length > 2)
         {
             return argument[2..];
         }

@@ -133,8 +133,31 @@ internal static class SecretRedaction
             return parserError;
 
         if (!string.IsNullOrEmpty(providedValue))
-            return parserError.Replace($"'{providedValue}'", Mask, StringComparison.Ordinal);
+        {
+            var redacted = parserError.Replace($"'{providedValue}'", Mask, StringComparison.Ordinal);
+            return ReplaceQuotedCaseInsensitive(redacted, providedValue);
+        }
 
         return parserError;
+    }
+
+    /// <summary>
+    /// Case-insensitive redaction layer: rescans for the same quote-wrapped
+    /// containment with an OrdinalIgnoreCase scan so case variants of the
+    /// provided value redact too. Exact-case matches are already replaced.
+    /// </summary>
+    private static string ReplaceQuotedCaseInsensitive(string text, string providedValue)
+    {
+        var result = text;
+        var quotedLength = providedValue.Length + 2;
+        var start = 0;
+        while (true)
+        {
+            var found = result.IndexOf($"'{providedValue}'", start, StringComparison.OrdinalIgnoreCase);
+            if (found < 0)
+                return result;
+            result = result[..found] + Mask + result[(found + quotedLength)..];
+            start = found + Mask.Length;
+        }
     }
 }
