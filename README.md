@@ -117,6 +117,8 @@ Return normally on success. Throw `CommandException` for errors to return a non-
 throw new CommandException("Operation failed", exitCode: 1);
 ```
 
+Shell completion (`complete` / `completions ...`) resolves through the `CompletionGateway` pre-parse stage first — see [Commands](docs/commands.md#shell-completion) for the consolidated 0/1/2 exit matrix.
+
 See [Advanced Topics](docs/advanced.md) for more on sub-commands, custom host types, and error handling.
 
 ## Architecture
@@ -150,6 +152,8 @@ See [Advanced Topics](docs/advanced.md) for more on sub-commands, custom host ty
     │  Execution  │ ← Command Execution
     └─────────────┘
 ```
+
+`RunAsync` pipeline stages: hierarchy build → `CompletionGateway` (completion > help > parse > version) → help → parse → version check → execute.
 
 ## Documentation
 

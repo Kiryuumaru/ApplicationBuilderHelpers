@@ -115,8 +115,9 @@ public sealed class DidYouMeanTests
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deploy", "prod", "--verbosit=quiet"]);
         Assert.Equal(2, exitCode);
-        Assert.Contains("Unknown option: --verbosit=quiet", error);
+        Assert.Contains("Unknown option: --verbosit", error);
         Assert.Contains("Did you mean '--verbosity'?", error);
+        Assert.DoesNotContain("quiet", error);
     }
 
     [Fact]

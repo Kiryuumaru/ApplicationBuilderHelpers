@@ -138,7 +138,7 @@ internal sealed class ArgumentParser
                 // Non-flag options always consume nextArg as value even if flag-looking (e.g. --config --version).
                 // '='-form and compact '-ovalue' hold the value in-token and never consume.
                 var isInTokenValuedForm = arg.Contains('=')
-                    || (matchedOption.ShortName.HasValue && !matchedOption.IsFlag && arg.StartsWith($"-{matchedOption.ShortName}") && arg.Length > 2);
+                    || (matchedOption.ShortName.HasValue && !matchedOption.IsFlag && arg.StartsWith($"-{matchedOption.ShortName}", StringComparison.Ordinal) && arg.Length > 2);
                 if (!matchedOption.IsFlag && !isInTokenValuedForm && nextArg != null)
                     i++;
 
@@ -146,13 +146,26 @@ internal sealed class ArgumentParser
             }
             else if (arg.StartsWith('-') && !IsNumericValue(arg))
             {
-                // --no-<name>=value is always a value error, never "Unknown option":
-                // matched flags reject in ExtractValue; unmatched (unknown/non-flag) reject here.
+                // --no-<name>=value never accepts a value. Dispatch-only: a known
+                // base (any kind: flag, valued, collection) in the AllOptions
+                // scope rejects as InvalidValue with secret-aware text; an
+                // unknown base rejects as UnknownOption naming only the option
+                // (plus suggestion), never echoing the value. An empty base
+                // fails closed as InvalidValue with redaction on.
                 if (arg.StartsWith("--no-", StringComparison.Ordinal) && arg.Contains('='))
                 {
                     var name = arg[..arg.IndexOf('=')];
                     var rejected = arg[(arg.IndexOf('=') + 1)..];
-                    throw new CommandException($"Option '{name}' does not accept a value '{rejected}'. Use bare '{name}' to set the flag to 'false'.", 2, CommandErrorKind.InvalidValue);
+                    var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
+                    if (resolved != null)
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret), 2, CommandErrorKind.InvalidValue);
+                    if (name.Length == "--no-".Length)
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true), 2, CommandErrorKind.InvalidValue);
+                    var noValueSuggestion = DidYouMean.FindBestMatch(
+                        name,
+                        DidYouMean.OptionCandidates(allOptions));
+                    throw new CommandException(
+                        DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption);
                 }
 
                 // Combined short cluster (-abc bool chain, -abdvalue last-takes-value).
@@ -168,8 +181,17 @@ internal sealed class ArgumentParser
                 var optionSuggestion = DidYouMean.FindBestMatch(
                     arg,
                     DidYouMean.OptionCandidates(allOptions));
+                // Name-only unknown errors (fail-closed logging): strip any
+                // '=value' suffix like the --no- path above so a typo such as
+                // --pasword=hunter2 never echoes the value to stderr/logs.
+                // DidYouMean.Normalize already compares name-only, so the
+                // suggestion input stays the full token.
+                var unknownName = arg;
+                var unknownEquals = unknownName.IndexOf('=');
+                if (unknownEquals >= 0)
+                    unknownName = unknownName[..unknownEquals];
                 throw new CommandException(
-                    DidYouMean.WithSuggestion($"Unknown option: {arg}", optionSuggestion), 2, CommandErrorKind.UnknownOption);
+                    DidYouMean.WithSuggestion($"Unknown option: {unknownName}", optionSuggestion), 2, CommandErrorKind.UnknownOption);
             }
             else
             {
@@ -236,7 +258,7 @@ internal sealed class ArgumentParser
 
         // Only bare multi-char short bundles qualify: no '=', not '--' long form,
         // and not an already-handled single option match.
-        if (arg.Length <= 2 || !arg.StartsWith('-') || arg.StartsWith("--") || arg.Contains('=') || IsNumericValue(arg))
+        if (arg.Length <= 2 || !arg.StartsWith('-') || arg.StartsWith("--", StringComparison.Ordinal) || arg.Contains('=') || IsNumericValue(arg))
             return false;
 
         var shorts = allOptions.Where(o => o.ShortName.HasValue).ToList();

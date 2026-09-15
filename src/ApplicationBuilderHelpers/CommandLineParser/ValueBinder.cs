@@ -80,19 +80,15 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                 var converted = new List<object?>(values.Count);
                 foreach (var raw in values)
                 {
-                    string? normalized = raw.Length == 0 ? null : raw;
                     converted.Add(TypeConversion.TypeConversion.Convert(
-                        normalized, elementType, argument.IsCaseSensitive, argument.ValidValues, displayName, typeParserCollection, argument.IsSecret, isArgument: true));
+                        raw, elementType, argument.IsCaseSensitive, argument.ValidValues, displayName, typeParserCollection, argument.IsSecret, isArgument: true));
                 }
 
                 propertyValue = CollectionShape.Create(argument.PropertyType, elementType, converted, typeParserCollection, displayName, argument.IsSecret);
             }
             else
             {
-                string? raw = values[0];
-                string? normalized = raw.Length == 0 ? null : raw;
-                propertyValue = TypeConversion.TypeConversion.Convert(
-                    normalized, argument, displayName, typeParserCollection);
+                propertyValue = TypeConversion.TypeConversion.Convert(values[0], argument, displayName, typeParserCollection);
             }
 
             argument.Property.SetValue(command, propertyValue);
