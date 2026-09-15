@@ -167,12 +167,15 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
-    /// Creates a list of SubCommandArgumentInfo objects from a command type
+    /// Creates a list of SubCommandArgumentInfo objects from a command type.
+    /// Delegates the property walk to <see cref="CommandReflectionCache"/>
+    /// (the single owned BaseType walk) to avoid a duplicate walk under
+    /// <c>DynamicallyAccessedMembers(All)</c>.
     /// </summary>
     public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
         var arguments = new List<SubCommandArgumentInfo>();
-        var properties = GetAllProperties(commandType);
+        var properties = CommandReflectionCache.GetAllProperties(commandType);
 
         foreach (var property in properties)
         {
@@ -191,7 +194,7 @@ internal class SubCommandArgumentInfo
     /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts)
     /// </summary>
-    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
         var arguments = new List<SubCommandArgumentInfo>();
         var properties = commandType.GetProperties(
@@ -211,30 +214,6 @@ internal class SubCommandArgumentInfo
         }
 
         return [.. arguments.OrderBy(a => a.Position)];
-    }
-
-    /// <summary>
-    /// Gets all properties including inherited ones from base classes
-    /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
-    {
-        var properties = new List<PropertyInfo>();
-        var currentType = type;
-
-        while (currentType != null)
-        {
-            var declaredProperties = currentType.GetProperties(
-                BindingFlags.DeclaredOnly | 
-                BindingFlags.Public | 
-                BindingFlags.NonPublic | 
-                BindingFlags.Instance);
-
-            properties.AddRange((declaredProperties as IEnumerable<PropertyInfo>).Reverse());
-            currentType = currentType.BaseType;
-        }
-
-        properties.Reverse();
-        return properties;
     }
 
     /// <summary>

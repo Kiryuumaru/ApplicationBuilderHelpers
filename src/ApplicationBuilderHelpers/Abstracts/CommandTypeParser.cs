@@ -1,5 +1,6 @@
 ﻿using ApplicationBuilderHelpers.Interfaces;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -67,6 +68,16 @@ public abstract class CommandTypeParser<T> : ICommandTypeParser
     public Array CreateTypedArray(int length)
     {
         return new T[length];
+    }
+
+    /// <summary>
+    /// Creates a typed list of the specified capacity for the target type.
+    /// </summary>
+    /// <param name="capacity">The capacity hint for the list to create.</param>
+    /// <returns>A new list of type T with the specified capacity.</returns>
+    public virtual IList CreateTypedList(int capacity)
+    {
+        return new List<T>(capacity);
     }
 
     /// <summary>

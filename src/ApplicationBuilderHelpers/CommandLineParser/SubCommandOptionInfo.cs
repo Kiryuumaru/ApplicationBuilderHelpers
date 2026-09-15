@@ -211,12 +211,15 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Creates a list of SubCommandOptionInfo objects from a command type
+    /// Creates a list of SubCommandOptionInfo objects from a command type.
+    /// Delegates the property walk to <see cref="CommandReflectionCache"/>
+    /// (the single owned BaseType walk) to avoid a duplicate walk under
+    /// <c>DynamicallyAccessedMembers(All)</c>.
     /// </summary>
     public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var options = new List<SubCommandOptionInfo>();
-        var properties = GetAllProperties(commandType);
+        var properties = CommandReflectionCache.GetAllProperties(commandType);
 
         foreach (var property in properties)
         {
@@ -255,30 +258,6 @@ internal class SubCommandOptionInfo
         }
 
         return options;
-    }
-
-    /// <summary>
-    /// Gets all properties including inherited ones from base classes
-    /// </summary>
-    private static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
-    {
-        var properties = new List<PropertyInfo>();
-        var currentType = type;
-
-        while (currentType != null)
-        {
-            var declaredProperties = currentType.GetProperties(
-                BindingFlags.DeclaredOnly | 
-                BindingFlags.Public | 
-                BindingFlags.NonPublic | 
-                BindingFlags.Instance);
-
-            properties.AddRange((declaredProperties as IEnumerable<PropertyInfo>).Reverse());
-            currentType = currentType.BaseType;
-        }
-
-        properties.Reverse();
-        return properties;
     }
 
     /// <summary>

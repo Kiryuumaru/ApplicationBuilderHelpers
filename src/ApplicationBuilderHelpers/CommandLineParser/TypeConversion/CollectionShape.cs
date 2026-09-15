@@ -131,12 +131,21 @@ internal static class CollectionShape
 
     /// <summary>
     /// Materializes the already-converted element values into the target <paramref name="propertyType"/> shape.
-    /// Arrays go through the element parser's <c>CreateTypedArray</c> with an <c>object[]</c> fallback;
+    /// Arrays go through the element parser's <c>CreateTypedArray</c> (AOT-safe:
+    /// the generic <c>CommandTypeParser&lt;T&gt;</c> factory is <c>new T[length]</c>).
     /// <c>List&lt;T&gt;</c>/<c>IEnumerable&lt;T&gt;</c>/<c>ICollection&lt;T&gt;</c>/<c>IList&lt;T&gt;</c>
-    /// are built via <c>List&lt;T&gt;</c> construction (a <c>List&lt;T&gt;</c> instance satisfies
-    /// all four interface/class shapes).
+    /// go through the element parser's <c>CreateTypedList</c> (AOT-safe:
+    /// the generic <c>CommandTypeParser&lt;T&gt;</c> factory is <c>new List&lt;T&gt;(capacity)</c>;
+    /// a <c>List&lt;T&gt;</c> instance satisfies all four interface/class shapes).
+    /// The only fallback is an exactly-typed <c>new List&lt;object?&gt;(capacity)</c> when the
+    /// element type is <see cref="object"/> (which <em>is</em> the real element type,
+    /// so it stays assignable); any other missing parser or factory failure throws
+    /// a styled <see cref="ConversionErrors.CollectionMaterialization"/> error
+    /// (exit 2, <c>InvalidValue</c>) instead of returning a wrong-typed collection
+    /// (assigning e.g. <c>object[]</c> into an <c>int[]</c> property throws
+    /// <see cref="ArgumentException"/> at the bind site).
     /// </summary>
-    internal static object? Create(Type propertyType, Type elementType, IReadOnlyList<object?> converted, ICommandTypeParserCollection typeParsers)
+    internal static object? Create(Type propertyType, Type elementType, IReadOnlyList<object?> converted, ICommandTypeParserCollection typeParsers, string? displayName = null, bool isSecret = false)
     {
         var kind = GetKind(propertyType);
 
@@ -149,14 +158,23 @@ internal static class CollectionShape
                 {
                     array = parser.CreateTypedArray(converted.Count);
                 }
-                catch
+                catch (Exception) when (elementType == typeof(object))
                 {
                     array = new object?[converted.Count];
                 }
+                catch (Exception ex)
+                {
+                    string tail = isSecret ? SecretRedaction.Mask : ex.Message;
+                    throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"The type parser for element type '{elementType.FullName}' failed to create a typed array: {tail}", displayName, isSecret);
+                }
+            }
+            else if (elementType == typeof(object))
+            {
+                array = new object?[converted.Count];
             }
             else
             {
-                array = new object?[converted.Count];
+                throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"No type parser is registered for element type '{elementType.FullName}'. Register one via AddCommandTypeParser.", displayName, isSecret);
             }
 
             for (int i = 0; i < converted.Count; i++)
@@ -167,10 +185,32 @@ internal static class CollectionShape
             return array;
         }
 
-#pragma warning disable IL3050 // Element types come from command property metadata preserved for trimming; List<T>(int) is a built-in constructor.
-        var listType = typeof(List<>).MakeGenericType(elementType);
-        var list = (IList)Activator.CreateInstance(listType, converted.Count)!;
-#pragma warning restore IL3050
+        IList list;
+        if (typeParsers.TypeParsers.TryGetValue(elementType, out var listParser))
+        {
+            try
+            {
+                list = listParser.CreateTypedList(converted.Count);
+            }
+            catch (Exception) when (elementType == typeof(object))
+            {
+                list = new List<object?>(converted.Count);
+            }
+            catch (Exception ex)
+            {
+                string listTail = isSecret ? SecretRedaction.Mask : ex.Message;
+                throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"The type parser for element type '{elementType.FullName}' failed to create a typed list: {listTail}", displayName, isSecret);
+            }
+        }
+        else if (elementType == typeof(object))
+        {
+            list = new List<object?>(converted.Count);
+        }
+        else
+        {
+            throw ConversionErrors.CollectionMaterialization(propertyType, elementType, $"No type parser is registered for element type '{elementType.FullName}'. Register one via AddCommandTypeParser.", displayName, isSecret);
+        }
+
         foreach (var item in converted)
         {
             list.Add(item);
