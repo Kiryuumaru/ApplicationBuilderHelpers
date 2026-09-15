@@ -1,6 +1,7 @@
 using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
@@ -11,6 +12,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// unexpected faults map to exit 1 with styled stderr, custom command exit codes
 /// pass through untouched, and help stays exit 0 on stdout only.
+/// Also pins <see cref="CommandErrorKind.UnknownCommand"/> footer parity across
+/// the gateway, run-fault, and host paths: all three render the same kind-specific
+/// footer (the host path resolves the executable name by auto-detection, so only
+/// the kind-specific suffix is pinned there).
 /// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
 /// console streams are process-global mutable state.
 /// </summary>
@@ -37,6 +42,42 @@ public sealed class ErrorContractTests
         }
     }
 
+    [Command("contractrun", "Probes run-fault kind preservation.")]
+    public sealed class RunFaultKindContractCommand : Command
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            throw new CommandException("no such command", 2, CommandErrorKind.UnknownCommand);
+        }
+    }
+
+    [Command("contractslow", "Probes host-fault rendering while running.")]
+    public sealed class SlowSuccessContractCommand : Command
+    {
+        protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            await Task.Delay(100, cancellationTokenSource.Token);
+        }
+    }
+
+    public sealed class UnknownCommandHostBoomService : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            throw new CommandException("no such command", 2, CommandErrorKind.UnknownCommand);
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    public sealed class UnknownCommandHostBoomDependency : ApplicationDependency
+    {
+        public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
+        {
+            services.AddHostedService<UnknownCommandHostBoomService>();
+        }
+    }
+
     [Fact]
     public async Task UnexpectedFault_MapsToFaultExitCodeWithStyledError()
     {
@@ -59,6 +100,40 @@ public sealed class ErrorContractTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error:", error);
         Assert.Contains("Run 'contract-test --help' for more information on available commands and options.", error);
+    }
+
+    [Fact]
+    public async Task UnknownCommandGateway_RendersSpecificCommandFooter()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<FaultContractCommand>(), ["boguscmd"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Run 'contract-test <command> --help' for more information on specific command options.", error);
+    }
+
+    [Fact]
+    public async Task UnknownCommandRunFault_RendersSameFooter()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<RunFaultKindContractCommand>(), ["contractrun"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Error: no such command", error);
+        Assert.Contains("Run 'contract-test <command> --help' for more information on specific command options.", error);
+    }
+
+    [Fact]
+    public async Task UnknownCommandHostFault_RendersSameFooter()
+    {
+        var (exitCode, _, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<SlowSuccessContractCommand>().AddApplication<UnknownCommandHostBoomDependency>(), ["contractslow"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Error: no such command", error);
+        Assert.Contains("Run 'testhost <command> --help' for more information on specific command options.", error);
     }
 
     [Fact]
