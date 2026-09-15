@@ -136,6 +136,7 @@ public interface ICommandTypeParser
     string? GetString(object? value);
     object? GetDefaultValue();
     Array CreateTypedArray(int length);
+    IList CreateTypedList(int capacity);
 }
 ```
 
@@ -281,5 +282,6 @@ public abstract class CommandTypeParser<T> : ICommandTypeParser
     public abstract string? GetStringValue(T? value);
     public abstract T? GetDefaultValue();
     public abstract Array CreateTypedArray(int length);
+    public virtual IList CreateTypedList(int capacity) => new List<T>(capacity);
 }
 ```

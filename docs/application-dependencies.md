@@ -96,7 +96,8 @@ runs these steps in order:
 
 1. The target command's registrations run first: the command instance is
    added to the dependency list before the global dependencies
-   (`CommandExecutor` :86-90), and `BuildInternal` then invokes
+   (`CommandExecutor.ExecuteCommand` adds `command` then the global
+   dependencies, then calls `ApplicationHostBuilder.BuildInternal`), and `BuildInternal` then invokes
    `BuilderPreparation` → `AddConfigurations` → `AddServices` in dependency
    order — so the command's `AddServices` runs before the globals', and a
    later registration for the same service wins (last-wins, no warn/fail

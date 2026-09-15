@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -111,12 +112,7 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
 
     internal override ApplicationHost Build()
     {
-        if (typeof(THostApplicationBuilder).GetMethod("Build") is not MethodInfo builderBuildethodInfo)
-        {
-            throw new Exception("Builder does not have a build method.");
-        }
-
-        var appObj = builderBuildethodInfo.Invoke(Builder, null);
+        var appObj = BuildHostBuilder(typeof(THostApplicationBuilder), Builder);
 
         if (appObj is not IHost host)
         {
@@ -127,5 +123,33 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
         {
             ApplicationDependencies = ApplicationDependencies,
         };
+    }
+
+    private static readonly ConcurrentDictionary<Type, MethodInfo> BuildMethodCache = new();
+    private static readonly object BuildMethodSyncRoot = new();
+
+    private static object? BuildHostBuilder(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] Type builderType,
+        object builder)
+    {
+        if (!BuildMethodCache.TryGetValue(builderType, out var buildMethod))
+        {
+            lock (BuildMethodSyncRoot)
+            {
+                if (!BuildMethodCache.TryGetValue(builderType, out buildMethod))
+                {
+                    var resolved = builderType.GetMethod("Build");
+                    if (resolved is null)
+                    {
+                        throw new Exception("Builder does not have a build method.");
+                    }
+
+                    BuildMethodCache[builderType] = resolved;
+                    buildMethod = resolved;
+                }
+            }
+        }
+
+        return buildMethod.Invoke(builder, null);
     }
 }

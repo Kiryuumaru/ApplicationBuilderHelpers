@@ -51,7 +51,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                         raw, elementType, option.IsCaseSensitive, option.ValidValues, displayName, typeParserCollection, option.IsSecret, isArgument: false));
                 }
 
-                propertyValue = CollectionShape.Create(option.PropertyType, elementType, converted, typeParserCollection);
+                propertyValue = CollectionShape.Create(option.PropertyType, elementType, converted, typeParserCollection, displayName, option.IsSecret);
             }
             else
             {
@@ -85,7 +85,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                         normalized, elementType, argument.IsCaseSensitive, argument.ValidValues, displayName, typeParserCollection, argument.IsSecret, isArgument: true));
                 }
 
-                propertyValue = CollectionShape.Create(argument.PropertyType, elementType, converted, typeParserCollection);
+                propertyValue = CollectionShape.Create(argument.PropertyType, elementType, converted, typeParserCollection, displayName, argument.IsSecret);
             }
             else
             {
