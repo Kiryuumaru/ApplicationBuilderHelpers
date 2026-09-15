@@ -218,6 +218,34 @@ public sealed class SecretRedactionTests
         }
     }
 
+    [Command("seclist", "Probes secret integer list materialization.")]
+    public sealed class SecretListCommand : Command
+    {
+        [CommandOption("scores", Description = "Scores.", Secret = true)]
+        public List<int>? Scores { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"seclist:{(Scores is null ? "null" : string.Join(",", Scores))}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("plainlist", "Probes plain integer list materialization.")]
+    public sealed class PlainListCommand : Command
+    {
+        [CommandOption("scores", Description = "Scores.")]
+        public List<int>? Scores { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"plainlist:{(Scores is null ? "null" : string.Join(",", Scores))}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Command("secmissing", "Probes secret enum array without a registered parser.")]
     public sealed class SecretMissingParserCommand : Command
     {
@@ -277,6 +305,8 @@ public sealed class SecretRedactionTests
         public object? GetDefaultValue() => default(int);
 
         public Array CreateTypedArray(int length) => throw new InvalidOperationException($"Factory failure for '{LastRaw}'.");
+
+        public System.Collections.IList CreateTypedList(int capacity) => throw new InvalidOperationException($"Factory failure for '{LastRaw}'.");
     }
 
     [Fact]
@@ -485,6 +515,46 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
+    public async Task SecretCollection_ListFactoryFailure_MasksValueKeepsNames()
+    {
+        EchoingIntArrayParser.LastRaw = null;
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateCollectionBuilder().AddCommandTypeParser<EchoingIntArrayParser>(),
+            ["seclist", "--scores=7"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Cannot bind", error);
+        Assert.Contains("--scores", error);
+        Assert.Contains(typeof(List<int>).FullName!, error);
+        Assert.Contains(typeof(int).FullName!, error);
+        Assert.Contains("[REDACTED]", error);
+        Assert.DoesNotContain("Factory failure for", error);
+        if (EchoingIntArrayParser.LastRaw is not null)
+        {
+            Assert.DoesNotContain($"'{EchoingIntArrayParser.LastRaw}'", error);
+        }
+    }
+
+    [Fact]
+    public async Task PlainCollection_ListFactoryFailure_EchoesValue()
+    {
+        EchoingIntArrayParser.LastRaw = null;
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateCollectionBuilder().AddCommandTypeParser<EchoingIntArrayParser>(),
+            ["plainlist", "--scores=7"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Cannot bind", error);
+        Assert.Contains("--scores", error);
+        Assert.Contains(typeof(List<int>).FullName!, error);
+        Assert.Contains(typeof(int).FullName!, error);
+        Assert.Contains("Factory failure for '7'", error);
+        Assert.DoesNotContain("[REDACTED]", error);
+    }
+
+    [Fact]
     public async Task SecretCollection_MissingParser_KeepsNames()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateCollectionBuilder, ["secmissing", "--shades=Red"]);
@@ -522,6 +592,8 @@ public sealed class SecretRedactionTests
             .SetExecutableVersion("9.9.9")
             .AddCommand<SecretCollectionCommand>()
             .AddCommand<PlainCollectionCommand>()
+            .AddCommand<SecretListCommand>()
+            .AddCommand<PlainListCommand>()
             .AddCommand<SecretMissingParserCommand>()
             .AddCommand<PlainMissingParserCommand>();
     }

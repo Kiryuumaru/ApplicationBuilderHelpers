@@ -14,6 +14,7 @@ public interface ICommandTypeParser
     string? GetString(object? value);
     object? GetDefaultValue();
     Array CreateTypedArray(int length);
+    IList CreateTypedList(int capacity);
 }
 ```
 
@@ -48,6 +49,8 @@ public class DateTimeTypeParser : CommandTypeParser<DateTime>
     public override DateTime? GetDefaultValue() => null;
 
     public override Array CreateTypedArray(int length) => new DateTime[length];
+
+    public override IList CreateTypedList(int capacity) => new List<DateTime>(capacity);
 }
 ```
 
@@ -80,6 +83,9 @@ public class TimeSpanTypeParser : ICommandTypeParser
 
     public Array CreateTypedArray(int length)
         => new TimeSpan[length];
+
+    public IList CreateTypedList(int capacity)
+        => new List<TimeSpan>(capacity);
 }
 ```
 

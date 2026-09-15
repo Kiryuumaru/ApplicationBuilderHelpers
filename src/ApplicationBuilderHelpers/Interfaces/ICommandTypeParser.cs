@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.Interfaces;
@@ -41,4 +42,13 @@ public interface ICommandTypeParser
     /// <param name="length"></param>
     /// <returns></returns>
     Array CreateTypedArray(int length);
+
+    /// <summary>
+    /// Creates a typed list for AOT compatibility.
+    /// Mirrors <see cref="CreateTypedArray(int)"/>: the generic
+    /// <c>CommandTypeParser&lt;T&gt;</c> factory is <c>new List&lt;T&gt;(capacity)</c>.
+    /// </summary>
+    /// <param name="capacity">The capacity hint for the list to create.</param>
+    /// <returns>A new list of the parser element type with the specified capacity.</returns>
+    IList CreateTypedList(int capacity);
 }

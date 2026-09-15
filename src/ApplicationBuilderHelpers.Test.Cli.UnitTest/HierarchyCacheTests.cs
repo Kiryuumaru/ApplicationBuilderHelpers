@@ -120,6 +120,8 @@ public sealed class HierarchyCacheTests
         public object? GetDefaultValue() => CacheSeverity.Low;
 
         public Array CreateTypedArray(int length) => new CacheSeverity[length];
+
+        public System.Collections.IList CreateTypedList(int capacity) => new List<CacheSeverity>(capacity);
     }
 
     /// <summary>
@@ -145,6 +147,8 @@ public sealed class HierarchyCacheTests
         public object? GetDefaultValue() => TimeSpan.Zero;
 
         public Array CreateTypedArray(int length) => new TimeSpan[length];
+
+        public System.Collections.IList CreateTypedList(int capacity) => new List<TimeSpan>(capacity);
     }
 
     [Fact]

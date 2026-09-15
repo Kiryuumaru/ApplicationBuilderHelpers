@@ -4,6 +4,9 @@ using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -219,46 +222,83 @@ internal sealed class CommandExecutor(
     /// or a future framework retargeting to properties).
     /// </para>
     /// </summary>
+    private sealed record ServiceInjectionTarget(PropertyInfo Property, object? Key, bool Keyed);
+
+    private static readonly ConcurrentDictionary<Type, ServiceInjectionTarget[]> InjectionPlanCache = new();
+    private static readonly object InjectionPlanSyncRoot = new();
+
+    private static ServiceInjectionTarget[] GetInjectionPlan([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
+    {
+        if (InjectionPlanCache.TryGetValue(commandType, out var cached))
+        {
+            return cached;
+        }
+
+        lock (InjectionPlanSyncRoot)
+        {
+            if (InjectionPlanCache.TryGetValue(commandType, out cached))
+            {
+                return cached;
+            }
+
+            var targets = new List<ServiceInjectionTarget>();
+            foreach (var property in CommandReflectionCache.GetAllProperties(commandType))
+            {
+                var attributes = property.GetCustomAttributes(inherit: true);
+                bool hasFromServices = attributes.Any(a => a.GetType().Name == "FromServicesAttribute");
+                var fromKeyed = attributes.FirstOrDefault(a => a.GetType().Name == "FromKeyedServicesAttribute");
+                if (!hasFromServices && fromKeyed is null)
+                {
+                    continue;
+                }
+
+                if (property.IsDefined(typeof(CommandOptionAttribute), inherit: true)
+                    || property.IsDefined(typeof(CommandArgumentAttribute), inherit: true))
+                {
+                    throw new InvalidOperationException(
+                        $"Property '{commandType.FullName}.{property.Name}' is marked with both a command-line attribute and a service attribute. A property is either CLI-bound or service-injected, never both.");
+                }
+
+                if (!property.CanWrite || property.SetMethod is null || property.SetMethod.IsStatic)
+                {
+                    throw new InvalidOperationException(
+                        $"Property '{commandType.FullName}.{property.Name}' is marked for service injection but has no writable instance setter.");
+                }
+
+                object? key = null;
+                bool keyed = fromKeyed is not null;
+                if (keyed)
+                {
+                    key = fromKeyed is FromKeyedServicesAttribute typed ? typed.Key : ReadKeyedServiceKey(property, commandType);
+                }
+
+                targets.Add(new ServiceInjectionTarget(property, key, keyed));
+            }
+
+            var plan = targets.ToArray();
+            InjectionPlanCache[commandType] = plan;
+            return plan;
+        }
+    }
+
     internal static void InjectServiceProperties(SubCommandInfo commandInfo, IServiceProvider scopedProvider)
     {
         var command = commandInfo.Command!;
         var commandType = command.GetType();
         var cliBoundNames = commandInfo.AllOptions.Select(o => o.Property.Name).Concat(commandInfo.AllArguments.Select(a => a.Property.Name)).ToHashSet(StringComparer.Ordinal);
 
-        foreach (var property in commandType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        foreach (var target in GetInjectionPlan(commandType))
         {
-            var attributes = property.GetCustomAttributes(inherit: true);
-            bool hasFromServices = attributes.Any(a => a.GetType().Name == "FromServicesAttribute");
-            var fromKeyed = attributes.FirstOrDefault(a => a.GetType().Name == "FromKeyedServicesAttribute");
-            if (!hasFromServices && fromKeyed is null)
-            {
-                continue;
-            }
-
-            if (cliBoundNames.Contains(property.Name)
-                || property.IsDefined(typeof(CommandOptionAttribute), inherit: true)
-                || property.IsDefined(typeof(CommandArgumentAttribute), inherit: true))
+            var property = target.Property;
+            if (cliBoundNames.Contains(property.Name))
             {
                 throw new InvalidOperationException(
                     $"Property '{commandType.FullName}.{property.Name}' is marked with both a command-line attribute and a service attribute. A property is either CLI-bound or service-injected, never both.");
             }
 
-            if (!property.CanWrite || property.SetMethod is null || property.SetMethod.IsStatic)
-            {
-                throw new InvalidOperationException(
-                    $"Property '{commandType.FullName}.{property.Name}' is marked for service injection but has no writable instance setter.");
-            }
-
-            object? value;
-            if (fromKeyed is not null)
-            {
-                object? key = fromKeyed is FromKeyedServicesAttribute typed ? typed.Key : ReadKeyedServiceKey(property, commandType);
-                value = scopedProvider.GetRequiredKeyedService(property.PropertyType, key);
-            }
-            else
-            {
-                value = scopedProvider.GetRequiredService(property.PropertyType);
-            }
+            object? value = target.Keyed
+                ? scopedProvider.GetRequiredKeyedService(property.PropertyType, target.Key)
+                : scopedProvider.GetRequiredService(property.PropertyType);
 
             property.SetValue(command, value);
         }
