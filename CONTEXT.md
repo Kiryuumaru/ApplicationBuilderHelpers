@@ -22,6 +22,15 @@ Revisiting a key already seen in the same chain.
 **Overflow**:
 Exceeding the maximum depth of a chain.
 
+**Completion gateway**:
+The pre-parse stage (`CompletionGateway`) that intercepts `complete` and `completions script|install|uninstall` after hierarchy build, before help/parsing.
+
+**Precedence**:
+The gateway order completion > help > parse > version.
+
+**Shadowing**:
+The gateway handling its reserved words first, so same-named registered commands never run.
+
 ## CLI Presence Glossary
 
 **Present**:
