@@ -109,7 +109,7 @@ internal static class CompletionScriptWriter
     }
 
     private static string NormalizeExeName(string? executableName) =>
-        string.IsNullOrWhiteSpace(executableName) ? "myapp" : executableName.Trim();
+        CompletionInstaller.RequireValidExe(executableName);
 
     private static string ToFuncName(string exe)
     {
