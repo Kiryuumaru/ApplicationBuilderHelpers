@@ -78,6 +78,10 @@ public int Timeout { get; set; } = 30;
 | `CaseSensitive` | `bool` | Case-sensitive matching for FromAmong |
 | `Secret` | `bool` | Redact value: help default shows `[REDACTED]`, errors omit the provided value |
 
+### Environment Variable Fallback
+
+When `EnvironmentVariable` is set and no CLI token is supplied, the env value fills the option — except an empty or whitespace-only env value is treated as unset. Precedence is CLI-wins: an explicit CLI token always replaces the env value, so `--opt ""` downgrades a set env value to `""` for string targets.
+
 ### Restricted Values
 
 ```csharp
@@ -118,6 +122,10 @@ public string? DestPath { get; set; }
 | `FromAmong` | `object[]` | Restrict to specific values |
 | `CaseSensitive` | `bool` | Case-sensitive matching |
 | `Secret` | `bool` | Redact value: errors omit the provided value |
+
+A positional argument is present when its token is supplied — even as `""` — which satisfies `Required`, while an omitted required argument fails with `MissingRequired` (exit 2); for string-typed targets the token binds verbatim as `""` (a whitespace-only token is likewise preserved, not trimmed). Non-string `""` follows per-type parser semantics instead: unparseable types report `InvalidValue` (exit 2). Named `bool` options reject `""` in `=`-form (`InvalidValue`, exit 2, same rule as the tokenizer section above) and never consume a following `""` in space-form — it stays positional; the `BoolTypeParser` empty-binds-`true` path is reachable only for positional `bool` arguments, which pass through with no literal gate. The same preserve rule applies to named options, except an empty or whitespace-only environment-variable fallback is treated as unset, and any strict empty-rejecting mode is a separate follow-up.
+
+**Breaking change:** code that relied on `""` arriving as `null` (e.g. `== null` sentinels) must migrate to `string.IsNullOrEmpty` — an explicitly supplied `""` now binds as `""`, never `null`.
 
 ## Shell Completion
 

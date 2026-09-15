@@ -205,6 +205,64 @@ public sealed class ValueBindingTests
         }
     }
 
+    [Command("bindboolarg", "Probes boolean positional argument binding.")]
+    public sealed class BooleanArgumentBindCommand : Command
+    {
+        [CommandArgument("flag", Description = "Flag.", Position = 0)]
+        public bool Flag { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Flag: {Flag}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("bindrequired", "Probes required positional argument binding.")]
+    public sealed class RequiredTestCommand : Command
+    {
+        [CommandArgument("target", Description = "Target.", Position = 0, Required = true)]
+        public string? Target { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Target: {Target ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("bindreqopt", "Probes required option binding.")]
+    public sealed class RequiredOptionBindCommand : Command
+    {
+        [CommandOption("label", Description = "Label value.", Required = true)]
+        public string? Label { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Label: {Label ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("bindenv", "Probes environment fallback precedence binding.")]
+    public sealed class EnvEmptyPrecedenceCommand : Command
+    {
+        [CommandOption("config", Description = "Config file path.", EnvironmentVariable = BindEnvConfigVariable)]
+        public string? Config { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Config: {Config ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private const string BindEnvConfigVariable = "PARKER_BINDENV_CONFIG";
+
     [Fact]
     public async Task Scalar_String_BindsValue()
     {
@@ -633,13 +691,223 @@ public sealed class ValueBindingTests
     }
 
     [Fact]
-    public async Task Argument_EmptyValue_BindsNull()
+    public async Task Argument_EmptyString_PreservesEmpty()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindargs", string.Empty]);
 
         Assert.Equal(0, exitCode);
+        var nameLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Name:", StringComparison.Ordinal));
+        Assert.Equal("Name: ", nameLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Argument_Omitted_StaysNull()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindargs"]);
+
+        Assert.Equal(0, exitCode);
         Assert.Contains("Name: null", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Argument_RequiredEmptyString_BindsEmpty()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindrequired", string.Empty]);
+
+        Assert.Equal(0, exitCode);
+        var targetLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Target:", StringComparison.Ordinal));
+        Assert.Equal("Target: ", targetLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Argument_RequiredOmitted_ReportsError()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindrequired"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing required argument: target", error);
+    }
+
+    [Fact]
+    public async Task EmptyString_OptionAndArgument_HaveParity()
+    {
+        var (optionExit, optionOutput, optionError) = await RunCapturedAsync(["bindprobe", "--text="]);
+        var (argumentExit, argumentOutput, argumentError) = await RunCapturedAsync(["bindargs", string.Empty]);
+
+        Assert.Equal(0, optionExit);
+        Assert.Equal(0, argumentExit);
+        var textLine = optionOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Text:", StringComparison.Ordinal));
+        var nameLine = argumentOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Name:", StringComparison.Ordinal));
+        Assert.Equal("Text: ", textLine);
+        Assert.Equal("Name: ", nameLine);
+        Assert.True(string.IsNullOrWhiteSpace(optionError), $"Expected empty stderr but got: {optionError}");
+        Assert.True(string.IsNullOrWhiteSpace(argumentError), $"Expected empty stderr but got: {argumentError}");
+    }
+
+    [Fact]
+    public async Task Argument_AllowedValues_RejectsEmptyString()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindargs", "Alice", "3", string.Empty]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Value '' is not valid for argument 'level'", error);
+        Assert.Contains("Must be one of: low, high", error);
+    }
+
+    [Fact]
+    public async Task Argument_WhitespaceString_BindsVerbatim()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindargs", " "]);
+
+        Assert.Equal(0, exitCode);
+        var nameLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Name:", StringComparison.Ordinal));
+        Assert.Equal("Name:  ", nameLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Argument_Array_PreservesEmptyElement()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindmany", string.Empty]);
+
+        Assert.Equal(0, exitCode);
+        var itemsLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Items:", StringComparison.Ordinal));
+        Assert.Equal("Items: ", itemsLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Argument_Integer_Empty_ReportsError()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindargs", "Alice", string.Empty]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for argument 'count'", error);
+    }
+
+    [Fact]
+    public async Task Argument_Boolean_EmptyValue_BindsTrue()
+    {
+        // Positional-only semantics: unlike a named bool option where an
+        // explicit empty literal is rejected at the flag-literal gate (see
+        // Scalar_Boolean_EmptyValue_Rejected), a positional has no literal
+        // gate so "" flows to the bool parser and binds true.
+        var (exitCode, output, error) = await RunCapturedAsync(["bindboolarg", string.Empty]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Flag: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Scalar_Boolean_EmptyValue_Rejected()
+    {
+        // Per-type semantics: unlike string options where "" binds verbatim,
+        // a bool flag rejects an explicit empty literal at the flag-literal
+        // gate (ValidateFlagLiteral) before BoolTypeParser is reached, while
+        // the bare flag still binds true (see Scalar_Boolean_BareFlag_BindsTrue).
+        var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", "--verbose="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid Boolean value '' for option '--verbose'", error);
+    }
+
+    [Fact]
+    public async Task Scalar_Guid_Empty_ReportsError()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", "--correlation="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid Guid value: ''", error);
+    }
+
+    [Fact]
+    public async Task Scalar_DateTime_Empty_ReportsError()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", "--not-before="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid DateTime value: ''", error);
+    }
+
+    [Fact]
+    public async Task RequiredOption_EmptyValue_SatisfiesRequired()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label="]);
+
+        Assert.Equal(0, exitCode);
+        var labelLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Label:", StringComparison.Ordinal));
+        Assert.Equal("Label: ", labelLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task RequiredOption_EmptyValueSpaceForm_SatisfiesRequired()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label", string.Empty]);
+
+        Assert.Equal(0, exitCode);
+        var labelLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Label:", StringComparison.Ordinal));
+        Assert.Equal("Label: ", labelLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Argument_IntegerArray_EmptyElement_ReportsError()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindnumbers", "1", string.Empty]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for argument 'numbers'", error);
+    }
+
+    [Fact]
+    public async Task ExplicitEmptyValue_TakesPrecedenceOverEnvironmentValue()
+    {
+        var prior = Environment.GetEnvironmentVariable(BindEnvConfigVariable);
+        Environment.SetEnvironmentVariable(BindEnvConfigVariable, "env-config.json");
+        try
+        {
+            var (exitCode, output, error) = await RunCapturedAsync(["bindenv", "--config", string.Empty]);
+
+            Assert.Equal(0, exitCode);
+            Assert.DoesNotContain("env-config.json", output);
+            var configLine = output
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault(l => l.StartsWith("Config:", StringComparison.Ordinal));
+            Assert.Equal("Config: ", configLine);
+            Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(BindEnvConfigVariable, prior);
+        }
     }
 
     [Fact]
@@ -704,7 +972,11 @@ public sealed class ValueBindingTests
             .AddCommand<ConstrainedBindCommand>()
             .AddCommand<ArgumentBindCommand>()
             .AddCommand<ArrayArgumentBindCommand>()
-            .AddCommand<IntArrayArgumentBindCommand>();
+            .AddCommand<IntArrayArgumentBindCommand>()
+            .AddCommand<BooleanArgumentBindCommand>()
+            .AddCommand<RequiredTestCommand>()
+            .AddCommand<RequiredOptionBindCommand>()
+            .AddCommand<EnvEmptyPrecedenceCommand>();
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(string[] args)
