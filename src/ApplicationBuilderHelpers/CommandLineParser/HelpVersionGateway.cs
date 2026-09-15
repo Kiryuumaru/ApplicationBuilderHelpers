@@ -72,26 +72,6 @@ internal sealed class HelpVersionGateway(
         // Add helpful footer message based on error kind
         consoleOutput.WriteLineError();
 
-        switch (kind)
-        {
-            case CommandErrorKind.RequiresSubcommand:
-                if (!string.IsNullOrEmpty(commandName))
-                {
-                    consoleOutput.WriteLineError($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
-                }
-                else
-                {
-                    consoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
-                }
-                break;
-            case CommandErrorKind.UnknownOption:
-            case CommandErrorKind.MissingRequired:
-            case CommandErrorKind.UnknownCommand:
-                consoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
-                break;
-            default:
-                consoleOutput.WriteLineError($"Run '{executableName} --help' for more information on available commands and options.");
-                break;
-        }
+        consoleOutput.WriteLineError(CommandErrorFooter.Resolve(kind, executableName, commandName));
     }
 }
