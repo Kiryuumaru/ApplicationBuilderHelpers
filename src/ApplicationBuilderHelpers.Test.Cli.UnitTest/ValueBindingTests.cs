@@ -173,6 +173,22 @@ public sealed class ValueBindingTests
         public object? GetDefaultValue() => null;
 
         public Array CreateTypedArray(int length) => throw new InvalidOperationException("No typed array.");
+
+        public System.Collections.IList CreateTypedList(int capacity) => throw new InvalidOperationException("No typed list.");
+    }
+
+    [Command("bindlists", "Probes object list binding.")]
+    public sealed class ObjectListBindCommand : Command
+    {
+        [CommandOption("blobs", Description = "Blobs.")]
+        public List<object>? Blobs { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Blobs: {(Blobs is null ? "null" : string.Join(",", Blobs))}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
     }
 
     [Command("bindnumbers", "Probes integer array argument binding.")]
@@ -558,6 +574,27 @@ public sealed class ValueBindingTests
     {
         var builder = CreateBuilder().AddCommandTypeParser<ThrowingArrayObjectParser>();
         var (exitCode, output, error) = await RunCapturedAsync(builder, ["bindchoice", "--blobs=a", "--blobs=b"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Blobs: a,b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task ObjectList_WithoutParser_BindsAsObjects()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder().AddCommand<ObjectListBindCommand>(), ["bindlists", "--blobs=a", "--blobs=b"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Blobs: a,b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task ObjectList_ParserListThrows_FallsBackToBoundValues()
+    {
+        var builder = CreateBuilder().AddCommand<ObjectListBindCommand>().AddCommandTypeParser<ThrowingArrayObjectParser>();
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["bindlists", "--blobs=a", "--blobs=b"]);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Blobs: a,b", output);

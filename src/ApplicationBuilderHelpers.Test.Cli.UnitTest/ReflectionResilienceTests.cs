@@ -59,6 +59,22 @@ public sealed class ReflectionResilienceTests
         }
     }
 
+    [Command("typedlists", "Probes parser-owned typed-list binding.")]
+    public sealed class TypedListsCommand : Command
+    {
+        public static List<int>? Captured;
+
+        [CommandOption("scores", Description = "Scores.")]
+        public List<int>? Scores { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Captured = Scores;
+            Console.WriteLine($"Scores: {(Scores is null ? "null" : string.Join(",", Scores))}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Command("typedshade", "Probes enum option parsing.")]
     public sealed class TypedShadeCommand : Command
     {
@@ -99,6 +115,32 @@ public sealed class ReflectionResilienceTests
         public object? GetDefaultValue() => default(int);
 
         public Array CreateTypedArray(int length) => throw new InvalidOperationException("No typed array.");
+
+        public System.Collections.IList CreateTypedList(int capacity) => throw new InvalidOperationException("No typed list.");
+    }
+
+    /// <summary>
+    /// Custom <see cref="object"/> parser whose factories throw, so the
+    /// exactly-typed <c>List&lt;object?&gt;</c> fallback path is exercised.
+    /// Registered through the public <c>AddCommandTypeParser</c> entry point.
+    /// </summary>
+    public sealed class ThrowingObjectListParser : ICommandTypeParser
+    {
+        public Type Type => typeof(object);
+
+        public object? Parse(string? value, out string? validateError)
+        {
+            validateError = null;
+            return value;
+        }
+
+        public string? GetString(object? value) => value?.ToString();
+
+        public object? GetDefaultValue() => null;
+
+        public Array CreateTypedArray(int length) => throw new InvalidOperationException("No typed array.");
+
+        public System.Collections.IList CreateTypedList(int capacity) => throw new InvalidOperationException("No typed list.");
     }
 
     [Fact]
@@ -187,6 +229,218 @@ public sealed class ReflectionResilienceTests
         }
     }
 
+    [Fact]
+    public async Task IntegerList_BindsExactTypedList()
+    {
+        TypedListsCommand.Captured = null;
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(), ["typedlists", "--scores=1", "--scores=2", "--scores=3"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Scores: 1,2,3", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.NotNull(TypedListsCommand.Captured);
+        Assert.Equal(typeof(List<int>), TypedListsCommand.Captured.GetType());
+        Assert.Equal([1, 2, 3], TypedListsCommand.Captured);
+    }
+
+    /// <summary>
+    /// List-branch parity with the array S1 contract: when the element parser's
+    /// list factory throws, binding reports a styled usage error (exit 2)
+    /// instead of a raw fault (exit 1).
+    /// </summary>
+    [Fact]
+    public async Task IntegerList_ListFactoryUnavailable_ReportsUsageError()
+    {
+        TypedListsCommand.Captured = null;
+        var builder = CreateBuilder().AddCommandTypeParser<ThrowingIntArrayParser>();
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["typedlists", "--scores=1", "--scores=2"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("--scores", error);
+        Assert.Contains("failed to create a typed list", error);
+    }
+
+    [Command("typedshapes", "Probes all list-compatible collection shapes.")]
+    public sealed class TypedShapesCommand : Command
+    {
+        public static List<int>? CapturedList;
+        public static IEnumerable<int>? CapturedEnumerable;
+        public static ICollection<int>? CapturedCollection;
+        public static IList<int>? CapturedListInterface;
+        public static List<object>? CapturedObjects;
+
+        [CommandOption("scores-list", Description = "Scores as list.")]
+        public List<int>? ScoresList { get; set; }
+
+        [CommandOption("scores-enumerable", Description = "Scores as enumerable.")]
+        public IEnumerable<int>? ScoresEnumerable { get; set; }
+
+        [CommandOption("scores-collection", Description = "Scores as collection.")]
+        public ICollection<int>? ScoresCollection { get; set; }
+
+        [CommandOption("scores-ilist", Description = "Scores as list interface.")]
+        public IList<int>? ScoresIList { get; set; }
+
+        [CommandOption("blobs", Description = "Blobs as object list.")]
+        public List<object>? Blobs { get; set; }
+
+        [CommandOption("shades", Description = "Shades as enum list (no parser registered).")]
+        public List<ProbeShade>? Shades { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            CapturedList = ScoresList;
+            CapturedEnumerable = ScoresEnumerable;
+            CapturedCollection = ScoresCollection;
+            CapturedListInterface = ScoresIList;
+            CapturedObjects = Blobs;
+            Console.WriteLine($"List: {(ScoresList is null ? "null" : string.Join(",", ScoresList))}");
+            Console.WriteLine($"Enumerable: {(ScoresEnumerable is null ? "null" : string.Join(",", ScoresEnumerable))}");
+            Console.WriteLine($"Collection: {(ScoresCollection is null ? "null" : string.Join(",", ScoresCollection))}");
+            Console.WriteLine($"IList: {(ScoresIList is null ? "null" : string.Join(",", ScoresIList))}");
+            Console.WriteLine($"Blobs: {(Blobs is null ? "null" : string.Join(",", Blobs))}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Custom <see cref="int"/> parser that records the capacity hint passed to
+    /// <c>CreateTypedList</c>, proving the factory receives the element count
+    /// (not zero or a constant). Scalar parsing delegates to
+    /// <see cref="int.TryParse"/>.
+    /// </summary>
+    public sealed class CapacityRecordingIntParser : ICommandTypeParser
+    {
+        public static int LastCapacity = -1;
+
+        public Type Type => typeof(int);
+
+        public object? Parse(string? value, out string? validateError)
+        {
+            if (int.TryParse(value, out var result))
+            {
+                validateError = null;
+                return result;
+            }
+
+            validateError = $"Invalid Int32 value: '{value}'. Expected a valid Int32.";
+            return null;
+        }
+
+        public string? GetString(object? value) => value?.ToString();
+
+        public object? GetDefaultValue() => default(int);
+
+        public Array CreateTypedArray(int length) => new int[length];
+
+        public System.Collections.IList CreateTypedList(int capacity)
+        {
+            LastCapacity = capacity;
+            return new List<int>(capacity);
+        }
+    }
+
+    [Fact]
+    public async Task TypedListFactory_ReceivesElementCountAsCapacity()
+    {
+        CapacityRecordingIntParser.LastCapacity = -1;
+        TypedListsCommand.Captured = null;
+        var builder = CreateBuilder().AddCommandTypeParser<CapacityRecordingIntParser>();
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["typedlists", "--scores=1", "--scores=2", "--scores=3"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Scores: 1,2,3", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(3, CapacityRecordingIntParser.LastCapacity);
+        Assert.NotNull(TypedListsCommand.Captured);
+        Assert.Equal(typeof(List<int>), TypedListsCommand.Captured.GetType());
+    }
+
+    [Fact]
+    public async Task AllListShapes_BindExactTypedLists()
+    {
+        TypedShapesCommand.CapturedList = null;
+        TypedShapesCommand.CapturedEnumerable = null;
+        TypedShapesCommand.CapturedCollection = null;
+        TypedShapesCommand.CapturedListInterface = null;
+        TypedShapesCommand.CapturedObjects = null;
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(), ["typedshapes", "--scores-list=1", "--scores-list=2", "--scores-enumerable=1", "--scores-enumerable=2", "--scores-collection=1", "--scores-collection=2", "--scores-ilist=1", "--scores-ilist=2"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("List: 1,2", output);
+        Assert.Contains("Enumerable: 1,2", output);
+        Assert.Contains("Collection: 1,2", output);
+        Assert.Contains("IList: 1,2", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.NotNull(TypedShapesCommand.CapturedList);
+        Assert.Equal(typeof(List<int>), TypedShapesCommand.CapturedList.GetType());
+        Assert.Equal([1, 2], TypedShapesCommand.CapturedList);
+        Assert.NotNull(TypedShapesCommand.CapturedEnumerable);
+        Assert.Equal(typeof(List<int>), TypedShapesCommand.CapturedEnumerable.GetType());
+        Assert.Equal([1, 2], TypedShapesCommand.CapturedEnumerable);
+        Assert.NotNull(TypedShapesCommand.CapturedCollection);
+        Assert.Equal(typeof(List<int>), TypedShapesCommand.CapturedCollection.GetType());
+        Assert.Equal([1, 2], TypedShapesCommand.CapturedCollection);
+        Assert.NotNull(TypedShapesCommand.CapturedListInterface);
+        Assert.Equal(typeof(List<int>), TypedShapesCommand.CapturedListInterface.GetType());
+        Assert.Equal([1, 2], TypedShapesCommand.CapturedListInterface);
+    }
+
+    /// <summary>
+    /// Object-element parity with the array branch: <c>List&lt;object&gt;</c>
+    /// materializes through the exactly-typed <c>List&lt;object?&gt;</c> fallback
+    /// when no parser (or a throwing parser) is registered for
+    /// <see cref="object"/>, never a styled usage error or raw fault.
+    /// </summary>
+    [Fact]
+    public async Task ObjectList_WithoutParser_BindsAsObjects()
+    {
+        TypedShapesCommand.CapturedObjects = null;
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(), ["typedshapes", "--blobs=a", "--blobs=b"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Blobs: a,b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.NotNull(TypedShapesCommand.CapturedObjects);
+        Assert.Equal(new List<object> { "a", "b" }, TypedShapesCommand.CapturedObjects);
+    }
+
+    [Fact]
+    public async Task ObjectList_ParserListThrows_FallsBackToBoundValues()
+    {
+        TypedShapesCommand.CapturedObjects = null;
+        var builder = CreateBuilder().AddCommandTypeParser<ThrowingObjectListParser>();
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["typedshapes", "--blobs=a", "--blobs=b"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Blobs: a,b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.NotNull(TypedShapesCommand.CapturedObjects);
+        Assert.Equal(new List<object> { "a", "b" }, TypedShapesCommand.CapturedObjects);
+    }
+
+    /// <summary>
+    /// No-parser error contract for non-object element types: a list property
+    /// whose element type has no registered parser reaches the collection
+    /// materialization path (e.g. an enum list) and reports a styled usage
+    /// error naming the registration path, never a raw fault.
+    /// Enum lists exercise this contract because enums convert via the scalar
+    /// pipeline (no parser entry), so a valid value survives conversion and
+    /// the missing factory surfaces exactly at materialization.
+    /// </summary>
+    [Fact]
+    public async Task ListShape_UnsupportedElementType_ReportsUsageError()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(), ["typedshapes", "--shades=Red", "--shades=Green"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("--shades", error);
+        Assert.Contains("No type parser is registered", error);
+        Assert.Contains("AddCommandTypeParser", error);
+    }
+
     private static ApplicationBuilder CreateBuilder()
     {
         return ApplicationBuilder.Create()
@@ -196,6 +450,8 @@ public sealed class ReflectionResilienceTests
             .SetExecutableVersion("9.9.9")
             .AddCommand<InheritedOptionLeafCommand>()
             .AddCommand<TypedScoresCommand>()
+            .AddCommand<TypedListsCommand>()
+            .AddCommand<TypedShapesCommand>()
             .AddCommand<TypedShadeCommand>();
     }
 

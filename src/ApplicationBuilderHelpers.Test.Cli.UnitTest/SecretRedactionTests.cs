@@ -277,6 +277,8 @@ public sealed class SecretRedactionTests
         public object? GetDefaultValue() => default(int);
 
         public Array CreateTypedArray(int length) => throw new InvalidOperationException($"Factory failure for '{LastRaw}'.");
+
+        public System.Collections.IList CreateTypedList(int capacity) => throw new InvalidOperationException($"Factory failure for '{LastRaw}'.");
     }
 
     [Fact]
