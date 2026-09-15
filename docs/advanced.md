@@ -91,6 +91,16 @@ throw new CommandException("Configuration missing", exitCode: 2);
 
 The library catches `CommandException` during execution and returns its exit code. Other unhandled exceptions will propagate.
 
+### Error Footers
+
+Usage errors print a `Run '...' --help` footer selected by error kind:
+
+- `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options.`; without one → the global footer below.
+- `UnknownOption`, `MissingRequired`, `UnknownCommand` → `Run '<exe> <command> --help' for more information on specific command options.` (`<command>` is literal).
+- Anything else → `Run '<exe> --help' for more information on available commands and options.`
+
+`<exe>` is the configured executable name when set on the gateway path, otherwise the auto-detected one (the host path always auto-detects). Both error paths render the same footer for the same kind.
+
 ### Did-You-Mean Suggestions
 
 At CLI dead-ends the parser appends a `Did you mean 'x'?` suggestion when the

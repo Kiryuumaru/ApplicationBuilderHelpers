@@ -80,26 +80,7 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
 
         ConsoleOutput.WriteLineError();
 
-        switch (kind)
-        {
-            case CommandErrorKind.RequiresSubcommand:
-                if (!string.IsNullOrEmpty(commandName))
-                {
-                    ConsoleOutput.WriteLineError($"Run '{executableName} {commandName} --help' to see available subcommands and options.");
-                }
-                else
-                {
-                    ConsoleOutput.WriteLineError($"Run '{executableName} --help' to see available commands and options.");
-                }
-                break;
-            case CommandErrorKind.UnknownOption:
-            case CommandErrorKind.MissingRequired:
-                ConsoleOutput.WriteLineError($"Run '{executableName} <command> --help' for more information on specific command options.");
-                break;
-            default:
-                ConsoleOutput.WriteLineError($"Run '{executableName} --help' for more information on available commands and options.");
-                break;
-        }
+        ConsoleOutput.WriteLineError(CommandErrorFooter.Resolve(kind, executableName, commandName));
     }
 }
 
