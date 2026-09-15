@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
+using ApplicationBuilderHelpers.Exceptions;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -9,6 +12,10 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// Block format: start marker + managed line + script body + end marker.
 /// Bash/Zsh/Pwsh targets are rc/profile files (replace-in-place or append);
 /// fish target is a file-drop. Home/XDG/SHELL/OS lookups are injectable for tests.
+/// Executable names are validated once here (single owner); shell function
+/// identifiers use the transliterated projection in <see cref="CompletionScriptWriter"/>.
+/// Mutating install/uninstall paths hold a per-target sibling lock file;
+/// dry-run paths are lock-free.
 /// </summary>
 internal static class CompletionInstaller
 {
@@ -16,11 +23,64 @@ internal static class CompletionInstaller
     internal static Func<string, string?> EnvironmentProvider = static name => Environment.GetEnvironmentVariable(name);
     internal static Func<bool>? IsWindowsProvider;
 
-    internal static string StartMarker(string exe) => $"# >>> {NormalizeExe(exe)} completion >>>";
+    internal const int MaxExeNameLength = 64;
 
-    internal static string EndMarker(string exe) => $"# <<< {NormalizeExe(exe)} completion <<<";
+    /// <summary>
+    /// Single owner for executable-name policy: empty/whitespace falls back to
+    /// <c>myapp</c>; otherwise the trimmed name must be ASCII letters/digits plus
+    /// <c>.</c>, <c>_</c>, <c>-</c> (max 64 chars) and start with an ASCII letter
+    /// or <c>_</c> (leading <c>-</c>/<c>.</c>/digits break shell shims).
+    /// Anything else is rejected with a usage error (exit 2) naming the allowed set.
+    /// </summary>
+    internal static string RequireValidExe(string? exe)
+    {
+        if (string.IsNullOrWhiteSpace(exe))
+            return "myapp";
+        var trimmed = exe.Trim();
+        if (trimmed.Length == 0)
+            return "myapp";
+        if (trimmed.Length > MaxExeNameLength || !IsValidExeChars(trimmed) || !IsValidExeStart(trimmed[0]))
+            throw new CommandException(
+                $"Invalid executable name '{SanitizeForMessage(trimmed)}'. Allowed: letters, digits, '.', '_' and '-' (max {MaxExeNameLength} characters), starting with a letter or '_'.",
+                2,
+                CommandErrorKind.InvalidValue);
+        return trimmed;
+    }
 
-    internal static string ManagedLine(string exe) => $"# managed by {NormalizeExe(exe)} completions install; do not edit.";
+    private static bool IsValidExeChars(string value)
+    {
+        foreach (var c in value)
+        {
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-')
+                continue;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsValidExeStart(char first)
+    {
+        return (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_';
+    }
+
+    private static string SanitizeForMessage(string value)
+    {
+        var chars = value.ToCharArray();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            if (char.IsControl(chars[i]))
+                chars[i] = '?';
+        }
+
+        return new string(chars);
+    }
+
+    internal static string StartMarker(string exe) => $"# >>> {RequireValidExe(exe)} completion >>>";
+
+    internal static string EndMarker(string exe) => $"# <<< {RequireValidExe(exe)} completion <<<";
+
+    internal static string ManagedLine(string exe) => $"# managed by {RequireValidExe(exe)} completions install; do not edit.";
 
     internal static bool TryCanonicalizeShell(string? shell, out string canonical)
     {
@@ -100,7 +160,7 @@ internal static class CompletionInstaller
 
     internal static string BuildBlock(string exe, string scriptBody)
     {
-        var normalized = NormalizeExe(exe);
+        var normalized = RequireValidExe(exe);
         var body = scriptBody ?? string.Empty;
         if (body.Length > 0 && !body.EndsWith('\n'))
             body += "\n";
@@ -109,7 +169,7 @@ internal static class CompletionInstaller
 
     internal static string GetTargetPath(string canonicalShell, string exe)
     {
-        var normalized = NormalizeExe(exe);
+        var normalized = RequireValidExe(exe);
         switch (canonicalShell)
         {
             case "bash":
@@ -127,14 +187,30 @@ internal static class CompletionInstaller
 
     internal static InstallOutcome Install(string canonicalShell, string exe, bool dryRun, ConsoleOutput output)
     {
-        var normalized = NormalizeExe(exe);
+        var normalized = RequireValidExe(exe);
         var target = GetTargetPath(canonicalShell, normalized);
         var block = BuildBlock(normalized, RenderScript(canonicalShell, normalized));
 
         if (canonicalShell == "fish")
         {
-            if (File.Exists(target) && File.ReadAllText(target, Encoding.UTF8) == block)
-                return AlreadyInstalled(target, output);
+            if (File.Exists(target))
+            {
+                // Byte-exact comparison: managed fish files are always written
+                // UTF8-no-BOM, so stale encodings count as drift and reinstall.
+                byte[] existingBytes;
+                try
+                {
+                    existingBytes = File.ReadAllBytes(target);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    existingBytes = [];
+                }
+
+                if (existingBytes.SequenceEqual(new UTF8Encoding(false).GetBytes(block)))
+                    return AlreadyInstalled(target, output);
+            }
+
             if (dryRun)
             {
                 output.WriteLine($"would-write: {target}");
@@ -142,49 +218,105 @@ internal static class CompletionInstaller
                 return new InstallOutcome(0, true);
             }
 
-            WriteFileAtomic(target, block);
+            using (AcquireTargetLock(target))
+            {
+                if (File.Exists(target))
+                {
+                    var reread = File.ReadAllBytes(target);
+                    if (reread.SequenceEqual(new UTF8Encoding(false).GetBytes(block)))
+                        return AlreadyInstalled(target, output);
+                }
+
+                WriteFileAtomic(target, block);
+            }
+
             output.WriteLine($"installed: {target}");
             return new InstallOutcome(0, true);
         }
 
-        string? existing = File.Exists(target) ? File.ReadAllText(target, Encoding.UTF8) : null;
-        string updated;
-        if (existing == null)
-        {
-            updated = block;
-        }
-        else if (TryReplaceBlock(existing, normalized, block, out var replaced))
-        {
-            updated = replaced;
-        }
-        else if (existing.Length == 0)
-        {
-            updated = block;
-        }
-        else
-        {
-            updated = existing.EndsWith('\n') ? existing + block : existing + "\n" + block;
-        }
-
-        if (existing != null && string.Equals(existing, updated, StringComparison.Ordinal))
-            return AlreadyInstalled(target, output);
-
         if (dryRun)
         {
+            string? preview = File.Exists(target) ? File.ReadAllText(target, Encoding.UTF8) : null;
+            var previewUpdated = ComputeRcUpdate(preview, normalized, block);
+            if (preview != null && string.Equals(preview, previewUpdated, StringComparison.Ordinal))
+                return AlreadyInstalled(target, output);
             output.WriteLine($"would-write: {target}");
-            output.Write(updated);
+            output.Write(previewUpdated);
             return new InstallOutcome(0, true);
         }
 
-        WriteFileAtomic(target, updated);
+        string? existingLocked;
+        string updatedLocked;
+        using (AcquireTargetLock(target))
+        {
+            existingLocked = File.Exists(target) ? File.ReadAllText(target, Encoding.UTF8) : null;
+            updatedLocked = ComputeRcUpdate(existingLocked, normalized, block);
+            if (existingLocked != null && string.Equals(existingLocked, updatedLocked, StringComparison.Ordinal))
+            {
+                AlreadyInstalledLocked(target, output);
+            }
+            else
+            {
+                WriteFileAtomic(target, updatedLocked);
+            }
+        }
+
+        if (existingLocked != null && string.Equals(existingLocked, updatedLocked, StringComparison.Ordinal))
+            return new InstallOutcome(0, true);
+
         output.WriteLine($"installed: {target}");
         return new InstallOutcome(0, true);
     }
 
+    private static void AlreadyInstalledLocked(string target, ConsoleOutput output)
+    {
+        output.WriteLine($"already installed: {target}");
+    }
+
+    private static string ComputeRcUpdate(string? existing, string normalized, string block)
+    {
+        if (existing == null)
+            return block;
+        if (TryReplaceBlock(existing, normalized, block, out var replaced))
+            return replaced;
+        if (existing.Length == 0)
+            return block;
+        return existing.EndsWith('\n') ? existing + block : existing + "\n" + block;
+    }
+
     internal static InstallOutcome Uninstall(string canonicalShell, string exe, ConsoleOutput output)
     {
-        var normalized = NormalizeExe(exe);
+        var normalized = RequireValidExe(exe);
         var target = GetTargetPath(canonicalShell, normalized);
+
+        if (canonicalShell == "fish")
+        {
+            if (!File.Exists(target))
+            {
+                output.WriteLine($"not installed: {target}");
+                return new InstallOutcome(0, true);
+            }
+
+            using (AcquireTargetLock(target))
+            {
+                if (!File.Exists(target))
+                {
+                    output.WriteLine($"not installed: {target}");
+                    return new InstallOutcome(0, true);
+                }
+
+                var existingLocked = File.ReadAllText(target, Encoding.UTF8);
+                if (!TryExciseBlock(existingLocked, normalized, out var remainderLocked))
+                    throw new IOException($"Refusing to remove foreign fish completion file (no managed block for '{normalized}'): {target}");
+                if (string.IsNullOrWhiteSpace(remainderLocked))
+                    File.Delete(target);
+                else
+                    WriteFileAtomic(target, remainderLocked);
+            }
+
+            output.WriteLine($"uninstalled: {target}");
+            return new InstallOutcome(0, true);
+        }
 
         if (!File.Exists(target))
         {
@@ -192,23 +324,31 @@ internal static class CompletionInstaller
             return new InstallOutcome(0, true);
         }
 
-        var existing = File.ReadAllText(target, Encoding.UTF8);
-        if (!TryExciseBlock(existing, normalized, out var remainder))
+        string? remainder;
+        bool found;
+        using (AcquireTargetLock(target))
         {
-            if (canonicalShell == "fish")
-                throw new IOException($"Refusing to remove foreign fish completion file (no managed block for '{normalized}'): {target}");
+            if (!File.Exists(target))
+            {
+                remainder = null;
+                found = false;
+            }
+            else
+            {
+                var existing = File.ReadAllText(target, Encoding.UTF8);
+                found = TryExciseBlock(existing, normalized, out var excised);
+                remainder = found ? excised : null;
+                if (found)
+                    WriteFileAtomic(target, excised);
+            }
+        }
+
+        if (!found)
+        {
             output.WriteLine($"not installed: {target}");
             return new InstallOutcome(0, true);
         }
 
-        if (canonicalShell == "fish" && string.IsNullOrWhiteSpace(remainder))
-        {
-            File.Delete(target);
-            output.WriteLine($"uninstalled: {target}");
-            return new InstallOutcome(0, true);
-        }
-
-        WriteFileAtomic(target, remainder);
         output.WriteLine($"uninstalled: {target}");
         return new InstallOutcome(0, true);
     }
@@ -263,6 +403,128 @@ internal static class CompletionInstaller
         return true;
     }
 
+    internal static string LockPathFor(string target) => target + ".lock";
+
+    internal static IDisposable AcquireTargetLock(string target)
+    {
+        var directory = Path.GetDirectoryName(target);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
+
+        var lockPath = LockPathFor(target);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (true)
+        {
+            var token = TryCreateLockFile(lockPath);
+            if (token != null)
+                return new TargetLock(lockPath, token);
+            if (DateTime.UtcNow >= deadline)
+                throw new IOException($"Timed out waiting for lock file '{lockPath}'. Another install is in progress.");
+            Thread.Sleep(100);
+        }
+    }
+
+    private static string? TryCreateLockFile(string lockPath)
+    {
+        try
+        {
+            var token = Guid.NewGuid().ToString("N");
+            using var stream = new FileStream(lockPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            var payload = $"token={token} pid={Environment.ProcessId} host={Environment.MachineName} time={DateTime.UtcNow:O}\n";
+            var bytes = Encoding.UTF8.GetBytes(payload);
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush(true);
+            return token;
+        }
+        catch (IOException)
+        {
+            if (IsLockStale(lockPath))
+            {
+                try { File.Delete(lockPath); } catch { }
+            }
+
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new IOException($"Access denied creating lock file '{lockPath}'. Check directory permissions. ({ex.Message})");
+        }
+    }
+
+    private static bool IsLockStale(string lockPath)
+    {
+        DateTime lastWrite;
+        try
+        {
+            lastWrite = File.GetLastWriteTimeUtc(lockPath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        return DateTime.UtcNow - lastWrite >= TimeSpan.FromSeconds(10);
+    }
+
+    private sealed class TargetLock : IDisposable
+    {
+        private readonly string _lockPath;
+        private readonly string _token;
+        private readonly Timer _heartbeat;
+        private bool _disposed;
+
+        internal TargetLock(string lockPath, string token)
+        {
+            _lockPath = lockPath;
+            _token = token;
+            _heartbeat = new Timer(static state =>
+            {
+                var self = (TargetLock)state!;
+                try
+                {
+                    if (LockTokenMatches(self._lockPath, self._token))
+                        File.SetLastWriteTimeUtc(self._lockPath, DateTime.UtcNow);
+                }
+                catch
+                {
+                }
+            }, this, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            try { _heartbeat.Dispose(); } catch { }
+            try
+            {
+                if (LockTokenMatches(_lockPath, _token))
+                    File.Delete(_lockPath);
+            }
+            catch { }
+        }
+    }
+
+    private static bool LockTokenMatches(string lockPath, string token)
+    {
+        try
+        {
+            using var stream = new FileStream(lockPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var buffer = new byte[Math.Min(128, (int)Math.Min(stream.Length, 128))];
+            var read = stream.Read(buffer, 0, buffer.Length);
+            var content = Encoding.UTF8.GetString(buffer, 0, read);
+            return content.StartsWith($"token={token} ", StringComparison.Ordinal)
+                || content.StartsWith($"token={token}\n", StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsWindows() => IsWindowsProvider?.Invoke() ?? OperatingSystem.IsWindows();
+
     private static void WriteFileAtomic(string target, string content)
     {
         var directory = Path.GetDirectoryName(target);
@@ -272,15 +534,63 @@ internal static class CompletionInstaller
         var temp = Path.Combine(
             string.IsNullOrEmpty(directory) ? Path.GetTempPath() : directory,
             $".{Path.GetFileName(target)}.{Guid.NewGuid():N}.tmp");
-        File.WriteAllText(temp, content, new UTF8Encoding(false));
+        WriteAllTextDurable(temp, content);
+        MoveWithWindowsRetry(temp, target);
+    }
+
+    private static void WriteAllTextDurable(string path, string content)
+    {
+        var bytes = new UTF8Encoding(false).GetBytes(content);
+        using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush(true);
+        }
+
+        SyncParentDirectory(path);
+    }
+
+    private static void MoveWithWindowsRetry(string temp, string target)
+    {
+        const int attempts = 5;
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            try
+            {
+                File.Move(temp, target, overwrite: true);
+                SyncParentDirectory(target);
+                return;
+            }
+            catch (IOException) when (IsWindows() && attempt + 1 < attempts)
+            {
+                Thread.Sleep(50 * (attempt + 1));
+            }
+            catch
+            {
+                try { File.Delete(temp); } catch { }
+                throw;
+            }
+        }
+
+        try { File.Delete(temp); } catch { }
+        throw new IOException($"Could not replace '{target}' (destination busy).");
+    }
+
+    private static void SyncParentDirectory(string path)
+    {
+        if (IsWindows())
+            return;
+        var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (string.IsNullOrEmpty(directory))
+            return;
         try
         {
-            File.Move(temp, target, overwrite: true);
+            using var dir = new FileStream(directory, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            dir.Flush(true);
         }
         catch
         {
-            try { File.Delete(temp); } catch { }
-            throw;
+            // Best effort: directory fsync is advisory; the file fsync above already landed the content.
         }
     }
 
@@ -304,14 +614,18 @@ internal static class CompletionInstaller
         }
 
         if (!string.IsNullOrWhiteSpace(xdg))
-            return xdg.Trim();
+        {
+            var trimmed = xdg.Trim();
+            if (Path.IsPathFullyQualified(trimmed))
+                return trimmed;
+        }
+
         return Path.Combine(HomeDirectory(), ".config");
     }
 
     private static string PwshProfilePath()
     {
-        var isWindows = IsWindowsProvider?.Invoke() ?? OperatingSystem.IsWindows();
-        if (isWindows)
+        if (IsWindows())
             return Path.Combine(HomeDirectory(), "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1");
         return Path.Combine(ConfigDirectory(), "powershell", "Microsoft.PowerShell_profile.ps1");
     }
@@ -326,9 +640,6 @@ internal static class CompletionInstaller
             return home;
         throw new IOException("Could not resolve home directory.");
     }
-
-    private static string NormalizeExe(string? exe) =>
-        string.IsNullOrWhiteSpace(exe) ? "myapp" : exe.Trim();
 }
 
 internal sealed record InstallOutcome(int ExitCode, bool Handled);

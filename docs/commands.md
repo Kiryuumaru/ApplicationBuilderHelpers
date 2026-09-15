@@ -139,9 +139,16 @@ Reserved gateway words intercepted after hierarchy build, before help/parsing (n
 
 - `complete --position N "<commandline>"` — `N` is a 0-based character offset into the full command-line string (clamped to its length; defaults to end). Probes the hierarchy tolerantly, prints one candidate per line on stdout, exits `0`. Bare `complete` (no command line) lists root subcommands; other malformed input prints nothing, still `0`.
 - `completions script <bash|zsh|pwsh|powershell|fish>` — prints a dotnet-style shim that re-invokes `complete --position N "<commandline>"` per TAB.
-- `completions install [--shell <bash|zsh|pwsh|fish>] [--dry-run]` — writes the shim into the shell startup file inside a guarded `# >>> <exe> completion >>>` / `# <<< <exe> completion <<<` block (replace-in-place, append when absent; missing rc is created). Without `--shell`, the basename of `$SHELL` is used (`powershell` maps to `pwsh`). Targets: bash `~/.bashrc`, zsh `~/.zshrc`, pwsh per-OS profile (`~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` on Windows, `~/.config/powershell/...` elsewhere), fish `~/.config/fish/completions/<exe>.fish` (honors `XDG_CONFIG_HOME`). Byte-identical re-runs print `already installed: <path>` without rewriting; otherwise prints `installed: <path>`, exit `0`. `--dry-run` prints `would-write: <path>` plus the content and changes nothing.
-- `completions uninstall [--shell <...>]` — removes only the managed block; missing file or no block prints `not installed: <path>`, exit `0` (rc files are never deleted). A fish file without the managed block is left untouched and refused on stderr, exit `1`.
-- `completions install` / `uninstall` with an unknown shell (including undetectable `$SHELL`) report on stderr, exit `2`. `completions script <unknown>` instead falls through to the parse path (`No command found`, exit `2`) — never the installer `Unknown shell` path. IO failures report on stderr, exit `1`.
+- `completions install [--shell <bash|zsh|pwsh|fish>] [--dry-run]` — writes the shim into the shell startup file inside a guarded `# >>> <exe> completion >>>` / `# <<< <exe> completion <<<` block (replace-in-place, append when absent; missing rc is created). Without `--shell`, the basename of `$SHELL` is used (`powershell` maps to `pwsh`). Targets:
+| Shell | Target |
+|---|---|
+| bash | `~/.bashrc` |
+| zsh | `~/.zshrc` |
+| pwsh | Windows: `~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1`; elsewhere: `$XDG_CONFIG_HOME/powershell/Microsoft.PowerShell_profile.ps1`, else `~/.config/powershell/Microsoft.PowerShell_profile.ps1` |
+| fish | `$XDG_CONFIG_HOME/fish/completions/<exe>.fish`, else `~/.config/fish/completions/<exe>.fish` |
+`XDG_CONFIG_HOME` is honored only when absolute; a relative, empty, or unreadable value falls back to `~/.config` (applies to fish and non-Windows pwsh). Fish idempotence is byte-exact over UTF-8-no-BOM bytes, so a stale encoding counts as drift and reinstalls. Byte-identical re-runs print `already installed: <path>` without rewriting; otherwise prints `installed: <path>`, exit `0`. `--dry-run` prints `would-write: <path>` plus the content and changes nothing. Mutating install/uninstall paths hold a per-target sibling `<target>.lock` (same-target serializes ≤10s then fails loudly, different targets never block, dry-run never locks); a lock timeout reports on stderr, exit `1`.
+- `completions uninstall [--shell <...>]` — removes only the managed block; missing file or no block prints `not installed: <path>`, exit `0` (rc files are never deleted; only a fully-managed fish file is deleted). A fish file without the managed block is left untouched and refused on stderr, exit `1`.
+- `completions install` / `uninstall` with an unknown shell (including undetectable `$SHELL`) report on stderr, exit `2`. `completions script <unknown>` instead falls through to the parse path (`No command found`, exit `2`) — never the installer `Unknown shell` path. IO failures report on stderr, exit `1` (lock/permission failures name the lock path; permission failures say "Access denied"). Executable names are validated (ASCII letters, digits, `.`, `_`, `-`, max 64 chars, starting with a letter or `_`; empty falls back to `myapp`) — anything else reports the allowed set on stderr, exit `2`.
 
 Exit matrix (`CompletionGateway.cs:24-57,106-193`):
 
@@ -150,8 +157,8 @@ Exit matrix (`CompletionGateway.cs:24-57,106-193`):
 | `complete [...]` (any probe, incl. bare/malformed) | `0` | Tolerant probe: malformed input prints nothing, still `0` (`:100-103`) |
 | `completions script <known shell>` | `0` | Extra tokens (e.g. `--help`) ignored (`:39-44`; test `CompletionsScript_IgnoresTrailingHelp`) |
 | `completions install` / `uninstall` success | `0` | Includes `already installed` / `not installed` no-ops |
-| `completions install` / `uninstall` unknown option or unknown shell | `2` | stderr (`:127-128,:169-170,:218-230`) |
-| `completions install` / `uninstall` IO failure | `1` | stderr (`:141-150,:183-192`); fish foreign-file refusal surfaces here |
+| `completions install` / `uninstall` unknown option, unknown shell, or invalid exe name | `2` | stderr (`:127-128,:169-170,:218-230`) |
+| `completions install` / `uninstall` IO failure (incl. lock timeout) | `1` | stderr (`:141-150,:183-192`); fish foreign-file refusal surfaces here |
 | Bare `completions`, `completions script` (no shell), `completions script <unknown>`, `completions <unknown>` | falls through to parse | Returns `false`; parse reports `No command found`, exit `2` (`:36-37,:41-42,:56`; tests `:126-167`) |
 
 ## Accessing Services
