@@ -274,6 +274,37 @@ public sealed class SecretRedactionTests
         }
     }
 
+    [Command("novalue", "Probes --no-<name>=value dispatch for near-miss bases.")]
+    public sealed class NoValueProbeCommand : Command
+    {
+        [CommandOption("note", Description = "Note text.")]
+        public string? Note { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"novalue:{Note ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("clust", "Probes short-cluster unknown handling without value echo.")]
+    public sealed class ClusterProbeCommand : Command
+    {
+        [CommandOption('a', "alpha", Description = "Alpha flag.")]
+        public bool Alpha { get; set; }
+
+        [CommandOption('b', "beta", Description = "Beta flag.")]
+        public bool Beta { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"clust:{Alpha}:{Beta}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     /// <summary>
     /// Custom <see cref="int"/> parser whose array factory echoes the last
     /// parsed raw value in its failure, so the collection materialization
@@ -445,6 +476,217 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
+    public async Task SecretValuedString_NegatedWithValue_OmitsRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-secret-token=s3cr3t-leak"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-secret-token' does not accept a value. Use bare '--no-secret-token' to set the flag to 'false'.", error);
+        Assert.DoesNotContain("s3cr3t-leak", error);
+    }
+
+    [Fact]
+    public async Task PlainValuedString_NegatedWithValue_EchoesRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-plain-token=shown"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-plain-token' does not accept a value 'shown'. Use bare '--no-plain-token' to set the flag to 'false'.", error);
+        Assert.DoesNotContain("[REDACTED]", error);
+    }
+
+    [Fact]
+    public async Task SecretValuedInt_NegatedWithValue_OmitsRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secnum", "--no-count=424242"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-count' does not accept a value. Use bare '--no-count' to set the flag to 'false'.", error);
+        Assert.DoesNotContain("424242", error);
+    }
+
+    [Fact]
+    public async Task SecretCollection_NegatedWithValue_OmitsRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateCollectionBuilder, ["seccoll", "--no-scores=777"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-scores' does not accept a value. Use bare '--no-scores' to set the flag to 'false'.", error);
+        Assert.DoesNotContain("777", error);
+    }
+
+    [Fact]
+    public async Task PlainCollection_NegatedWithValue_EchoesRejectedValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateCollectionBuilder, ["plaincoll", "--no-scores=777"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-scores' does not accept a value '777'. Use bare '--no-scores' to set the flag to 'false'.", error);
+        Assert.DoesNotContain("[REDACTED]", error);
+    }
+
+    [Fact]
+    public async Task NegatedWithValue_FirstSeparator_SplitsNameAtFirstEquals()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--no-secure=leak=extra"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-secure' does not accept a value.", error);
+        Assert.DoesNotContain("leak=extra", error);
+    }
+
+    [Fact]
+    public async Task NegatedWithValue_EmptyBase_FailsClosedRedacted()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-=hunter2"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-' does not accept a value.", error);
+        Assert.DoesNotContain("hunter2", error);
+    }
+
+    [Fact]
+    public async Task NegatedWithValue_UnknownBase_ReportsUnknownWithoutValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-zzzzqqqq=hunter2"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --no-zzzzqqqq", error);
+        Assert.DoesNotContain("hunter2", error);
+        Assert.DoesNotContain("does not accept", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task NegatedWithValue_UnknownNearMiss_SuggestsNameOnly()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["novalue", "--no-not=shown"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --no-not", error);
+        Assert.Contains("Did you mean '--note'?", error);
+        Assert.DoesNotContain("shown", error);
+    }
+
+    [Fact]
+    public async Task NegatedWithValue_CaseVariantBase_ReportsUnknownWithoutValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--no-SECURE=oops"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --no-SECURE", error);
+        Assert.DoesNotContain("oops", error);
+        Assert.DoesNotContain("does not accept", error);
+    }
+
+    [Fact]
+    public async Task UnknownTypo_WithSecretValue_OmitsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--pasword=hunter2"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --pasword", error);
+        Assert.DoesNotContain("hunter2", error);
+    }
+
+    [Fact]
+    public async Task UnknownOption_WithSecretValue_NamesOptionOnly()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--unknown=SuperSecret"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --unknown", error);
+        Assert.DoesNotContain("SuperSecret", error);
+    }
+
+    [Fact]
+    public async Task UnknownOption_EmptyName_FailsClosedWithoutValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--=hunter2x9q"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --", error);
+        Assert.DoesNotContain("hunter2x9q", error);
+    }
+
+    [Fact]
+    public async Task UnknownClusterChar_NamesWholeToken()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["clust", "-abx"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -abx", error);
+    }
+
+    [Fact]
+    public async Task UnknownNearMiss_WithSecretValue_SuggestsNameOnly()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--secret-toke=s3cr3t-leak"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --secret-toke", error);
+        Assert.Contains("Did you mean '--secret-token'?", error);
+        Assert.DoesNotContain("s3cr3t-leak", error);
+    }
+
+    [Fact]
+    public async Task UnknownNonSecret_WithValue_NamesOptionOnly()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--plain-toke=shown"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --plain-toke", error);
+        Assert.Contains("Did you mean '--plain-token'?", error);
+        Assert.DoesNotContain("shown", error);
+    }
+
+    [Fact]
+    public async Task UnknownOption_WithValue_ExitCodePreserved()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--unknown=SuperSecret"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option", error);
+        Assert.DoesNotContain("SuperSecret", error);
+    }
+
+    [Fact]
+    public void ParserError_CaseVariantValue_Redacts()
+    {
+        var exact = CommandLineParser.SecretRedaction.RedactParserError(
+            "Invalid Int32 value: 'abc'. Expected a valid Int32.", "abc", true);
+        Assert.Contains("[REDACTED]", exact);
+        Assert.DoesNotContain("'abc'", exact);
+
+        var folded = CommandLineParser.SecretRedaction.RedactParserError(
+            "Invalid Int32 value: 'ABC'. Expected a valid Int32.", "abc", true);
+        Assert.Contains("[REDACTED]", folded);
+        Assert.DoesNotContain("'ABC'", folded);
+
+        var passthrough = CommandLineParser.SecretRedaction.RedactParserError(
+            "Invalid Int32 value: 'abc'. Expected a valid Int32.", "abc", false);
+        Assert.Contains("'abc'", passthrough);
+        Assert.DoesNotContain("[REDACTED]", passthrough);
+    }
+
+    [Fact]
     public async Task SharedSecretOption_PromotedToGlobalHelpMaskedAndRedactedOnLeaves()
     {
         var (helpCode, helpOutput, helpError) = await RunCapturedAsync(CreateVaultBuilder, ["--help"]);
@@ -613,7 +855,9 @@ public sealed class SecretRedactionTests
             .AddCommand<PlainNumberCommand>()
             .AddCommand<SecretNumberArgumentCommand>()
             .AddCommand<SecretEnumArgumentCommand>()
-            .AddCommand<SecretFlagCommand>();
+            .AddCommand<SecretFlagCommand>()
+            .AddCommand<NoValueProbeCommand>()
+            .AddCommand<ClusterProbeCommand>();
     }
 
     private static ApplicationBuilder CreateVaultBuilder()
