@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -108,7 +107,7 @@ internal class SubCommandOptionInfo
     public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         // Check if the property has the C# required keyword (auto-detection)
-        var isRequiredByKeyword = IsPropertyRequired(property);
+        var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
         
         var optionInfo = new SubCommandOptionInfo
         {
@@ -195,19 +194,13 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Checks if a property has the C# required keyword by looking for RequiredMemberAttribute
+    /// Gets the type name for display
     /// </summary>
-    private static bool IsPropertyRequired(PropertyInfo property)
+    public string GetTypeName()
     {
-        // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
-#if NET7_0_OR_GREATER
-        var hasRequiredMemberAttribute = property.IsDefined(typeof(RequiredMemberAttribute), inherit: false);
-#else
-        var hasRequiredMemberAttribute = property.GetCustomAttributes()
-            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
-#endif
+        var targetType = IsCollection ? ElementType! : PropertyType;
 
-        return hasRequiredMemberAttribute;
+        return CommandDescriptorReflection.GetTypeDisplayName(targetType);
     }
 
     /// <summary>
@@ -337,26 +330,6 @@ internal class SubCommandOptionInfo
             
         var typeName = GetTypeName();
         return $"{name} <{typeName}>";
-    }
-
-    /// <summary>
-    /// Gets the type name for display
-    /// </summary>
-    public string GetTypeName()
-    {
-        var targetType = IsCollection ? ElementType! : PropertyType;
-        
-        return targetType.Name.ToLowerInvariant() switch
-        {
-            "string" => "TEXT",
-            "int32" => "NUMBER",
-            "double" => "NUMBER",
-            "boolean" => "BOOL",
-            "datetime" => "DATE",
-            "directoryinfo" => "DIR",
-            "fileinfo" => "FILE",
-            _ => targetType.Name.ToUpperInvariant()
-        };
     }
 
     /// <summary>

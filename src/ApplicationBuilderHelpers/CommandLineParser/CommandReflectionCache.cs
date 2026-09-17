@@ -176,7 +176,7 @@ internal sealed class CommandReflectionCache
 
     private static CommandOptionDescriptor FromOptionProperty(PropertyInfo property, CommandOptionAttribute attribute)
     {
-        var (enumCandidateType, enumCandidateNames) = GetEnumCandidate(property.PropertyType);
+        var (enumCandidateType, enumCandidateNames) = CommandDescriptorReflection.GetEnumCandidate(property.PropertyType);
 
         return new CommandOptionDescriptor(
             property,
@@ -190,14 +190,14 @@ internal sealed class CommandReflectionCache
             attribute.FromAmong?.Length > 0 ? [.. attribute.FromAmong] : null,
             attribute.CaseSensitive,
             attribute.Secret,
-            IsPropertyRequired(property),
+            CommandDescriptorReflection.IsPropertyRequired(property),
             enumCandidateType,
             enumCandidateNames);
     }
 
     private static CommandArgumentDescriptor FromArgumentProperty(PropertyInfo property, CommandArgumentAttribute attribute)
     {
-        var (enumCandidateType, enumCandidateNames) = GetEnumCandidate(property.PropertyType);
+        var (enumCandidateType, enumCandidateNames) = CommandDescriptorReflection.GetEnumCandidate(property.PropertyType);
 
         return new CommandArgumentDescriptor(
             property,
@@ -210,42 +210,9 @@ internal sealed class CommandReflectionCache
             attribute.FromAmong?.Length > 0 ? [.. attribute.FromAmong] : null,
             attribute.CaseSensitive,
             attribute.Secret,
-            IsPropertyRequired(property),
+            CommandDescriptorReflection.IsPropertyRequired(property),
             enumCandidateType,
             enumCandidateNames);
-    }
-
-    /// <summary>
-    /// Checks if a property has the C# required keyword by looking for RequiredMemberAttribute.
-    /// Mirrors SubCommandOptionInfo.IsPropertyRequired / SubCommandArgumentInfo.IsPropertyRequired.
-    /// </summary>
-    private static bool IsPropertyRequired(PropertyInfo property)
-    {
-        // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
-#if NET7_0_OR_GREATER
-        var hasRequiredMemberAttribute = property.IsDefined(typeof(System.Runtime.CompilerServices.RequiredMemberAttribute), inherit: false);
-#else
-        var hasRequiredMemberAttribute = property.GetCustomAttributes()
-            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
-#endif
-
-        return hasRequiredMemberAttribute;
-    }
-
-    /// <summary>
-    /// Unwraps Nullable&lt;T&gt; and snapshots Enum.GetNames for enum types.
-    /// No type-parser check here: the parser layer decides auto-populate.
-    /// </summary>
-    private static (Type? CandidateType, string[]? CandidateNames) GetEnumCandidate(Type propertyType)
-    {
-        var targetType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
-
-        if (!targetType.IsEnum)
-        {
-            return (null, null);
-        }
-
-        return (targetType, [.. Enum.GetNames(targetType)]);
     }
 
     /// <summary>
