@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -101,7 +100,7 @@ internal class SubCommandArgumentInfo
     public static SubCommandArgumentInfo FromProperty(PropertyInfo property, CommandArgumentAttribute attribute, SubCommandInfo? ownerCommand = null)
     {
         // Check if the property has the C# required keyword (auto-detection)
-        var isRequiredByKeyword = IsPropertyRequired(property);
+        var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
         
         var argumentInfo = new SubCommandArgumentInfo
         {
@@ -151,19 +150,13 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
-    /// Checks if a property has the C# required keyword by looking for RequiredMemberAttribute
+    /// Gets the type name for display
     /// </summary>
-    private static bool IsPropertyRequired(PropertyInfo property)
+    public string GetTypeName()
     {
-        // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
-#if NET7_0_OR_GREATER
-        var hasRequiredMemberAttribute = property.IsDefined(typeof(RequiredMemberAttribute), inherit: false);
-#else
-        var hasRequiredMemberAttribute = property.GetCustomAttributes()
-            .Any(attr => attr.GetType().Name == "RequiredMemberAttribute");
-#endif
+        var targetType = IsCollection ? ElementType! : PropertyType;
 
-        return hasRequiredMemberAttribute;
+        return CommandDescriptorReflection.GetTypeDisplayName(targetType);
     }
 
     /// <summary>
@@ -256,26 +249,6 @@ internal class SubCommandArgumentInfo
             return $"<{name}>";
         else
             return $"[{name}]";
-    }
-
-    /// <summary>
-    /// Gets the type name for display
-    /// </summary>
-    public string GetTypeName()
-    {
-        var targetType = IsCollection ? ElementType! : PropertyType;
-        
-        return targetType.Name.ToLowerInvariant() switch
-        {
-            "string" => "TEXT",
-            "int32" => "NUMBER", 
-            "double" => "NUMBER",
-            "boolean" => "BOOL",
-            "datetime" => "DATE",
-            "directoryinfo" => "DIR",
-            "fileinfo" => "FILE",
-            _ => targetType.Name.ToUpperInvariant()
-        };
     }
 
     /// <summary>
