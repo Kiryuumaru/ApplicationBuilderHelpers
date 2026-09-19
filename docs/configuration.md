@@ -24,10 +24,12 @@ All four are optional. When not set, the library auto-detects from the entry ass
 
 ```csharp
 ApplicationBuilder.Create()
-    .SetHelpWidth(120)       // Line width for help output
+    .SetHelpWidth(120)       // Line width for help output (must be positive; 0 and negatives throw)
     .SetHelpBorderWidth(2)   // Border indentation
     // ...
 ```
+
+`SetHelpWidth` requires a positive width — `0` and negatives throw `ArgumentOutOfRangeException`. When unset, help output defaults to `120` columns. The formatter floors the effective width at `60` columns (`20` minimum left column + `40` reserved for the right column) to keep two-column help readable at narrow widths. `80` is a common console-width convention you may pass explicitly; the code default when unset remains `120`.
 
 ## Console Themes
 

@@ -174,10 +174,25 @@ public sealed class ThemeAndBuilderTests
 
         Assert.Same(builder, result);
         Assert.Throws<ArgumentOutOfRangeException>(() => ICommandBuilderExtensions.SetHelpWidth(CreateBuilder(), -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ICommandBuilderExtensions.SetHelpWidth(CreateBuilder(), 0));
 
         var (exitCode, output, _) = await RunCapturedAsync(builder, ["--help"]);
         Assert.Equal(0, exitCode);
         Assert.Contains("USAGE:", output);
+    }
+
+    [Fact]
+    public async Task SetHelpWidth_SmallWidth_HelpRendersSuccessfully()
+    {
+        var builder = CreateBuilder();
+        var result = ICommandBuilderExtensions.SetHelpWidth(builder, 30);
+
+        Assert.Same(builder, result);
+
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["--help"]);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("USAGE:", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
