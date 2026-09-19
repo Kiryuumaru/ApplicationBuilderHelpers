@@ -373,7 +373,6 @@ internal sealed class CommandHierarchyBuilder(
             ValidValues = original.ValidValues,
             IsCaseSensitive = original.IsCaseSensitive,
             IsSecret = original.IsSecret,
-            DefaultValue = original.DefaultValue,
             IsGlobal = true,
             IsInherited = true
         };

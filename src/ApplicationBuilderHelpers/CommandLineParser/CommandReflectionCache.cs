@@ -148,7 +148,7 @@ internal sealed class CommandReflectionCache
     /// </summary>
     private static CommandTypeDescriptor Build([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
-        var properties = GetAllProperties(commandType);
+        var properties = Walk(commandType, declaredOnly: false);
 
         var options = new List<CommandOptionDescriptor>();
         var arguments = new List<CommandArgumentDescriptor>();
@@ -216,12 +216,28 @@ internal sealed class CommandReflectionCache
     }
 
     /// <summary>
-    /// Single owned BaseType walk: gets all properties including inherited ones
-    /// from base classes, base-first. Shared by
+    /// Single owned property walk: full BaseType chain base-first when
+    /// <paramref name="declaredOnly"/> is false, or the properties declared
+    /// directly on <paramref name="type"/> when true. The declared-only flag
+    /// exists so the leaf <c>FromDeclaredType</c> shims share this walk
+    /// instead of each owning an inline <c>DeclaredOnly</c> walk; filtering
+    /// by descriptor is deliberately not offered (override/hide members must
+    /// keep their duplicate walk entries). Shared by
     /// SubCommandOptionInfo / SubCommandArgumentInfo so the walk exists once.
+    /// Carries <c>All</c> so the full BaseType loop (which reflects off
+    /// <c>BaseType</c> hops) and every caller flow without trim warnings.
     /// </summary>
-    internal static List<PropertyInfo> GetAllProperties([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
+    internal static List<PropertyInfo> Walk([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type, bool declaredOnly)
     {
+        if (declaredOnly)
+        {
+            return [.. type.GetProperties(
+                BindingFlags.DeclaredOnly |
+                BindingFlags.Public |
+                BindingFlags.NonPublic |
+                BindingFlags.Instance)];
+        }
+
         var properties = new List<PropertyInfo>();
         var currentType = type;
 

@@ -42,21 +42,17 @@ public sealed class OptionDefaultTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // White-box exception: DefaultValue metadata has no public surface (help text
-    // reads the live property initializer instead), so this pins it directly via
-    // reflection. The public fallback behavior is covered above.
+    // Help text reads the live property initializer instead of descriptor
+    // metadata: descriptor nodes carry no DefaultValue member, so this pins
+    // its absence directly via reflection. The public fallback behavior is
+    // covered above.
     [Fact]
-    public void OmittedOption_DefaultValueMetadataStaysUnset()
+    public void OmittedOption_NoDefaultValueMetadataOnDescriptor()
     {
         var assembly = typeof(ApplicationBuilder).Assembly;
         var infoType = assembly.GetType("ApplicationBuilderHelpers.CommandLineParser.SubCommandOptionInfo")!;
-        var property = typeof(InitializerDefaultCommand).GetProperty(nameof(InitializerDefaultCommand.Text))!;
-        var attribute = (CommandOptionAttribute)Attribute.GetCustomAttribute(property, typeof(CommandOptionAttribute))!;
-        var fromProperty = infoType.GetMethod("FromProperty")!;
-        var metadata = fromProperty.Invoke(null, [property, attribute, null, null])!;
-        var defaultValue = infoType.GetProperty("DefaultValue")!.GetValue(metadata);
 
-        Assert.Null(defaultValue);
+        Assert.Null(infoType.GetProperty("DefaultValue"));
     }
 
     private static ApplicationBuilder CreateBuilder()
