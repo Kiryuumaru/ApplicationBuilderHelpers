@@ -29,7 +29,7 @@ public class ApplicationBuilder : ICommandBuilder
 | `SetExecutableTitle(string)` | `ApplicationBuilder` | Override auto-detected title |
 | `SetExecutableDescription(string)` | `ApplicationBuilder` | Override auto-detected description |
 | `SetExecutableVersion(string)` | `ApplicationBuilder` | Override auto-detected version |
-| `SetHelpWidth(int)` | `ApplicationBuilder` | Set help line width |
+| `SetHelpWidth(int)` | `ApplicationBuilder` | Set help line width (must be positive; `0`/negatives throw; default `120` when unset; effective width floored at `60` = `20` left + `40` right; `80` is a common console-width convention) |
 | `SetHelpBorderWidth(int)` | `ApplicationBuilder` | Set help border indentation |
 | `RunAsync(string[], CancellationToken)` | `Task<int>` | Parse args and run |
 

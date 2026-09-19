@@ -112,6 +112,33 @@ public sealed class HelpFormatterTests
         Assert.Contains("--help", error);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(30)]
+    [InlineData(50)]
+    public async Task CustomHelpWidth_NarrowWidth_RendersSuccessfully(int helpWidth)
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(() => CreateBuilder().SetHelpWidth(helpWidth), ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("USAGE", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Theory]
+    [InlineData(60)]
+    [InlineData(120)]
+    public async Task CustomHelpWidth_NormalWidth_RendersFullSections(int helpWidth)
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(() => CreateBuilder().SetHelpWidth(helpWidth), ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("USAGE", output);
+        Assert.Contains("COMMANDS:", output);
+        Assert.Contains("GLOBAL OPTIONS:", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
     private static ApplicationBuilder CreateBuilder()
     {
         return ApplicationBuilder.Create()

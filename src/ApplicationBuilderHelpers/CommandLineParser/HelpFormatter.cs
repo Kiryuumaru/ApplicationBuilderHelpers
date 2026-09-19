@@ -369,7 +369,8 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
         const int MaxLeftColumnWidth = 35;  // More reasonable maximum
         
         // Ensure the right column has enough space
-        var maxAllowedLeftWidth = totalWidth - 40; // Ensure at least 40 chars for right column
+        var effectiveWidth = Math.Max(totalWidth, 60); // 20 min-left + 40 right reservation; never throws
+        var maxAllowedLeftWidth = effectiveWidth - 40; // Ensure at least 40 chars for right column
         
         var leftColumnWidth = Math.Min(Math.Max(maxLeftWidth, MinLeftColumnWidth), 
                                       Math.Min(MaxLeftColumnWidth, maxAllowedLeftWidth));

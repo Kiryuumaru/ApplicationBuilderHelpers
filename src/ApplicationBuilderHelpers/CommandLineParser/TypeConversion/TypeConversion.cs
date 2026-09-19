@@ -1,6 +1,7 @@
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
+using System.Globalization;
 using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
@@ -146,7 +147,7 @@ internal static class TypeConversion
 
         try
         {
-            return System.Convert.ChangeType(raw, targetType);
+            return System.Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
         }
         catch (Exception)
         {

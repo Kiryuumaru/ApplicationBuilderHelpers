@@ -1,6 +1,7 @@
 ﻿using ApplicationBuilderHelpers.Abstracts;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
+using System.Globalization;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
@@ -8,7 +9,7 @@ internal class ByteTypeParser : CommandTypeParser<byte>
 {
     public override byte ParseValue(string? value, out string? validateError)
     {
-        if (byte.TryParse(value, out var result))
+        if (byte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
         {
             validateError = null;
             return result;
