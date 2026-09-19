@@ -90,16 +90,16 @@ public static class ICommandBuilderExtensions
     /// </summary>
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
-    /// <param name="helpWidth">The width for help output formatting. Must be non-negative.</param>
+    /// <param name="helpWidth">The width for help output formatting. Must be positive.</param>
     /// <returns>The command builder instance for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="helpWidth"/> is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="helpWidth"/> is not positive.</exception>
     public static TICommandBuilder SetHelpWidth<TICommandBuilder>(this TICommandBuilder commandBuilder, int helpWidth)
         where TICommandBuilder : ICommandBuilder
     {
         ArgumentNullException.ThrowIfNull(commandBuilder);
-        if (helpWidth < 0)
-            throw new ArgumentOutOfRangeException(nameof(helpWidth), "Help width must be non-negative.");
+        if (helpWidth <= 0)
+            throw new ArgumentOutOfRangeException(nameof(helpWidth), "Help width must be positive.");
 
         commandBuilder.HelpWidth = helpWidth;
         return commandBuilder;
