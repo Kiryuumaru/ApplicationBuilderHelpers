@@ -30,6 +30,7 @@ internal class BoolTypeParser : CommandTypeParser<bool>
             validateError = null;
             return false;
         }
+        // No provider overload exists; the True/False grammar has no culture-sensitive elements.
         else if (bool.TryParse(value, out var result))
         {
             validateError = null;

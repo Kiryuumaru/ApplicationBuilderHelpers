@@ -1,6 +1,7 @@
 using ApplicationBuilderHelpers.Abstracts;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
+using System.Globalization;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
@@ -8,7 +9,7 @@ internal class DateOnlyTypeParser : CommandTypeParser<DateOnly>
 {
     public override DateOnly ParseValue(string? value, out string? validateError)
     {
-        if (DateOnly.TryParse(value, out var result))
+        if (DateOnly.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var result))
         {
             validateError = null;
             return result;
