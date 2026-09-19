@@ -1,6 +1,7 @@
 using ApplicationBuilderHelpers.Exceptions;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
@@ -377,7 +378,8 @@ internal sealed class ArgumentParser
         if (!char.IsDigit(afterDash) && afterDash != '.')
             return false;
 
-        // Try to parse as a double to confirm it's a valid numeric value
-        return double.TryParse(value, out _);
+        // Try to parse as a double to confirm it's a valid numeric value.
+        // InvariantCulture: CLI tokens must resolve identically regardless of CurrentCulture.
+        return double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
     }
 }

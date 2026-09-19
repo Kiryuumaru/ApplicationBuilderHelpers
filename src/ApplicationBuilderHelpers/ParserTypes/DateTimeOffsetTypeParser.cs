@@ -1,6 +1,7 @@
 ﻿using ApplicationBuilderHelpers.Abstracts;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
+using System.Globalization;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
@@ -8,7 +9,7 @@ internal class DateTimeOffsetTypeParser : CommandTypeParser<DateTimeOffset>
 {
     public override DateTimeOffset ParseValue(string? value, out string? validateError)
     {
-        if (DateTimeOffset.TryParse(value, out var result))
+        if (DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var result))
         {
             validateError = null;
             return result;
