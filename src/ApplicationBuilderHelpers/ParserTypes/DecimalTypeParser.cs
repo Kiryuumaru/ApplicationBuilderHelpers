@@ -1,6 +1,7 @@
 ﻿using ApplicationBuilderHelpers.Abstracts;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
+using System.Globalization;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
@@ -8,7 +9,7 @@ internal class DecimalTypeParser : CommandTypeParser<decimal>
 {
     public override decimal ParseValue(string? value, out string? validateError)
     {
-        if (decimal.TryParse(value, out var result))
+        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
         {
             validateError = null;
             return result;

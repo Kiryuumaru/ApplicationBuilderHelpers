@@ -18,12 +18,28 @@ public interface ICommandTypeParser
 }
 ```
 
+## Culture Policy (InvariantCulture)
+
+CLI text is always parsed with `CultureInfo.InvariantCulture`, regardless of `CurrentCulture`. The decimal separator is always `.`, with explicit styles per type (integers: `NumberStyles.Integer`; `decimal`: `NumberStyles.Number`; `float`/`double`: `NumberStyles.Float | NumberStyles.AllowThousands`; date/time: `DateTimeStyles.AllowWhiteSpaces`). The `ICommandTypeParser.Parse` signatures are unchanged.
+
+Custom `ICommandTypeParser` authors MUST use the `InvariantCulture` provider overloads:
+
+```csharp
+using System.Globalization;
+
+if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
+    return result;
+```
+
+Display/output via `GetString` / `GetStringValue` (which default to `ToString()`) may still follow `CurrentCulture` — that direction is intentionally out of scope.
+
 ## Using `CommandTypeParser<T>`
 
 Inherit from the abstract base class for a simpler implementation:
 
 ```csharp
 using ApplicationBuilderHelpers.Abstracts;
+using System.Globalization;
 
 public class DateTimeTypeParser : CommandTypeParser<DateTime>
 {
@@ -35,7 +51,7 @@ public class DateTimeTypeParser : CommandTypeParser<DateTime>
             validateError = "Date value cannot be empty";
             return null;
         }
-        if (DateTime.TryParse(value, out var result))
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var result))
             return result;
         validateError = $"'{value}' is not a valid date format";
         return null;
@@ -59,6 +75,8 @@ public class DateTimeTypeParser : CommandTypeParser<DateTime>
 For maximum control, implement the interface directly:
 
 ```csharp
+using System.Globalization;
+
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public class TimeSpanTypeParser : ICommandTypeParser
 {
@@ -69,7 +87,7 @@ public class TimeSpanTypeParser : ICommandTypeParser
         validateError = null;
         if (string.IsNullOrWhiteSpace(value))
             return null;
-        if (TimeSpan.TryParse(value, out var result))
+        if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var result))
             return result;
         validateError = $"'{value}' is not a valid time span";
         return null;
