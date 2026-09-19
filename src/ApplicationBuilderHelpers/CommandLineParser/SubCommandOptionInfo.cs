@@ -200,7 +200,7 @@ internal class SubCommandOptionInfo
     {
         var targetType = IsCollection ? ElementType! : PropertyType;
 
-        return CommandDescriptorReflection.GetTypeDisplayName(targetType);
+        return HelpTypeDisplay.GetPlaceholderToken(targetType);
     }
 
     /// <summary>
@@ -324,12 +324,12 @@ internal class SubCommandOptionInfo
     public string GetSignature()
     {
         var name = GetDisplayName();
-        
-        if (IsFlag)
+
+        var placeholder = HelpTypeDisplay.GetParameterPlaceholder(this);
+        if (string.IsNullOrEmpty(placeholder))
             return name;
-            
-        var typeName = GetTypeName();
-        return $"{name} <{typeName}>";
+
+        return $"{name} {placeholder}";
     }
 
     /// <summary>

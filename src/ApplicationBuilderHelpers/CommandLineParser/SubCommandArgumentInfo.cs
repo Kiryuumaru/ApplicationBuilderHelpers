@@ -156,7 +156,7 @@ internal class SubCommandArgumentInfo
     {
         var targetType = IsCollection ? ElementType! : PropertyType;
 
-        return CommandDescriptorReflection.GetTypeDisplayName(targetType);
+        return HelpTypeDisplay.GetPlaceholderToken(targetType);
     }
 
     /// <summary>
