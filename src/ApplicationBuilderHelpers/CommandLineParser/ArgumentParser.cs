@@ -132,18 +132,26 @@ internal sealed class ArgumentParser
             if (matchedOption != null)
             {
                 var nextArg = i + 1 < args.Length ? args[i + 1] : null;
-                var value = matchedOption.ExtractValue(arg, nextArg);
+                // Reject-by-default (#469): a bare valued option never consumes a
+                // flag-looking neighbor (any dash-led non-numeric token, known or
+                // unknown, including --help/--version and the -- separator). The
+                // neighbor is left to bind or error on its own merits; the valued
+                // option falls back to the trailing-bare missing sentinel (#449:
+                // null value, later satisfied by env fallback or MissingRequired).
+                // '='-form and compact '-ovalue' hold the value in-token and never
+                // consume; numeric neighbors ('-5') are still real values.
+                var consumableNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
+                var value = matchedOption.ExtractValue(arg, consumableNext);
 
                 // Explicit consumed-signal: bare IsFlag (no '=' in token) never consumes
                 // next token, even if next == "true". Only bare valued options consume it.
-                // Non-flag options always consume nextArg as value even if flag-looking (e.g. --config --version).
                 // '='-form and compact '-ovalue' hold the value in-token and never consume.
                 var isInTokenValuedForm = arg.Contains('=')
                     || (matchedOption.ShortName.HasValue && !matchedOption.IsFlag && arg.StartsWith($"-{matchedOption.ShortName}", StringComparison.Ordinal) && arg.Length > 2);
-                if (!matchedOption.IsFlag && !isInTokenValuedForm && nextArg != null)
+                if (!matchedOption.IsFlag && !isInTokenValuedForm && consumableNext != null)
                     i++;
 
-                AddParsedOptionValue(result, matchedOption, value, arg, nextArg);
+                AddParsedOptionValue(result, matchedOption, value, arg, consumableNext);
             }
             else if (arg.StartsWith('-') && !IsNumericValue(arg))
             {
@@ -322,7 +330,10 @@ internal sealed class ArgumentParser
             }
 
             // First non-flag short: '-dvalue' remainder or next-token value.
+            // A flag-looking neighbor is never consumed (#469, same
+            // reject-by-default rule as the single-option path above).
             var remainder = arg[(2 + k)..];
+            var consumableClusterNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
             string? value;
             string occurrenceArg;
             string? occurrenceNext;
@@ -334,10 +345,10 @@ internal sealed class ArgumentParser
             }
             else
             {
-                value = member.ExtractValue($"-{letter}", nextArg);
+                value = member.ExtractValue($"-{letter}", consumableClusterNext);
                 occurrenceArg = $"-{letter}";
-                occurrenceNext = nextArg;
-                if (nextArg != null)
+                occurrenceNext = consumableClusterNext;
+                if (consumableClusterNext != null)
                     consumedNext = true;
             }
 
@@ -382,4 +393,13 @@ internal sealed class ArgumentParser
         // InvariantCulture: CLI tokens must resolve identically regardless of CurrentCulture.
         return double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
     }
+
+    /// <summary>
+    /// Reject-by-default neighbor gate (#469): any dash-led non-numeric token is
+    /// flag-looking — known or unknown, including <c>--help</c>/<c>-h</c>,
+    /// <c>--version</c>/<c>-V</c>, and the <c>--</c> separator. Only numeric
+    /// neighbors (<c>-5</c>) and plain words pass as consumable values.
+    /// </summary>
+    private static bool IsFlagLookingToken(string token) =>
+        token.StartsWith('-') && !IsNumericValue(token);
 }

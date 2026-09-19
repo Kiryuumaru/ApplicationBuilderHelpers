@@ -3,19 +3,50 @@ using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Tests for help/version flag precedence: flags are resolved after the
-/// command path is walked and option values are consumed, so a flag-looking
-/// token in value position never fires, and help never masks path errors.
+/// Tests for help/version flag precedence: a bare valued option never consumes
+/// a flag-looking neighbor (#469, reject-by-default), so the neighbor binds or
+/// errors on its own merits while the valued option falls back to the
+/// trailing-bare missing sentinel (env fallback or MissingRequired), and help
+/// never masks path errors.
 /// </summary>
 public class HelpVersionPrecedenceTests : CliTestBase
 {
     [Fact]
-    public async Task Version_Flag_As_Option_Value_Is_Consumed_As_Value()
+    public async Task Version_Flag_As_Option_Value_Is_Not_Consumed()
     {
+        // #469: --version is flag-looking, so --config leaves it alone and the
+        // post-parse version check fires on the leftover token.
         var result = await Runner.RunAsync("test", "mytarget", "--config", "--version");
         CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Known_Flag_Neighbor_Is_Not_Consumed()
+    {
+        var result = await Runner.RunAsync("test", "mytarget", "--config", "--verbose");
+        CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Running test on target: mytarget");
-        CliTestAssertions.AssertOutputContains(result, "config=\"--version\"");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "config=\"--verbose\"");
+    }
+
+    [Fact]
+    public async Task Unknown_Flag_Neighbor_Errors_On_Merits()
+    {
+        var result = await Runner.RunAsync("test", "mytarget", "--config", "--nope");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: --nope");
+    }
+
+    [Fact]
+    public async Task Required_Valued_Option_With_Flag_Neighbor_Reports_Missing()
+    {
+        var result = await Runner.RunAsync("required-test", "mytarget", "--name", "--force", "--email", "e@x.com");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing required option: -n, --name");
     }
 
     [Fact]
