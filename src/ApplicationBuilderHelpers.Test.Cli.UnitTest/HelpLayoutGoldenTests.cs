@@ -143,7 +143,7 @@ public sealed class HelpLayoutGoldenTests
 
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
-        Assert.Equal(GlobalHelpAt120, Normalize(output));
+        Assert.Equal(Normalize(GlobalHelpAt120), Normalize(output));
         Assert.All(
             Normalize(output).Split('\n'),
             line => Assert.True(line.Length <= 120, $"Line exceeds width 120 ({line.Length}): {line}"));
@@ -156,7 +156,7 @@ public sealed class HelpLayoutGoldenTests
 
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
-        Assert.Equal(CommandHelpAt120, Normalize(output));
+        Assert.Equal(Normalize(CommandHelpAt120), Normalize(output));
         Assert.All(
             Normalize(output).Split('\n'),
             line => Assert.True(line.Length <= 120, $"Line exceeds width 120 ({line.Length}): {line}"));
@@ -170,7 +170,7 @@ public sealed class HelpLayoutGoldenTests
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
         var normalized = Normalize(output);
-        Assert.Equal(CommandHelpAt60, normalized);
+        Assert.Equal(Normalize(CommandHelpAt60), normalized);
         Assert.All(
             normalized.Split('\n'),
             line => Assert.True(line.Length <= 60, $"Line exceeds width 60 ({line.Length}): {line}"));
