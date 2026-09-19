@@ -92,6 +92,7 @@ public string Level { get; set; } = "info";
 ### Tokenizer Behavior
 
 - Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.
+- A bare valued option never consumes a flag-looking neighbor (reject-by-default): any dash-led non-numeric token — known or unknown, including `--help`/`--version` and the `--` separator — is left to bind or error on its own merits, while the valued option falls back to the trailing-bare missing sentinel (`null`, later satisfied by env fallback or `MissingRequired`, exit 2). `--config --verbose` binds `verbose=true` with `config` missing; `--config --nope` reports `Unknown option: --nope` (exit 2); `--config --version` fires version. `=`-form (`--config=f.json`), compact (`-cf.json`), and numeric neighbors (`--seed -5`) still bind as values; use `--` to pass a dash-led value positionally.
 - `=`-form boolean literals accept `true/false/yes/no/on/off/1/0` (case-insensitive); anything else is an `InvalidValue` usage error (exit 2), e.g. `--verbose=maybe`.
 - The first bare `--` ends option matching; every following token is positional, including `--verbose` and `--help`.
 - Negative numbers (`-5`, `-1.5`) are positional without a separator.
