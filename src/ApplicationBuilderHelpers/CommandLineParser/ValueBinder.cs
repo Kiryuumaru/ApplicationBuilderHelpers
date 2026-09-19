@@ -31,7 +31,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         // identities bind one logical option once with merged CLI-wins values)
         foreach (var group in result.OptionValues.GroupBy(
             entry => ParseResult.GetCanonicalOptionKey(entry.Key),
-            StringComparer.OrdinalIgnoreCase))
+            StringComparer.Ordinal))
         {
             var option = group.First().Key;
             var values = group.SelectMany(entry => entry.Value).ToList();

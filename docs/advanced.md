@@ -135,6 +135,10 @@ The `--help` and `--version` flags are handled automatically — you don't need 
 
 Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE>`, `<TOKEN...>`) are documented in [Configuration & Themes](configuration.md#help-placeholder-tokens-454).
 
+## Global Options
+
+Define once, reference everywhere: an option declared identically on every command (same type, names, required/secret/case-sensitivity flags, environment variable, description, initializer default, and valid values) is promoted to a shared root-owned global that each command sees through the same scope view, so it behaves as one logical option everywhere within a run — a repeated scalar takes the last value, multi-value options accumulate, an explicit flag beats an environment-variable fallback (which applies only when no value was given), and names match case-sensitively (see ADR-0004).
+
 ## Tokenizer Behavior
 
 - Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.
