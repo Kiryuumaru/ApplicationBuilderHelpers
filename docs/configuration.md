@@ -31,6 +31,29 @@ ApplicationBuilder.Create()
 
 `SetHelpWidth` requires a positive width — `0` and negatives throw `ArgumentOutOfRangeException`. When unset, help output defaults to `120` columns. The formatter floors the effective width at `60` columns (`20` minimum left column + `40` reserved for the right column) to keep two-column help readable at narrow widths. `80` is a common console-width convention you may pass explicitly; the code default when unset remains `120`.
 
+### Help Placeholder Tokens (#454)
+
+Option value placeholders come from a single mapper
+(`src/ApplicationBuilderHelpers/CommandLineParser/HelpTypeDisplay.cs:8-47`).
+Help never prints raw CLR names (`TimeSpan`, `Guid`, `Uri`, `Nullable<T>`).
+
+| Token | Types |
+|---|---|
+| `STRING` | `string` |
+| `NUMBER` | `byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` (scalar `decimal` renders `--opt <NUMBER>`) |
+| `DATE` | `DateTime`, `DateOnly`, `TimeOnly`, `DateTimeOffset` |
+| `FILE` | `FileInfo`, `AbsolutePath` |
+| `DIR` | `DirectoryInfo` |
+| `VALUE` | everything else, including enums, `TimeSpan`, `Guid`, `Uri`, `Version`, `char` |
+
+Rules:
+
+- `Nullable<T>` unwraps to `T` before mapping (`HelpTypeDisplay.cs:12` for scalars, `:59` for collection elements); e.g. `int?` → `<NUMBER>`.
+- `bool` / `bool?` are flags (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandOptionInfo.cs:87`) and show no placeholder (`HelpTypeDisplay.cs:51-52,67-68`): `--verbose`, never `--verbose <BOOL>`.
+- Collections render `<TOKEN...>` from the element type (`HelpTypeDisplay.cs:55-65`): `List<string>` → `<STRING...>`, `List<decimal>` → `<NUMBER...>`.
+- Enums render generic `<VALUE>` plus a `Possible values: ...` line (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:416-420`).
+- Positional arguments show name-only (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:438-448`): `<name>` / `[name]`, no type token.
+
 ## Console Themes
 
 The library includes 5 built-in themes implementing `IConsoleTheme`:

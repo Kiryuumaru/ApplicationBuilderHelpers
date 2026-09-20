@@ -396,10 +396,11 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
             signature.Append($"--{option.LongName}");
         }
 
-        if (option.PropertyType != typeof(bool))
+        if (!option.IsFlag)
         {
-            var paramName = HelpFormatter.GetParameterName(option);
-            signature.Append($" {paramName}");
+            var paramName = HelpTypeDisplay.GetParameterPlaceholder(option);
+            if (!string.IsNullOrEmpty(paramName))
+                signature.Append($" {paramName}");
         }
 
         return signature.ToString();
@@ -465,56 +466,6 @@ internal class HelpFormatter(ICommandBuilder commandBuilder, SubCommandInfo? roo
 
         // Use proper line breaks between different description parts for better readability
         return string.Join("\n", parts);
-    }
-
-    private static string GetParameterName(SubCommandOptionInfo option)
-    {
-        // Check collection shape so help signatures match the binder (T[], List<T>,
-        // IEnumerable<T>, ICollection<T>, IList<T> all bind as repeatable options).
-        var isCollection = TypeConversion.CollectionShape.IsCollection(option.PropertyType);
-        var elementType = isCollection
-            ? TypeConversion.CollectionShape.TryGetElementType(option.PropertyType, out var resolved) ? resolved : option.PropertyType
-            : option.PropertyType;
-
-        if (isCollection)
-        {
-            var elementTypeName = elementType?.Name.ToUpperInvariant() ?? "VALUE";
-            return elementTypeName switch
-            {
-                "STRING" => "<STRING...>",
-                "INT32" => "<NUMBER...>",
-                "DOUBLE" => "<NUMBER...>",
-                "FLOAT" => "<NUMBER...>",
-                "DECIMAL" => "<NUMBER...>",
-                _ => "<VALUE...>"
-            };
-        }
-        
-        var typeName = option.PropertyType.Name.ToUpperInvariant();
-        
-        if (option.ValidValues?.Length > 0)
-        {
-            return typeName switch
-            {
-                "STRING" => "<STRING>",
-                "INT32" => "<NUMBER>",
-                "DOUBLE" => "<NUMBER>",
-                "FLOAT" => "<NUMBER>",
-                "DECIMAL" => "<NUMBER...>",
-                _ => "<VALUE>"
-            };
-        }
-
-        return typeName switch
-        {
-            "STRING" => "<STRING>",
-            "INT32" => "<NUMBER>",
-            "DOUBLE" => "<NUMBER>",
-            "FLOAT" => "<NUMBER>",
-            "DECIMAL" => "<NUMBER...>",
-            "BOOLEAN" => "",
-            _ => "<VALUE>"
-        };
     }
 
     private void WriteWrappedText(string text, int width, int indent, IConsoleTheme? theme)
