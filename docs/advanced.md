@@ -133,6 +133,8 @@ myapp --version    # Shows version number
 
 The `--help` and `--version` flags are handled automatically — you don't need to define them.
 
+Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE>`, `<TOKEN...>`) are documented in [Configuration & Themes](configuration.md#help-placeholder-tokens-454).
+
 ## Tokenizer Behavior
 
 - Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.

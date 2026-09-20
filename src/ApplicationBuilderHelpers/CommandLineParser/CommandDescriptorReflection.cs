@@ -34,6 +34,7 @@ internal static class CommandDescriptorReflection
     /// Gets the display type name for an already-resolved target type.
     /// Callers resolve collections (<c>IsCollection ? ElementType : PropertyType</c>) themselves.
     /// </summary>
+    [Obsolete("Use HelpTypeDisplay.GetPlaceholderToken instead. Kept for API compatibility; behavior unchanged.")]
     internal static string GetTypeDisplayName(Type targetType)
     {
         return targetType.Name.ToLowerInvariant() switch

@@ -359,20 +359,21 @@ public sealed class CliDescriptorCharacterizationTests
         Assert.True(options.Single(o => o.LongName == "code").IsRequired);
     }
 
+    // #454: friendly help tokens (HelpTypeDisplay) — no raw CLR names (TIMESPAN/GUID/URI/NULLABLE`1).
     [Theory]
-    [InlineData(nameof(DisplayTypeHolder.Text), "TEXT")]
+    [InlineData(nameof(DisplayTypeHolder.Text), "STRING")]
     [InlineData(nameof(DisplayTypeHolder.Number), "NUMBER")]
     [InlineData(nameof(DisplayTypeHolder.Ratio), "NUMBER")]
     [InlineData(nameof(DisplayTypeHolder.Flag), "BOOL")]
     [InlineData(nameof(DisplayTypeHolder.Moment), "DATE")]
     [InlineData(nameof(DisplayTypeHolder.Folder), "DIR")]
     [InlineData(nameof(DisplayTypeHolder.File), "FILE")]
-    [InlineData(nameof(DisplayTypeHolder.Duration), "TIMESPAN")]
-    [InlineData(nameof(DisplayTypeHolder.Token), "GUID")]
-    [InlineData(nameof(DisplayTypeHolder.Endpoint), "URI")]
-    [InlineData(nameof(DisplayTypeHolder.MaybeNumber), "NULLABLE`1")]
+    [InlineData(nameof(DisplayTypeHolder.Duration), "VALUE")]
+    [InlineData(nameof(DisplayTypeHolder.Token), "VALUE")]
+    [InlineData(nameof(DisplayTypeHolder.Endpoint), "VALUE")]
+    [InlineData(nameof(DisplayTypeHolder.MaybeNumber), "NUMBER")]
     [InlineData(nameof(DisplayTypeHolder.Scores), "NUMBER")]
-    [InlineData(nameof(DisplayTypeHolder.Names), "TEXT")]
+    [InlineData(nameof(DisplayTypeHolder.Names), "STRING")]
     public void OptionAndArgument_DisplayNames_MatchTable(string propertyName, string expected)
     {
         var property = Prop<DisplayTypeHolder>(propertyName);
