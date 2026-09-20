@@ -247,7 +247,7 @@ internal class SubCommandOptionInfo
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
     public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
-        return FromProperties(CommandReflectionCache.Walk(commandType, declaredOnly: false), ownerCommand, typeParserCollection);
+        return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand, typeParserCollection);
     }
 
     /// <summary>
@@ -258,13 +258,7 @@ internal class SubCommandOptionInfo
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
     public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
-        // Trim-safe: Walk's declared-only branch reflects only DeclaredOnly |
-        // Public | NonPublic | Instance off the passed type, exactly what this
-        // shim's annotation guarantees. Walk carries All for its full BaseType
-        // loop, which the analyzer cannot narrow per-branch.
-#pragma warning disable IL2067
-        return FromProperties(CommandReflectionCache.Walk(commandType, declaredOnly: true), ownerCommand, typeParserCollection);
-#pragma warning restore IL2067
+        return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand, typeParserCollection);
     }
 
     /// <summary>

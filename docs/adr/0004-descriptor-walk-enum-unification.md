@@ -1,6 +1,6 @@
 # ADR 0004: Descriptor Walk + Enum-Predicate Unification
 
-**Status**: Accepted (caller-provided context: internal-only refactor, zero behavior change — characterization 78/78, full suite 879/879 — cited as given, not re-run under docs-only restraint).
+**Status**: Accepted (caller-provided context: internal-only refactor, zero behavior change — characterization 78/78, full suite 901/901 — cited as given, not re-run under docs-only restraint).
 
 Supersedes the line-level references in ADR-0003 (which remains immutable history); its policy decisions stand unchanged.
 
@@ -25,12 +25,13 @@ legacy entry points to `Obsolete` shims. No behavior change:
 
 ### What unified
 
-- **`Walk(Type, declaredOnly)`** (`CommandReflectionCache.cs:230-258`) replaces
-  `GetAllProperties` plus both inline `DeclaredOnly` walks. `declaredOnly:
-  false` is the old base-first `BaseType` chain; `declaredOnly: true` is the
-  old `DeclaredOnly | Public | NonPublic | Instance` branch. One walk, six call
-  sites: `Build` (`CommandReflectionCache.cs:151`), the four shims below, and
-  the service-injection scan (`CommandExecutor.cs:245`).
+- **Split walk: `Walk(Type)` + `WalkDeclaredOnly(Type)`**
+  (`CommandReflectionCache.cs`) replaces `GetAllProperties` plus both inline
+  `DeclaredOnly` walks. `Walk` is the old base-first `BaseType` chain;
+  `WalkDeclaredOnly` is the old `DeclaredOnly | Public | NonPublic |
+  Instance` branch. Six call sites: `Build` (`CommandReflectionCache.cs`),
+  the four shims below, and the service-injection scan
+  (`CommandExecutor.cs`).
 - **Per-kind `FromProperties` cores** — options
   (`SubCommandOptionInfo.cs:226-241`, base-first, no sort) and arguments
   (`SubCommandArgumentInfo.cs:162-177`, `Position` sort) — each a single
@@ -64,18 +65,16 @@ legacy entry points to `Obsolete` shims. No behavior change:
 
 ### DAM rationale
 
-`Walk` carries `All`
-(`CommandReflectionCache.cs:230`) so the full `BaseType` loop (which reflects
-off `BaseType` hops) and every caller flow without trim warnings. Each shim
-retains its own narrow annotation — `FromCommandType` keeps `All`
-(`SubCommandOptionInfo.cs:248`, `SubCommandArgumentInfo.cs:184`),
-`FromDeclaredType` keeps `PublicProperties | NonPublicProperties`
-(`SubCommandOptionInfo.cs:259`, `SubCommandArgumentInfo.cs:195`) — and the
-declared-only call sits under a scoped `#pragma warning disable IL2067`
-(`SubCommandOptionInfo.cs:265-267`, `SubCommandArgumentInfo.cs:201-203`):
-`Walk`'s declared-only branch reflects only `DeclaredOnly | Public |
-NonPublic | Instance` off the passed type, exactly what the shim's annotation
-guarantees, while the analyzer cannot narrow `Walk`'s `All` per-branch.
+`Walk` carries `All` (`CommandReflectionCache.cs`) so the full `BaseType`
+loop (which reflects off `BaseType` hops) and every full-walk caller flow
+without trim warnings; `WalkDeclaredOnly` carries only
+`PublicProperties | NonPublicProperties`, exactly what the declared-only
+branch reflects (`DeclaredOnly | Public | NonPublic | Instance`) off the
+passed type. Each shim retains its own narrow annotation —
+`FromCommandType` keeps `All` (`SubCommandOptionInfo.cs`,
+`SubCommandArgumentInfo.cs`), `FromDeclaredType` keeps
+`PublicProperties | NonPublicProperties` — and each calls the walk whose
+annotation matches, so zero suppressions are needed.
 
 ### DefaultValue deletion
 
@@ -104,9 +103,9 @@ survive.
 
 All four legacy entry points are `[Obsolete]` shims over the per-kind cores —
 `SubCommandOptionInfo.FromCommandType` (`:247-251`),
-`SubCommandOptionInfo.FromDeclaredType` (`:258-268`),
+`SubCommandOptionInfo.FromDeclaredType` (`:258-262`),
 `SubCommandArgumentInfo.FromCommandType` (`:183-187`),
-`SubCommandArgumentInfo.FromDeclaredType` (`:194-204`) — each carrying
+`SubCommandArgumentInfo.FromDeclaredType` (`:194-198`) — each carrying
 `"Use CommandReflectionCache for cached descriptors or the per-run
 FromDescriptor path instead. This member will be removed in a future major
 version."` Internal callers are migrated (`Build`, `CommandExecutor`); the
@@ -128,8 +127,24 @@ stay non-obsolete: they are the live and per-run paths the cache serves.
   this record.
 - Contract pinned by caller-provided verification (not re-run here):
   `CliDescriptorCharacterizationTests.cs` 78/78 (walk parity, enum merge,
-  override/hide, `NoDefaultValueMetadata` on all paths), full suite 879/879,
+   override/hide, `NoDefaultValueMetadata` on all paths), full suite 901/901,
   plus `OptionDefaultTests.OmittedOption_NoDefaultValueMetadataOnDescriptor`
   (`OptionDefaultTests.cs:50-56`) pinning the member's absence while
   `OmittedOption_PreservesPropertyInitializer` (`:34-43`) pins the live
   initializer fallback.
+
+> **Trim end-state reached (was: accepted IL2067 risk):** the preferred
+> end-state is implemented — `Walk` is split into `Walk(Type)` (DAM `All`,
+> full base-first `BaseType` chain) and `WalkDeclaredOnly(Type)` (DAM
+> `PublicProperties | NonPublicProperties`, single-type declared-only walk)
+> in `CommandReflectionCache.cs`. Full-walk callers (`Build`, both
+> `FromCommandType` shims, the `CommandExecutor` service-injection scan) use
+> `Walk`; both `FromDeclaredType` shims use `WalkDeclaredOnly`, whose
+> annotation their own `PublicProperties | NonPublicProperties` annotations
+> cover exactly. Both walk/shim `#pragma warning disable IL2067` sites are removed —
+> zero suppressions remain on the walk/shim path (out of scope: the pre-existing
+> test-CLI-helper `[UnconditionalSuppressMessage("ReflectionAnalysis", "IL2067")]`
+> at `src/ApplicationBuilderHelpers.Test.Cli/Commands/BaseCommand.cs:188`, which
+> this ADR does not touch). Any future new declared-only caller must use
+> `WalkDeclaredOnly` (not `Walk`); any widening of either method's reflected
+> surface must widen its annotation to match.

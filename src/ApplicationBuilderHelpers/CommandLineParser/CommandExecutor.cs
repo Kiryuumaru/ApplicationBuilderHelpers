@@ -242,7 +242,7 @@ internal sealed class CommandExecutor(
             }
 
             var targets = new List<ServiceInjectionTarget>();
-            foreach (var property in CommandReflectionCache.Walk(commandType, declaredOnly: false))
+            foreach (var property in CommandReflectionCache.Walk(commandType))
             {
                 var attributes = property.GetCustomAttributes(inherit: true);
                 bool hasFromServices = attributes.Any(a => a.GetType().Name == "FromServicesAttribute");

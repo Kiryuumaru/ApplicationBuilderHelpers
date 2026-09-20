@@ -6,6 +6,12 @@ using System.Reflection;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
+// Characterization tests intentionally exercise the four [Obsolete] descriptor
+// shims (FromCommandType/FromDeclaredType parity) plus the internal walks.
+// Precedent: CancellationExitCodeTests.cs disables CS0809/CS0618 + restores
+// around its intentional legacy-path probes.
+#pragma warning disable CS0618
+
 /// <summary>
 /// Characterization (golden-master) tests for the CLI descriptor duplication surface:
 /// required-keyword detection, display-name mapping, <c>FromCommandType</c> vs
@@ -427,7 +433,7 @@ public sealed class CliDescriptorCharacterizationTests
     [Fact]
     public void PropertyWalk_ReturnsBaseFirstOrder()
     {
-        var properties = CommandReflectionCache.Walk(typeof(ScopingDerived), declaredOnly: false);
+        var properties = CommandReflectionCache.Walk(typeof(ScopingDerived));
         var names = properties.Select(p => p.Name).ToList();
 
         Assert.Equal(4, names.Count);
@@ -652,7 +658,7 @@ public sealed class CliDescriptorCharacterizationTests
     [Fact]
     public void Options_FromProperty_MatchesFromCommandType_FieldByField()
     {
-        var properties = CommandReflectionCache.Walk(typeof(ParityOptionLeaf), declaredOnly: false);
+        var properties = CommandReflectionCache.Walk(typeof(ParityOptionLeaf));
         var commanded = SubCommandOptionInfo.FromCommandType(typeof(ParityOptionLeaf));
 
         Assert.Equal(8, commanded.Count);
@@ -774,7 +780,7 @@ public sealed class CliDescriptorCharacterizationTests
 
         Assert.Null(optionType.GetProperty("DefaultValue"));
 
-        foreach (var property in CommandReflectionCache.Walk(typeof(ParityOptionLeaf), declaredOnly: false))
+        foreach (var property in CommandReflectionCache.Walk(typeof(ParityOptionLeaf)))
         {
             if (property.GetCustomAttribute<CommandOptionAttribute>() is { } attribute)
             {
@@ -809,7 +815,7 @@ public sealed class CliDescriptorCharacterizationTests
         Assert.Equal(new[] { "head", "middle", "tail", "base-arg", "tags" }, commanded.Select(a => a.Name));
 
         var byName = commanded.ToDictionary(a => a.Name!);
-        foreach (var property in CommandReflectionCache.Walk(typeof(ParityArgumentLeaf), declaredOnly: false))
+        foreach (var property in CommandReflectionCache.Walk(typeof(ParityArgumentLeaf)))
         {
             var attribute = property.GetCustomAttribute<CommandArgumentAttribute>();
             if (attribute is null)
@@ -896,7 +902,7 @@ public sealed class CliDescriptorCharacterizationTests
 
         Assert.Null(argumentType.GetProperty("DefaultValue"));
 
-        foreach (var property in CommandReflectionCache.Walk(typeof(ParityArgumentLeaf), declaredOnly: false))
+        foreach (var property in CommandReflectionCache.Walk(typeof(ParityArgumentLeaf)))
         {
             if (property.GetCustomAttribute<CommandArgumentAttribute>() is { } attribute)
             {
@@ -1033,3 +1039,4 @@ public sealed class CliDescriptorCharacterizationTests
         Assert.False(HasGlobalSignature(baseline, divergent), $"Expected divergence in {field} to block promotion.");
     }
 }
+#pragma warning restore CS0618

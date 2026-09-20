@@ -148,7 +148,7 @@ internal sealed class CommandReflectionCache
     /// </summary>
     private static CommandTypeDescriptor Build([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
-        var properties = Walk(commandType, declaredOnly: false);
+        var properties = Walk(commandType);
 
         var options = new List<CommandOptionDescriptor>();
         var arguments = new List<CommandArgumentDescriptor>();
@@ -216,28 +216,18 @@ internal sealed class CommandReflectionCache
     }
 
     /// <summary>
-    /// Single owned property walk: full BaseType chain base-first when
-    /// <paramref name="declaredOnly"/> is false, or the properties declared
-    /// directly on <paramref name="type"/> when true. The declared-only flag
-    /// exists so the leaf <c>FromDeclaredType</c> shims share this walk
-    /// instead of each owning an inline <c>DeclaredOnly</c> walk; filtering
-    /// by descriptor is deliberately not offered (override/hide members must
-    /// keep their duplicate walk entries). Shared by
-    /// SubCommandOptionInfo / SubCommandArgumentInfo so the walk exists once.
-    /// Carries <c>All</c> so the full BaseType loop (which reflects off
-    /// <c>BaseType</c> hops) and every caller flow without trim warnings.
+    /// Single owned property walk: full BaseType chain base-first. Carries
+    /// <c>All</c> so the full BaseType loop (which reflects off
+    /// <c>BaseType</c> hops) and every full-walk caller flow without trim
+    /// warnings. The declared-only walk lives in
+    /// <see cref="WalkDeclaredOnly(Type)"/> with its own narrow annotation
+    /// so neither path needs a suppression; filtering by descriptor is
+    /// deliberately not offered (override/hide members must keep their
+    /// duplicate walk entries). Shared by SubCommandOptionInfo /
+    /// SubCommandArgumentInfo so the walk exists once.
     /// </summary>
-    internal static List<PropertyInfo> Walk([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type, bool declaredOnly)
+    internal static List<PropertyInfo> Walk([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
     {
-        if (declaredOnly)
-        {
-            return [.. type.GetProperties(
-                BindingFlags.DeclaredOnly |
-                BindingFlags.Public |
-                BindingFlags.NonPublic |
-                BindingFlags.Instance)];
-        }
-
         var properties = new List<PropertyInfo>();
         var currentType = type;
 
@@ -255,5 +245,21 @@ internal sealed class CommandReflectionCache
 
         properties.Reverse();
         return properties;
+    }
+
+    /// <summary>
+    /// Declared-only walk: the properties declared directly on
+    /// <paramref name="type"/>. Carries only
+    /// <c>PublicProperties | NonPublicProperties</c>, matching the leaf
+    /// <c>FromDeclaredType</c> shims' own annotations, so those callers
+    /// flow without a trim suppression.
+    /// </summary>
+    internal static List<PropertyInfo> WalkDeclaredOnly([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type type)
+    {
+        return [.. type.GetProperties(
+            BindingFlags.DeclaredOnly |
+            BindingFlags.Public |
+            BindingFlags.NonPublic |
+            BindingFlags.Instance)];
     }
 }
