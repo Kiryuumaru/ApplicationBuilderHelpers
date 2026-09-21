@@ -16,8 +16,17 @@ internal class ParseResult
     public Dictionary<SubCommandArgumentInfo, List<string>> ArgumentValues { get; set; } = [];
 
     /// <summary>
+    /// Side-channel occurrence ledger (#470): canonical keys of valued scalars
+    /// seen bare (no value token). Separate from the value lists so a bare
+    /// occurrence stays visible after a satisfied value; single bare keeps the
+    /// #449 sentinel path (env fallback, <c>MissingRequired</c>, omitted).
+    /// </summary>
+    internal HashSet<string> BareOptionOccurrences { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Adds an option value to the parse result. Collections accumulate;
-    /// scalars overwrite with the last value (industry last-wins).
+    /// scalars overwrite with the last value (industry last-wins). A later
+    /// real value heals a prior bare mark via the same eviction.
     /// </summary>
     internal void AddOptionValue(SubCommandOptionInfo option, string? value)
     {
@@ -30,6 +39,7 @@ internal class ParseResult
             {
                 OptionValues.Remove(storedOption);
             }
+            BareOptionOccurrences.Remove(key);
         }
 
         if (!OptionValues.ContainsKey(option))
@@ -37,6 +47,8 @@ internal class ParseResult
 
         if (value != null)
             OptionValues[option].Add(value);
+        else if (!option.IsCollection && !option.IsFlag)
+            BareOptionOccurrences.Add(GetCanonicalOptionKey(option));
     }
 
     /// <summary>

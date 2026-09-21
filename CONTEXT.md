@@ -37,7 +37,10 @@ The gateway handling its reserved words first, so same-named registered commands
 A CLI value whose token was supplied on the command line or via a non-blank environment-variable fallback — including `""`, which counts as present.
 
 **Missing**:
-A required value with no supplied token and no applicable fallback; fails with `MissingRequired` (exit 2).
+A required value with no supplied token and no applicable fallback; fails with `MissingRequired` (exit 2). A satisfied required valued scalar repeated bare (`--name John ... --name` at end-of-line) is also missing on its own merits and fails regardless of env fallback (see Bare repeat).
+
+**Bare repeat**:
+A trailing valueless occurrence of a valued scalar (`--config` at end-of-line, or satisfied-then-bare). Required scope: fails with `MissingRequired` (exit 2), never rescued by env fallback for the repeat; a single trailing-bare stays env-rescuable. Optional scope: ignored — the prior value stands. Bare-then-valued heals; collections accumulate; bare boolean flags stay idempotent.
 
 **Omitted**:
 A value with no supplied token (optional values keep their property default).

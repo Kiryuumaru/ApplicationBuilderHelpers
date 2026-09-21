@@ -10,7 +10,9 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal sealed class ParameterValidator
 {
     /// <summary>
-    /// Validates that all required parameters are provided
+    /// Validates that all required parameters are provided.
+    /// A satisfied-then-bare repeat (#470) also fails: each bare valued
+    /// occurrence is a missing value on its own merits, regardless of env.
     /// </summary>
     public void ValidateRequiredParameters(ParseResult result)
     {
@@ -23,6 +25,13 @@ internal sealed class ParameterValidator
                 if (EnvVarFallback.Apply(result, option, requiredOnly: true))
                     continue;
 
+                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired);
+            }
+
+            if (!option.IsCollection
+                && !option.IsFlag
+                && result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
+            {
                 throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired);
             }
         }
