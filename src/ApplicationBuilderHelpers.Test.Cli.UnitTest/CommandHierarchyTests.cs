@@ -152,6 +152,42 @@ public sealed class CommandHierarchyTests
         }
     }
 
+    public enum CfgBaseShade
+    {
+        Red,
+        Green,
+        Blue
+    }
+
+    [Command("shadebase", "Base shade hub.")]
+    public abstract class ShadeBaseHub : Command
+    {
+        [CommandArgument("shade", Description = "Shade value.", Position = 0)]
+        public CfgBaseShade Shade { get; set; }
+    }
+
+    [Command("shadebase get", "Gets a shade value.")]
+    public sealed class ShadeBaseGetCommand : ShadeBaseHub
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"shadebase get:{Shade}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("shadebase set", "Sets a shade value.")]
+    public sealed class ShadeBaseSetCommand : ShadeBaseHub
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"shadebase set:{Shade}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Command("other", "Other hub.")]
     public abstract class MissHubBase : Command
     {
@@ -547,6 +583,55 @@ public sealed class CommandHierarchyTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("cfgbase get:table:mykey", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task AbstractBase_PlainEnumArgument_RejectsInvalidValue_WithAutoPopulatedList()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<ShadeBaseGetCommand>().AddCommand<ShadeBaseSetCommand>(),
+            ["shadebase", "get", "Purple"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Value 'Purple' is not valid for argument 'shade'", error);
+        Assert.Contains("Must be one of: Red, Green, Blue", error);
+    }
+
+    [Fact]
+    public async Task AbstractBase_PlainEnumArgument_AcceptsValidValue_CaseInsensitive()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<ShadeBaseGetCommand>().AddCommand<ShadeBaseSetCommand>(),
+            ["shadebase", "get", "green"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("shadebase get:Green", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task AbstractBase_PlainEnumArgument_IntermediateHelp_ListsAutoPopulatedValues()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<ShadeBaseGetCommand>().AddCommand<ShadeBaseSetCommand>(),
+            ["shadebase", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Possible values: Red, Green, Blue", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task AbstractBase_PlainEnumArgument_LeafHelp_ListsAutoPopulatedValues()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<ShadeBaseGetCommand>().AddCommand<ShadeBaseSetCommand>(),
+            ["shadebase", "get", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Possible values: Red, Green, Blue", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 

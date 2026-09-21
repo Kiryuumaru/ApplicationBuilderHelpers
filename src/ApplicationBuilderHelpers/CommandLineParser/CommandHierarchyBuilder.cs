@@ -60,7 +60,10 @@ internal sealed class CommandHierarchyBuilder(
                     SubCommandOptionInfo.ResolveValidValues(descriptor, typeParserCollection)))
                 .ToList();
             subCommandInfo.Arguments = typeDescriptor.Arguments
-                .Select(descriptor => SubCommandArgumentInfo.FromDescriptor(descriptor, subCommandInfo))
+                .Select(descriptor => SubCommandArgumentInfo.FromDescriptor(
+                    descriptor,
+                    subCommandInfo,
+                    SubCommandArgumentInfo.ResolveValidValues(descriptor, typeParserCollection)))
                 .ToList();
 
             // Insert into hierarchy
@@ -201,7 +204,10 @@ internal sealed class CommandHierarchyBuilder(
                     .ToList();
                 baseCommandInfo.Arguments = leafDescriptor.Arguments
                     .Where(d => d.DeclaringType == matchedBaseType)
-                    .Select(descriptor => SubCommandArgumentInfo.FromDescriptor(descriptor, baseCommandInfo))
+                    .Select(descriptor => SubCommandArgumentInfo.FromDescriptor(
+                        descriptor,
+                        baseCommandInfo,
+                        SubCommandArgumentInfo.ResolveValidValues(descriptor, typeParserCollection)))
                     .ToList();
 
                 return baseCommandInfo;

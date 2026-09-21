@@ -74,7 +74,7 @@ public int Timeout { get; set; } = 30;
 | `Description` | `string?` | Help text |
 | `EnvironmentVariable` | `string?` | Fallback env var |
 | `Required` | `bool` | Must be provided |
-| `FromAmong` | `object[]` | Restrict to specific values |
+| `FromAmong` | `object[]` | Restrict to specific values (enum-typed options auto-populate from the enum names when `FromAmong` is empty, unless a custom parser is registered for that enum type) |
 | `CaseSensitive` | `bool` | Case-sensitive matching for FromAmong |
 | `Secret` | `bool` | Redact value: help default shows `[REDACTED]`, errors omit the provided value (including `--no-<name>=value` rejections for secret valued options) |
 
@@ -121,7 +121,7 @@ public string? DestPath { get; set; }
 | `Position` | `int` | Positional index |
 | `Description` | `string?` | Help text |
 | `Required` | `bool` | Must be provided |
-| `FromAmong` | `object[]` | Restrict to specific values |
+| `FromAmong` | `object[]` | Restrict to specific values (enum-typed arguments auto-populate from the enum names when `FromAmong` is empty, unless a custom parser is registered for that enum type — same rule as options) |
 | `CaseSensitive` | `bool` | Case-sensitive matching |
 | `Secret` | `bool` | Redact value: errors omit the provided value |
 

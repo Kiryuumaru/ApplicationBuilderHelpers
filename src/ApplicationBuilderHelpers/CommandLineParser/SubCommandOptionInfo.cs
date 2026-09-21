@@ -171,53 +171,30 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Single enum predicate (live overload): explicit <c>FromAmong</c> wins;
-    /// else the enum names for <paramref name="propertyType"/> (nullable
-    /// unwrapped) iff it is an enum and no live parser exists for that enum
-    /// type in the live collection; else null. Parser policy stays here in
-    /// the parser layer (per ADR-0003); the leaf only supplies the candidate.
+    /// Single enum predicate (live overload): delegates to the shared
+    /// <see cref="EnumValidValues"/> predicate (behavior-neutral).
     /// </summary>
     private static object[]? ResolveEnumValues(Type propertyType, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
     {
-        var (candidateType, candidateNames) = CommandDescriptorReflection.GetEnumCandidate(propertyType);
-        return ResolveEnumValues(candidateType, candidateNames, fromAmong, typeParserCollection);
+        return EnumValidValues.Resolve(propertyType, fromAmong, typeParserCollection);
     }
 
     /// <summary>
-    /// Single enum predicate (frozen overload): explicit <c>FromAmong</c> wins;
-    /// else the frozen enum names iff the descriptor carries an enum candidate
-    /// and no live parser exists for that enum type in the live collection;
-    /// else null.
+    /// Single enum predicate (frozen overload): delegates to the shared
+    /// <see cref="EnumValidValues"/> predicate (behavior-neutral).
     /// </summary>
     private static object[]? ResolveEnumValues(Type? enumCandidateType, string[]? enumCandidateNames, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
     {
-        if (fromAmong is { Length: > 0 })
-        {
-            return [.. fromAmong];
-        }
-
-        if (enumCandidateType is null || enumCandidateNames is null)
-        {
-            return null;
-        }
-
-        if (typeParserCollection?.TypeParsers.ContainsKey(enumCandidateType) == true)
-        {
-            return null;
-        }
-
-        return [.. enumCandidateNames];
+        return EnumValidValues.Resolve(enumCandidateType, enumCandidateNames, fromAmong, typeParserCollection);
     }
 
     /// <summary>
-    /// Resolves per-run valid values for a cached descriptor: explicit
-    /// <c>FromAmong</c> wins; else the frozen enum names iff the descriptor
-    /// carries an enum candidate and no live parser exists for that enum type
-    /// in the live collection; else null.
+    /// Resolves per-run valid values for a cached descriptor: delegates to
+    /// the shared <see cref="EnumValidValues"/> predicate (behavior-neutral).
     /// </summary>
     internal static object[]? ResolveValidValues(CommandOptionDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
     {
-        return ResolveEnumValues(descriptor.EnumCandidateType, descriptor.EnumCandidateNames, descriptor.FromAmong, typeParserCollection);
+        return EnumValidValues.Resolve(descriptor.EnumCandidateType, descriptor.EnumCandidateNames, descriptor.FromAmong, typeParserCollection);
     }
 
     /// <summary>
