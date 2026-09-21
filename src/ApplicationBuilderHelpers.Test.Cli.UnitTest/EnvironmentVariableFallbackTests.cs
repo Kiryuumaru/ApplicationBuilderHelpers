@@ -9,7 +9,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Exercises the environment fallback through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// explicit option values take precedence, unset or empty variables are treated
-/// as missing, a bare option without a value still falls back, and required
+/// as missing, a bare option without a value fails even with the environment
+/// set (fallback covers only omitted options), and required
 /// options can be satisfied from the environment.
 /// Joins the non-parallel <c>ConsoleDecoupling</c> collection because both the
 /// console streams and the process environment are process-global mutable state.
@@ -121,25 +122,26 @@ public sealed class EnvironmentVariableFallbackTests
     }
 
     [Fact]
-    public async Task BareOptionWithoutValue_UsesEnvironmentValue()
+    public async Task BareOptionWithoutValue_WithEnvironmentValue_ReportsMissing()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["envprobe", "--config"],
             new Dictionary<string, string?> { [ConfigVariable] = "env-config.json" });
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Config: env-config.json", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.DoesNotContain("env-config.json", error);
+        Assert.Contains("Missing value for option: --config", error);
     }
 
     [Fact]
-    public async Task BareOptionWithoutValue_AndWithoutEnvironmentValue_LeavesOptionEmpty()
+    public async Task BareOptionWithoutValue_AndWithoutEnvironmentValue_ReportsMissing()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["envprobe", "--config"],
             new Dictionary<string, string?> { [ConfigVariable] = null });
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Config: null", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing value for option: --config", error);
     }
 
     [Fact]

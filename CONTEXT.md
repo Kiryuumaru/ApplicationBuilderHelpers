@@ -37,10 +37,10 @@ The gateway handling its reserved words first, so same-named registered commands
 A CLI value whose token was supplied on the command line or via a non-blank environment-variable fallback — including `""`, which counts as present.
 
 **Missing**:
-A required value with no supplied token and no applicable fallback; fails with `MissingRequired` (exit 2). A satisfied required valued scalar repeated bare (`--name John ... --name` at end-of-line) is also missing on its own merits and fails regardless of env fallback (see Bare repeat).
+A value with no supplied token and no applicable fallback; fails with `MissingRequired` (exit 2). Covers a required value with nothing supplied, a satisfied required valued scalar repeated bare (`--name John ... --name` at end-of-line, fails regardless of env fallback), and — per #503 — an unsatisfied bare optional valued scalar (`--config` at end-of-line or before a flag-looking neighbor), which fails even with env set, reported as `Missing value for option: <display-name>`. Env fallback rescues only omitted (never-typed) options, never a typed bare.
 
 **Bare repeat**:
-A trailing valueless occurrence of a valued scalar (`--config` at end-of-line, or satisfied-then-bare). Required scope: fails with `MissingRequired` (exit 2), never rescued by env fallback for the repeat; a single trailing-bare stays env-rescuable. Optional scope: ignored — the prior value stands. Bare-then-valued heals; collections accumulate; bare boolean flags stay idempotent.
+A trailing valueless occurrence of a valued scalar (`--config` at end-of-line, or satisfied-then-bare). Unsatisfied bare (no merged value anywhere): always fails with `MissingRequired` (exit 2) even with env set — required scope (`Missing required option: <display-name>`) and optional scope (`Missing value for option: <display-name>`) alike. Typing the option claims ownership; env fallback rescues only omitted (never-typed) options. Satisfied-then-bare repeat: required fails regardless of env; optional is ignored — the prior value stands. Bare-then-valued heals; collections accumulate; bare boolean flags stay idempotent.
 
 **Omitted**:
 A value with no supplied token (optional values keep their property default).
