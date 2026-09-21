@@ -23,11 +23,12 @@ public class HelpVersionPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Known_Flag_Neighbor_Is_Not_Consumed()
+    public async Task Known_Flag_Neighbor_Reports_Missing_Value()
     {
         var result = await Runner.RunAsync("test", "mytarget", "--config", "--verbose");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Running test on target: mytarget");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
         CliTestAssertions.AssertOutputDoesNotContain(result, "config=\"--verbose\"");
     }
 

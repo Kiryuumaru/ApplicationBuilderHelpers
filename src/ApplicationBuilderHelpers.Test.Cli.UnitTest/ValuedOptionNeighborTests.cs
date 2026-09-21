@@ -12,12 +12,12 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 public class ValuedOptionNeighborTests : CliTestBase
 {
     [Fact]
-    public async Task Valued_Option_Does_Not_Consume_Known_Flag_Neighbor()
+    public async Task Valued_Option_With_Known_Flag_Neighbor_Reports_Missing()
     {
         var result = await Runner.RunAsync("test", "mytarget", "--config", "--verbose");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Running test on target: mytarget");
-        CliTestAssertions.AssertOutputContains(result, "verbose=true");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
         CliTestAssertions.AssertOutputDoesNotContain(result, "config=\"--verbose\"");
     }
 
@@ -58,15 +58,17 @@ public class ValuedOptionNeighborTests : CliTestBase
     }
 
     [Fact]
-    public async Task Valued_Option_With_Flag_Neighbor_Still_Uses_Environment_Fallback()
+    public async Task Valued_Option_With_Flag_Neighbor_And_Environment_Fallback_Reports_Missing()
     {
         var envVars = new Dictionary<string, string>
         {
             ["TEST_CONFIG"] = "env-config.json"
         };
         var result = await Runner.RunAsync(envVars, "test", "target", "--config", "--verbose");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Config: env-config.json");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "env-config.json");
     }
 
     [Fact]
@@ -137,11 +139,12 @@ public class ValuedOptionNeighborTests : CliTestBase
     }
 
     [Fact]
-    public async Task Trailing_Bare_Optional_Option_Stays_Omitted()
+    public async Task Trailing_Bare_Optional_Option_Reports_Missing()
     {
         var result = await Runner.RunAsync("test", "target", "--config");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Running test on target: target");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
     }
 
     [Fact]
@@ -163,5 +166,37 @@ public class ValuedOptionNeighborTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", "--config", "a.json", "--config");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "config=\"a.json\"");
+    }
+
+    [Fact]
+    public async Task Short_Bare_Valued_Option_Before_Flag_Reports_Missing()
+    {
+        var result = await Runner.RunAsync("build", "MyProject.csproj", "-o", "--release");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -o, --output");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Output: --release");
+    }
+
+    [Fact]
+    public async Task Trailing_Bare_Optional_Option_With_Environment_Fallback_Reports_Missing()
+    {
+        var envVars = new Dictionary<string, string>
+        {
+            ["TEST_CONFIG"] = "env-config.json"
+        };
+        var result = await Runner.RunAsync(envVars, "test", "target", "--config");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "env-config.json");
+    }
+
+    [Fact]
+    public async Task Trailing_Bare_Bool_Flag_Binds_True()
+    {
+        var result = await Runner.RunAsync("test", "target", "--verbose");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "verbose=true");
     }
 }
