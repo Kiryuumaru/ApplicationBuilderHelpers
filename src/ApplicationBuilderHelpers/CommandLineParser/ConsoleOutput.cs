@@ -5,8 +5,9 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Internal decoupling of console output for testability.
-/// Routes normal output (help/version) to <see cref="Out"/> and
-/// diagnostics (errors, fallback notes) to <see cref="Error"/>,
+/// Routes normal output (help/version) and informational notes
+/// (CancelKeyPress fallbacks) to <see cref="Out"/> and
+/// diagnostics (errors) to <see cref="Error"/>,
 /// defaulting to <see cref="Console.Out"/> / <see cref="Console.Error"/>.
 /// Color is only applied when writing to the real console and the
 /// corresponding stream is not redirected.

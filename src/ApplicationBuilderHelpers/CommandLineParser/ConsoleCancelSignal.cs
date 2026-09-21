@@ -21,12 +21,12 @@ internal sealed class ConsoleCancelSignal(ConsoleOutput consoleOutput) : IConsol
         }
         catch (PlatformNotSupportedException)
         {
-            consoleOutput.WriteLineError("Note: Console.CancelKeyPress is not supported on this platform.");
+            consoleOutput.WriteLine("Note: Console.CancelKeyPress is not supported on this platform.");
             return false;
         }
         catch (IOException)
         {
-            consoleOutput.WriteLineError("Note: Console.CancelKeyPress is unavailable (I/O).");
+            consoleOutput.WriteLine("Note: Console.CancelKeyPress is unavailable (I/O).");
             return false;
         }
     }

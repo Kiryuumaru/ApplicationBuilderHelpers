@@ -15,7 +15,8 @@ internal interface IConsoleCancelSignal
 {
     /// <summary>
     /// Subscribes <paramref name="handler"/> to the cancel signal.
-    /// Returns <c>true</c> when subscribed; writes a fallback note and
+    /// Returns <c>true</c> when subscribed; writes state info to the
+    /// standard output stream as a fallback note and
     /// returns <c>false</c> when the signal is unsupported on this platform.
     /// </summary>
     bool Subscribe(ConsoleCancelEventHandler handler);
