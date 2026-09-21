@@ -60,11 +60,6 @@ internal class SubCommandArgumentInfo
     public bool IsSecret { get; set; }
 
     /// <summary>
-    /// Default value for the argument
-    /// </summary>
-    public object? DefaultValue { get; set; }
-
-    /// <summary>
     /// Whether this argument is global (available to all subcommands)
     /// </summary>
     public bool IsGlobal { get; set; }
@@ -160,15 +155,13 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
-    /// Creates a list of SubCommandArgumentInfo objects from a command type.
-    /// Delegates the property walk to <see cref="CommandReflectionCache"/>
-    /// (the single owned BaseType walk) to avoid a duplicate walk under
-    /// <c>DynamicallyAccessedMembers(All)</c>.
+    /// Per-kind core: single attribute-read loop for arguments (Position
+    /// sort) shared by the <c>FromCommandType</c>/<c>FromDeclaredType</c>
+    /// shims. Inheritance keeps the name-based heuristic.
     /// </summary>
-    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
+    private static List<SubCommandArgumentInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand)
     {
         var arguments = new List<SubCommandArgumentInfo>();
-        var properties = CommandReflectionCache.GetAllProperties(commandType);
 
         foreach (var property in properties)
         {
@@ -184,29 +177,24 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
-    /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
-    /// (excludes inherited properties to avoid conflicts)
+    /// Creates a list of SubCommandArgumentInfo objects from a command type.
+    /// Shim over the per-kind core (full walk).
     /// </summary>
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
+    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
+    {
+        return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand);
+    }
+
+    /// <summary>
+    /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
+    /// (excludes inherited properties to avoid conflicts).
+    /// Shim over the per-kind core (declared-only walk).
+    /// </summary>
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
     public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
     {
-        var arguments = new List<SubCommandArgumentInfo>();
-        var properties = commandType.GetProperties(
-            BindingFlags.DeclaredOnly | 
-            BindingFlags.Public | 
-            BindingFlags.NonPublic | 
-            BindingFlags.Instance);
-
-        foreach (var property in properties)
-        {
-            var argumentAttr = property.GetCustomAttribute<CommandArgumentAttribute>();
-            if (argumentAttr != null)
-            {
-                var argumentInfo = FromProperty(property, argumentAttr, ownerCommand);
-                arguments.Add(argumentInfo);
-            }
-        }
-
-        return [.. arguments.OrderBy(a => a.Position)];
+        return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand);
     }
 
     /// <summary>

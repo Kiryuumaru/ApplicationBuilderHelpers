@@ -286,9 +286,9 @@ internal sealed class CommandHierarchyBuilder(
     }
 
     /// <summary>
-    /// Compares initializer defaults across definition sites. The
-    /// <see cref="SubCommandOptionInfo.DefaultValue"/> snapshot is not populated
-    /// at build time, so divergence is read from the per-run command instances
+    /// Compares initializer defaults across definition sites. No
+    /// <c>DefaultValue</c> snapshot exists on the option node (removed per
+    /// ADR-0004), so divergence is read from the per-run command instances
     /// (which carry the C# initializer defaults), mirroring
     /// <c>HelpFormatter.GetOptionDefaultValue</c>. For caller-supplied instance
     /// registrations the per-run instance is the shared mutable registration:
@@ -473,7 +473,6 @@ internal sealed class CommandHierarchyBuilder(
             ValidValues = original.ValidValues is null ? null : [.. original.ValidValues],
             IsCaseSensitive = original.IsCaseSensitive,
             IsSecret = original.IsSecret,
-            DefaultValue = original.DefaultValue,
             IsGlobal = true,
             IsInherited = true,
             OwnerCommand = original.OwnerCommand,

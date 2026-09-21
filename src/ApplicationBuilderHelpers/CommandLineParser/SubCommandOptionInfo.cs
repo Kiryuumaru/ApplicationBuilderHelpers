@@ -67,11 +67,6 @@ internal class SubCommandOptionInfo
     public bool IsSecret { get; set; }
 
     /// <summary>
-    /// Default value for the option
-    /// </summary>
-    public object? DefaultValue { get; set; }
-
-    /// <summary>
     /// Whether this option is global (available to all subcommands)
     /// </summary>
     public bool IsGlobal { get; set; }
@@ -129,18 +124,14 @@ internal class SubCommandOptionInfo
             // Required if explicitly set in attribute OR if property has required keyword
             IsRequired = attribute.Required || isRequiredByKeyword,
             EnvironmentVariable = attribute.EnvironmentVariable,
-            ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
             IsSecret = attribute.Secret,
             OwnerCommand = ownerCommand,
             BindTarget = ownerCommand
         };
 
-        // Auto-populate enum values if FromAmong is not specified and no custom type parser exists
-        if (optionInfo.ValidValues == null && ShouldAutoPopulateEnumValues(property.PropertyType, typeParserCollection))
-        {
-            optionInfo.ValidValues = GetEnumValues(property.PropertyType);
-        }
+        // Explicit FromAmong wins; else frozen/live enum names unless suppressed.
+        optionInfo.ValidValues = ResolveEnumValues(property.PropertyType, attribute.FromAmong, typeParserCollection);
 
         // Determine if this option should be inherited by checking if it comes from a base class
         optionInfo.ApplyInheritanceScope(property.DeclaringType, ownerCommand);
@@ -180,6 +171,45 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
+    /// Single enum predicate (live overload): explicit <c>FromAmong</c> wins;
+    /// else the enum names for <paramref name="propertyType"/> (nullable
+    /// unwrapped) iff it is an enum and no live parser exists for that enum
+    /// type in the live collection; else null. Parser policy stays here in
+    /// the parser layer (per ADR-0003); the leaf only supplies the candidate.
+    /// </summary>
+    private static object[]? ResolveEnumValues(Type propertyType, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
+    {
+        var (candidateType, candidateNames) = CommandDescriptorReflection.GetEnumCandidate(propertyType);
+        return ResolveEnumValues(candidateType, candidateNames, fromAmong, typeParserCollection);
+    }
+
+    /// <summary>
+    /// Single enum predicate (frozen overload): explicit <c>FromAmong</c> wins;
+    /// else the frozen enum names iff the descriptor carries an enum candidate
+    /// and no live parser exists for that enum type in the live collection;
+    /// else null.
+    /// </summary>
+    private static object[]? ResolveEnumValues(Type? enumCandidateType, string[]? enumCandidateNames, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
+    {
+        if (fromAmong is { Length: > 0 })
+        {
+            return [.. fromAmong];
+        }
+
+        if (enumCandidateType is null || enumCandidateNames is null)
+        {
+            return null;
+        }
+
+        if (typeParserCollection?.TypeParsers.ContainsKey(enumCandidateType) == true)
+        {
+            return null;
+        }
+
+        return [.. enumCandidateNames];
+    }
+
+    /// <summary>
     /// Resolves per-run valid values for a cached descriptor: explicit
     /// <c>FromAmong</c> wins; else the frozen enum names iff the descriptor
     /// carries an enum candidate and no live parser exists for that enum type
@@ -187,22 +217,7 @@ internal class SubCommandOptionInfo
     /// </summary>
     internal static object[]? ResolveValidValues(CommandOptionDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
     {
-        if (descriptor.FromAmong is { Length: > 0 })
-        {
-            return [.. descriptor.FromAmong];
-        }
-
-        if (descriptor.EnumCandidateType is null || descriptor.EnumCandidateNames is null)
-        {
-            return null;
-        }
-
-        if (typeParserCollection?.TypeParsers.ContainsKey(descriptor.EnumCandidateType) == true)
-        {
-            return null;
-        }
-
-        return [.. descriptor.EnumCandidateNames];
+        return ResolveEnumValues(descriptor.EnumCandidateType, descriptor.EnumCandidateNames, descriptor.FromAmong, typeParserCollection);
     }
 
     /// <summary>
@@ -216,15 +231,13 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Creates a list of SubCommandOptionInfo objects from a command type.
-    /// Delegates the property walk to <see cref="CommandReflectionCache"/>
-    /// (the single owned BaseType walk) to avoid a duplicate walk under
-    /// <c>DynamicallyAccessedMembers(All)</c>.
+    /// Per-kind core: single attribute-read loop for options (base-first,
+    /// no sort) shared by the <c>FromCommandType</c>/<c>FromDeclaredType</c>
+    /// shims. Inheritance keeps the declaringType-vs-targetType check.
     /// </summary>
-    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
+    private static List<SubCommandOptionInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand, ICommandTypeParserCollection? typeParserCollection)
     {
         var options = new List<SubCommandOptionInfo>();
-        var properties = CommandReflectionCache.GetAllProperties(commandType);
 
         foreach (var property in properties)
         {
@@ -240,29 +253,24 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
-    /// (excludes inherited properties to avoid conflicts)
+    /// Creates a list of SubCommandOptionInfo objects from a command type.
+    /// Shim over the per-kind core (full walk).
     /// </summary>
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
+    public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
+    {
+        return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand, typeParserCollection);
+    }
+
+    /// <summary>
+    /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
+    /// (excludes inherited properties to avoid conflicts).
+    /// Shim over the per-kind core (declared-only walk).
+    /// </summary>
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
     public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
-        var options = new List<SubCommandOptionInfo>();
-        var properties = commandType.GetProperties(
-            BindingFlags.DeclaredOnly | 
-            BindingFlags.Public | 
-            BindingFlags.NonPublic | 
-            BindingFlags.Instance);
-
-        foreach (var property in properties)
-        {
-            var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
-            if (optionAttr != null)
-            {
-                var optionInfo = FromProperty(property, optionAttr, ownerCommand, typeParserCollection);
-                options.Add(optionInfo);
-            }
-        }
-
-        return options;
+        return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand, typeParserCollection);
     }
 
     /// <summary>
@@ -476,49 +484,5 @@ internal class SubCommandOptionInfo
     public override string ToString()
     {
         return GetDisplayName();
-    }
-
-    /// <summary>
-    /// Determines if enum values should be auto-populated for the given type
-    /// </summary>
-    private static bool ShouldAutoPopulateEnumValues(Type propertyType, ICommandTypeParserCollection? typeParserCollection)
-    {
-        // Get the actual type (handle nullable enums)
-        var targetType = propertyType;
-        if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
-        {
-            targetType = Nullable.GetUnderlyingType(propertyType)!;
-        }
-
-        // Only proceed if it's an enum
-        if (!targetType.IsEnum)
-            return false;
-
-        // Check if a custom type parser exists for this enum type
-        if (typeParserCollection?.TypeParsers.ContainsKey(targetType) == true)
-        {
-            return false; // Custom type parser exists, don't auto-populate
-        }
-
-        return true; // No custom type parser, auto-populate enum values
-    }
-
-    /// <summary>
-    /// Gets the enum values as an object array for validation
-    /// </summary>
-    private static object[] GetEnumValues(Type propertyType)
-    {
-        // Get the actual enum type (handle nullable enums)
-        var enumType = propertyType;
-        if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
-        {
-            enumType = Nullable.GetUnderlyingType(propertyType)!;
-        }
-
-        if (!enumType.IsEnum)
-            return [];
-
-        // Get enum names as strings (lowercase for case-insensitive matching)
-        return [.. Enum.GetNames(enumType).Cast<object>()];
     }
 }
