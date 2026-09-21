@@ -234,22 +234,12 @@ internal sealed class ArgumentParser
     }
 
     /// <summary>
-    /// Records one parsed <c>-o</c> / <c>--option</c> occurrence, enforcing
-    /// duplicate rejection for valued occurrences (bare bool flags are exempt).
+    /// Records one parsed <c>-o</c> / <c>--option</c> occurrence. Scalars and
+    /// valued flags resolve last-wins (overwrite); collections accumulate.
+    /// Bare bool flags stay idempotent.
     /// </summary>
     private static void AddParsedOptionValue(ParseResult result, SubCommandOptionInfo matchedOption, string? value, string arg, string? nextArg)
     {
-        if (!matchedOption.IsCollection
-            && value != null
-            && !IsValuelessFlagOccurrence(matchedOption, arg, nextArg, value)
-            && result.TryGetMergedOptionValues(matchedOption, out _))
-        {
-            var name = matchedOption.LongName != null
-                ? $"--{matchedOption.LongName}"
-                : $"-{matchedOption.ShortName}";
-            throw new CommandException($"Duplicate option '{name}' specified multiple times.", 2, CommandErrorKind.DuplicateOption);
-        }
-
         result.AddOptionValue(matchedOption, value);
     }
 
@@ -358,15 +348,6 @@ internal sealed class ArgumentParser
 
         return true;
     }
-
-    /// <summary>
-    /// Valueless bool flags (bare <c>--verbose</c>, defaulting to "true") are
-    /// exempt from duplicate rejection; a bool with an explicit <c>=</c>-form value
-    /// (<c>--verbose=true</c>) is not exempt. Space-separated tokens are never
-    /// flag values, so a bare flag followed by another token is still valueless.
-    /// </summary>
-    private static bool IsValuelessFlagOccurrence(SubCommandOptionInfo matchedOption, string arg, string? nextArg, string value) =>
-        matchedOption.IsFlag && !arg.Contains('=');
 
     /// <summary>
     /// Adds an argument value to the parse result

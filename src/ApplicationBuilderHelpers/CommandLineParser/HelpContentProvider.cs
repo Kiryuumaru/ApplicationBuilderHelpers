@@ -417,9 +417,18 @@ internal sealed class HelpContentProvider(
     {
         try
         {
+            // #453 Step 1: OwnerCommand is the definition site, BindTarget is the
+            // scope holding this copy. Definition-site first (coincides with
+            // the legacy first-scan-hit for identical globals: no behavior
+            // change), then the copy-holding scope, then the legacy scan.
             if (option.OwnerCommand?.Command != null)
             {
                 return option.Property.GetValue(option.OwnerCommand.Command);
+            }
+
+            if (option.BindTarget?.Command != null && !ReferenceEquals(option.BindTarget, option.OwnerCommand))
+            {
+                return option.Property.GetValue(option.BindTarget.Command);
             }
 
             foreach (var command in _allCommands.Values)

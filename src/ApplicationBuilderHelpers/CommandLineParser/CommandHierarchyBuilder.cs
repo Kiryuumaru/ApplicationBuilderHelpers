@@ -251,6 +251,10 @@ internal sealed class CommandHierarchyBuilder(
                     oi.option.IsSecret == firstOption.IsSecret &&
                     oi.option.ShortName == firstOption.ShortName &&
                     oi.option.LongName == firstOption.LongName &&
+                    string.Equals(oi.option.EnvironmentVariable, firstOption.EnvironmentVariable, StringComparison.Ordinal) &&
+                    oi.option.IsCaseSensitive == firstOption.IsCaseSensitive &&
+                    string.Equals(oi.option.Description, firstOption.Description, StringComparison.Ordinal) &&
+                    InitializerValuesEqual(oi.option, firstOption) &&
                     ArraysEqual(oi.option.ValidValues, firstOption.ValidValues));
 
                 if (allIdentical)
@@ -266,7 +270,11 @@ internal sealed class CommandHierarchyBuilder(
                     if (!RootCommand!.Options.Any(o => o.GetDisplayName() == signature))
                     {
                         var globalOption = CreateGlobalOptionCopy(firstOption);
-                        globalOption.OwnerCommand = RootCommand;
+                        // OwnerCommand stays at the definition site (firstOption's
+                        // owning command) so default-value reads resolve the
+                        // declaring command instance; BindTarget records the
+                        // scope holding this copy (root). Step 1: no behavior change.
+                        globalOption.BindTarget = RootCommand;
                         RootCommand.Options.Add(globalOption);
                     }
                 }
@@ -275,6 +283,93 @@ internal sealed class CommandHierarchyBuilder(
 
         // Add built-in global options (help only - version is not global)
         AddBuiltInGlobalOptions();
+    }
+
+    /// <summary>
+    /// Compares initializer defaults across definition sites. The
+    /// <see cref="SubCommandOptionInfo.DefaultValue"/> snapshot is not populated
+    /// at build time, so divergence is read from the per-run command instances
+    /// (which carry the C# initializer defaults), mirroring
+    /// <c>HelpFormatter.GetOptionDefaultValue</c>. For caller-supplied instance
+    /// registrations the per-run instance is the shared mutable registration:
+    /// a prior run's binding may already have replaced the initializer, so the
+    /// comparison uses the holder's registration-time snapshot (captured on the
+    /// first gate read, before binding can mutate the instance). Any read
+    /// failure blocks promotion (stays local) rather than risking a wrong
+    /// global merge.
+    /// </summary>
+    private bool InitializerValuesEqual(SubCommandOptionInfo option, SubCommandOptionInfo firstOption)
+    {
+        try
+        {
+            var current = ReadInitializerValue(option);
+            var first = ReadInitializerValue(firstOption);
+            if (current is Array currentArray && first is Array firstArray)
+            {
+                if (currentArray.Length != firstArray.Length)
+                    return false;
+                for (var i = 0; i < currentArray.Length; i++)
+                {
+                    if (!Equals(currentArray.GetValue(i), firstArray.GetValue(i)))
+                        return false;
+                }
+
+                return true;
+            }
+
+            return Equals(current, first);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Reads one option's initializer default for the promotion gate: the
+    /// holder's registration-time snapshot for caller-supplied instance
+    /// registrations (fail-closed when the snapshot is missing or unreadable),
+    /// otherwise the live per-run instance value.
+    /// </summary>
+    private object? ReadInitializerValue(SubCommandOptionInfo option)
+    {
+        if (option.OwnerCommand?.Command is null)
+            return null;
+
+        var holder = FindHolder(option.OwnerCommand.Command.GetType());
+        if (holder?.TryGetInitializerDefault(option.Property, out var snapshot) == true)
+            return snapshot;
+
+        if (holder is { IsInstanceRegistration: true })
+            return InitializerValuesUnreadable.Value;
+
+        return option.Property.GetValue(option.OwnerCommand.Command);
+    }
+
+    /// <summary>
+    /// Sentinel that never equals a real initializer default, so a missing or
+    /// unreadable instance-registration snapshot blocks promotion (stays local).
+    /// </summary>
+    private sealed class InitializerValuesUnreadable
+    {
+        public static readonly InitializerValuesUnreadable Value = new();
+        private InitializerValuesUnreadable() { }
+    }
+
+    /// <summary>
+    /// Finds the registration holder for a command type. Multiple registrations
+    /// of one type are rejected elsewhere (duplicate-command validation), so
+    /// first match is the definition site.
+    /// </summary>
+    private Models.TypedCommandHolder? FindHolder(Type commandType)
+    {
+        foreach (var holder in commandBuilder.Commands)
+        {
+            if (holder.CommandType == commandType)
+                return holder;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -310,6 +405,7 @@ internal sealed class CommandHierarchyBuilder(
             IsGlobal = true,
             IsInherited = true,
             OwnerCommand = RootCommand,
+            BindTarget = RootCommand,
             Property = dummyProperty,
             // Set PropertyType directly to avoid AOT warnings
             PropertyType = typeof(bool)
@@ -327,7 +423,7 @@ internal sealed class CommandHierarchyBuilder(
             if (existingHelpOption == null)
             {
                 var globalHelpOption = CreateGlobalOptionCopy(helpOption);
-                globalHelpOption.OwnerCommand = command;
+                globalHelpOption.BindTarget = command;
                 command.Options.Add(globalHelpOption);
             }
             else
@@ -357,7 +453,11 @@ internal sealed class CommandHierarchyBuilder(
     }
 
     /// <summary>
-    /// Creates a copy of an option for global use
+    /// Creates a copy of an option for global use. Step 1: the copy is a
+    /// frozen snapshot — OwnerCommand stays at the definition site (copied
+    /// from the original), ValidValues is defensively copied so later
+    /// mutation cannot flow between scopes, and the caller sets BindTarget
+    /// to the scope holding the copy. No behavior change.
     /// </summary>
     internal static SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
     {
@@ -370,11 +470,13 @@ internal sealed class CommandHierarchyBuilder(
             Description = original.Description,
             IsRequired = original.IsRequired,
             EnvironmentVariable = original.EnvironmentVariable,
-            ValidValues = original.ValidValues,
+            ValidValues = original.ValidValues is null ? null : [.. original.ValidValues],
             IsCaseSensitive = original.IsCaseSensitive,
             IsSecret = original.IsSecret,
             IsGlobal = true,
-            IsInherited = true
+            IsInherited = true,
+            OwnerCommand = original.OwnerCommand,
+            BindTarget = original.BindTarget
         };
     }
 }

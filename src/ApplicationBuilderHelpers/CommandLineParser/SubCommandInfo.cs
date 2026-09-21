@@ -65,12 +65,22 @@ internal class SubCommandInfo
     {
         get
         {
-            var allOptions = new List<SubCommandOptionInfo>(Options);
+            var allOptions = new List<SubCommandOptionInfo>();
+            var seen = new HashSet<SubCommandOptionInfo>();
+            foreach (var option in Options)
+            {
+                if (seen.Add(option))
+                    allOptions.Add(option);
+            }
             var current = Parent;
             while (current != null)
             {
                 // Add parent options that are marked as global or inherited
-                allOptions.AddRange(current.Options.Where(o => o.IsGlobal || o.IsInherited));
+                foreach (var option in current.Options.Where(o => o.IsGlobal || o.IsInherited))
+                {
+                    if (seen.Add(option))
+                        allOptions.Add(option);
+                }
                 current = current.Parent;
             }
             return allOptions;
