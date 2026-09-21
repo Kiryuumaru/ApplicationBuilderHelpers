@@ -1,5 +1,6 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
 using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -92,11 +93,11 @@ internal class SubCommandArgumentInfo
     /// <summary>
     /// Creates a SubCommandArgumentInfo from a property and its CommandArgumentAttribute
     /// </summary>
-    public static SubCommandArgumentInfo FromProperty(PropertyInfo property, CommandArgumentAttribute attribute, SubCommandInfo? ownerCommand = null)
+    public static SubCommandArgumentInfo FromProperty(PropertyInfo property, CommandArgumentAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         // Check if the property has the C# required keyword (auto-detection)
         var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
-        
+
         var argumentInfo = new SubCommandArgumentInfo
         {
             Property = property,
@@ -105,7 +106,7 @@ internal class SubCommandArgumentInfo
             Description = attribute.Description,
             Position = attribute.Position,
             IsRequired = attribute.Required || isRequiredByKeyword,
-            ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
+            ValidValues = EnumValidValues.Resolve(property.PropertyType, attribute.FromAmong, typeParserCollection),
             IsCaseSensitive = attribute.CaseSensitive,
             IsSecret = attribute.Secret,
             OwnerCommand = ownerCommand
@@ -122,7 +123,7 @@ internal class SubCommandArgumentInfo
     /// are copied onto a fresh node; inheritance uses the existing name-based
     /// scope, applied to the per-run copy only.
     /// </summary>
-    public static SubCommandArgumentInfo FromDescriptor(CommandArgumentDescriptor descriptor, SubCommandInfo? ownerCommand)
+    public static SubCommandArgumentInfo FromDescriptor(CommandArgumentDescriptor descriptor, SubCommandInfo? ownerCommand, object[]? resolvedValidValues)
     {
         var argumentInfo = new SubCommandArgumentInfo
         {
@@ -132,7 +133,7 @@ internal class SubCommandArgumentInfo
             Description = descriptor.Description,
             Position = descriptor.Position,
             IsRequired = descriptor.Required || descriptor.IsRequiredByKeyword,
-            ValidValues = descriptor.FromAmong,
+            ValidValues = resolvedValidValues,
             IsCaseSensitive = descriptor.IsCaseSensitive,
             IsSecret = descriptor.IsSecret,
             OwnerCommand = ownerCommand
@@ -155,11 +156,20 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
+    /// Resolves per-run valid values for a cached descriptor: delegates to
+    /// the shared <see cref="EnumValidValues"/> predicate (parity with options).
+    /// </summary>
+    internal static object[]? ResolveValidValues(CommandArgumentDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
+    {
+        return EnumValidValues.Resolve(descriptor.EnumCandidateType, descriptor.EnumCandidateNames, descriptor.FromAmong, typeParserCollection);
+    }
+
+    /// <summary>
     /// Per-kind core: single attribute-read loop for arguments (Position
     /// sort) shared by the <c>FromCommandType</c>/<c>FromDeclaredType</c>
     /// shims. Inheritance keeps the name-based heuristic.
     /// </summary>
-    private static List<SubCommandArgumentInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand)
+    private static List<SubCommandArgumentInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand, ICommandTypeParserCollection? typeParserCollection)
     {
         var arguments = new List<SubCommandArgumentInfo>();
 
@@ -168,7 +178,7 @@ internal class SubCommandArgumentInfo
             var argumentAttr = property.GetCustomAttribute<CommandArgumentAttribute>();
             if (argumentAttr != null)
             {
-                var argumentInfo = FromProperty(property, argumentAttr, ownerCommand);
+                var argumentInfo = FromProperty(property, argumentAttr, ownerCommand, typeParserCollection);
                 arguments.Add(argumentInfo);
             }
         }
@@ -181,9 +191,9 @@ internal class SubCommandArgumentInfo
     /// Shim over the per-kind core (full walk).
     /// </summary>
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
-    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
-        return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand);
+        return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand, typeParserCollection);
     }
 
     /// <summary>
@@ -192,9 +202,9 @@ internal class SubCommandArgumentInfo
     /// Shim over the per-kind core (declared-only walk).
     /// </summary>
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
-    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null)
+    public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
-        return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand);
+        return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand, typeParserCollection);
     }
 
     /// <summary>
