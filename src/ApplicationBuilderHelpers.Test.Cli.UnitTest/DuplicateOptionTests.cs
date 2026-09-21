@@ -6,9 +6,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// In-process duplicate-option tests for the CLI parser.
-/// A scalar option accepts a single value: repeating it on the command line is
-/// rejected with a clear error instead of silently keeping one occurrence.
-/// Array options stay repeatable and bare boolean flags stay idempotent.
+/// Scalar and valued-flag repeats resolve last-wins (industry standard);
+/// array options stay repeatable and bare boolean flags stay idempotent.
 /// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
 /// console streams are process-global mutable state.
 /// </summary>
@@ -70,14 +69,13 @@ public sealed class DuplicateOptionTests
     }
 
     [Fact]
-    public async Task ScalarOption_RepeatedValue_IsRejected()
+    public async Task ScalarOption_RepeatedValue_LastWins()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["dupscalar", "--text=a", "--text=b"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Duplicate option", error);
-        Assert.Contains("--text", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Text: b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -101,25 +99,23 @@ public sealed class DuplicateOptionTests
     }
 
     [Fact]
-    public async Task FlagOption_RepeatedValue_IsRejected()
+    public async Task FlagOption_RepeatedValue_LastWins()
     {
-        var (exitCode, output, error) = await RunCapturedAsync(["dupflag", "--verbose=true", "--verbose=true"]);
+        var (exitCode, output, error) = await RunCapturedAsync(["dupflag", "--verbose=true", "--verbose=false"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Duplicate option", error);
-        Assert.Contains("--verbose", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task AliasedOption_RepeatedAcrossAliasForms_IsRejected()
+    public async Task AliasedOption_RepeatedAcrossAliasForms_LastWins()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["dupalias", "--text=a", "-t", "b"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Duplicate option", error);
-        Assert.Contains("--text", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Text: b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     private static ApplicationBuilder CreateBuilder()

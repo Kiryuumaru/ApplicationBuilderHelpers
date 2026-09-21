@@ -102,6 +102,16 @@ internal class SubCommandOptionInfo
     public SubCommandInfo? OwnerCommand { get; set; }
 
     /// <summary>
+    /// Explicit bind-target scope for this option copy: the command whose
+    /// <see cref="SubCommandInfo.Options"/> list holds this node. For a
+    /// definition-site node this equals <see cref="OwnerCommand"/>; for a
+    /// global copy <see cref="OwnerCommand"/> stays at the definition site
+    /// while this points at the scope holding the copy. Step 1 only: recorded
+    /// at every wiring point, read only by help default-value lookup.
+    /// </summary>
+    public SubCommandInfo? BindTarget { get; set; }
+
+    /// <summary>
     /// Creates a SubCommandOptionInfo from a property and its CommandOptionAttribute
     /// </summary>
     public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
@@ -122,7 +132,8 @@ internal class SubCommandOptionInfo
             ValidValues = attribute.FromAmong?.Length > 0 ? attribute.FromAmong : null,
             IsCaseSensitive = attribute.CaseSensitive,
             IsSecret = attribute.Secret,
-            OwnerCommand = ownerCommand
+            OwnerCommand = ownerCommand,
+            BindTarget = ownerCommand
         };
 
         // Auto-populate enum values if FromAmong is not specified and no custom type parser exists
@@ -158,7 +169,8 @@ internal class SubCommandOptionInfo
             ValidValues = resolvedValidValues,
             IsCaseSensitive = descriptor.IsCaseSensitive,
             IsSecret = descriptor.IsSecret,
-            OwnerCommand = ownerCommand
+            OwnerCommand = ownerCommand,
+            BindTarget = ownerCommand
         };
 
         // Determine if this option should be inherited by checking if it comes from a base class
