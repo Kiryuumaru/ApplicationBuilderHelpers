@@ -16,6 +16,7 @@ internal sealed class ParameterValidator
     /// </summary>
     public void ValidateRequiredParameters(ParseResult result)
     {
+        var commandName = result.TargetCommand.FullCommandName;
         // Check required options
         foreach (var option in result.TargetCommand.AllOptions.Where(o => o.IsRequired))
         {
@@ -25,14 +26,14 @@ internal sealed class ParameterValidator
                 if (EnvVarFallback.Apply(result, option, requiredOnly: true))
                     continue;
 
-                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired);
+                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired, commandName);
             }
 
             if (!option.IsCollection
                 && !option.IsFlag
                 && result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
             {
-                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired);
+                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired, commandName);
             }
         }
 
@@ -41,7 +42,7 @@ internal sealed class ParameterValidator
         {
             if (!result.ArgumentValues.TryGetValue(argument, out List<string>? value) || value.Count == 0)
             {
-                throw new CommandException($"Missing required argument: {argument.DisplayName}", 2, CommandErrorKind.MissingRequired);
+                throw new CommandException($"Missing required argument: {argument.DisplayName}", 2, CommandErrorKind.MissingRequired, commandName);
             }
         }
     }

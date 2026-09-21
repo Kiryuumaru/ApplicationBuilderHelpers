@@ -96,7 +96,7 @@ The library catches `CommandException` during execution and returns its exit cod
 Usage errors print a `Run '...' --help` footer selected by error kind:
 
 - `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options.`; without one → the global footer below.
-- `UnknownOption`, `MissingRequired`, `UnknownCommand` → `Run '<exe> <command> --help' for more information on specific command options.` (`<command>` is literal).
+- `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue`, `DuplicateOption` with a command name → `Run '<exe> <command-name> --help' for more information on specific command options.`; without one (e.g. no command matched) → the global footer below.
 - Anything else → `Run '<exe> --help' for more information on available commands and options.`
 
 `<exe>` is the configured executable name when set on the gateway path, otherwise the auto-detected one (the host path always auto-detects). Both error paths render the same footer for the same kind.

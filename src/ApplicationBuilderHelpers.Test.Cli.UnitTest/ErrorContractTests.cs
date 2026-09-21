@@ -13,9 +13,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// unexpected faults map to exit 1 with styled stderr, custom command exit codes
 /// pass through untouched, and help stays exit 0 on stdout only.
 /// Also pins <see cref="CommandErrorKind.UnknownCommand"/> footer parity across
-/// the gateway, run-fault, and host paths: all three render the same kind-specific
-/// footer (the host path resolves the executable name by auto-detection, so only
-/// the kind-specific suffix is pinned there).
+/// the gateway, run-fault, and host paths: all three render the global footer
+/// when no command name is supplied (the host path resolves the executable
+/// name by auto-detection, so only the kind-specific suffix is pinned there).
 /// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
 /// console streams are process-global mutable state.
 /// </summary>
@@ -103,18 +103,18 @@ public sealed class ErrorContractTests
     }
 
     [Fact]
-    public async Task UnknownCommandGateway_RendersSpecificCommandFooter()
+    public async Task UnknownCommandGateway_RendersGlobalFooter()
     {
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder().AddCommand<FaultContractCommand>(), ["boguscmd"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Run 'contract-test <command> --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'contract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task UnknownCommandRunFault_RendersSameFooter()
+    public async Task UnknownCommandRunFault_RendersGlobalFooter()
     {
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder().AddCommand<RunFaultKindContractCommand>(), ["contractrun"]);
@@ -122,18 +122,18 @@ public sealed class ErrorContractTests
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: no such command", error);
-        Assert.Contains("Run 'contract-test <command> --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'contract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task UnknownCommandHostFault_RendersSameFooter()
+    public async Task UnknownCommandHostFault_RendersGlobalFooter()
     {
         var (exitCode, _, error) = await RunCapturedAsync(
             () => CreateBuilder().AddCommand<SlowSuccessContractCommand>().AddApplication<UnknownCommandHostBoomDependency>(), ["contractslow"]);
 
         Assert.Equal(2, exitCode);
         Assert.Contains("Error: no such command", error);
-        Assert.Contains("Run 'testhost <command> --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'testhost --help' for more information on available commands and options.", error);
     }
 
     [Fact]

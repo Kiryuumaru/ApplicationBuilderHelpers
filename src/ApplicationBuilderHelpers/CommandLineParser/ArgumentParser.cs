@@ -141,7 +141,15 @@ internal sealed class ArgumentParser
                 // '='-form and compact '-ovalue' hold the value in-token and never
                 // consume; numeric neighbors ('-5') are still real values.
                 var consumableNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
-                var value = matchedOption.ExtractValue(arg, consumableNext);
+                string? value;
+                try
+                {
+                    value = matchedOption.ExtractValue(arg, consumableNext);
+                }
+                catch (CommandException ex) when (ex.CommandName is null)
+                {
+                    throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
+                }
 
                 // Explicit consumed-signal: bare IsFlag (no '=' in token) never consumes
                 // next token, even if next == "true". Only bare valued options consume it.
@@ -166,15 +174,16 @@ internal sealed class ArgumentParser
                     var name = arg[..arg.IndexOf('=')];
                     var rejected = arg[(arg.IndexOf('=') + 1)..];
                     var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
+                    var noValueCommandName = result.TargetCommand.FullCommandName;
                     if (resolved != null)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret), 2, CommandErrorKind.InvalidValue);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     if (name.Length == "--no-".Length)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true), 2, CommandErrorKind.InvalidValue);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     var noValueSuggestion = DidYouMean.FindBestMatch(
                         name,
                         DidYouMean.OptionCandidates(allOptions));
                     throw new CommandException(
-                        DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption);
+                        DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, noValueCommandName);
                 }
 
                 // Combined short cluster (-abc bool chain, -abdvalue last-takes-value).
@@ -200,7 +209,7 @@ internal sealed class ArgumentParser
                 if (unknownEquals >= 0)
                     unknownName = unknownName[..unknownEquals];
                 throw new CommandException(
-                    DidYouMean.WithSuggestion($"Unknown option: {unknownName}", optionSuggestion), 2, CommandErrorKind.UnknownOption);
+                    DidYouMean.WithSuggestion($"Unknown option: {unknownName}", optionSuggestion), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
             }
             else
             {
@@ -228,7 +237,7 @@ internal sealed class ArgumentParser
                     ? $"Unknown subcommand '{argumentValue}'"
                     : $"Unexpected argument '{argumentValue}'";
                 throw new CommandException(
-                    DidYouMean.WithSuggestion(surplusMessage, subcommandSuggestion), 2, CommandErrorKind.UnknownCommand);
+                    DidYouMean.WithSuggestion(surplusMessage, subcommandSuggestion), 2, CommandErrorKind.UnknownCommand, result.TargetCommand.FullCommandName);
             }
         }
     }
@@ -284,7 +293,7 @@ internal sealed class ArgumentParser
                 continue;
 
             if (!byShort.TryGetValue(letter, out var member))
-                throw new CommandException($"Unknown option: {arg}", 2, CommandErrorKind.UnknownOption);
+                throw new CommandException($"Unknown option: {arg}", 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
 
             // A non-flag short takes the attached remainder as its value and ends
             // the cluster; at last position with no remainder it takes next-token.
@@ -329,13 +338,13 @@ internal sealed class ArgumentParser
             string? occurrenceNext;
             if (remainder.Length > 0)
             {
-                value = member.ExtractValue($"-{letter}{remainder}", null);
+                value = ExtractClusterValue(member, $"-{letter}{remainder}", null, result);
                 occurrenceArg = $"-{letter}{remainder}";
                 occurrenceNext = null;
             }
             else
             {
-                value = member.ExtractValue($"-{letter}", consumableClusterNext);
+                value = ExtractClusterValue(member, $"-{letter}", consumableClusterNext, result);
                 occurrenceArg = $"-{letter}";
                 occurrenceNext = consumableClusterNext;
                 if (consumableClusterNext != null)
@@ -347,6 +356,18 @@ internal sealed class ArgumentParser
         }
 
         return true;
+    }
+
+    private static string? ExtractClusterValue(SubCommandOptionInfo member, string token, string? next, ParseResult result)
+    {
+        try
+        {
+            return member.ExtractValue(token, next);
+        }
+        catch (CommandException ex) when (ex.CommandName is null)
+        {
+            throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
+        }
     }
 
     /// <summary>
