@@ -166,12 +166,15 @@ Exit matrix (`CompletionGateway.cs:24-57,106-193`):
 ## Accessing Services
 
 Mark a writable instance property with `[FromServices]` (unkeyed) or
-`[FromKeyedServices(key)]` (keyed). The executor creates one
-`IServiceScope` per command run, injects those properties from
-`scope.ServiceProvider` after CLI binding, runs the command, then disposes
-the scope after the lifetime callbacks. Scoped services are therefore
-isolated to one command run; resolve additional services inside `Run` from
-`applicationHost.Services` only when property injection does not fit.
+`[FromKeyedServices(key)]` (keyed). Owner: `ServiceInjectionGate`
+(`src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-120`,
+single `Inject` entry at `:101`). The thin `CommandExecutor`
+(`src/ApplicationBuilderHelpers/CommandLineParser/CommandExecutor.cs:19-33`)
+creates one `IServiceScope` per command run, then the gate injects those
+properties from `scope.ServiceProvider` after CLI binding; the command runs,
+then the scope is disposed after the lifetime callbacks. Scoped services are
+therefore isolated to one command run; resolve additional services inside
+`Run` from `applicationHost.Services` only when property injection does not fit.
 
 ```csharp
 public class BuildCommand : Command
@@ -193,8 +196,10 @@ public class BuildCommand : Command
 ```
 
 Compilable keyed path: define a same-named property-capable shim (or a
-`using`-alias to one). The executor matches by attribute name and reads the
-key from attribute metadata, so no new library dependency is needed. This is
+`using`-alias to one). The gate matches by attribute simple name
+(`ServiceInjectionGate.cs:24-30,65-66` — reuse-only seam, no new library
+dependency) and reads the key from attribute metadata (`:140-168`), so no
+new library dependency is needed. This is
 exactly what `ServicePropertyInjectionTests` proves:
 
 ```csharp
@@ -210,8 +215,16 @@ Rules:
 - Disjoint sets: CLI-bound properties (`[CommandOption]` /
   `[CommandArgument]`) are never injected. A property marked with both a
   CLI attribute and a service attribute throws `InvalidOperationException`
-  (surfaces as a fault, exit 1, never a usage error). Injection runs after
+  from the gate's single fail-fast point (`ServiceInjectionGate.cs:127-133`,
+  exact historical message preserved; checked both in the cached plan at
+  `:72-76` and at inject time at `:109-112`) — surfaces as a fault,
+  exit 1, never a usage error. Injection runs after
   binding, so CLI values are never overwritten.
+  Fault-path re-verify: an injection throw propagates out of
+  `CommandExecutor.ExecuteCommand` (`CommandExecutor.cs:86`) before the
+  orchestrator runs, so no `Exiting` callback fires and only the `Exited`
+  `finally` at `:94-99` runs — the same fault-path shape as a faulted
+  command/host win.
 - Keyed services resolve from the same per-command scope via
   `GetRequiredKeyedService(type, key)`.
 - A missing service throws out of the executor and maps to a fault
@@ -221,7 +234,7 @@ Rules:
 - No new attribute types: reuse the framework `[FromServices]` /
   `[FromKeyedServices]` markers. Note the upstream
   `FromKeyedServicesAttribute` targets parameters only, so compiler-applied
-  property use is rejected (CS0592); the executor matches by attribute name
+  property use is rejected (CS0592); the gate matches by attribute name
   and reads the key from attribute metadata.
 
 ## Command Lifecycle
@@ -230,7 +243,23 @@ Commands inherit the full `ApplicationDependency` lifecycle. See [Application De
 
 ### Lifetime Callbacks
 
-Register via `LifetimeService` (`applicationHost.Services.GetRequiredService<LifetimeService>()`): `ApplicationExitingCallback` runs when the command/host is stopping, `ApplicationExitedCallback` runs after shutdown. On success and cancellation (`130`) paths — whether the command or the host wins the shutdown race — each runs exactly once per `RunAsync`. On fault paths the exception rethrows before the trailing `Exiting` invocation, so only `Exited` runs.
+Register via `LifetimeService` (`applicationHost.Services.GetRequiredService<LifetimeService>()`): `ApplicationExitingCallback` runs when the command/host is stopping, `ApplicationExitedCallback` runs after shutdown. Owner of the call sites: `CommandRunOrchestrator` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOrchestrator.cs:23-99`) owns the joint command/host run and the exactly-once `Exiting` fan-out — command-wins canceled (`:52`), host-wins canceled (`:78`), host-won-success-but-command-canceled OCE-only (`:86-89`) — plus the executor's trailing success `Exiting` (`CommandExecutor.cs:90-92`). The `LifetimeGlobalService` `Interlocked.Exchange` guards (`src/ApplicationBuilderHelpers/Services/LifetimeGlobalService.cs:17-22,58-86`) are retained fail-safe: the first caller wins, late callers no-op. On success and cancellation (`130`) paths — whether the command or the host wins the shutdown race — each runs exactly once per `RunAsync`. On fault paths the exception rethrows before any `Exiting` invocation (command-wins faulted at `CommandRunOrchestrator.cs:41-47`, host-wins faulted at `:69-74`, injection-throw fault path at `CommandExecutor.cs:86`), so only `Exited` runs via the null-guarded `finally` (`CommandExecutor.cs:94-99`).
+
+Fail-safe proof: `AbsolutePathAndLifetimeTests.LifetimeGlobalService_ExitingDoubleInvoke_RunsOnce` and `..._ExitedDoubleInvoke_RunsOnce` (`src/ApplicationBuilderHelpers.Test.Cli.UnitTest/AbsolutePathAndLifetimeTests.cs:222-260`) invoke each callback set twice and assert each action/task ran exactly once.
+
+### Lifecycle stages (landed file map)
+
+Thin sequencer `CommandExecutor` (`CommandLineParser/CommandExecutor.cs:19-33`) over collaborators — mechanical split, no behavior change:
+
+| Stage | Owner | Landed path |
+|---|---|---|
+| Shutdown scope (linked CTS joining outer token + Ctrl+C; host `ApplicationStopping` stays host-owned downstream) + Ctrl+C subscribe/dispose | `CommandShutdownScope` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandShutdownScope.cs:6-14,23-46` |
+| Console cancel signal (injectable; production forwarder) | `IConsoleCancelSignal` / `ConsoleCancelSignal` | `src/ApplicationBuilderHelpers/CommandLineParser/IConsoleCancelSignal.cs:14-26`, `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleCancelSignal.cs:12-38` |
+| Console adapter only (Out/Error routing + `CancelKeyPress` forwarder) | `ConsoleOutput` | `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleOutput.cs:6-35` |
+| Per-command service injection (single `Inject` entry) | `ServiceInjectionGate` | `src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-41,101-120` |
+| Joint command/host run + exactly-once `Exiting` fan-out | `CommandRunOrchestrator` → `CommandRunOutcome` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOrchestrator.cs:23-30`, `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOutcome.cs:8-41` |
+| Single cancel-wins classification point | `CommandExitMapper` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandExitMapper.cs:6-40` |
+| Exactly-once guards (fail-safe) | `LifetimeGlobalService` | `src/ApplicationBuilderHelpers/Services/LifetimeGlobalService.cs:17-22,58-86` |
 
 ## Command Registration
 
@@ -238,12 +267,14 @@ Register a command by type with `AddCommand<TCommand>()` or by instance with `Ad
 
 ## Exit Codes
 
+Single classification point: `CommandExitMapper` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandExitMapper.cs:18-40`, cancel-wins `IsExternalAbort(shutdown, outer, ctrlC)` at `:25-28`) — cancellation observed via the outer token or Ctrl+C before host completion maps to `130`; internal-only cooperative cancellation stays success (`0`). The executor catch filter (`CommandExecutor.cs:101-104`) and the orchestrator `ThrowIfExternalAbort` (`CommandShutdownScope.cs:74-75` → `CommandExitMapper.cs:34-40`) both funnel through it.
+
 | Outcome | Exit code |
 |---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` |
+| `Run` returns normally (also `--help` / `--version`); internal-only cooperative `OperationCanceledException` | `0` (`CommandLineParser.cs:131-135`) |
 | Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
-| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
-| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+| Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` passthrough (`CommandException.cs:13,43-46`; non-zero host-winner throws `CommandException` at `CommandRunOrchestrator.cs:91-94`; surfaced at `CommandLineParser.cs:121-125`) |
+| External cancellation (outer `CancellationToken` / Ctrl+C, incl. pre-cancelled token) | `130` — Unix 128 + SIGINT convention (`CommandExecutor.cs:39`; `ExternalCancellationException` at `:45-51` always maps to it; surfaced at `CommandLineParser.cs:116-119,126-129`). Windows note: Windows has no SIGINT exit-code convention — a Ctrl+C kill tears the process down at OS level with its own status — so `130` is the library-level cancellation mapping on all platforms (`CommandExitMapper.cs:13-17`, code remark only). |
 
 Return normally on success. Throw `CommandException` for errors:
 

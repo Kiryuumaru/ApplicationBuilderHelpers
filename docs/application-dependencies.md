@@ -110,6 +110,15 @@ runs these steps in order:
 4. The joint command/host run executes; the scope is disposed after the
    lifetime callbacks.
 
+Stage-to-file map (condensed; canonical 7-row map in `docs/commands.md` lifecycle stages):
+
+- Steps 1–2 → thin sequencer `CommandExecutor` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandExecutor.cs:19-33`, `ExecuteCommand :58-106`; build at `:75-81`) over `CommandShutdownScope` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandShutdownScope.cs:23-46`, linked CTS outer+CtrlC only, `IsExternalAbort` at `:67-68` / `ThrowIfExternalAbort` at `:74-75`).
+- Step 3 → `ServiceInjectionGate.Inject` (`src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:101`; fail-fast helper at `:127-133`) from the per-command scope (`CommandExecutor.cs:84-86`); injectable cancel signal `IConsoleCancelSignal` (`src/ApplicationBuilderHelpers/CommandLineParser/IConsoleCancelSignal.cs:14-26`) / `ConsoleCancelSignal` (`src/ApplicationBuilderHelpers/CommandLineParser/ConsoleCancelSignal.cs:12-38`) over adapter-only `ConsoleOutput` (`src/ApplicationBuilderHelpers/CommandLineParser/ConsoleOutput.cs:31-35`).
+- Step 4 → joint run `CommandRunOrchestrator` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOrchestrator.cs:23-99`; `Exiting` at `:52,:78,:88`) returning `CommandRunOutcome` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOutcome.cs:8-41`) plus executor trailing success `Exiting` (`CommandExecutor.cs:90-92`) and null-guarded `Exited` `finally` (`:94-99`); single cancel-wins point `CommandExitMapper` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandExitMapper.cs:18-40`, remark at `:13-17`).
+- Exit mapping → `CommandExecutor.cs:39` (`130`) + `ExternalCancellationException` at `:45-51`, surfaced at `CommandLineParser.cs:116-119,126-129`; internal-only `OperationCanceledException` stays `0` (`:131-135`).
+
+Fail-safe note: `LifetimeGlobalService` `Interlocked.Exchange` guards (`src/ApplicationBuilderHelpers/Services/LifetimeGlobalService.cs:17-22,58-86`) are retained fail-safe — first caller wins, late callers no-op. Proof: `AbsolutePathAndLifetimeTests.LifetimeGlobalService_ExitingDoubleInvoke_RunsOnce` and `..._ExitedDoubleInvoke_RunsOnce` (`src/ApplicationBuilderHelpers.Test.Cli.UnitTest/AbsolutePathAndLifetimeTests.cs:222-260`).
+
 Guidance:
 
 - Prefer `TryAdd*` (`TryAddSingleton`, `TryAddScoped`, …) in shared
