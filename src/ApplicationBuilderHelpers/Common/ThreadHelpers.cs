@@ -6,94 +6,18 @@ namespace ApplicationBuilderHelpers.Common;
 
 internal static class ThreadHelpers
 {
-    public static async Task WaitThread(Action action, CancellationToken cancellationToken = default)
+    public static Task WaitThread(Action action, CancellationToken cancellationToken = default)
     {
-        SemaphoreSlim reset = new(0);
-        Exception? exception = null;
-        var thread = new Thread(() =>
-        {
-            try
-            {
-                action();
-            }
-            catch (Exception ex)
-            {
-                exception = ex;
-            }
-            finally
-            {
-                reset.Release();
-            }
-        })
-        {
-            IsBackground = true
-        };
-        thread.Start();
-
-        var threadTask = Task.Run(async () =>
-        {
-            await reset.WaitAsync();
-            thread.Join();
-            if (exception != null)
-            {
-                throw exception;
-            }
-        }, cancellationToken);
-
-        if (await Task.WhenAny(threadTask, Task.Delay(Timeout.Infinite, cancellationToken)) == threadTask)
-        {
-            await threadTask;
-        }
-        else
-        {
-            //thread.Interrupt();
-            throw new OperationCanceledException(cancellationToken);
-        }
+        ArgumentNullException.ThrowIfNull(action);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(action, cancellationToken);
     }
 
-    public static async Task WaitThread(Func<Task> task, CancellationToken cancellationToken = default)
+    public static Task WaitThread(Func<Task> task, CancellationToken cancellationToken = default)
     {
-        SemaphoreSlim reset = new(0);
-        Exception? exception = null;
-        var thread = new Thread(async () =>
-        {
-            try
-            {
-                await task();
-            }
-            catch (Exception ex)
-            {
-                exception = ex;
-            }
-            finally
-            {
-                reset.Release();
-            }
-        })
-        {
-            IsBackground = true
-        };
-        thread.Start();
-
-        var threadTask = Task.Run(async () =>
-        {
-            await reset.WaitAsync();
-            thread.Join();
-            if (exception != null)
-            {
-                throw exception;
-            }
-        }, cancellationToken);
-
-        if (await Task.WhenAny(threadTask, Task.Delay(Timeout.Infinite, cancellationToken)) == threadTask)
-        {
-            await threadTask;
-        }
-        else
-        {
-            //thread.Interrupt();
-            throw new OperationCanceledException(cancellationToken);
-        }
+        ArgumentNullException.ThrowIfNull(task);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(task, cancellationToken);
     }
 
     public static async ValueTask<bool> WaitAsync(this WaitHandle waitHandle, CancellationToken cancellationToken = default)
