@@ -93,6 +93,20 @@ public sealed class HierarchyCacheTests
         }
     }
 
+    [Command("cacheargsev", "Probes late enum parser registration for arguments between runs.")]
+    public sealed class CacheSeverityArgumentCommand : Command
+    {
+        [CommandArgument("level", Description = "Severity value.", Position = 0)]
+        public CacheSeverity Level { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Level: {Level}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     /// <summary>
     /// Custom <see cref="CacheSeverity"/> parser registered between runs through
     /// the public <c>AddCommandTypeParser</c> entry point (see
@@ -257,6 +271,26 @@ public sealed class HierarchyCacheTests
         builder.AddCommandTypeParser<CacheSeverityParser>();
 
         var second = await RunCapturedAsync(builder, ["cachesev", "--level=Custom"]);
+
+        Assert.Equal(0, second.ExitCode);
+        Assert.Contains("Level: High", second.Output);
+        Assert.True(string.IsNullOrWhiteSpace(second.Error), $"Expected empty stderr but got: {second.Error}");
+    }
+
+    [Fact]
+    public async Task AddedArgumentEnumParsers_ApplyToLaterRuns()
+    {
+        var builder = CreateBuilder().AddCommand<CacheSeverityArgumentCommand>();
+
+        var first = await RunCapturedAsync(builder, ["cacheargsev", "Custom"]);
+
+        Assert.Equal(2, first.ExitCode);
+        Assert.Contains("Value 'Custom' is not valid for argument 'level'", first.Error);
+        Assert.Contains("Must be one of:", first.Error);
+
+        builder.AddCommandTypeParser<CacheSeverityParser>();
+
+        var second = await RunCapturedAsync(builder, ["cacheargsev", "Custom"]);
 
         Assert.Equal(0, second.ExitCode);
         Assert.Contains("Level: High", second.Output);

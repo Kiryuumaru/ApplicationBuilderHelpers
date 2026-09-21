@@ -74,7 +74,7 @@ public int Timeout { get; set; } = 30;
 | `Description` | `string?` | Help text |
 | `EnvironmentVariable` | `string?` | Fallback env var |
 | `Required` | `bool` | Must be provided |
-| `FromAmong` | `object[]` | Restrict to specific values |
+| `FromAmong` | `object[]` | Restrict to specific values (enum-typed options auto-populate from the enum names when `FromAmong` is empty, unless a custom parser is registered for that enum type) |
 | `CaseSensitive` | `bool` | Case-sensitive matching for FromAmong |
 | `Secret` | `bool` | Redact value: help default shows `[REDACTED]`, errors omit the provided value (including `--no-<name>=value` rejections for secret valued options) |
 
@@ -121,7 +121,7 @@ public string? DestPath { get; set; }
 | `Position` | `int` | Positional index |
 | `Description` | `string?` | Help text |
 | `Required` | `bool` | Must be provided |
-| `FromAmong` | `object[]` | Restrict to specific values |
+| `FromAmong` | `object[]` | Restrict to specific values (enum-typed arguments auto-populate from the enum names when `FromAmong` is empty, unless a custom parser is registered for that enum type — same rule as options) |
 | `CaseSensitive` | `bool` | Case-sensitive matching |
 | `Secret` | `bool` | Redact value: errors omit the provided value |
 
@@ -150,9 +150,9 @@ Reserved gateway words intercepted after hierarchy build, before help/parsing (n
 | fish | `$XDG_CONFIG_HOME/fish/completions/<exe>.fish`, else `~/.config/fish/completions/<exe>.fish` |
 `XDG_CONFIG_HOME` is honored only when absolute; a relative, empty, or unreadable value falls back to `~/.config` (applies to fish and non-Windows pwsh). Fish idempotence is byte-exact over UTF-8-no-BOM bytes, so a stale encoding counts as drift and reinstalls. Byte-identical re-runs print `already installed: <path>` without rewriting; otherwise prints `installed: <path>`, exit `0`. `--dry-run` prints `would-write: <path>` plus the content and changes nothing. Mutating install/uninstall paths hold a per-target sibling `<target>.lock` (same-target serializes ≤10s then fails loudly, different targets never block, dry-run never locks); a lock timeout reports on stderr, exit `1`.
 - `completions uninstall [--shell <...>]` — removes only the managed block; missing file or no block prints `not installed: <path>`, exit `0` (rc files are never deleted; only a fully-managed fish file is deleted). A fish file without the managed block is left untouched and refused on stderr, exit `1`.
-- `completions install` / `uninstall` with an unknown shell (including undetectable `$SHELL`) report on stderr, exit `2`. `completions script <unknown>` instead falls through to the parse path (`No command found`, exit `2`) — never the installer `Unknown shell` path. IO failures report on stderr, exit `1` (lock/permission failures name the lock path; permission failures say "Access denied"). Executable names are validated (ASCII letters, digits, `.`, `_`, `-`, max 64 chars, starting with a letter or `_`; empty falls back to `myapp`) — anything else reports the allowed set on stderr, exit `2`.
+- `completions install` / `uninstall` with an unknown shell (including undetectable `$SHELL`) report on stderr, exit `2`. `completions script <unknown>` is handled (returns `true`): it reports `Unknown shell '<shell>'. Expected bash, zsh, pwsh, or fish.` on stderr via the shared `CompletionInstaller.TryCanonicalizeShell` canonicalizer (`CompletionGateway.cs:196-202`), exit `2` — never the parse-path `No command found`. IO failures report on stderr, exit `1` (lock/permission failures name the lock path; permission failures say "Access denied"). Executable names are validated (ASCII letters, digits, `.`, `_`, `-`, max 64 chars, starting with a letter or `_`; empty falls back to `myapp`) — anything else reports the allowed set on stderr, exit `2`.
 
-Exit matrix (`CompletionGateway.cs:24-57,106-193`):
+Exit matrix (`CompletionGateway.cs:24-57,106-204`):
 
 | Input | Exit | Notes |
 |---|---|---|
@@ -160,8 +160,9 @@ Exit matrix (`CompletionGateway.cs:24-57,106-193`):
 | `completions script <known shell>` | `0` | Extra tokens (e.g. `--help`) ignored (`:39-44`; test `CompletionsScript_IgnoresTrailingHelp`) |
 | `completions install` / `uninstall` success | `0` | Includes `already installed` / `not installed` no-ops |
 | `completions install` / `uninstall` unknown option, unknown shell, or invalid exe name | `2` | stderr (`:127-128,:169-170,:218-230`) |
+| `completions script <unknown shell>` | `2` | Handled (`true`): `Unknown shell '<shell>'. Expected bash, zsh, pwsh, or fish.` on stderr via shared `TryCanonicalizeShell` (`:196-202`); never the parse path |
 | `completions install` / `uninstall` IO failure (incl. lock timeout) | `1` | stderr (`:141-150,:183-192`); fish foreign-file refusal surfaces here |
-| Bare `completions`, `completions script` (no shell), `completions script <unknown>`, `completions <unknown>` | falls through to parse | Returns `false`; parse reports `No command found`, exit `2` (`:36-37,:41-42,:56`; tests `:126-167`) |
+| Bare `completions`, `completions script` (no shell), `completions <unknown>` | falls through to parse | Returns `false`; parse reports `No command found`, exit `2` (`:36-37,:41-42,:56`) |
 
 ## Accessing Services
 

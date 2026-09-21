@@ -40,7 +40,8 @@ internal sealed class CompletionGateway(
         {
             if (args.Length < 3)
                 return false;
-            return TryHandleCompletionScript(args[2]);
+            exitCode = HandleCompletionScript(args[2]);
+            return true;
         }
 
         if (string.Equals(args[1], "install", StringComparison.Ordinal)
@@ -192,26 +193,32 @@ internal sealed class CompletionGateway(
         }
     }
 
-    private bool TryHandleCompletionScript(string shell)
+    private int HandleCompletionScript(string shell)
     {
+        if (!CompletionInstaller.TryCanonicalizeShell(shell, out var canonical))
+        {
+            consoleOutput.WriteLineError($"Unknown shell '{shell}'. Expected bash, zsh, pwsh, or fish.");
+            return 2;
+        }
+
         var exe = commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
-        switch (shell.ToLowerInvariant())
+        switch (canonical)
         {
             case "bash":
                 CompletionScriptWriter.WriteBash(consoleOutput, exe);
-                return true;
+                return 0;
             case "zsh":
                 CompletionScriptWriter.WriteZsh(consoleOutput, exe);
-                return true;
+                return 0;
             case "pwsh":
-            case "powershell":
                 CompletionScriptWriter.WritePwsh(consoleOutput, exe);
-                return true;
+                return 0;
             case "fish":
                 CompletionScriptWriter.WriteFish(consoleOutput, exe);
-                return true;
+                return 0;
             default:
-                return false;
+                consoleOutput.WriteLineError($"Unknown shell '{shell}'. Expected bash, zsh, pwsh, or fish.");
+                return 2;
         }
     }
 

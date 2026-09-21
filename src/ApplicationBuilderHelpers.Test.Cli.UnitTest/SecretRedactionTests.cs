@@ -435,11 +435,15 @@ public sealed class SecretRedactionTests
     [Fact]
     public async Task SecretEnumArgument_InvalidValue_OmitsValue()
     {
+        // A secret plain-enum argument auto-populates ValidValues, so
+        // unparseable input reports the NotAmong shape (value omitted, allowed
+        // list kept) — same as SecretArgument_InvalidAllowedValue.
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secenumarg", "BogusKind"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Cannot convert provided value to SecretKind for argument 'kind'", error);
+        Assert.Contains("Value provided for argument 'kind' is not valid.", error);
+        Assert.Contains("Must be one of: Fast, Slow", error);
         Assert.DoesNotContain("BogusKind", error);
     }
 

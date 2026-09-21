@@ -12,11 +12,11 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// entry point via the <see cref="Console.SetOut(System.IO.TextWriter)"/> /
 /// <see cref="Console.SetError(System.IO.TextWriter)"/> + <see cref="StringWriter"/> pattern
 /// (same seam as <c>CompletionProbeTests</c>): pins precedence
-/// (completion &gt; help &gt; parse &gt; version), the four fall-through edges that return
+/// (completion &gt; help &gt; parse &gt; version), the three fall-through edges that return
 /// false to the parse path, the bare-<c>complete</c> handled vs bare-<c>completions</c>
 /// fall-through asymmetry, and gateway shadowing of same-named registered commands.
-/// Unknown-shell <c>completions script tcsh</c> pins the preserved fall-through to
-/// <c>No command found</c> (exit 2), never the installer <c>Unknown shell</c> path.
+/// Unknown-shell <c>completions script tcsh</c> pins the installer-style
+/// <c>Unknown shell</c> error (exit 2), never the <c>No command found</c> parse path.
 /// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
 /// console streams are process-global mutable state.
 /// </summary>
@@ -146,14 +146,38 @@ public sealed class CompletionGatewayTests
     }
 
     [Fact]
-    public async Task CompletionsScriptUnknownShell_FallsThroughToParse()
+    public async Task CompletionsScriptUnknownShell_ReturnsExitTwo()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions", "script", "tcsh"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("No command found", error);
-        Assert.DoesNotContain("Unknown shell", error);
+        Assert.Contains("Unknown shell 'tcsh'", error);
+        Assert.Contains("bash, zsh, pwsh, or fish", error);
+        Assert.DoesNotContain("No command found", error);
+    }
+
+    [Fact]
+    public async Task CompletionsScriptCsh_ReturnsExitTwo()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions", "script", "csh"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown shell 'csh'", error);
+        Assert.Contains("bash, zsh, pwsh, or fish", error);
+        Assert.DoesNotContain("No command found", error);
+    }
+
+    [Fact]
+    public async Task CompletionsScriptBash_ExitsZero()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions", "script", "bash"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("complete -F", output);
+        Assert.DoesNotContain("USAGE", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]

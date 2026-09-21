@@ -161,6 +161,12 @@ public sealed class CliDescriptorCharacterizationTests
 
         [CommandArgument("maybe-shade", Position = 1)]
         public DescriptorShade? MaybeShade { get; set; }
+
+        [CommandArgument("text", Position = 2)]
+        public string? Text { get; set; }
+
+        [CommandArgument("fixed", Position = 3, FromAmong = ["a", "b"])]
+        public DescriptorShade Fixed { get; set; }
     }
 
     private sealed class KeywordSplitHolder
@@ -571,7 +577,10 @@ public sealed class CliDescriptorCharacterizationTests
     {
         var descriptor = new CommandReflectionCache().GetOrAdd(typeof(FixedArgumentHolder));
         var fixedArgument = descriptor.Arguments.Single(a => a.Name == "fixedarg");
-        var info = SubCommandArgumentInfo.FromDescriptor(fixedArgument, null);
+        var info = SubCommandArgumentInfo.FromDescriptor(
+            fixedArgument,
+            null,
+            SubCommandArgumentInfo.ResolveValidValues(fixedArgument, null));
 
         Assert.Equal("fixedarg", info.Name);
         Assert.Equal(2, info.Position);
@@ -579,12 +588,12 @@ public sealed class CliDescriptorCharacterizationTests
     }
 
     [Fact]
-    public void Argument_PlainEnum_LeavesValidValuesUnset()
+    public void Argument_PlainEnum_AutoPopulatesNames()
     {
         var property = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.Shade));
         var info = SubCommandArgumentInfo.FromProperty(property, new CommandArgumentAttribute("shade"));
 
-        Assert.Null(info.ValidValues);
+        Assert.Equal(new[] { "Red", "Green", "Blue" }, info.ValidValues!.Cast<string>());
 
         var descriptor = new CommandReflectionCache().GetOrAdd(typeof(EnumArgumentHolder));
         var shade = descriptor.Arguments.Single(a => a.Name == "shade");
@@ -594,6 +603,130 @@ public sealed class CliDescriptorCharacterizationTests
         Assert.Equal(new[] { "Red", "Green", "Blue" }, shade.EnumCandidateNames!);
         Assert.Equal(typeof(DescriptorShade), maybeShade.EnumCandidateType);
         Assert.Equal(new[] { "Red", "Green", "Blue" }, maybeShade.EnumCandidateNames!);
+    }
+
+    [Fact]
+    public void Argument_NullableEnum_UnwrapsAndPopulatesNames()
+    {
+        var property = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.MaybeShade));
+        var info = SubCommandArgumentInfo.FromProperty(property, new CommandArgumentAttribute("maybe-shade"));
+
+        Assert.Equal(new[] { "Red", "Green", "Blue" }, info.ValidValues!.Cast<string>());
+    }
+
+    [Fact]
+    public void Argument_ExplicitChoices_WinOverEnumNames()
+    {
+        var property = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.Shade));
+        var info = SubCommandArgumentInfo.FromProperty(
+            property,
+            new CommandArgumentAttribute("shade") { FromAmong = ["a", "b"] });
+
+        Assert.Equal(new[] { "a", "b" }, info.ValidValues!.Cast<string>());
+    }
+
+    [Fact]
+    public void Argument_CustomParser_SuppressesAutoPopulate()
+    {
+        ICommandTypeParserCollection parsers = ApplicationBuilder.Create().AddCommandTypeParser<ShadeParser>();
+        var property = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.Shade));
+        var info = SubCommandArgumentInfo.FromProperty(property, new CommandArgumentAttribute("shade"), null, parsers);
+
+        Assert.Null(info.ValidValues);
+    }
+
+    [Fact]
+    public void Argument_NonEnum_YieldsNoCandidates()
+    {
+        var property = Prop<EnumHolder>(nameof(EnumHolder.Text));
+        var info = SubCommandArgumentInfo.FromProperty(property, new CommandArgumentAttribute("text"));
+
+        Assert.Null(info.ValidValues);
+    }
+
+    [Fact]
+    public void Arguments_ParserSuppression_MatchesCachedResolution()
+    {
+        var descriptor = new CommandReflectionCache().GetOrAdd(typeof(EnumArgumentHolder));
+        ICommandTypeParserCollection parsers = ApplicationBuilder.Create().AddCommandTypeParser<ShadeParser>();
+
+        var shadeProperty = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.Shade));
+        var shadeAttribute = shadeProperty.GetCustomAttribute<CommandArgumentAttribute>()!;
+        var shadeDescriptor = descriptor.Arguments.Single(a => a.Name == "shade");
+
+        Assert.Equal(
+            new[] { "Red", "Green", "Blue" },
+            SubCommandArgumentInfo.FromProperty(shadeProperty, shadeAttribute).ValidValues!.Cast<string>());
+        Assert.Equal(
+            new[] { "Red", "Green", "Blue" },
+            SubCommandArgumentInfo.ResolveValidValues(shadeDescriptor, null)!.Cast<string>());
+        Assert.Null(SubCommandArgumentInfo.FromProperty(shadeProperty, shadeAttribute, null, parsers).ValidValues);
+        Assert.Null(SubCommandArgumentInfo.ResolveValidValues(shadeDescriptor, parsers));
+
+        var maybeProperty = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.MaybeShade));
+        var maybeAttribute = maybeProperty.GetCustomAttribute<CommandArgumentAttribute>()!;
+        var maybeDescriptor = descriptor.Arguments.Single(a => a.Name == "maybe-shade");
+
+        Assert.Equal(
+            new[] { "Red", "Green", "Blue" },
+            SubCommandArgumentInfo.FromProperty(maybeProperty, maybeAttribute).ValidValues!.Cast<string>());
+        Assert.Equal(
+            new[] { "Red", "Green", "Blue" },
+            SubCommandArgumentInfo.ResolveValidValues(maybeDescriptor, null)!.Cast<string>());
+        Assert.Null(SubCommandArgumentInfo.FromProperty(maybeProperty, maybeAttribute, null, parsers).ValidValues);
+        Assert.Null(SubCommandArgumentInfo.ResolveValidValues(maybeDescriptor, parsers));
+
+        var textProperty = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.Text));
+        var textAttribute = textProperty.GetCustomAttribute<CommandArgumentAttribute>()!;
+        var textDescriptor = descriptor.Arguments.Single(a => a.Name == "text");
+
+        Assert.Null(SubCommandArgumentInfo.FromProperty(textProperty, textAttribute).ValidValues);
+        Assert.Null(SubCommandArgumentInfo.ResolveValidValues(textDescriptor, null));
+        Assert.Null(SubCommandArgumentInfo.FromProperty(textProperty, textAttribute, null, parsers).ValidValues);
+        Assert.Null(SubCommandArgumentInfo.ResolveValidValues(textDescriptor, parsers));
+    }
+
+    [Fact]
+    public void Arguments_ExplicitChoices_WinOverEnumNamesOnBothPaths()
+    {
+        var descriptor = new CommandReflectionCache().GetOrAdd(typeof(EnumArgumentHolder));
+        ICommandTypeParserCollection parsers = ApplicationBuilder.Create().AddCommandTypeParser<ShadeParser>();
+
+        var property = Prop<EnumArgumentHolder>(nameof(EnumArgumentHolder.Fixed));
+        var fixedDescriptor = descriptor.Arguments.Single(a => a.Name == "fixed");
+
+        Assert.Equal(
+            new[] { "a", "b" },
+            SubCommandArgumentInfo.FromProperty(
+                property,
+                new CommandArgumentAttribute("fixed") { FromAmong = ["a", "b"] },
+                null,
+                parsers).ValidValues!.Cast<string>());
+        Assert.Equal(
+            new[] { "a", "b" },
+            SubCommandArgumentInfo.ResolveValidValues(fixedDescriptor, parsers)!.Cast<string>());
+    }
+
+    [Fact]
+    public void Arguments_NonEnum_FrozenPathStaysNull()
+    {
+        var descriptor = new CommandReflectionCache().GetOrAdd(typeof(EnumArgumentHolder));
+        var text = descriptor.Arguments.Single(a => a.Name == "text");
+
+        Assert.Null(text.EnumCandidateType);
+        Assert.Null(text.EnumCandidateNames);
+        Assert.Null(SubCommandArgumentInfo.ResolveValidValues(text, null));
+    }
+
+    [Fact]
+    public void ArgumentChoices_ResolveFromAmong_ThenCandidates()
+    {
+        var descriptor = new CommandReflectionCache().GetOrAdd(typeof(EnumArgumentHolder));
+        var shadeDescriptor = descriptor.Arguments.Single(a => a.Name == "shade");
+        ICommandTypeParserCollection parsers = ApplicationBuilder.Create().AddCommandTypeParser<ShadeParser>();
+
+        Assert.Equal(new[] { "Red", "Green", "Blue" }, SubCommandArgumentInfo.ResolveValidValues(shadeDescriptor, null)!.Cast<string>());
+        Assert.Null(SubCommandArgumentInfo.ResolveValidValues(shadeDescriptor, parsers));
     }
 
     private static bool ChoiceValuesEqual(object[]? left, object[]? right)
@@ -775,36 +908,12 @@ public sealed class CliDescriptorCharacterizationTests
     [Fact]
     public void Options_NoDefaultValueMetadata_AllPathsOmitDefault()
     {
-        var descriptor = new CommandReflectionCache().GetOrAdd(typeof(ParityOptionLeaf));
-        var optionType = typeof(SubCommandOptionInfo);
-
-        Assert.Null(optionType.GetProperty("DefaultValue"));
-
-        foreach (var property in CommandReflectionCache.Walk(typeof(ParityOptionLeaf)))
-        {
-            if (property.GetCustomAttribute<CommandOptionAttribute>() is { } attribute)
-            {
-                _ = SubCommandOptionInfo.FromProperty(property, attribute);
-            }
-        }
-
-        foreach (var option in SubCommandOptionInfo.FromCommandType(typeof(ParityOptionLeaf)))
-        {
-            Assert.Equal(option.LongName, option.LongName);
-        }
-
-        foreach (var option in SubCommandOptionInfo.FromDeclaredType(typeof(ParityOptionLeaf)))
-        {
-            Assert.Equal(option.LongName, option.LongName);
-        }
-
-        foreach (var cached in descriptor.Options)
-        {
-            _ = SubCommandOptionInfo.FromDescriptor(
-                cached,
-                null,
-                SubCommandOptionInfo.ResolveValidValues(cached, null));
-        }
+        // No DefaultValue snapshot exists on the node type (removed per
+        // ADR-0004): defaults render at help time from live instances, never
+        // from descriptors. Construction-path parity is pinned field-by-field
+        // by the FromProperty/FromDescriptor tests below, so no per-path
+        // loop belongs here (a self-comparison loop would always pass).
+        Assert.Null(typeof(SubCommandOptionInfo).GetProperty("DefaultValue"));
     }
 
     [Fact]
@@ -874,7 +983,10 @@ public sealed class CliDescriptorCharacterizationTests
 
         foreach (var cached in descriptor.Arguments)
         {
-            var info = SubCommandArgumentInfo.FromDescriptor(cached, null);
+            var info = SubCommandArgumentInfo.FromDescriptor(
+                cached,
+                null,
+                SubCommandArgumentInfo.ResolveValidValues(cached, null));
 
             AssertArgumentParity(LiveArgument(cached.Property), info);
             AssertArgumentParity(commanded[info.Name!], info);
@@ -897,33 +1009,12 @@ public sealed class CliDescriptorCharacterizationTests
     [Fact]
     public void Arguments_NoDefaultValueMetadata_AllPathsOmitDefault()
     {
-        var descriptor = new CommandReflectionCache().GetOrAdd(typeof(ParityArgumentLeaf));
-        var argumentType = typeof(SubCommandArgumentInfo);
-
-        Assert.Null(argumentType.GetProperty("DefaultValue"));
-
-        foreach (var property in CommandReflectionCache.Walk(typeof(ParityArgumentLeaf)))
-        {
-            if (property.GetCustomAttribute<CommandArgumentAttribute>() is { } attribute)
-            {
-                _ = SubCommandArgumentInfo.FromProperty(property, attribute);
-            }
-        }
-
-        foreach (var argument in SubCommandArgumentInfo.FromCommandType(typeof(ParityArgumentLeaf)))
-        {
-            Assert.Equal(argument.Name, argument.Name);
-        }
-
-        foreach (var argument in SubCommandArgumentInfo.FromDeclaredType(typeof(ParityArgumentLeaf)))
-        {
-            Assert.Equal(argument.Name, argument.Name);
-        }
-
-        foreach (var cached in descriptor.Arguments)
-        {
-            _ = SubCommandArgumentInfo.FromDescriptor(cached, null);
-        }
+        // No DefaultValue snapshot exists on the node type (removed per
+        // ADR-0004): defaults render at help time from live instances, never
+        // from descriptors. Construction-path parity is pinned field-by-field
+        // by the FromProperty/FromDescriptor tests below, so no per-path
+        // loop belongs here (a self-comparison loop would always pass).
+        Assert.Null(typeof(SubCommandArgumentInfo).GetProperty("DefaultValue"));
     }
 
     [Fact]
