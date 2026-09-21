@@ -9,7 +9,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// Narrow leaf for pure-reflection descriptor predicates shared by
 /// <see cref="SubCommandOptionInfo"/>, <see cref="SubCommandArgumentInfo"/>
 /// and <see cref="CommandReflectionCache"/>: the C# <c>required</c>-keyword
-/// query, the display type-name query, and the nullable-unwrap/enum-candidate
+/// query and the nullable-unwrap/enum-candidate
 /// query. Owns no walk, no freeze, no ordering, and no parser-derived state.
 /// </summary>
 internal static class CommandDescriptorReflection
@@ -28,26 +28,6 @@ internal static class CommandDescriptorReflection
 #endif
 
         return hasRequiredMemberAttribute;
-    }
-
-    /// <summary>
-    /// Gets the display type name for an already-resolved target type.
-    /// Callers resolve collections (<c>IsCollection ? ElementType : PropertyType</c>) themselves.
-    /// </summary>
-    [Obsolete("Use HelpTypeDisplay.GetPlaceholderToken instead. Kept for API compatibility; behavior unchanged.")]
-    internal static string GetTypeDisplayName(Type targetType)
-    {
-        return targetType.Name.ToLowerInvariant() switch
-        {
-            "string" => "TEXT",
-            "int32" => "NUMBER",
-            "double" => "NUMBER",
-            "boolean" => "BOOL",
-            "datetime" => "DATE",
-            "directoryinfo" => "DIR",
-            "fileinfo" => "FILE",
-            _ => targetType.Name.ToUpperInvariant()
-        };
     }
 
     /// <summary>
