@@ -143,4 +143,25 @@ public class ValuedOptionNeighborTests : CliTestBase
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Running test on target: target");
     }
+
+    [Fact]
+    public async Task Satisfied_Required_Option_With_Trailing_Bare_Repeat_Reports_Missing()
+    {
+        // #470: a satisfied required valued option repeated bare at
+        // end-of-line errors exactly like the unsatisfied-then-bare ordering.
+        var result = await Runner.RunAsync("required-test", "mytarget", "--name", "John", "--email", "j@x.com", "--name");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing required option: -n, --name");
+    }
+
+    [Fact]
+    public async Task Satisfied_Optional_Option_With_Trailing_Bare_Repeat_Stays_Omitted()
+    {
+        // #470 scope guard: required-only. An optional satisfied-then-bare
+        // repeat keeps the first value and succeeds.
+        var result = await Runner.RunAsync("test", "target", "--config", "a.json", "--config");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "config=\"a.json\"");
+    }
 }
