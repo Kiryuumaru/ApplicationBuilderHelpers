@@ -216,6 +216,32 @@ internal static class TypeConversion
         }
         else
         {
+            // Non-string candidates are normalized into the effective target
+            // type before strict Equals (boxed Equals is type-strict, so an
+            // int entry never equals an enum value). Mirrors ConvertCore
+            // ordering: registry-owned targets stay Equals-only (only the
+            // parser knows their semantics), enums normalize integrals via
+            // Enum.ToObject (ChangeType cannot target enums), and remaining
+            // types normalize via invariant ChangeType. Fail-closed:
+            // unconvertible, overflow, undefined-enum, and inexact-fractional
+            // candidates skip and fall through to NotAmong, never throw here.
+            // Only custom-parser enum targets stay Equals-only: enums have no
+            // built-in parser, so a registered enum parser is user code whose
+            // semantics ChangeType/ToObject cannot reproduce. Built-in scalar
+            // parsers (int, long, ...) perform standard conversions, so
+            // cross-type numeric entries still normalize via ChangeType.
+            bool parserOwnsEnumTarget = effectiveType.IsEnum
+                && (typeParsers.TypeParsers.ContainsKey(targetType)
+                    || typeParsers.TypeParsers.ContainsKey(effectiveType));
+            bool enumStrict = effectiveType.IsEnum
+                && !parserOwnsEnumTarget
+                && !effectiveType.IsDefined(typeof(FlagsAttribute), inherit: false);
+
+            if (enumStrict && !Enum.IsDefined(effectiveType, converted))
+            {
+                throw ConversionErrors.NotAmong(raw, displayName, string.Join(", ", fromAmong.Select(entry => entry?.ToString())), isSecret, isArgument);
+            }
+
             foreach (object? entry in fromAmong)
             {
                 object? candidate = entry;
@@ -228,6 +254,64 @@ internal static class TypeConversion
                     catch (Exception)
                     {
                         continue;
+                    }
+                }
+                else if (entry is not null && !parserOwnsEnumTarget)
+                {
+                    if (effectiveType.IsEnum)
+                    {
+                        object normalized;
+                        if (entry.GetType() == effectiveType)
+                        {
+                            normalized = entry;
+                        }
+                        else
+                        {
+                            try
+                            {
+                                normalized = Enum.ToObject(effectiveType, entry);
+                            }
+                            catch (Exception)
+                            {
+                                continue;
+                            }
+                        }
+
+                        if (enumStrict && !Enum.IsDefined(effectiveType, normalized))
+                        {
+                            continue;
+                        }
+
+                        candidate = normalized;
+                    }
+                    else if (entry.GetType() != effectiveType)
+                    {
+                        object normalized;
+                        try
+                        {
+                            normalized = System.Convert.ChangeType(entry, effectiveType, CultureInfo.InvariantCulture);
+                        }
+                        catch (Exception)
+                        {
+                            continue;
+                        }
+
+                        object roundTrip;
+                        try
+                        {
+                            roundTrip = System.Convert.ChangeType(normalized, entry.GetType(), CultureInfo.InvariantCulture);
+                        }
+                        catch (Exception)
+                        {
+                            continue;
+                        }
+
+                        if (!Equals(roundTrip, entry))
+                        {
+                            continue;
+                        }
+
+                        candidate = normalized;
                     }
                 }
 
