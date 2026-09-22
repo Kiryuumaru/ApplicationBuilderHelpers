@@ -119,7 +119,7 @@ throw new CommandException("Operation failed", exitCode: 1);
 
 Shell completion (`complete` / `completions ...`) resolves through the `CompletionGateway` pre-parse stage first — see [Commands](docs/commands.md#shell-completion) for the consolidated 0/1/2 exit matrix.
 
-See [Advanced Topics](docs/advanced.md) for more on sub-commands, custom host types, error handling, and error footers.
+See [Advanced Topics](docs/advanced.md) for more on sub-commands, custom host types, error handling, and error footers. Every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:`; usage-error footers hint at both `--help` and `--version`, while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer.
 
 ## Architecture
 
