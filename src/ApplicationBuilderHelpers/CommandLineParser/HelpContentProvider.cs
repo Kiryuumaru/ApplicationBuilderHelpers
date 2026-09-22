@@ -294,6 +294,11 @@ internal sealed class HelpContentProvider(
             parts.Add(option.Description);
         }
 
+        if (option.IsRequired)
+        {
+            parts.Add("(required)");
+        }
+
         if (option.ValidValues?.Length > 0)
         {
             var values = string.Join(", ", option.ValidValues);
@@ -305,7 +310,7 @@ internal sealed class HelpContentProvider(
             parts.Add($"Environment variable: {option.EnvironmentVariable}");
         }
 
-        if (option.LongName != "help" && option.LongName != "version")
+        if (!option.IsRequired && option.LongName != "help" && option.LongName != "version")
         {
             var defaultValue = GetOptionDefaultValue(option);
             if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
@@ -411,7 +416,9 @@ internal sealed class HelpContentProvider(
             // #453 Step 1: OwnerCommand is the definition site, BindTarget is the
             // scope holding this copy. Definition-site first (coincides with
             // the legacy first-scan-hit for identical globals: no behavior
-            // change), then the copy-holding scope, then the legacy scan.
+            // change), then the copy-holding scope, then the declaring-type
+            // holder fallback (#487: snapshot-first, live only when
+            // !IsInstanceRegistration), then the type-parser fallback.
             // For caller-supplied instance registrations the live
             // definition-site instance may already carry a prior run's bound
             // value, so consult the registration-time snapshot first (same
@@ -433,11 +440,21 @@ internal sealed class HelpContentProvider(
                 return option.Property.GetValue(option.BindTarget.Command);
             }
 
-            foreach (var command in _allCommands.Values)
+            var declaringType = option.Property.DeclaringType;
+            if (declaringType != null)
             {
-                if (command.Command != null && command.Options.Any(o => o.Property == option.Property))
+                var fallbackHolder = FindHolder(declaringType);
+                if (fallbackHolder != null)
                 {
-                    return option.Property.GetValue(command.Command);
+                    if (fallbackHolder.TryGetInitializerDefault(option.Property, out var fallbackSnapshot))
+                    {
+                        return fallbackSnapshot;
+                    }
+
+                    if (!fallbackHolder.IsInstanceRegistration)
+                    {
+                        return option.Property.GetValue(fallbackHolder.Command);
+                    }
                 }
             }
 
@@ -458,7 +475,13 @@ internal sealed class HelpContentProvider(
     /// <summary>
     /// Finds the registration holder for a command type. Multiple registrations
     /// of one type are rejected elsewhere (duplicate-command validation), so
-    /// first match is the definition site. Mirrors the promotion-gate lookup.
+    /// first match is the definition site. Deliberate divergence from the
+    /// promotion-gate lookup (<c>CommandHierarchyBuilder.FindHolder</c>): the
+    /// gate keys by the option property's declaring type and fails closed on
+    /// ambiguity because it compares initializers across definition sites,
+    /// while this lookup keys by the holding scope's concrete command type
+    /// because it reads one scope's default. Shared idiom: both consult the
+    /// holder's registration-time snapshot before any live instance read.
     /// </summary>
     private TypedCommandHolder? FindHolder(Type commandType)
     {

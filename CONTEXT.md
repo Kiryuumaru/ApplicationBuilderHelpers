@@ -40,6 +40,9 @@ A property carrying both a CLI marker (`[CommandOption]` / `[CommandArgument]`) 
 **Injection plan**:
 The cached per-`Type` service-injection target list (property plus optional keyed-service key) built once via the shared `TypePlanCache` double-checked-lock core and reused across runs; the CLI-bound set is hoisted into the cached plan so bound identity uses one canonical predicate.
 
+**Reserved shorts**:
+The `h` / `V` `ShortTerm` values owned by the help/version gateway. `-h` / `-V` win inside combined short clusters even mid-cluster (`ArgumentParser.cs:307-338`), and declaring either as a local `ShortTerm` throws `InvalidOperationException` at registration (fail-closed, `CommandHierarchyBuilder.cs:471-497`), unless `LongName` is `help` for `-h`; `-V` always throws (no version node, gateway-only). Affected options keep the long form only (e.g. `serve --host`).
+
 ## CLI Presence Glossary
 
 **Present**:
@@ -65,3 +68,6 @@ A token of only whitespace (e.g. `" "`); for string-typed targets preserved verb
 
 **Defaulted**:
 A property value left at its initializer because the CLI input was omitted.
+
+**Holding scope**:
+The command whose option list holds an option node. `SubCommandOptionInfo.OwnerCommand` is the definition site (the defining command); `SubCommandOptionInfo.BindTarget` is the holding scope (the defining command for a definition-site node, root or the per-command help scope for a global copy). Help default-value reads resolve definition-site first, then the holding scope.

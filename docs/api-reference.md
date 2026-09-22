@@ -195,6 +195,8 @@ public class CommandOptionAttribute : Attribute
 }
 ```
 
+`ShortTerm` values `'h'` / `'V'` are reserved for help/version — declaring either throws `InvalidOperationException` at registration (fail-closed, `CommandHierarchyBuilder.cs:471-497`), unless `LongName` is `help` for `-h`; `-V` always throws (no version node, gateway-only); use the long `Term` form instead.
+
 ### CommandArgumentAttribute
 
 ```csharp

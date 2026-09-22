@@ -91,14 +91,28 @@ public sealed class RequiresSubcommandSuggestionTests
     }
 
     [Fact]
-    public async Task Dash_Led_Token_Stays_Silent()
+    public async Task Dash_Led_Token_Reports_Unknown_Option()
     {
+        // Issue #508: a dash-led leftover on an abstract command reports
+        // UnknownOption (with the UnknownOption footer), not RequiresSubcommand.
+        // "--gett" is a far miss from "--help", so no hint is appended.
         var (exitCode, _, error) = await RunCapturedAsync(["config", "--gett"]);
         Assert.Equal(2, exitCode);
-        Assert.Contains("'config' requires a subcommand", error);
-        Assert.Contains("Available subcommands: get, set", error);
+        Assert.Contains("Unknown option: --gett", error);
+        Assert.DoesNotContain("requires a subcommand", error);
         Assert.DoesNotContain("Did you mean", error);
-        Assert.Contains("Run 'didyoumean-abstract-test config --help' to see available subcommands and options.", error);
+        Assert.Contains("Run 'didyoumean-abstract-test config --help' for more information on specific command options.", error);
+    }
+
+    [Fact]
+    public async Task Dash_Led_Near_Miss_Suggests_Known_Option()
+    {
+        // Issue #508: a near-miss root flag suggests the known option.
+        var (exitCode, _, error) = await RunCapturedAsync(["config", "--hepl"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: --hepl", error);
+        Assert.Contains("Did you mean '--help'?", error);
+        Assert.Contains("Run 'didyoumean-abstract-test config --help' for more information on specific command options.", error);
     }
 
     [Fact]
