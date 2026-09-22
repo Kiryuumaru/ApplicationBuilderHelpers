@@ -99,7 +99,7 @@ internal sealed record CommandTypeDescriptor(
 /// <c>SubCommandOptionInfo.FromProperty</c> / <c>SubCommandArgumentInfo.FromProperty</c>);
 /// enum auto-populate decisions stay with the parser layer, which reads
 /// <c>EnumCandidateType</c> / <c>EnumCandidateNames</c>.
-/// Never stored here: ICommand, SubCommandInfo, IsGlobal/IsInherited, OwnerCommand,
+/// Never stored here: ICommand, SubCommandInfo, IsGlobal/IsInherited, OwnerCommand/BindTarget,
 /// or parser-derived ValidValues.
 /// </summary>
 internal sealed class CommandReflectionCache
