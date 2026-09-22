@@ -38,4 +38,21 @@ public sealed class CommandErrorFooterTests
     {
         Assert.Equal(expected, CommandErrorFooter.Resolve(kind, "test", commandName));
     }
+
+    /// <summary>
+    /// #509: when the failing invocation already requested help, the circular
+    /// <c>--help</c> hint is suppressed and only the <c>--version</c> hint
+    /// survives. The no-flag path (showHelpRequested: false) keeps both hints.
+    /// </summary>
+    [Theory]
+    [InlineData(CommandErrorKind.InvalidValue, "required-test", "Run 'test required-test --version' to show version information.")]
+    [InlineData(CommandErrorKind.UnknownOption, "build", "Run 'test build --version' to show version information.")]
+    [InlineData(CommandErrorKind.MissingRequired, "required-test", "Run 'test required-test --version' to show version information.")]
+    [InlineData(CommandErrorKind.UnknownCommand, null, "Run 'test --version' to show version information.")]
+    [InlineData(CommandErrorKind.RequiresSubcommand, "config", "Run 'test config --version' to show version information.")]
+    [InlineData(CommandErrorKind.RequiresSubcommand, null, "Run 'test --version' to show version information.")]
+    public void Resolve_WithHelpRequested_SuppressesHelpHint(CommandErrorKind kind, string? commandName, string expected)
+    {
+        Assert.Equal(expected, CommandErrorFooter.Resolve(kind, "test", commandName, showHelpRequested: true));
+    }
 }

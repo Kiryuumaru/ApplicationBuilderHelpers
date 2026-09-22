@@ -37,6 +37,43 @@ internal sealed class HelpVersionGateway(
         return token == "--version" || token == "-V";
     }
 
+    /// <summary>
+    /// Mirrors the parser's help-detection surface (#509 footer signal):
+    /// <see cref="IsHelpToken"/> per-token plus an <c>h</c> char inside a
+    /// dash-led cluster (the parser's cluster rule at
+    /// <c>ArgumentParser.cs:328-332</c>), scanning only up to the first bare
+    /// <c>--</c> separator (tokens after it are positional per
+    /// <c>ArgumentParser.cs:113-123</c> and never set <c>ShowHelp</c>).
+    /// Footer-only: exit codes are unaffected.
+    /// </summary>
+    internal static bool RequestedHelp(string[] args)
+    {
+        foreach (var token in args)
+        {
+            if (token == "--")
+                return false;
+            if (IsHelpToken(token))
+                return true;
+            if (IsHelpCluster(token))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsHelpCluster(string token)
+    {
+        // Same cluster gate as the parser (ArgumentParser.cs:287): bare
+        // multi-char short bundles only — no '=', not '--' long form, not
+        // numeric. The 'h' char wins as help even mid-cluster (:328-332).
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('='))
+            return false;
+        if (char.IsDigit(token[1]) || token[1] == '.')
+            return false;
+
+        return token[1..].Contains('h');
+    }
+
     internal void ShowGlobalHelp(SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
     {
         var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, allCommands, consoleOutput);
@@ -58,8 +95,10 @@ internal sealed class HelpVersionGateway(
     /// <summary>
     /// Shows a styled error message with helpful footer information.
     /// Footer selection dispatches on <see cref="CommandErrorKind"/>, never on message text.
+    /// The circular <c>--help</c> hint is suppressed when the failing invocation
+    /// already requested help (#509): only the <c>--version</c> hint survives.
     /// </summary>
-    internal void ShowErrorMessage(string message, CommandErrorKind kind = CommandErrorKind.Fault, string? commandName = null)
+    internal void ShowErrorMessage(string message, CommandErrorKind kind = CommandErrorKind.Fault, string? commandName = null, bool showHelpRequested = false)
     {
         var theme = commandBuilder.Theme;
         // Use auto-detection for null ExecutableName
@@ -72,6 +111,6 @@ internal sealed class HelpVersionGateway(
         // Add helpful footer message based on error kind
         consoleOutput.WriteLineError();
 
-        consoleOutput.WriteLineError(CommandErrorFooter.Resolve(kind, executableName, commandName));
+        consoleOutput.WriteLineError(CommandErrorFooter.Resolve(kind, executableName, commandName, showHelpRequested));
     }
 }

@@ -156,12 +156,15 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Missing_Required_With_Help_Beats_Conversion_Error()
+    public async Task Conversion_Error_With_Help_Beats_Missing_Required()
     {
+        // #483 x #509: under --help, missing is suppressed but the binding
+        // probe still runs, so the invalid value wins (still exit 2).
         var result = await Runner.RunAsync("required-test", "mytarget", "--age", "abc", "--help");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Missing required option");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: 'abc'");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test required-test --version' to show version information.");
     }
 
     [Fact]

@@ -10,16 +10,31 @@ internal static class CommandErrorFooter
 {
     internal static string Resolve(CommandErrorKind kind, string executableName, string? commandName)
     {
+        return Resolve(kind, executableName, commandName, showHelpRequested: false);
+    }
+
+    /// <summary>
+    /// Resolves the footer, suppressing the circular <c>--help</c> hint when
+    /// the failing invocation already requested help (#509): the user already
+    /// asked for help, so pointing back at <c>--help</c> is noise — keep only
+    /// the <c>--version</c> hint. The no-flag missing path keeps both hints.
+    /// </summary>
+    internal static string Resolve(CommandErrorKind kind, string executableName, string? commandName, bool showHelpRequested)
+    {
+        var helpHint = HelpHint(executableName, commandName);
+        var versionHint = VersionHint(executableName, commandName);
         switch (kind)
         {
             case CommandErrorKind.RequiresSubcommand:
                 if (!string.IsNullOrEmpty(commandName))
                 {
-                    return $"Run '{executableName} {commandName} --help' to see available subcommands and options. Run '{executableName} {commandName} --version' to show version information.";
+                    var help = showHelpRequested ? versionHint : $"{helpHint} to see available subcommands and options. {versionHint}";
+                    return help;
                 }
                 else
                 {
-                    return $"Run '{executableName} --help' to see available commands and options. Run '{executableName} --version' to show version information.";
+                    var globalSub = showHelpRequested ? versionHint : $"{helpHint} to see available commands and options. {versionHint}";
+                    return globalSub;
                 }
             case CommandErrorKind.UnknownOption:
             case CommandErrorKind.MissingRequired:
@@ -28,14 +43,28 @@ internal static class CommandErrorFooter
             case CommandErrorKind.DuplicateOption:
                 if (!string.IsNullOrEmpty(commandName))
                 {
-                    return $"Run '{executableName} {commandName} --help' for more information on specific command options. Run '{executableName} {commandName} --version' to show version information.";
+                    if (showHelpRequested)
+                        return versionHint;
+                    return $"{helpHint} for more information on specific command options. {versionHint}";
                 }
                 else
                 {
-                    return $"Run '{executableName} --help' for more information on available commands and options. Run '{executableName} --version' to show version information.";
+                    if (showHelpRequested)
+                        return versionHint;
+                    return $"{helpHint} for more information on available commands and options. {versionHint}";
                 }
             default:
-                return $"Run '{executableName} --help' for more information on available commands and options.";
+                return $"{HelpHint(executableName, commandName: null)} for more information on available commands and options.";
         }
     }
+
+    private static string HelpHint(string executableName, string? commandName) =>
+        !string.IsNullOrEmpty(commandName)
+            ? $"Run '{executableName} {commandName} --help'"
+            : $"Run '{executableName} --help'";
+
+    private static string VersionHint(string executableName, string? commandName) =>
+        !string.IsNullOrEmpty(commandName)
+            ? $"Run '{executableName} {commandName} --version' to show version information."
+            : $"Run '{executableName} --version' to show version information.";
 }

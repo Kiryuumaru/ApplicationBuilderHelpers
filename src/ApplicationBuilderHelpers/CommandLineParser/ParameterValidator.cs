@@ -16,6 +16,11 @@ internal sealed class ParameterValidator
     /// An unsatisfied bare optional valued option (#503) fails the same way
     /// even with env set (env rescues only omitted options); a satisfied-then-bare
     /// optional repeat keeps the first value and succeeds.
+    /// Help always wins over missing required (#509): when
+    /// <see cref="ParseResult.ShowHelp"/> is set, the required-option and
+    /// required-argument passes are skipped so help-with-values renders at
+    /// Step 7b; the binding probe still runs, so invalid values beat
+    /// help-with-values (#483 x #509).
     /// The caller (<see cref="CommandLineParser"/>) joins these with the
     /// binding errors so one failure no longer masks another; missing errors
     /// order before binding errors in the final message. Options are visited
@@ -25,30 +30,36 @@ internal sealed class ParameterValidator
     public List<string> CollectRequiredErrors(ParseResult result)
     {
         var errors = new List<string>();
-        // Check required options
-        var seenOptionKeys = new HashSet<string>(System.StringComparer.Ordinal);
-        foreach (var option in result.TargetCommand.AllOptions.Where(o => o.IsRequired))
+        // #509 (vitruvius): help always wins over missing required. Gate only
+        // the required-option and required-argument passes on !ShowHelp; the
+        // optional-bare gate below stays as-is.
+        if (!result.ShowHelp)
         {
-            if (!seenOptionKeys.Add(ParseResult.GetCanonicalOptionKey(option)))
-                continue;
-
-            if (!result.TryGetMergedOptionValues(option, out _))
+            // Check required options
+            var seenOptionKeys = new HashSet<string>(System.StringComparer.Ordinal);
+            foreach (var option in result.TargetCommand.AllOptions.Where(o => o.IsRequired))
             {
-                // Explicit bare claims ownership: env rescues only omitted
-                // (never-typed) options, never a typed bare occurrence.
-                if (!result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option))
-                    && EnvVarFallback.Apply(result, option, requiredOnly: true))
+                if (!seenOptionKeys.Add(ParseResult.GetCanonicalOptionKey(option)))
                     continue;
 
-                errors.Add($"Missing required option: {option.GetDisplayName()}");
-                continue;
-            }
+                if (!result.TryGetMergedOptionValues(option, out _))
+                {
+                    // Explicit bare claims ownership: env rescues only omitted
+                    // (never-typed) options, never a typed bare occurrence.
+                    if (!result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option))
+                        && EnvVarFallback.Apply(result, option, requiredOnly: true))
+                        continue;
 
-            if (!option.IsCollection
-                && !option.IsFlag
-                && result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
-            {
-                errors.Add($"Missing required option: {option.GetDisplayName()}");
+                    errors.Add($"Missing required option: {option.GetDisplayName()}");
+                    continue;
+                }
+
+                if (!option.IsCollection
+                    && !option.IsFlag
+                    && result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
+                {
+                    errors.Add($"Missing required option: {option.GetDisplayName()}");
+                }
             }
         }
 
@@ -57,9 +68,10 @@ internal sealed class ParameterValidator
         // merits and fails exit 2 like the required path, even with env set.
         // A satisfied-then-bare optional
         // repeat keeps its value and stays omitted-success.
-        // Help/version precedence: a bare optional never masks an explicit
-        // help or version request (the required passes above and below still
-        // run first/last, preserving Help_Does_Not_Skip_Required_Validation).
+        // Help/version precedence (#509): a bare optional never masks an
+        // explicit help or version request (optional-bare gate below stays
+        // as-is; the required passes above and below are skipped entirely
+        // when ShowHelp is set, so help-with-values renders at Step 7b).
         if (!result.ShowHelp && !result.ShowVersion)
         {
             var seenOptionalBareKeys = new HashSet<string>(System.StringComparer.Ordinal);
@@ -81,16 +93,20 @@ internal sealed class ParameterValidator
             }
         }
 
-        // Check required arguments
-        var seenArgumentNames = new HashSet<string>(System.StringComparer.Ordinal);
-        foreach (var argument in result.TargetCommand.AllArguments.Where(a => a.IsRequired))
+        // Check required arguments (#509: skipped when ShowHelp, like the
+        // required-option pass above, so help-with-values renders at Step 7b).
+        if (!result.ShowHelp)
         {
-            if (!seenArgumentNames.Add(argument.DisplayName))
-                continue;
-
-            if (!result.ArgumentValues.TryGetValue(argument, out List<string>? value) || value.Count == 0)
+            var seenArgumentNames = new HashSet<string>(System.StringComparer.Ordinal);
+            foreach (var argument in result.TargetCommand.AllArguments.Where(a => a.IsRequired))
             {
-                errors.Add($"Missing required argument: {argument.DisplayName}");
+                if (!seenArgumentNames.Add(argument.DisplayName))
+                    continue;
+
+                if (!result.ArgumentValues.TryGetValue(argument, out List<string>? value) || value.Count == 0)
+                {
+                    errors.Add($"Missing required argument: {argument.DisplayName}");
+                }
             }
         }
 

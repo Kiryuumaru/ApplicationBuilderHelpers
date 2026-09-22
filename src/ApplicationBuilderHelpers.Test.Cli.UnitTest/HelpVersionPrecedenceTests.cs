@@ -75,11 +75,56 @@ public class HelpVersionPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Help_Does_Not_Skip_Required_Option_Validation()
+    public async Task Help_Skips_Required_Validation()
     {
+        // #509: help always wins over missing required. Missing required
+        // options/arguments no longer block help-with-values (exit 0 + USAGE).
         var result = await Runner.RunAsync("required-test", "mytarget", "--help");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Missing required option");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+    }
+
+    [Fact]
+    public async Task Help_Skips_Required_Argument_Validation()
+    {
+        // #509: missing required argument also yields to help (exit 0 + USAGE).
+        var result = await Runner.RunAsync("required-test", "--name", "John", "--email", "john@example.com", "--help");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+    }
+
+    [Fact]
+    public async Task Help_Skips_All_Required_Validation()
+    {
+        // #509: nothing provided at all beyond the command — still help (exit 0).
+        var result = await Runner.RunAsync("required-test", "--help");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+    }
+
+    [Fact]
+    public async Task Short_Help_Skips_Required_Validation()
+    {
+        // #509 short-flag variant: -h wins over missing required too (exit 0 + USAGE).
+        var result = await Runner.RunAsync("required-test", "mytarget", "-h");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+    }
+
+    [Fact]
+    public async Task Version_Skips_Required_Validation()
+    {
+        // #509 version pin: missing required yields to the Step 4b version
+        // guard, which fires before validation (exit 0, no USAGE).
+        var result = await Runner.RunAsync("required-test", "mytarget", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
     }
 
     [Fact]
