@@ -97,10 +97,14 @@ internal class CommandLineParser
             }
 
             // Step 7: Validate required options and arguments, then collect
-            // binding errors (#496 aggregation): missing errors order before
-            // binding errors, joined with newlines, exit 2 and per-line message
-            // formats unchanged. Parse path errors (unknown option/command,
-            // duplicate, RequiresSubcommand) and the #483 help axis stay fail-fast.
+            // binding errors (#496 aggregation + #483 help precedence): missing
+            // errors order before binding errors, joined with newlines, exit 2
+            // and per-line message formats unchanged. Parse path errors (unknown
+            // option/command, duplicate, RequiresSubcommand) stay fail-fast.
+            // Invalid values beat help-with-values (#483): binding collection
+            // runs even when help was requested (bare-ledger keys skipped to
+            // preserve the --config --help carve-out), while missing errors
+            // still win over help per #408.
             ValidateAndBindParameters(parseResult);
 
             // Step 7b: Handle command help when values were collected
@@ -171,12 +175,12 @@ internal class CommandLineParser
         // that is the same idempotent merge the throwing path performed before
         // binding; no success-path command instance is touched). Collect-all so
         // a missing parameter no longer masks an invalid value. Binding
-        // collection is skipped when command help was requested: pre-#496,
-        // Step 7b showed help for invalid+--help (binding ran after help at
-        // Step 8), while required errors still won over help per #408 — gating
-        // here preserves both precedences exactly.
+        // collection runs even when help was requested (#483: invalid beats
+        // help-with-values), skipping only bare-ledger keys to preserve the
+        // --config --help carve-out, while required errors still win over help
+        // per #408.
         var missingErrors = _validator.CollectRequiredErrors(result);
-        var bindingErrors = result.ShowHelp ? new List<string>() : _binder.CollectBindingErrors(result);
+        var bindingErrors = _binder.CollectBindingErrors(result, skipBareWhenHelpRequested: true);
 
         var allErrors = new List<string>(missingErrors.Count + bindingErrors.Count);
         allErrors.AddRange(missingErrors);
