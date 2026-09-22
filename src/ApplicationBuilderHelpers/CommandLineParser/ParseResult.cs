@@ -75,4 +75,44 @@ internal class ParseResult
         }
         return values.Count != 0;
     }
+
+    /// <summary>
+    /// Sole identity reader for one logical (canonical-key) option group.
+    /// P1: the first <see cref="TargetCommand.AllOptions"/> node in walk order
+    /// whose canonical key matches (the target command's own copy, which sorts
+    /// before inherited globals). P2: encounter-order fallback — the first
+    /// <see cref="OptionValues"/> key in insertion order whose canonical key
+    /// matches, preserving GroupBy/SelectMany behavior. Returns an existing
+    /// node; never synthesizes one. <c>OwnerCommand</c>/<c>BindTarget</c> are
+    /// carried read-only, not consulted here.
+    /// Ordering contract: merged value lists preserve encounter order;
+    /// scalars resolve last-wins via <see cref="AddOptionValue"/> eviction
+    /// (unchanged); no re-sort.
+    /// </summary>
+    internal bool TryGetCanonicalIdentityOption(string canonicalKey, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SubCommandOptionInfo option)
+    {
+        if (TargetCommand is not null)
+        {
+            foreach (var candidate in TargetCommand.AllOptions)
+            {
+                if (string.Equals(GetCanonicalOptionKey(candidate), canonicalKey, StringComparison.Ordinal))
+                {
+                    option = candidate;
+                    return true;
+                }
+            }
+        }
+
+        foreach (var storedOption in OptionValues.Keys)
+        {
+            if (string.Equals(GetCanonicalOptionKey(storedOption), canonicalKey, StringComparison.Ordinal))
+            {
+                option = storedOption;
+                return true;
+            }
+        }
+
+        option = null!;
+        return false;
+    }
 }

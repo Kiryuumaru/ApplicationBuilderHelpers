@@ -28,12 +28,16 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         }
 
         // Set option values (grouped by canonical key so global-copy
-        // identities bind one logical option once with merged CLI-wins values)
+        // identities bind one logical option once with merged CLI-wins values).
+        // Identity comes from the ParseResult sole reader (target command's own
+        // copy first, encounter-order fallback); values stay the merged list.
         foreach (var group in result.OptionValues.GroupBy(
             entry => ParseResult.GetCanonicalOptionKey(entry.Key),
             StringComparer.Ordinal))
         {
-            var option = group.First().Key;
+            var canonicalKey = group.Key;
+            if (!result.TryGetCanonicalIdentityOption(canonicalKey, out var option))
+                continue;
             var values = group.SelectMany(entry => entry.Value).ToList();
             if (values.Count == 0) continue;
 
@@ -96,7 +100,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
     }
 
     private static string GetOptionDisplayName(SubCommandOptionInfo option) =>
-        $"option '--{option.LongName ?? option.ShortName?.ToString() ?? option.Property.Name}'";
+        $"option '--{ParseResult.GetCanonicalOptionKey(option)}'";
 
     private static string GetArgumentDisplayName(SubCommandArgumentInfo argument) =>
         $"argument '{argument.DisplayName}'";
