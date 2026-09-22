@@ -136,8 +136,17 @@ internal sealed class ArgumentParser
                 continue;
             }
 
-            // Check if this is an option
-            var matchedOption = allOptions.FirstOrDefault(o => o.MatchesArgument(arg));
+            // Issue #484: bare numeric tokens (IsNumericValue true, e.g.
+            // -1, -12, -1.5, -1e3) skip the single-option match and route to
+            // the positional/numeric path below, never a digit ShortName flag.
+            // In-token '=' form (-1=value) and compact with non-numeric
+            // remainder (-1x) are not numeric per IsNumericValue and still
+            // match as options. All-digit compact remainder follows the bare
+            // rule to positional. MatchesArgument stays purely lexical by
+            // design; the taxonomy decision lives here.
+            SubCommandOptionInfo? matchedOption = null;
+            if (!IsNumericValue(arg))
+                matchedOption = allOptions.FirstOrDefault(o => o.MatchesArgument(arg));
             if (matchedOption != null)
             {
                 var nextArg = i + 1 < args.Length ? args[i + 1] : null;

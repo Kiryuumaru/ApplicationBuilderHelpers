@@ -15,16 +15,18 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollection)
 {
     /// <summary>
-    /// Validates every supplied value without binding (#496 aggregation dry run).
-    /// Runs the exact same conversion/materialization calls as
-    /// <see cref="SetCommandValues"/>, discarding the converted results instead
-    /// of assigning them, so each present value's conversion error is observed
-    /// without stopping at the first. Env fallback runs first (same as the bind
-    /// path), then each option/argument value is converted in deterministic
-    /// canonical-key order. Collected messages join the missing errors in the
-    /// caller; the first message keeps the legacy single-error text byte-identical.
+    /// Validates every supplied value without binding (#496 aggregation dry run
+    /// plus #483 help precedence). Runs the exact same conversion/materialization
+    /// calls as <see cref="SetCommandValues"/>, discarding the converted results
+    /// instead of assigning them, so each present value's conversion error is
+    /// observed without stopping at the first. Env fallback runs first (same as
+    /// the bind path), then each option/argument value is converted in
+    /// deterministic canonical-key order. Skips bare-ledger keys when ShowHelp
+    /// is set to preserve the --config --help carve-out (bare valued + help
+    /// neighbor). Collected messages join the missing errors in the caller; the
+    /// first message keeps the legacy single-error text byte-identical.
     /// </summary>
-    public List<string> CollectBindingErrors(ParseResult result)
+    public List<string> CollectBindingErrors(ParseResult result, bool skipBareWhenHelpRequested = false)
     {
         var errors = new List<string>();
 
@@ -41,6 +43,9 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             .OrderBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal)
             .GroupBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal))
         {
+            if (skipBareWhenHelpRequested && result.ShowHelp && result.BareOptionOccurrences.Contains(group.Key))
+                continue;
+
             var option = group.First().Key;
             var values = group.SelectMany(entry => entry.Value).ToList();
             if (values.Count == 0) continue;
