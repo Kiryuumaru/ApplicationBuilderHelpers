@@ -31,6 +31,15 @@ The gateway order completion > help > parse > version.
 **Shadowing**:
 The gateway handling its reserved words first, so same-named registered commands never run.
 
+**Member hiding (`new`)**:
+A derived command property that hides a base property with the C# `new` modifier — distinct from gateway **Shadowing** above, which is about reserved words, not members. The reflection walk keeps both entries as base-first duplicates, so a hidden member never silently replaces the base one.
+
+**Dual-marked**:
+A property carrying both a CLI marker (`[CommandOption]` / `[CommandArgument]`) and a service marker (`[FromServices]` / `[FromKeyedServices]`). Always a configuration error: any dual-marked `PropertyInfo` in the walk chain throws `InvalidOperationException` (fault, exit 1) — member hiding never excuses the conflict.
+
+**Injection plan**:
+The cached per-`Type` service-injection target list (property plus optional keyed-service key) built once via the shared `TypePlanCache` double-checked-lock core and reused across runs; the CLI-bound set is hoisted into the cached plan so bound identity uses one canonical predicate.
+
 ## CLI Presence Glossary
 
 **Present**:
