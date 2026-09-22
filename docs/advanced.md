@@ -95,7 +95,7 @@ The library catches `CommandException` during execution and returns its exit cod
 
 Usage errors print a `Run '...' --help` footer selected by error kind:
 
-- `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options.`; without one → the global footer below.
+- `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options.`; without one → the global footer below. A near-miss surplus token appends a `Did you mean 'x'?` pointer via Did-You-Mean admission; a far token stays silent.
 - `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue`, `DuplicateOption` with a command name → `Run '<exe> <command-name> --help' for more information on specific command options.`; without one (e.g. no command matched) → the global footer below.
 - Anything else → `Run '<exe> --help' for more information on available commands and options.`
 
