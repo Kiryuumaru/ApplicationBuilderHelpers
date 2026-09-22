@@ -40,6 +40,9 @@ A property carrying both a CLI marker (`[CommandOption]` / `[CommandArgument]`) 
 **Injection plan**:
 The cached per-`Type` service-injection target list (property plus optional keyed-service key) built once via the shared `TypePlanCache` double-checked-lock core and reused across runs; the CLI-bound set is hoisted into the cached plan so bound identity uses one canonical predicate.
 
+**Reserved shorts**:
+The `h` / `V` `ShortTerm` values owned by the help/version gateway. `-h` / `-V` win inside combined short clusters even mid-cluster (`ArgumentParser.cs:307-338`), and declaring either as a local `ShortTerm` throws `InvalidOperationException` at registration (fail-closed, `CommandHierarchyBuilder.cs:471-497`), unless `LongName` is `help` for `-h`; `-V` always throws (no version node, gateway-only). Affected options keep the long form only (e.g. `serve --host`).
+
 ## CLI Presence Glossary
 
 **Present**:
