@@ -37,7 +37,7 @@ public enum CommandErrorKind
     UnknownCommand = 5,
 
     /// <summary>
-    /// The same non-flag option was supplied multiple times. Usage error, exit 2.
+    /// Reserved for compatibility; never thrown. Valued repeats resolve last-wins in the parser (<c>ParseResult.AddOptionValue</c>).
     /// </summary>
     DuplicateOption = 6,
 

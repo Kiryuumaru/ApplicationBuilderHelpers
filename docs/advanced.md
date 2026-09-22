@@ -65,7 +65,7 @@ Any type implementing `IHostApplicationBuilder` is supported.
 | Outcome | Exit code |
 |---|---|
 | `Run` returns normally (also `--help` / `--version`) | `0` (conversion failure beats help-with-values; invalid+version still `0` via the pre-validation version guard at `CommandLineParser.cs:83-87`) |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
@@ -96,7 +96,7 @@ The library catches `CommandException` during execution and returns its exit cod
 Usage errors print a `Run '...' --help` footer selected by error kind:
 
 - `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options.`; without one → the global footer below. A near-miss surplus token appends a `Did you mean 'x'?` pointer via Did-You-Mean admission; a far token stays silent.
-- `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue`, `DuplicateOption` with a command name → `Run '<exe> <command-name> --help' for more information on specific command options.`; without one (e.g. no command matched) → the global footer below.
+- `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue` with a command name → `Run '<exe> <command-name> --help' for more information on specific command options.`; without one (e.g. no command matched) → the global footer below. (`DuplicateOption` is reserved and never thrown — its footer arm is kept only for compatibility.)
 - Anything else → `Run '<exe> --help' for more information on available commands and options.`
 
 `<exe>` is the configured executable name when set on the gateway path, otherwise the auto-detected one (the host path always auto-detects). Both error paths render the same footer for the same kind.
