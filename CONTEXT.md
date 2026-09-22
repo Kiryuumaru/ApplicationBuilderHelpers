@@ -82,10 +82,16 @@ An inherited option is a parent `SubCommandOptionInfo` with `IsGlobal`/`IsInheri
 The root `SubCommandInfo` with no implementation (`IsRoot` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:130`) in a CLI that registers only leaf subcommands. Display name `"<root>"` (`:32`); `ToString()` renders `"<root>"` (`:301`).
 
 **Bare run**:
-Invoking with zero args (`[]`) on an abstract root: fails `RequiresSubcommand` (exit 2) with `'<root>' requires a subcommand. Available subcommands: ...` (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:85-97`); structured `CommandName` stays empty (`:87`) so the footer is global (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`).
+Invoking with zero args (`[]`) on an abstract root: fails `RequiresSubcommand` (exit 2) with `'<root>' requires a subcommand. Available subcommands: ...` (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:93-105`); structured `CommandName` stays empty (`:95`) so the footer is global (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`).
 
 **Help-first**:
-A leading `--help`/`-h` (pre-`--` sentinel) on the abstract root or a known abstract parent (`IsRoot || argIndex > 0`, `ArgumentParser.cs:64-70`) sets `ShowHelp` without erroring, exit 0. Only the root globalizes: `HelpFormatter` branches on `IsRoot` alone (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:42-44`), so root renders the global help model (`COMMANDS:` section) while a named abstract parent keeps its parent-scoped view (`BuildCommandModel`).
+A leading `--help`/`-h` (pre-`--` sentinel) on the abstract root or a known abstract parent (`IsRoot || argIndex > 0`, `ArgumentParser.cs:66-70`) sets `ShowHelp` without erroring, exit 0. Only the root globalizes: `HelpFormatter` branches on `IsRoot` alone (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:42-44`), so root renders the global help model (`COMMANDS:` section) while a named abstract parent keeps its parent-scoped view (`BuildCommandModel`).
 
 **Term validation**:
 The build-time `CommandAttribute.Term` guard: null merges at root; non-null empty/whitespace or dash-led throws `InvalidOperationException` (fault, exit 1); multi-space normalizes via `Split(' ', RemoveEmptyEntries)`. Enforced at both `SubCommandInfo.FromCommand` (`SubCommandInfo.cs:140-159`) and the hierarchy build (`src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204`).
+
+**Positive-`=`-form**:
+A known boolean flag in in-token `=`-form (`bool`/`bool?`, e.g. `--verbose=banana`, `-v=banana`) — distinct from the **`--no-`-form** (`--no-<name>=value`, which never accepts a value and is owned by the #508 `--no-` mirror). On an abstract prefix with no implementation, a positive-`=`-form with an invalid literal reports `InvalidValue` (exit 2) naming the option plus the valid literals (`true/false/yes/no/on/off/1/0` case-insensitive, delegated to `SubCommandOptionInfo.ExtractValue`) instead of `RequiresSubcommand` (#542 gate at `src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:473-501`, call at `:86`).
+
+**InvalidValue-beats-RequiresSubcommand**:
+The abstract-root precedence: #512 reserved help-word misuse, then #542 invalid flag literals, then the #508 unknown-option scan — each reporting `InvalidValue`/`UnknownOption` (exit 2) before the `RequiresSubcommand` throw at `ArgumentParser.cs:105`. Valid literals, bare flags, valued options, unknown bases (still `UnknownOption`), `--no-`-prefixed tokens, and post-`--` tokens fall through unchanged.
