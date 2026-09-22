@@ -214,9 +214,9 @@ internal sealed class ArgumentParser
                     var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
                     var noValueCommandName = result.TargetCommand.FullCommandName;
                     if (resolved != null)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     if (name.Length == "--no-".Length)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     var noValueSuggestion = DidYouMean.FindBestMatch(
                         name,
                         DidYouMean.OptionCandidates(allOptions));
@@ -480,9 +480,9 @@ internal sealed class ArgumentParser
                 var rejected = token[(token.IndexOf('=') + 1)..];
                 var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
                 if (resolved != null)
-                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 if (name.Length == "--no-".Length)
-                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 var noValueSuggestion = DidYouMean.FindBestMatch(name, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
@@ -585,7 +585,7 @@ internal sealed class ArgumentParser
         if (token.StartsWith("--no-help=", StringComparison.Ordinal))
         {
             var rejected = token["--no-help=".Length..];
-            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-help", rejected, isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-help", rejected, isSecret: false, isFlag: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         return new CommandException("Option '--no-help' is not valid. Use '--help' to show help.", 2, CommandErrorKind.InvalidValue, commandName);
