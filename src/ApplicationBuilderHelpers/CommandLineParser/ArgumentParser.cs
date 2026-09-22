@@ -67,6 +67,12 @@ internal sealed class ArgumentParser
                 result.ShowHelp = true;
                 return result;
             }
+            // Issue #508: an unknown dash-led token on an abstract command must
+            // report UnknownOption (with help suggestion), not RequiresSubcommand.
+            // Runs after the version/help carve-outs so those keep precedence;
+            // bare-app, sentinel, numeric, and known-option cases fall through
+            // to the RequiresSubcommand path below unchanged.
+            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
             // This is an abstract command that requires a subcommand
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = string.IsNullOrEmpty(result.TargetCommand.FullCommandName) ? "" : result.TargetCommand.FullCommandName;
@@ -422,4 +428,87 @@ internal sealed class ArgumentParser
     /// </summary>
     private static bool IsFlagLookingToken(string token) =>
         token.StartsWith('-') && !IsNumericValue(token);
+
+    /// <summary>
+    /// Issue #508: scan the pre-<c>--</c> leftovers on an abstract command for
+    /// the first dash-led non-numeric token that matches no known option
+    /// (<see cref="SubCommandOptionInfo.MatchesArgument"/>, including combined
+    /// short clusters via the same reachability as
+    /// <see cref="ParseOptionsAndArguments"/>). Help/version tokens already
+    /// returned above, so any remaining match here is a genuine unknown:
+    /// throw <see cref="CommandErrorKind.UnknownOption"/> with a name-only
+    /// message (fail-closed: strip any <c>=value</c> suffix) and a did-you-mean
+    /// option hint. The bare <c>--</c> itself ends the scan (sentinel
+    /// precedence); post-separator tokens stay silent for RequiresSubcommand.
+    /// </summary>
+    private static void ThrowOnUnknownPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var allOptions = target.AllOptions;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        for (var i = argIndex; i < end; i++)
+        {
+            var token = args[i];
+            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
+                continue;
+            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                continue;
+            if (allOptions.Any(o => o.MatchesArgument(token)))
+                continue;
+            if (IsClusterToken(allOptions, token))
+                continue;
+            if (token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('='))
+            {
+                var name = token[..token.IndexOf('=')];
+                var rejected = token[(token.IndexOf('=') + 1)..];
+                var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
+                if (resolved != null)
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                if (name.Length == "--no-".Length)
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                var noValueSuggestion = DidYouMean.FindBestMatch(name, DidYouMean.OptionCandidates(allOptions));
+                throw new CommandException(
+                    DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+            }
+            var suggestion = DidYouMean.FindBestMatch(token, DidYouMean.OptionCandidates(allOptions));
+            var unknownName = token;
+            var equals = unknownName.IndexOf('=');
+            if (equals >= 0)
+                unknownName = unknownName[..equals];
+            throw new CommandException(
+                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+        }
+    }
+
+    /// <summary>
+    /// Mirrors the combined-short-cluster reachability in
+    /// <see cref="TryHandleCombinedShortCluster"/>: a bare multi-char single-dash
+    /// token with no <c>=</c> whose every short resolves (reserved <c>h</c>/<c>V</c>
+    /// gateway shorts included, valued shorts allowed since the last one takes
+    /// the remainder/next-token as its value) is a known token, not unknown.
+    /// </summary>
+    private static bool IsClusterToken(List<SubCommandOptionInfo> allOptions, string token)
+    {
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
+            return false;
+        if (!allOptions.Any(o => o.ShortName.HasValue))
+            return false;
+        var byShort = new HashSet<char>();
+        foreach (var option in allOptions)
+        {
+            if (option.ShortName.HasValue)
+                byShort.Add(option.ShortName.Value);
+        }
+        foreach (var letter in token[1..])
+        {
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (!byShort.Contains(letter))
+                return false;
+            var member = allOptions.First(o => o.ShortName == letter);
+            if (!member.IsFlag)
+                return true;
+        }
+        return true;
+    }
 }
