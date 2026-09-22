@@ -272,6 +272,13 @@ internal sealed class ArgumentParser
                 var subcommandSuggestion = DidYouMean.FindBestMatch(
                     argumentValue,
                     DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
+                // #541: suppress self-echo only on byte-identical match. A
+                // normalized distance-0 case-variant (Route->route) and
+                // near-miss (gett->get) must still suggest, so this stays a
+                // branch-level Ordinal guard, never a central normalized
+                // distance==0 exclusion in DidYouMean.
+                if (string.Equals(subcommandSuggestion, argumentValue, StringComparison.Ordinal))
+                    subcommandSuggestion = null;
                 var surplusMessage = subcommandSuggestion != null
                     ? $"Unknown subcommand '{argumentValue}'"
                     : $"Unexpected argument '{argumentValue}'";
