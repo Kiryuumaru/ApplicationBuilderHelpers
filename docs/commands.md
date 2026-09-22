@@ -168,8 +168,8 @@ Exit matrix (`CompletionGateway.cs:24-57,106-204`):
 
 Mark a writable instance property with `[FromServices]` (unkeyed) or
 `[FromKeyedServices(key)]` (keyed). Owner: `ServiceInjectionGate`
-(`src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-120`,
-single `Inject` entry at `:101`). The thin `CommandExecutor`
+(`src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-126`,
+single `Inject` entry at `:111`). The thin `CommandExecutor`
 (`src/ApplicationBuilderHelpers/CommandLineParser/CommandExecutor.cs:19-33`)
 creates one `IServiceScope` per command run, then the gate injects those
 properties from `scope.ServiceProvider` after CLI binding; the command runs,
@@ -198,8 +198,8 @@ public class BuildCommand : Command
 
 Compilable keyed path: define a same-named property-capable shim (or a
 `using`-alias to one). The gate matches by attribute simple name
-(`ServiceInjectionGate.cs:24-30,65-66` — reuse-only seam, no new library
-dependency) and reads the key from attribute metadata (`:140-168`), so no
+(`ServiceInjectionGate.cs:24-30,75-77` — reuse-only seam, no new library
+dependency) and reads the key from attribute metadata (`:146-174`), so no
 new library dependency is needed. This is
 exactly what `ServicePropertyInjectionTests` proves:
 
@@ -213,12 +213,21 @@ public sealed class FromKeyedServicesAttribute(object key) : Attribute
 
 Rules:
 
+- Canonical bound identity: a property is CLI-bound iff it carries
+  `[CommandOption]` or `[CommandArgument]`. The predicate lives once as
+  `CommandReflectionCache.IsCliBound` (`:212-216`), next to `Walk` (`:229-248`),
+  and both the reflection cache (`Build` at `:131-162`) and the injection
+  plan (`ServiceInjectionGate.cs:51-109`) call it. The plan additionally
+  hoists a bound-name set derived once from that same predicate over the
+  walk (`:53-70`) — so cross-entry hide conflicts (base CLI + derived
+  service under one name) throw too — never re-derived per `Inject` call
+  from the per-run `AllOptions`/`AllArguments` view (that second source
+  is deleted).
 - Disjoint sets: CLI-bound properties (`[CommandOption]` /
   `[CommandArgument]`) are never injected. A property marked with both a
   CLI attribute and a service attribute throws `InvalidOperationException`
-  from the gate's single fail-fast point (`ServiceInjectionGate.cs:127-133`,
-  exact historical message preserved; checked both in the cached plan at
-  `:72-76` and at inject time at `:109-112`) — surfaces as a fault,
+  from the gate's single fail-fast point (`ServiceInjectionGate.cs:133-139`,
+  exact historical message preserved) — surfaces as a fault,
   exit 1, never a usage error. Injection runs after
   binding, so CLI values are never overwritten.
   Fault-path re-verify: an injection throw propagates out of
@@ -226,6 +235,33 @@ Rules:
   orchestrator runs, so no `Exiting` callback fires and only the `Exited`
   `finally` at `:94-99` runs — the same fault-path shape as a faulted
   command/host win.
+- Always-error on hiding: member hiding (`new`) never excuses a conflict.
+  The walk keeps hidden members as base-first duplicates
+  (`CommandReflectionCache.cs:229-248`, characterization
+  `Options_HiddenMember_CharacterizesCurrentWalk`), so any dual-marked
+  `PropertyInfo` anywhere in the walk chain throws — checking the hidden
+  derived entry alone is not enough.
+- Injection plans are cached: the per-`Type` target list (property plus
+  optional keyed-service key) is built once under the shared
+  double-checked lock (`TypePlanCache.cs`; gate use at
+  `ServiceInjectionGate.cs:44-48`) and reused across runs; the CLI-bound
+  set is hoisted into the cached plan at `:53-70`. Reflection descriptors
+  are cached separately per builder through the same shared core
+  (`CommandReflectionCache.cs:107-125`, miss-counted by `BuildCount` at
+  `:109-112`; shared core at `TypePlanCache.cs`). Marker matching stays
+  narrow: by attribute simple name (`ServiceInjectionGate.cs:24-30,75-77`
+  — reuse-only seam, no new library dependency) with the key read from
+  attribute metadata (`:146-174`).
+
+```csharp
+// Dual-marked example — always throws InvalidOperationException (fault, exit 1):
+public class BadCommand : Command
+{
+    [CommandOption("name")]
+    [FromServices] // configuration error: CLI-bound AND service-marked
+    public IMyService Service { get; set; } = null!;
+}
+```
 - Keyed services resolve from the same per-command scope via
   `GetRequiredKeyedService(type, key)`.
 - A missing service throws out of the executor and maps to a fault
@@ -257,7 +293,7 @@ Thin sequencer `CommandExecutor` (`CommandLineParser/CommandExecutor.cs:19-33`) 
 | Shutdown scope (linked CTS joining outer token + Ctrl+C; host `ApplicationStopping` stays host-owned downstream) + Ctrl+C subscribe/dispose | `CommandShutdownScope` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandShutdownScope.cs:6-14,23-46` |
 | Console cancel signal (injectable; production forwarder) | `IConsoleCancelSignal` / `ConsoleCancelSignal` | `src/ApplicationBuilderHelpers/CommandLineParser/IConsoleCancelSignal.cs:14-26`, `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleCancelSignal.cs:12-38` |
 | Console adapter only (Out/Error routing + `CancelKeyPress` forwarder) | `ConsoleOutput` | `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleOutput.cs:6-35` |
-| Per-command service injection (single `Inject` entry) | `ServiceInjectionGate` | `src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-41,101-120` |
+| Per-command service injection (single `Inject` entry) | `ServiceInjectionGate` | `src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-44,111-126` |
 | Joint command/host run + exactly-once `Exiting` fan-out | `CommandRunOrchestrator` → `CommandRunOutcome` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOrchestrator.cs:23-30`, `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOutcome.cs:8-41` |
 | Single cancel-wins classification point | `CommandExitMapper` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandExitMapper.cs:6-40` |
 | Exactly-once guards (fail-safe) | `LifetimeGlobalService` | `src/ApplicationBuilderHelpers/Services/LifetimeGlobalService.cs:17-22,58-86` |
@@ -273,7 +309,7 @@ Single classification point: `CommandExitMapper` (`src/ApplicationBuilderHelpers
 | Outcome | Exit code |
 |---|---|
 | `Run` returns normally (also `--help` / `--version`); internal-only cooperative `OperationCanceledException` | `0` (`CommandLineParser.cs:131-135`) |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` — `MissingRequired` also covers an explicit bare valued option, which fails even with env set (`Missing value for option: <display-name>` for optional, `Missing required option: <display-name>` for required; `ParameterValidator.cs:20-71`; env rescues only omitted options) |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` — `MissingRequired` also covers an explicit bare valued option, which fails even with env set (`Missing value for option: <display-name>` for optional, `Missing required option: <display-name>` for required; `ParameterValidator.cs:20-71`; env rescues only omitted options). Missing and invalid failures aggregate: every missing error reports first, then every invalid-value error, joined with newlines in one exit-`2` failure (missing-only keeps kind `MissingRequired`, any invalid line makes the kind `InvalidValue`); an explicit `--help` still shows help instead of an invalid-value error while missing errors keep winning over help |
 | Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` passthrough (`CommandException.cs:13,43-46`; non-zero host-winner throws `CommandException` at `CommandRunOrchestrator.cs:91-94`; surfaced at `CommandLineParser.cs:121-125`) |
 | External cancellation (outer `CancellationToken` / Ctrl+C, incl. pre-cancelled token) | `130` — Unix 128 + SIGINT convention (`CommandExecutor.cs:39`; `ExternalCancellationException` at `:45-51` always maps to it; surfaced at `CommandLineParser.cs:116-119,126-129`). Windows note: Windows has no SIGINT exit-code convention — a Ctrl+C kill tears the process down at OS level with its own status — so `130` is the library-level cancellation mapping on all platforms (`CommandExitMapper.cs:13-17`, code remark only). |
 
