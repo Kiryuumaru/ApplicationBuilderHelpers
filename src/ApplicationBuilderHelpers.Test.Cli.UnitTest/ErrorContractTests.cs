@@ -88,6 +88,7 @@ public sealed class ErrorContractTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: contract fault", error);
         Assert.Contains("Run 'contract-test --help' for more information on available commands and options.", error);
+        Assert.DoesNotContain("--version", error);
     }
 
     [Fact]
@@ -110,7 +111,7 @@ public sealed class ErrorContractTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Run 'contract-test --help' for more information on available commands and options.", error);
+        Assert.Contains("Run 'contract-test --help' for more information on available commands and options. Run 'contract-test --version' to show version information.", error);
     }
 
     [Fact]
@@ -122,7 +123,7 @@ public sealed class ErrorContractTests
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: no such command", error);
-        Assert.Contains("Run 'contract-test --help' for more information on available commands and options.", error);
+        Assert.Contains("Run 'contract-test --help' for more information on available commands and options. Run 'contract-test --version' to show version information.", error);
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public sealed class ErrorContractTests
 
         Assert.Equal(2, exitCode);
         Assert.Contains("Error: no such command", error);
-        Assert.Contains("Run 'testhost --help' for more information on available commands and options.", error);
+        Assert.Contains("for more information on available commands and options. Run 'testhost --version' to show version information.", error);
     }
 
     [Fact]

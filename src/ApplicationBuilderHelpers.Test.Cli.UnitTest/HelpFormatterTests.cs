@@ -103,6 +103,30 @@ public sealed class HelpFormatterTests
     }
 
     [Fact]
+    public async Task GlobalHelp_ListsVersionInGlobalOptions()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("GLOBAL OPTIONS:", output);
+        Assert.Contains("-V, --version", output);
+        Assert.Contains("Show version information", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task LeafHelp_ListsVersionInGlobalOptions()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["helpleaf", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("GLOBAL OPTIONS:", output);
+        Assert.Contains("-V, --version", output);
+        Assert.Contains("Show version information", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task UnknownCommand_ErrorFooterContainsHelpHint()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["boguscmd"]);
@@ -110,6 +134,7 @@ public sealed class HelpFormatterTests
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("--help", error);
+        Assert.Contains("--version", error);
     }
 
     [Theory]
