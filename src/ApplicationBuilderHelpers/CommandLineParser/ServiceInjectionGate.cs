@@ -1,7 +1,6 @@
 using ApplicationBuilderHelpers.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -18,8 +17,9 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// configuration error. Values resolve from the per-command scope so
 /// scoped lifetimes stay isolated to one command run.
 /// Moved verbatim from the executor (mechanical split, no behavior change)
-/// with a single <see cref="Inject"/> entry point; the two former dual-marked
-/// fail-fast checks funnel into one throw helper preserving the exact message.
+/// with a single <see cref="Inject"/> entry point; the single dual-marked
+/// fail-fast check lives in the cached plan build and funnels into one
+/// throw helper preserving the exact message.
 /// <para>
 /// Reuse-only seam: no new attribute types. Both markers bind by
 /// attribute simple name so this library gains no new package dependency:
@@ -41,75 +41,82 @@ internal static class ServiceInjectionGate
 {
     private sealed record ServiceInjectionTarget(PropertyInfo Property, object? Key, bool Keyed);
 
-    private static readonly ConcurrentDictionary<Type, ServiceInjectionTarget[]> InjectionPlanCache = new();
-    private static readonly object InjectionPlanSyncRoot = new();
+    private static readonly TypePlanCache<ServiceInjectionTarget[]> InjectionPlanCache = new();
 
+    [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Method-group BuildInjectionPlan is statically referenced, never reflection-invoked by name; the All-annotated type flows via the annotated PlanFactory delegate.")]
     private static ServiceInjectionTarget[] GetInjectionPlan([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
-        if (InjectionPlanCache.TryGetValue(commandType, out var cached))
+        return InjectionPlanCache.GetOrAdd(commandType, BuildInjectionPlan);
+    }
+
+    private static ServiceInjectionTarget[] BuildInjectionPlan([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
+    {
+        var walk = CommandReflectionCache.Walk(commandType);
+
+        // Bound set hoisted into the cached plan: CLI-bound names derived
+        // once from the canonical IsCliBound predicate over the walk (never
+        // re-derived per Inject call from AllOptions/AllArguments). Member
+        // hiding (new) keeps both entries in the walk as duplicates with the
+        // hide breaking attribute inheritance, so a same-name conflict spread
+        // across two entries (base CLI + derived service, or vice versa)
+        // must throw here — checking the single PropertyInfo alone is not
+        // enough, and the old per-run NAME-string second check is deleted.
+        var cliBoundNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var property in walk)
         {
-            return cached;
+            if (CommandReflectionCache.IsCliBound(property))
+            {
+                cliBoundNames.Add(property.Name);
+            }
         }
 
-        lock (InjectionPlanSyncRoot)
+        var targets = new List<ServiceInjectionTarget>();
+        foreach (var property in walk)
         {
-            if (InjectionPlanCache.TryGetValue(commandType, out cached))
+            var attributes = property.GetCustomAttributes(inherit: true);
+            bool hasFromServices = attributes.Any(a => a.GetType().Name == "FromServicesAttribute");
+            var fromKeyed = attributes.FirstOrDefault(a => a.GetType().Name == "FromKeyedServicesAttribute");
+            if (!hasFromServices && fromKeyed is null)
             {
-                return cached;
+                continue;
             }
 
-            var targets = new List<ServiceInjectionTarget>();
-            foreach (var property in CommandReflectionCache.Walk(commandType))
+            // Canonical bound identity (single site): any dual-marked
+            // PropertyInfo anywhere in the walk chain throws, as does any
+            // service-marked property whose name is CLI-bound elsewhere in
+            // the chain (hiding never excuses the conflict).
+            if (CommandReflectionCache.IsCliBound(property) || cliBoundNames.Contains(property.Name))
             {
-                var attributes = property.GetCustomAttributes(inherit: true);
-                bool hasFromServices = attributes.Any(a => a.GetType().Name == "FromServicesAttribute");
-                var fromKeyed = attributes.FirstOrDefault(a => a.GetType().Name == "FromKeyedServicesAttribute");
-                if (!hasFromServices && fromKeyed is null)
-                {
-                    continue;
-                }
-
-                if (property.IsDefined(typeof(CommandOptionAttribute), inherit: true)
-                    || property.IsDefined(typeof(CommandArgumentAttribute), inherit: true))
-                {
-                    ThrowForDualMarkedProperty(commandType, property);
-                }
-
-                if (!property.CanWrite || property.SetMethod is null || property.SetMethod.IsStatic)
-                {
-                    throw new InvalidOperationException(
-                        $"Property '{commandType.FullName}.{property.Name}' is marked for service injection but has no writable instance setter.");
-                }
-
-                object? key = null;
-                bool keyed = fromKeyed is not null;
-                if (keyed)
-                {
-                    key = fromKeyed is FromKeyedServicesAttribute typed ? typed.Key : ReadKeyedServiceKey(property, commandType);
-                }
-
-                targets.Add(new ServiceInjectionTarget(property, key, keyed));
+                ThrowForDualMarkedProperty(commandType, property);
             }
 
-            var plan = targets.ToArray();
-            InjectionPlanCache[commandType] = plan;
-            return plan;
+            if (!property.CanWrite || property.SetMethod is null || property.SetMethod.IsStatic)
+            {
+                throw new InvalidOperationException(
+                    $"Property '{commandType.FullName}.{property.Name}' is marked for service injection but has no writable instance setter.");
+            }
+
+            object? key = null;
+            bool keyed = fromKeyed is not null;
+            if (keyed)
+            {
+                key = fromKeyed is FromKeyedServicesAttribute typed ? typed.Key : ReadKeyedServiceKey(property, commandType);
+            }
+
+            targets.Add(new ServiceInjectionTarget(property, key, keyed));
         }
+
+        return [.. targets];
     }
 
     internal static void Inject(SubCommandInfo commandInfo, IServiceProvider scopedProvider)
     {
         var command = commandInfo.Command!;
         var commandType = command.GetType();
-        var cliBoundNames = commandInfo.AllOptions.Select(o => o.Property.Name).Concat(commandInfo.AllArguments.Select(a => a.Property.Name)).ToHashSet(StringComparer.Ordinal);
 
         foreach (var target in GetInjectionPlan(commandType))
         {
             var property = target.Property;
-            if (cliBoundNames.Contains(property.Name))
-            {
-                ThrowForDualMarkedProperty(commandType, property);
-            }
 
             object? value = target.Keyed
                 ? scopedProvider.GetRequiredKeyedService(property.PropertyType, target.Key)

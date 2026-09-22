@@ -4,6 +4,7 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Reflection;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
@@ -135,6 +136,88 @@ public sealed class ServicePropertyInjectionTests
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
         {
             Console.WriteLine("dual ran");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("svchide", "Probes hidden-member dual-marked rejection.")]
+    public class HiddenDualBase : Command
+    {
+        [CommandOption("name", Description = "Base name value.")]
+        public string? Name { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine("hidden dual ran");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("svchide", "Probes hidden-member dual-marked rejection.")]
+    public sealed class HiddenDualDerived : HiddenDualBase
+    {
+        [FromServices]
+        public new string? Name { get; set; }
+    }
+
+    [Command("svcderivecli", "Probes derived-CLI hidden-member dual-marked rejection.")]
+    public class HiddenServiceBase : Command
+    {
+        [FromServices]
+        public ProbeService? Slot { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine("derived cli ran");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("svcderivecli", "Probes derived-CLI hidden-member dual-marked rejection.")]
+    public sealed class HiddenCliDerived : HiddenServiceBase
+    {
+        [CommandOption("slot", Description = "Derived slot value.")]
+        public new string? Slot { get; set; }
+    }
+
+    [Command("svcoverride", "Probes overridden CLI member convergence.")]
+    public class OverriddenCliBase : Command
+    {
+        [CommandOption("label", Description = "Base label value.")]
+        public virtual string Label { get; set; } = string.Empty;
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"label:{Label}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("svcoverride", "Probes overridden CLI member convergence.")]
+    public sealed class OverriddenCliDerived : OverriddenCliBase
+    {
+        [CommandOption("label", Description = "Derived label value.")]
+        public override string Label { get; set; } = string.Empty;
+    }
+
+    [Command("svcsamename", "Probes same-name unrelated members staying disjoint.")]
+    public sealed class SameNameUnrelatedCommand : Command
+    {
+        [CommandOption("code", Description = "Code value.")]
+        public string? Code { get; set; }
+
+        [FromServices]
+        public ProbeService? Probe { get; set; }
+
+        public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
+        {
+            services.AddSingleton<ProbeService>();
+        }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"code:{Code}");
+            Console.WriteLine($"probe-set:{Probe is not null}");
             return ValueTask.CompletedTask;
         }
     }
@@ -271,6 +354,94 @@ public sealed class ServicePropertyInjectionTests
         Assert.Equal(1, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("either CLI-bound or service-injected", error);
+    }
+
+    [Fact]
+    public async Task DualMarkedHiddenServiceMember_MapsToFaultNeverUsage()
+    {
+        // Base carries the CLI marker, the derived hide carries the service
+        // marker on the same name: the walk keeps both entries, so the
+        // identity check must still throw (never pass one check by identity
+        // and fail the other by NAME string).
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder<HiddenDualDerived>(), ["svchide"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("either CLI-bound or service-injected", error);
+    }
+
+    [Fact]
+    public async Task DualMarkedHiddenCliMember_MapsToFaultNeverUsage()
+    {
+        // Mirror: base carries the service marker, the derived hide carries
+        // the CLI marker on the same name.
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder<HiddenCliDerived>(), ["svcderivecli"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("either CLI-bound or service-injected", error);
+    }
+
+    [Fact]
+    public async Task OverriddenCliMember_ConvergesToSingleBinding()
+    {
+        // Override collapses to one entry (attribute inheritance delivers
+        // the marker through the override), so the canonical predicate and
+        // the descriptor build converge and the run binds once.
+        var descriptor = new CommandReflectionCache().GetOrAdd(typeof(OverriddenCliDerived));
+        var walk = CommandReflectionCache.Walk(typeof(OverriddenCliDerived));
+        var boundProperties = new HashSet<PropertyInfo>(
+            descriptor.Options.Select(o => o.Property).Concat(descriptor.Arguments.Select(a => a.Property)));
+        foreach (var property in walk)
+        {
+            Assert.Equal(
+                boundProperties.Contains(property),
+                CommandReflectionCache.IsCliBound(property));
+        }
+
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder<OverriddenCliDerived>(), ["svcoverride", "--label", "cli-value"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("label:cli-value", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task SameNameUnrelatedMembers_StayDisjoint()
+    {
+        // Different names (Code vs Probe) prove the hoisted bound-name set
+        // never over-fires: unrelated service members inject while CLI
+        // values survive binding.
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder<SameNameUnrelatedCommand>(), ["svcsamename", "--code", "cli-value"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("code:cli-value", output);
+        Assert.Contains("probe-set:True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public void IsCliBound_MatchesBuildBoundSetOnFullWalk()
+    {
+        // The canonical predicate and the descriptor build must agree on
+        // every walk PropertyInfo: bound iff an option or argument
+        // descriptor was snapshotted for it.
+        foreach (var commandType in new[] { typeof(BindPreserveCommand), typeof(HiddenDualDerived), typeof(HiddenCliDerived), typeof(OverriddenCliDerived) })
+        {
+            var descriptor = new CommandReflectionCache().GetOrAdd(commandType);
+            var boundProperties = new HashSet<PropertyInfo>(
+                descriptor.Options.Select(o => o.Property).Concat(descriptor.Arguments.Select(a => a.Property)));
+            foreach (var property in CommandReflectionCache.Walk(commandType))
+            {
+                Assert.Equal(
+                    boundProperties.Contains(property),
+                    CommandReflectionCache.IsCliBound(property));
+            }
+        }
     }
 
     [Fact]
