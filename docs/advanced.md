@@ -135,7 +135,7 @@ The `--help` and `--version` flags are handled automatically — you don't need 
 
 Help precedence (`CommandLineParser.cs:93-115`): bare help with zero collected values exits at Step 6 before validation; required validation runs at Step 7 (help never skips it — `Help_Does_Not_Skip_Required_Validation`); binding errors collect at Step 7 through the same conversion pipeline so `InvalidValue` (exit 2) beats help-with-values; help-with-values renders at Step 7b only when validation passes. Carve-outs preserved: `--config --help` shows help (optional-bare pass skipped when `ShowHelp` is set, `ParameterValidator.cs:63`; binding collection skips bare-ledger keys, `ValueBinder.cs:46`); `--config --version` fires version (post-parse check at `CommandLineParser.cs:83-87`, before validation). Help never masks path errors (unknown option/command still exit 2).
 
-Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE>`, `<TOKEN...>`) are documented in [Configuration & Themes](configuration.md#help-placeholder-tokens-454).
+Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE>`, `<TOKEN...>`) are documented in [Configuration & Themes](configuration.md#help-placeholder-tokens-454). Required-option markers (`(required)` ordinal, `Default:` suppression) live with help formatting in [Configuration & Themes](configuration.md#required-option-help-descriptions-507); the option-side contract is in [Commands](commands.md#required-options-in-help).
 
 ## Global Options
 

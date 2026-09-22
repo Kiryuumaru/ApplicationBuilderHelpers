@@ -82,6 +82,15 @@ public int Timeout { get; set; } = 30;
 
 When `EnvironmentVariable` is set and no CLI token is supplied, the env value fills the option — except an empty or whitespace-only env value is treated as unset. Precedence is CLI-wins: an explicit CLI token always replaces the env value, so `--opt ""` downgrades a set env value to `""` for string targets. A typed bare occurrence (`--config` with no value) never qualifies as "no CLI token" — env rescues only omitted (never-typed) options, never an explicit bare.
 
+### Required Options in Help
+
+A required option (`Required = true`) renders the verbatim lowercase `(required)` marker on the line immediately after its description. Description lines follow a fixed ordinal (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:288-322`): Description (`:292-295`) → `(required)` (`:297-300`) → `Possible values: ...` (`:302-306`) → `Environment variable: ...` (`:308-311`). There is no `Default:` line when `IsRequired` (`:313-318`).
+
+- `Default:` suppression: a required option never shows a `Default:` line, even when the CLR type carries an implicit default. The motivating case is a required `int` (e.g. `[CommandOption("count", Description = "Item count.", Required = true)]`), which omits the phantom `Default: 0` (`RequiredOptionHelpTests.cs:47-58`). A required `string` likewise shows the marker with no `Default:` line (`:61-72`), while an optional `int` with an explicit initializer keeps its `Default:` line (e.g. `Default: 3`, `:75-86`).
+- Env interplay: a required option with an `EnvironmentVariable` fallback still shows the `Environment variable: ...` line after `(required)` (and after `Possible values:` when `FromAmong` is set): Description → `(required)` → `Possible values:` → `Environment variable:` (`RequiredOptionHelpTests.cs:89-102`).
+- Secret interplay: suppression beats redaction — a required secret option shows `(required)` but never a `Default: [REDACTED]` line, because the `Default:` arm is skipped before `SecretRedaction.GetDefaultDisplay` is reached (`HelpContentProvider.cs:313-317`; mask defined at `src/ApplicationBuilderHelpers/CommandLineParser/SecretRedaction.cs:40-46`).
+- Unchanged: option signatures, usage `[OPTIONS]`, and two-column layout are untouched — only the description lines change.
+
 ### Restricted Values
 
 ```csharp
