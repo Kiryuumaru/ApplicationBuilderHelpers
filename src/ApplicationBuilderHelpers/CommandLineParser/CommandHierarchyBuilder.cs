@@ -79,6 +79,14 @@ internal sealed class CommandHierarchyBuilder(
     /// </summary>
     private void InsertCommandIntoHierarchy(SubCommandInfo commandInfo)
     {
+        foreach (var part in commandInfo.CommandParts)
+        {
+            if (string.IsNullOrWhiteSpace(part))
+                throw new InvalidOperationException($"Invalid command term '{commandInfo.FullCommandName}': command names must not be empty or whitespace.");
+            if (part.StartsWith("-", StringComparison.Ordinal))
+                throw new InvalidOperationException($"Invalid command term '{commandInfo.FullCommandName}': command names must not start with '-'.");
+        }
+
         if (commandInfo.CommandParts.Length == 0)
         {
             // Root command - add ALL options from the root command
@@ -180,9 +188,23 @@ internal sealed class CommandHierarchyBuilder(
         while (currentType != null && currentType != typeof(object))
         {
             var commandAttr = currentType.GetCustomAttribute<CommandAttribute>();
+            var baseTerm = commandAttr?.Term;
+            string? normalizedBaseTerm = null;
+            if (baseTerm is not null)
+            {
+                if (string.IsNullOrWhiteSpace(baseTerm))
+                    throw new InvalidOperationException($"Invalid command term on '{currentType.FullName}': term must not be empty or whitespace.");
+                var baseParts = baseTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var basePart in baseParts)
+                {
+                    if (basePart.StartsWith("-", StringComparison.Ordinal))
+                        throw new InvalidOperationException($"Invalid command term '{baseTerm}' on '{currentType.FullName}': command names must not start with '-'.");
+                }
+                normalizedBaseTerm = string.Join(" ", baseParts);
+            }
             if (commandAttr != null &&
                 currentType.IsAbstract &&
-                commandAttr.Term == targetCommandName)
+                normalizedBaseTerm == targetCommandName)
             {
                 // Found matching abstract base class
                 var baseCommandInfo = new SubCommandInfo

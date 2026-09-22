@@ -35,6 +35,19 @@ The `Term` property is the command name. Use space-separated names for sub-comma
 [Command("deploy prod", description: "Deploy to production")]
 ```
 
+### Term Validation Contract
+
+`Term` is validated at build time — violations throw `InvalidOperationException` (build fault, exit `1`), never a usage error (exit `2`). Two guards enforce the same rules so both call sites agree (`SubCommandInfo.FromCommand` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:140-159`; hierarchy build at `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204`):
+
+| `Term` | Result |
+|---|---|
+| `null` (e.g. `[Command]` description-only) | Preserved — merges at the root (`CommandParts` empty; `?? []` at `SubCommandInfo.cs:146`) |
+| `""`, whitespace-only (`"   "`, `"\t"`) | `InvalidOperationException`: `term must not be empty or whitespace` |
+| Dash-led part (`"--bogus"`, `"hub --get"`) | `InvalidOperationException`: `command names must not start with '-'` (checked per part, `Ordinal`) |
+| Multi-space (`"a  b"`, `"config  hub"`) | Normalized via `Split(' ', RemoveEmptyEntries)` → `["a", "b"]`, `FullCommandName` `"a b"` (abstract-base match uses the same normalization, so `[Command("config  hub")]` on an abstract base matches the `config hub` path) |
+
+Pinned by `AbstractRootRequiresSubcommandTests.cs` (Term guard + normalization tests).
+
 ### Command Variants
 
 | Base Class | Host Builder | Use For |

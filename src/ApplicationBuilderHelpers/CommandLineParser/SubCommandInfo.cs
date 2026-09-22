@@ -24,6 +24,14 @@ internal class SubCommandInfo
     public string FullCommandName => string.Join(" ", CommandParts);
 
     /// <summary>
+    /// Display name for error messages: "<root>" for the root command,
+    /// otherwise the full command name. The structured
+    /// <c>CommandException.CommandName</c> stays empty for root so the
+    /// error footer remains global.
+    /// </summary>
+    public string DisplayName => IsRoot ? "<root>" : FullCommandName;
+
+    /// <summary>
     /// The last part of the command name (e.g., "add" for "git submodule add")
     /// </summary>
     public string Name => CommandParts.Length > 0 ? CommandParts[^1] : string.Empty;
@@ -132,7 +140,15 @@ internal class SubCommandInfo
     public static SubCommandInfo FromCommand(Type commandType, ICommand? commandInstance = null)
     {
         var commandAttr = commandType.GetCustomAttribute<CommandAttribute>();
-        var commandParts = commandAttr?.Term?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+        var term = commandAttr?.Term;
+        if (term is not null && string.IsNullOrWhiteSpace(term))
+            throw new InvalidOperationException($"Invalid command term on '{commandType.FullName}': term must not be empty or whitespace.");
+        var commandParts = term?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+        foreach (var part in commandParts)
+        {
+            if (part.StartsWith("-", StringComparison.Ordinal))
+                throw new InvalidOperationException($"Invalid command term '{term}' on '{commandType.FullName}': command names must not start with '-'.");
+        }
         
         return new SubCommandInfo
         {

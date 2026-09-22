@@ -30,6 +30,24 @@ myapp deploy prod rollback      # Runs rollback with 3-part name
 
 Arbitrary nesting depth is supported.
 
+## Bare Root and Help-First
+
+When only leaf subcommands are registered (no root implementation), the root is abstract (`SubCommandInfo.IsRoot` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:130`; display name `"<root>"` at `:32`):
+
+- Bare run (`[]`) → exit `2`: `'<root>' requires a subcommand. Available subcommands: ...` (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:71-83`). The structured `CommandName` stays empty for root (`:73`), so the footer is the two-sentence global usage footer (`Run '<exe> --help' to see available commands and options. Run '<exe> --version' to show version information.`, `src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:20-23`). No `Did you mean` pointer on a bare run (nothing to match).
+- Help-first (`IsRoot || argIndex > 0` + help token pre-`--`, `ArgumentParser.cs:64-70`) → exit `0` without erroring. Only the root maps to the **global** help model (`COMMANDS:` section): `HelpFormatter` branches on `IsRoot` alone (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:42-44`), so a named abstract parent (e.g. `config hub`) keeps its parent-scoped view (`BuildCommandModel`), pinned by `Spaced_Abstract_Base_Matches_Normalized_Path` asserting `"Spaced hub."`:
+
+| Input | Exit | Result |
+|---|---|---|
+| `[]` | `2` | `'<root>' requires a subcommand` + global footer |
+| `["--help", "greet"]` | `0` | Root/global help (`USAGE:` + `<COMMAND>` + `COMMANDS:` + `GLOBAL OPTIONS:`), never `greet` help |
+| `["--help", "--bogus"]` | `0` | Root/global help (unknown trailing flag ignored on the help-first path) |
+| `["bogus", "--help"]` | `2` | `No command found for 'bogus'` (`UnknownCommand` — zero-match wins before help) |
+| `["--", "--help"]` | `2` | `'<root>' requires a subcommand` (the `--` sentinel blocks the help carve-out) |
+| `["config", "hub", "--help"]` | `0` | Parent-scoped help (`"Spaced hub."`) — globalization is root-only |
+
+Pinned by `AbstractRootRequiresSubcommandTests.cs` (13 tests).
+
 ## Multiple Host Types
 
 ### Console Apps (Default)
@@ -95,7 +113,7 @@ The library catches `CommandException` during execution and returns its exit cod
 
 Usage errors print a two-sentence `Run '...' --help` + `Run '...' --version` footer selected by error kind (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`, `Fault`/`NoImplementation` default at `:56-57`):
 
-- `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options. Run '<exe> <command-name> --version' to show version information.`; without one → the two-sentence global usage footer below. A near-miss surplus token appends a `Did you mean 'x'?` pointer via Did-You-Mean admission; a far token stays silent.
+- `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options. Run '<exe> <command-name> --version' to show version information.`; without one (bare abstract root: message names `'<root>'` via `SubCommandInfo.DisplayName` at `SubCommandInfo.cs:32`, structured `CommandName` stays empty at `ArgumentParser.cs:73`) → the two-sentence global usage footer below. A near-miss surplus token appends a `Did you mean 'x'?` pointer via Did-You-Mean admission; a far token stays silent.
 - `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue`, `DuplicateOption` with a command name → `Run '<exe> <command-name> --help' for more information on specific command options. Run '<exe> <command-name> --version' to show version information.`; without one (e.g. no command matched) → the two-sentence global usage footer below. (`DuplicateOption` is reserved and never thrown — its footer arm is kept only for compatibility.)
 - `Fault`, `NoImplementation` (anything else) → single-sentence `Run '<exe> --help' for more information on available commands and options.` (no `--version` second sentence; `CommandErrorFooter.cs:56-57`).
 - #509: when the failing invocation already contained `--help`/`-h`, the circular `--help` hint is suppressed and only the `--version` hint survives (e.g. `Run 'test required-test --version' to show version information.`).
@@ -134,7 +152,7 @@ myapp --version    # Shows version number
 
 The `--help` and `--version` flags are handled automatically — you don't need to define them. Every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:105-110,220-225`): it is gateway-handled, never declared as a command option. Precedence is unchanged: completion > help > parse > version.
 
-Help precedence (`CommandLineParser.cs:93-115`): bare help with zero collected values exits at Step 6 before validation; required validation runs at Step 7 but is skipped when `ShowHelp` is set (help always wins over missing required — `Help_Skips_Required_Validation`); binding errors collect at Step 7 through the same conversion pipeline so `InvalidValue` (exit 2) beats help-with-values; help-with-values renders at Step 7b only when the binding probe passes. Carve-outs preserved: `--config --help` shows help (optional-bare pass skipped when `ShowHelp` is set, `ParameterValidator.cs:75`; binding collection skips bare-ledger keys, `ValueBinder.cs:46`); `--config --version` fires version (post-parse check at `CommandLineParser.cs:83-87`, before validation). Help never masks path errors (unknown option/command still exit 2). When the failing invocation already requested `--help`, the error footer keeps only the `--version` hint (the circular `--help` hint is suppressed, `CommandErrorFooter.cs:28-55`).
+Help precedence (`CommandLineParser.cs:93-115`): bare help with zero collected values exits at Step 6 before validation; required validation runs at Step 7 but is skipped when `ShowHelp` is set (help always wins over missing required — `Help_Skips_Required_Validation`); binding errors collect at Step 7 through the same conversion pipeline so `InvalidValue` (exit 2) beats help-with-values; help-with-values renders at Step 7b only when the binding probe passes. Help-first-at-root carve-out (`ArgumentParser.cs:64-70`; `HelpFormatter.cs:42-44`): a leading `--help`/`-h` on the abstract root before any `--` sentinel renders the **global** model with the `COMMANDS:` section and exits `0` — so `["--help", "greet"]` and `["--help", "--bogus"]` show root help, never a command-scoped view. The `(IsRoot || argIndex > 0)` guard also sets `ShowHelp` on a known abstract parent without erroring, but only `IsRoot` maps to the global model (`HelpFormatter.cs:42-44` branches on `IsRoot` alone) — a named abstract parent keeps its parent-scoped help (`BuildCommandModel`, e.g. `["config", "hub", "--help"]` renders `"Spaced hub."`). A zero-match first token (`["bogus", "--help"]`) errors `UnknownCommand` (exit 2) before help is considered, and `["--", "--help"]` keeps `RequiresSubcommand` (exit 2). Carve-outs preserved: `--config --help` shows help (optional-bare pass skipped when `ShowHelp` is set, `ParameterValidator.cs:75`; binding collection skips bare-ledger keys, `ValueBinder.cs:46`); `--config --version` fires version (post-parse check at `CommandLineParser.cs:83-87`, before validation). Help never masks path errors (unknown option/command still exit 2). When the failing invocation already requested `--help`, the error footer keeps only the `--version` hint (the circular `--help` hint is suppressed, `CommandErrorFooter.cs:28-55`).
 
 Reserved help-word misuse never shows help: `--help=<anything>` (including empty `--help=`), `-h=<anything>` (including empty `-h=`) unless a real short-`h` owner exists (e.g. `serve --host`, where `-h=<value>` parses as that option), bare `--no-help`, and `--no-help=<anything>` are `InvalidValue` usage errors (exit 2). Bare `--help`/`-h` still show help (exit 0).
 

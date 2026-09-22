@@ -97,6 +97,8 @@ return await ApplicationBuilder.Create()
 
 ## Next Steps
 
+Command topology note: a single `[Command]` with a null `Term` merges at the root and runs on a bare invocation (`SubCommandInfo.FromCommand` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:140-159`). A CLI that registers only leaf subcommands (e.g. only `[Command("greet", ...)]`) has no root implementation — a bare run (`[]`) exits `2` with `'<root>' requires a subcommand` plus the global usage footer, and root `--help` first renders the global model (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:62-83`; `src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:42-44`). See [Advanced Topics](advanced.md#bare-root-and-help-first) for the full matrix.
+
 - [Commands](commands.md) — Deep dive into command definitions and attributes
 - [Application Dependencies](application-dependencies.md) — Lifecycle hooks and modular composition
 - [Configuration & Themes](configuration.md) — Customize help output and behavior

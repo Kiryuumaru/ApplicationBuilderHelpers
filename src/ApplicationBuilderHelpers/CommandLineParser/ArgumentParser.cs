@@ -61,8 +61,9 @@ internal sealed class ArgumentParser
         // If we ended up on a command without implementation, check if it requires subcommands
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // Prefix-match + help shows parent help instead of erroring
-            if (argIndex > 0 && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
+            // Prefix-match + help shows parent help instead of erroring;
+            // help-first-at-root shows global help instead of erroring
+            if ((result.TargetCommand.IsRoot || argIndex > 0) && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
             {
                 result.ShowHelp = true;
                 return result;
@@ -83,8 +84,8 @@ internal sealed class ArgumentParser
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
             // This is an abstract command that requires a subcommand
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
-            var commandName = string.IsNullOrEmpty(result.TargetCommand.FullCommandName) ? "" : result.TargetCommand.FullCommandName;
-            var baseMessage = $"'{commandName}' requires a subcommand. Available subcommands: {availableSubcommands}";
+            var commandName = result.TargetCommand.IsRoot ? "" : result.TargetCommand.FullCommandName;
+            var baseMessage = $"'{result.TargetCommand.DisplayName}' requires a subcommand. Available subcommands: {availableSubcommands}";
             string? subcommandSuggestion = null;
             var sentinelIndex = Array.IndexOf(args, "--");
             if (argIndex < args.Length && !args[argIndex].StartsWith('-') && (sentinelIndex < 0 || argIndex < sentinelIndex))
