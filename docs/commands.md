@@ -315,6 +315,8 @@ Single classification point: `CommandExitMapper` (`src/ApplicationBuilderHelpers
 
 Return normally on success. Throw `CommandException` for errors:
 
+Help/footer contract (see [Advanced Topics](advanced.md#error-footers) and [Advanced Topics](advanced.md#help-system)): every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:105-110,220-225`); usage-error footers hint at both `--help` and `--version` (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:15-36`), while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer (`CommandErrorFooter.cs:37-38`). Precedence is unchanged: completion > help > parse > version.
+
 ```csharp
 throw new CommandException("Operation failed", exitCode: 1);
 ```

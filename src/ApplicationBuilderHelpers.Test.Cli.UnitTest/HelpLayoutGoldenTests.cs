@@ -79,6 +79,7 @@ public sealed class HelpLayoutGoldenTests
 
         GLOBAL OPTIONS:
             -h, --help        Show help information
+            -V, --version     Show version information
 
         Run 'golden-test <command> --help' for more information on specific commands.
         """ + "\n";
@@ -105,6 +106,7 @@ public sealed class HelpLayoutGoldenTests
 
         GLOBAL OPTIONS:
             -h, --help             Show help information
+            -V, --version          Show version information
 
         """ + "\n";
 
@@ -133,6 +135,7 @@ public sealed class HelpLayoutGoldenTests
 
         GLOBAL OPTIONS:
             -h, --help        Show help information
+            -V, --version     Show version information
 
         """ + "\n";
 

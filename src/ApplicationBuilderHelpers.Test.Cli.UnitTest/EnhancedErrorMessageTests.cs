@@ -17,6 +17,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Error: Unknown option: --unknown-option");
         CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version' to show version information.");
     }
 
     [Fact]
@@ -26,6 +27,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Error: 'config' requires a subcommand");
         CliTestAssertions.AssertErrorContains(result, "Run 'test config --help' to see available subcommands and options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --version' to show version information.");
     }
 
     [Fact]
@@ -44,6 +46,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Error: Missing required argument");
         CliTestAssertions.AssertErrorContains(result, "Run 'test build --help' for more information on specific command options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test build --version' to show version information.");
     }
 
     [Fact]
@@ -54,6 +57,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertErrorContains(result, "Error:");
         CliTestAssertions.AssertErrorContains(result, "not valid for option '--target'");
         CliTestAssertions.AssertErrorContains(result, "Run 'test build --help'");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test build --version' to show version information.");
     }
 
     #endregion
@@ -85,6 +89,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Missing required argument: action");
         CliTestAssertions.AssertErrorContains(result, "Run 'test plugin --help' for more information on specific command options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test plugin --version' to show version information.");
     }
 
     #endregion
@@ -117,6 +122,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --invalid-option");
         CliTestAssertions.AssertErrorContains(result, "Run 'test config get --help' for more information");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config get --version' to show version information.");
     }
 
     #endregion
@@ -130,6 +136,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: 'invalid'");
         CliTestAssertions.AssertErrorContains(result, "Run 'test test --help' for more information on specific command options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test test --version' to show version information.");
     }
 
     [Fact]
@@ -237,6 +244,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("--invalid");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version' to show version information.");
     }
 
     [Fact]
@@ -246,6 +254,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --unknown-flag");
         CliTestAssertions.AssertErrorContains(result, "Run 'test build --help' for more information on specific command options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test build --version' to show version information.");
     }
 
     [Fact]
@@ -255,6 +264,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "No command found");
         CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version' to show version information.");
     }
 
     [Fact]

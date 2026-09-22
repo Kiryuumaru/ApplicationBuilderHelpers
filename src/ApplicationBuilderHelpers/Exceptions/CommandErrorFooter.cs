@@ -15,11 +15,11 @@ internal static class CommandErrorFooter
             case CommandErrorKind.RequiresSubcommand:
                 if (!string.IsNullOrEmpty(commandName))
                 {
-                    return $"Run '{executableName} {commandName} --help' to see available subcommands and options.";
+                    return $"Run '{executableName} {commandName} --help' to see available subcommands and options. Run '{executableName} {commandName} --version' to show version information.";
                 }
                 else
                 {
-                    return $"Run '{executableName} --help' to see available commands and options.";
+                    return $"Run '{executableName} --help' to see available commands and options. Run '{executableName} --version' to show version information.";
                 }
             case CommandErrorKind.UnknownOption:
             case CommandErrorKind.MissingRequired:
@@ -28,11 +28,11 @@ internal static class CommandErrorFooter
             case CommandErrorKind.DuplicateOption:
                 if (!string.IsNullOrEmpty(commandName))
                 {
-                    return $"Run '{executableName} {commandName} --help' for more information on specific command options.";
+                    return $"Run '{executableName} {commandName} --help' for more information on specific command options. Run '{executableName} {commandName} --version' to show version information.";
                 }
                 else
                 {
-                    return $"Run '{executableName} --help' for more information on available commands and options.";
+                    return $"Run '{executableName} --help' for more information on available commands and options. Run '{executableName} --version' to show version information.";
                 }
             default:
                 return $"Run '{executableName} --help' for more information on available commands and options.";

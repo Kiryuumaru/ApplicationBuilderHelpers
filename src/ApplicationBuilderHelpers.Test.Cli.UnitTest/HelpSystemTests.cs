@@ -14,6 +14,8 @@ public class HelpSystemTests : CliTestBase
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "USAGE:");
         CliTestAssertions.AssertOutputContains(result, "GLOBAL OPTIONS:");
+        CliTestAssertions.AssertOutputContains(result, "-V, --version");
+        CliTestAssertions.AssertOutputContains(result, "Show version information");
         CliTestAssertions.AssertOutputContains(result, "Run 'test <command> --help' for more information on specific commands");
     }
 
@@ -118,6 +120,8 @@ public class HelpSystemTests : CliTestBase
         CliTestAssertions.AssertOutputContains(result, "--log-level");
         CliTestAssertions.AssertOutputContains(result, "--quiet");
         CliTestAssertions.AssertOutputContains(result, "--debug-parser");
+        CliTestAssertions.AssertOutputContains(result, "-V, --version");
+        CliTestAssertions.AssertOutputContains(result, "Show version information");
     }
 
     [Fact]

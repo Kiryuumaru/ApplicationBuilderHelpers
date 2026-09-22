@@ -61,21 +61,15 @@ internal sealed class HelpContentProvider(
 
         var sections = new List<HelpSection>();
 
-        var allRootOptions = new List<object>(rootCommandOptions);
         if (rootCommandOptions.Count > 0)
         {
-            allRootOptions.Add("VERSION"); // Special marker for version
-        }
-
-        if (allRootOptions.Count > 0)
-        {
             var entries = new List<HelpEntry>();
-            foreach (var item in allRootOptions)
+            foreach (var opt in rootCommandOptions)
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = item is SubCommandOptionInfo optLeft ? BuildOptionSignature(optLeft) : "    -V, --version",
-                    Right = item is SubCommandOptionInfo optRight ? BuildOptionDescription(optRight) : "Show version information",
+                    Left = BuildOptionSignature(opt),
+                    Right = BuildOptionDescription(opt),
                 });
             }
             sections.Add(new HelpSection { Header = "OPTIONS:", Entries = entries });
@@ -99,19 +93,21 @@ internal sealed class HelpContentProvider(
         var allGlobalOptions = new List<SubCommandOptionInfo>(baseCommandOptions);
         allGlobalOptions.AddRange(globalOptions);
 
-        if (allGlobalOptions.Count > 0)
+        var globalEntries = new List<HelpEntry>();
+        foreach (var opt in allGlobalOptions)
         {
-            var entries = new List<HelpEntry>();
-            foreach (var opt in allGlobalOptions)
+            globalEntries.Add(new HelpEntry
             {
-                entries.Add(new HelpEntry
-                {
-                    Left = BuildOptionSignature(opt),
-                    Right = BuildOptionDescription(opt),
-                });
-            }
-            sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = entries });
+                Left = BuildOptionSignature(opt),
+                Right = BuildOptionDescription(opt),
+            });
         }
+        globalEntries.Add(new HelpEntry
+        {
+            Left = "    -V, --version",
+            Right = "Show version information",
+        });
+        sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = globalEntries });
 
         return new HelpModel
         {
@@ -206,23 +202,27 @@ internal sealed class HelpContentProvider(
             sections.Add(new HelpSection { Header = "ARGUMENTS:", Entries = entries });
         }
 
-        // Merge base options and global options into a single GLOBAL OPTIONS section
+        // Merge base options and global options into a single GLOBAL OPTIONS section.
+        // -V, --version is listed unconditionally: it is handled by the gateway,
+        // never declared as a command option, so every help screen shows it.
         var allGlobalOptions = new List<SubCommandOptionInfo>(baseOptions);
         allGlobalOptions.AddRange(globalOptions);
 
-        if (allGlobalOptions.Count > 0)
+        var globalEntries = new List<HelpEntry>();
+        foreach (var opt in allGlobalOptions)
         {
-            var entries = new List<HelpEntry>();
-            foreach (var opt in allGlobalOptions)
+            globalEntries.Add(new HelpEntry
             {
-                entries.Add(new HelpEntry
-                {
-                    Left = BuildOptionSignature(opt),
-                    Right = BuildOptionDescription(opt),
-                });
-            }
-            sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = entries });
+                Left = BuildOptionSignature(opt),
+                Right = BuildOptionDescription(opt),
+            });
         }
+        globalEntries.Add(new HelpEntry
+        {
+            Left = "    -V, --version",
+            Right = "Show version information",
+        });
+        sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = globalEntries });
 
         return new HelpModel
         {
