@@ -112,6 +112,103 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         return leftColumnWidth;
     }
 
+    private sealed record LabelSpec(string Label, bool CommaPack);
+
+    private static readonly LabelSpec[] AnnotatedLabels =
+    [
+        new("Possible values:", true),
+        new("Environment variable:", false),
+        new("Default:", false),
+    ];
+
+    private static bool TryMatchAnnotated(string line, out LabelSpec spec)
+    {
+        foreach (var candidate in AnnotatedLabels)
+        {
+            if (line.Contains(candidate.Label))
+            {
+                spec = candidate;
+                return true;
+            }
+        }
+
+        spec = null!;
+        return false;
+    }
+
+    private static bool TrySplitPrefix(string line, out string prefix, out string valueText)
+    {
+        var colonIndex = line.IndexOf(':');
+        if (colonIndex != -1)
+        {
+            prefix = line[..(colonIndex + 1)];
+            valueText = line[(colonIndex + 1)..].Trim();
+            return true;
+        }
+
+        prefix = string.Empty;
+        valueText = string.Empty;
+        return false;
+    }
+
+    private void WriteAnnotatedLine(LabelSpec spec, string line, int width, int indent, string indentStr, bool firstLine, IConsoleTheme? theme)
+    {
+        if (!TrySplitPrefix(line, out var prefix, out var valueText))
+        {
+            WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
+            return;
+        }
+
+        if (spec.CommaPack)
+        {
+            WriteColoredText(prefix, theme?.SecondaryColor);
+            var currentPos = GetDisplayWidth(prefix);
+
+            if (!string.IsNullOrEmpty(valueText))
+            {
+                WriteCommaPackedValues(valueText, width, indent, indentStr, theme, currentPos);
+            }
+        }
+        else
+        {
+            WriteSimpleAnnotated(prefix, valueText, theme);
+        }
+    }
+
+    private void WriteCommaPackedValues(string valuesText, int width, int indent, string indentStr, IConsoleTheme? theme, int currentPos)
+    {
+        // Split values by comma and fit as many as possible per line
+        var values = valuesText.Split(',').Select(v => v.Trim()).ToArray();
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            var value = values[i];
+            var textToAdd = i == 0 ? $" {value}" : $", {value}";
+            var textLength = GetDisplayWidth(textToAdd);
+
+            // Check if it fits on current line with some buffer
+            if (currentPos + textLength < width - 2) // Leave 2 chars buffer
+            {
+                WriteColoredText(textToAdd, theme?.ParameterColor);
+                currentPos += textLength;
+            }
+            else
+            {
+                // Move to next line
+                _consoleOutput.WriteLine();
+                _consoleOutput.Write(indentStr);
+                WriteColoredText(value, theme?.ParameterColor);
+                currentPos = indent + GetDisplayWidth(value);
+            }
+        }
+    }
+
+    private void WriteSimpleAnnotated(string prefix, string valueText, IConsoleTheme? theme)
+    {
+        WriteColoredText(prefix, theme?.SecondaryColor);
+        WriteColoredText($" {valueText}", theme?.ParameterColor);
+    }
+
     private void WriteWrappedText(string text, int width, int indent, IConsoleTheme? theme)
     {
         if (string.IsNullOrEmpty(text))
@@ -133,86 +230,9 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
                 _consoleOutput.Write(indentStr);
             }
 
-            // Special handling for "Possible values:" lines to maximize space usage
-            if (line.Contains("Possible values:"))
+            if (TryMatchAnnotated(line, out var spec))
             {
-                var colonIndex = line.IndexOf(':');
-                if (colonIndex != -1)
-                {
-                    var prefix = line[..(colonIndex + 1)]; // "Possible values:"
-                    var valuesText = line[(colonIndex + 1)..].Trim(); // The actual values
-
-                    // Write the prefix with secondary color
-                    WriteColoredText(prefix, theme?.SecondaryColor);
-                    var currentPos = GetDisplayWidth(prefix);
-
-                    if (!string.IsNullOrEmpty(valuesText))
-                    {
-                        // Split values by comma and fit as many as possible per line
-                        var values = valuesText.Split(',').Select(v => v.Trim()).ToArray();
-
-                        for (int i = 0; i < values.Length; i++)
-                        {
-                            var value = values[i];
-                            var textToAdd = i == 0 ? $" {value}" : $", {value}";
-                            var textLength = GetDisplayWidth(textToAdd);
-
-                            // Check if it fits on current line with some buffer
-                            if (currentPos + textLength < width - 2) // Leave 2 chars buffer
-                            {
-                                WriteColoredText(textToAdd, theme?.ParameterColor);
-                                currentPos += textLength;
-                            }
-                            else
-                            {
-                                // Move to next line
-                                _consoleOutput.WriteLine();
-                                _consoleOutput.Write(indentStr);
-                                WriteColoredText(value, theme?.ParameterColor);
-                                currentPos = indent + GetDisplayWidth(value);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Fallback
-                    WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
-                }
-            }
-            else if (line.Contains("Environment variable:"))
-            {
-                var colonIndex = line.IndexOf(':');
-                if (colonIndex != -1)
-                {
-                    var prefix = line[..(colonIndex + 1)]; // "Environment variable:"
-                    var valueText = line[(colonIndex + 1)..].Trim(); // The env var name
-
-                    WriteColoredText(prefix, theme?.SecondaryColor);
-
-                    WriteColoredText($" {valueText}", theme?.ParameterColor);
-                }
-                else
-                {
-                    WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
-                }
-            }
-            else if (line.Contains("Default:"))
-            {
-                var colonIndex = line.IndexOf(':');
-                if (colonIndex != -1)
-                {
-                    var prefix = line[..(colonIndex + 1)]; // "Default:"
-                    var valueText = line[(colonIndex + 1)..].Trim(); // The default value
-
-
-                    WriteColoredText(prefix, theme?.SecondaryColor);
-                    WriteColoredText($" {valueText}", theme?.ParameterColor);
-                }
-                else
-                {
-                    WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
-                }
+                WriteAnnotatedLine(spec, line, width, indent, indentStr, firstLine, theme);
             }
             else
             {
