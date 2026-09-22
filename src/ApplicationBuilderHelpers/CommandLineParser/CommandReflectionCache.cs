@@ -1,11 +1,9 @@
 using ApplicationBuilderHelpers.Attributes;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -106,45 +104,31 @@ internal sealed record CommandTypeDescriptor(
 /// </summary>
 internal sealed class CommandReflectionCache
 {
-    private readonly ConcurrentDictionary<Type, CommandTypeDescriptor> _cache = new();
-    private readonly object _syncRoot = new();
-    private int _buildCount;
+    private readonly TypePlanCache<CommandTypeDescriptor> _plans = new();
 
     /// <summary>
     /// Number of times the reflection factory ran (cache misses). Test hook.
     /// </summary>
-    internal int BuildCount => _buildCount;
+    internal int BuildCount => _plans.BuildCount;
 
     /// <summary>
     /// Gets the cached descriptor for the command type, building it once on first use.
     /// The miss counter increments exactly when this cache populates a new entry.
-    /// Uses a double-checked lock (instead of a GetOrAdd value-factory
-    /// delegate) so the trimmer sees the annotated type flow directly into
-    /// <see cref="Build(Type)"/> with no reflection-invoked delegate hop.
+    /// Shares the double-checked-lock core in <see cref="TypePlanCache{TValue}"/>
+    /// via the annotated <see cref="PlanFactory{TValue}"/> delegate hop
+    /// (method-group delegate creation reports IL2111, suppressed explicitly
+    /// below: the target is statically referenced, never reflection-invoked
+    /// by name).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Method-group Build is statically referenced, never reflection-invoked by name; the All-annotated type flows via the annotated PlanFactory delegate.")]
     internal CommandTypeDescriptor GetOrAdd([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
-        if (_cache.TryGetValue(commandType, out var cached))
-        {
-            return cached;
-        }
-
-        lock (_syncRoot)
-        {
-            if (_cache.TryGetValue(commandType, out cached))
-            {
-                return cached;
-            }
-
-            var built = Build(commandType);
-            _cache[commandType] = built;
-            Interlocked.Increment(ref _buildCount);
-            return built;
-        }
+        return _plans.GetOrAdd(commandType, Build);
     }
 
     /// <summary>
     /// Pure-reflection factory: snapshots options and arguments for the command type.
+    /// Bound detection uses the canonical <see cref="IsCliBound"/> predicate.
     /// </summary>
     private static CommandTypeDescriptor Build([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
@@ -155,6 +139,11 @@ internal sealed class CommandReflectionCache
 
         foreach (var property in properties)
         {
+            if (!IsCliBound(property))
+            {
+                continue;
+            }
+
             var optionAttr = property.GetCustomAttribute<CommandOptionAttribute>();
             if (optionAttr != null)
             {
@@ -213,6 +202,19 @@ internal sealed class CommandReflectionCache
             CommandDescriptorReflection.IsPropertyRequired(property),
             enumCandidateType,
             enumCandidateNames);
+    }
+
+    /// <summary>
+    /// Canonical CLI-bound identity: a property is CLI-bound iff it carries
+    /// a <see cref="CommandOptionAttribute"/> or a
+    /// <see cref="CommandArgumentAttribute"/>. Owned next to
+    /// <see cref="Walk(Type)"/> so the reflection cache and the injection
+    /// plan share one predicate; no NAME-string comparison.
+    /// </summary>
+    internal static bool IsCliBound(PropertyInfo property)
+    {
+        return property.IsDefined(typeof(CommandOptionAttribute), inherit: true)
+            || property.IsDefined(typeof(CommandArgumentAttribute), inherit: true);
     }
 
     /// <summary>
