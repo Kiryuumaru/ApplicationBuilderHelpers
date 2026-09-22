@@ -294,6 +294,11 @@ internal sealed class HelpContentProvider(
             parts.Add(option.Description);
         }
 
+        if (option.IsRequired)
+        {
+            parts.Add("(required)");
+        }
+
         if (option.ValidValues?.Length > 0)
         {
             var values = string.Join(", ", option.ValidValues);
@@ -305,7 +310,7 @@ internal sealed class HelpContentProvider(
             parts.Add($"Environment variable: {option.EnvironmentVariable}");
         }
 
-        if (option.LongName != "help" && option.LongName != "version")
+        if (!option.IsRequired && option.LongName != "help" && option.LongName != "version")
         {
             var defaultValue = GetOptionDefaultValue(option);
             if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
