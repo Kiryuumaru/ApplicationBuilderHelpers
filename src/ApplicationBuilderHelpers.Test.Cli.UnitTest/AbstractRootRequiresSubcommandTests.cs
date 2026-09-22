@@ -143,7 +143,7 @@ public sealed class AbstractRootRequiresSubcommandTests
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("No command found for 'bogus'", error);
-        Assert.Contains("Run 'abstract-root-test --help' for more information on available commands and options.", error);
+        Assert.Contains("Run 'abstract-root-test --version' to show version information.", error);
     }
 
     [Fact]

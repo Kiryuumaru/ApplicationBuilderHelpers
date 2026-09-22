@@ -76,7 +76,7 @@ The command whose option list holds an option node. `SubCommandOptionInfo.OwnerC
 The root `SubCommandInfo` with no implementation (`IsRoot` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:130`) in a CLI that registers only leaf subcommands. Display name `"<root>"` (`:32`); `ToString()` renders `"<root>"` (`:301`).
 
 **Bare run**:
-Invoking with zero args (`[]`) on an abstract root: fails `RequiresSubcommand` (exit 2) with `'<root>' requires a subcommand. Available subcommands: ...` (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:71-83`); structured `CommandName` stays empty (`:73`) so the footer is global (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:20-23`).
+Invoking with zero args (`[]`) on an abstract root: fails `RequiresSubcommand` (exit 2) with `'<root>' requires a subcommand. Available subcommands: ...` (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:85-97`); structured `CommandName` stays empty (`:87`) so the footer is global (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`).
 
 **Help-first**:
 A leading `--help`/`-h` (pre-`--` sentinel) on the abstract root or a known abstract parent (`IsRoot || argIndex > 0`, `ArgumentParser.cs:64-70`) sets `ShowHelp` without erroring, exit 0. Only the root globalizes: `HelpFormatter` branches on `IsRoot` alone (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:42-44`), so root renders the global help model (`COMMANDS:` section) while a named abstract parent keeps its parent-scoped view (`BuildCommandModel`).
