@@ -76,6 +76,14 @@ internal sealed class ArgumentParser
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (abstractHelpMisuse != null)
                 throw HelpMisuseError(abstractHelpMisuse, result.TargetCommand.FullCommandName);
+            // Issue #542: a known flag in =-form with an invalid literal on an
+            // abstract command must report InvalidValue (naming the option plus
+            // the valid literals), not RequiresSubcommand. Runs after the #512
+            // reserved-misuse scan and before the #508 unknown-option scan so an
+            // invalid literal beats both RequiresSubcommand and UnknownOption;
+            // valid literals, valued options, and unknown tokens fall through
+            // to the #508 scan / RequiresSubcommand path below unchanged.
+            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
             // Issue #508: an unknown dash-led token on an abstract command must
             // report UnknownOption (with help suggestion), not RequiresSubcommand.
             // Runs after the version/help carve-outs so those keep precedence;
@@ -450,6 +458,54 @@ internal sealed class ArgumentParser
     /// </summary>
     private static bool IsFlagLookingToken(string token) =>
         token.StartsWith('-') && !IsNumericValue(token);
+
+    /// <summary>
+    /// Issue #542: scan the pre-<c>--</c> leftovers on an abstract command for
+    /// a known flag in in-token <c>=</c>-form whose literal is invalid (e.g.
+    /// <c>--verbose=banana</c>). The literal check delegates to
+    /// <see cref="SubCommandOptionInfo.ExtractValue"/> (no literal-table copy),
+    /// which throws <see cref="CommandErrorKind.InvalidValue"/> naming the
+    /// option plus the valid literals via the secret-aware helper. Scope is
+    /// <c>target.AllOptions</c> via <see cref="SubCommandOptionInfo.MatchesArgument"/>
+    /// (same scope as the #508 skip-known rule), so leaf-only bases stay
+    /// unknown. Flags plus in-token <c>=</c> only: bare tokens, valued options,
+    /// unknown tokens, numerics, help/version tokens, and the
+    /// <c>--no-</c> prefix (owned by the #508 <c>--no-</c> mirror) fall through
+    /// untouched; valid literals fall through to <c>RequiresSubcommand</c>.
+    /// Runs after the #512 reserved-misuse scan and before the #508
+    /// unknown-option scan, so an invalid literal beats both
+    /// <c>RequiresSubcommand</c> and <c>UnknownOption</c>. Post-separator
+    /// tokens stay silent for <c>RequiresSubcommand</c>.
+    /// </summary>
+    private static void ThrowOnInvalidFlagLiteralPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var allOptions = target.AllOptions;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        for (var i = argIndex; i < end; i++)
+        {
+            var token = args[i];
+            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
+                continue;
+            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                continue;
+            if (!token.Contains('='))
+                continue;
+            if (token.StartsWith("--no-", StringComparison.Ordinal))
+                continue;
+            var matched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+            if (matched == null || !matched.IsFlag)
+                continue;
+            try
+            {
+                matched.ExtractValue(token, null);
+            }
+            catch (CommandException ex) when (ex.CommandName is null)
+            {
+                throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
+            }
+        }
+    }
 
     /// <summary>
     /// Issue #508: scan the pre-<c>--</c> leftovers on an abstract command for
