@@ -92,10 +92,10 @@ public string Level { get; set; } = "info";
 ### Tokenizer Behavior
 
 - Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.
-- A bare valued option never consumes a flag-looking neighbor (reject-by-default): any dash-led non-numeric token — known or unknown, including `--help`/`--version` and the `--` separator — is left to bind or error on its own merits, while the valued option falls back to the trailing-bare missing sentinel (`null`, enforced in `ParameterValidator.cs:20-71`). A bare occurrence with no merged value is a missing value on its own merits — required or optional alike — and always fails `MissingRequired` (exit 2) even with env set: `Missing value for option: <display-name>` (optional) or `Missing required option: <display-name>` (required). Typing the option claims ownership, so env fallback never rescues a typed bare; it applies only to omitted (never-typed) options (`EnvVarFallback.cs:21-39`; the required rescue at `ParameterValidator.cs:29-31` is gated on no bare mark, and the optional pass at `:52-71` has no rescue call). A single trailing-bare fails even with env set; a satisfied required valued scalar repeated bare (`--name John ... --name` at end-of-line) fails `MissingRequired` (exit 2) regardless of env fallback. Precedence: an unknown neighbor errors on its own merits first — `--config --nope` reports `Unknown option: --nope` (exit 2) because the parser throws before validation runs; `--help`/`--version` neighbors keep their carve-out — `--config --help` shows help and `--config --version` fires version, since the optional-bare pass is skipped when `ShowHelp`/`ShowVersion` is set. `--config --verbose` fails `Missing value for option: -c, --config` (exit 2) whether or not `TEST_CONFIG` is set — remove the flag to use the env value. `=`-form (`--config=f.json`), compact (`-cf.json`), and numeric neighbors (`--seed -5`) still bind as values; use `--` to pass a dash-led value positionally.
+- A bare valued option never consumes a flag-looking neighbor (reject-by-default): any dash-led non-numeric token — known or unknown, including `--help`/`--version` and the `--` separator — is left to bind or error on its own merits, while the valued option falls back to the trailing-bare missing sentinel (`null`, enforced in `ParameterValidator.cs:20-71`). A bare occurrence with no merged value is a missing value on its own merits — required or optional alike — and always fails `MissingRequired` (exit 2) even with env set: `Missing value for option: <display-name>` (optional) or `Missing required option: <display-name>` (required). Typing the option claims ownership, so env fallback never rescues a typed bare; it applies only to omitted (never-typed) options (`EnvVarFallback.cs:21-39`; the required rescue at `ParameterValidator.cs:29-31` is gated on no bare mark, and the optional pass at `:52-71` has no rescue call). A single trailing-bare fails even with env set; a satisfied required valued scalar repeated bare (`--name John ... --name` at end-of-line) fails `MissingRequired` (exit 2) regardless of env fallback. Precedence: an unknown neighbor errors on its own merits first — `--config --nope` reports `Unknown option: --nope` (exit 2) because the parser throws before validation runs; `--help`/`--version` neighbors keep their carve-out — `--config --help` shows help and `--config --version` fires version, since the optional-bare pass is skipped when `ShowHelp`/`ShowVersion` is set. Conversion beats help-with-values only (#483): binding errors collect at Step 7 through the same conversion pipeline (`CommandLineParser.cs:99-115`; dry-run `ValueBinder.cs:29-65`), so an `InvalidValue` (exit 2) surfaces before help-with-values; `MissingRequired` already won in the same step. Version path untouched — the post-parse version check (`CommandLineParser.cs:83-87`) runs before validation, so invalid+version still exits `0`. Bare carve-out preserved: the collect skips bare-ledger keys when `ShowHelp` is set (`ValueBinder.cs:46`). `--config --verbose` fails `Missing value for option: -c, --config` (exit 2) whether or not `TEST_CONFIG` is set — remove the flag to use the env value. `=`-form (`--config=f.json`), compact (`-cf.json`), and numeric neighbors (`--seed -5`) still bind as values; use `--` to pass a dash-led value positionally.
 - `=`-form boolean literals accept `true/false/yes/no/on/off/1/0` (case-insensitive); anything else is an `InvalidValue` usage error (exit 2), e.g. `--verbose=maybe`.
 - The first bare `--` ends option matching; every following token is positional, including `--verbose` and `--help`.
-- Negative numbers (`-5`, `-1.5`) are positional without a separator.
+- Negative numbers (`-5`, `-1.5`) are positional without a separator — and a bare numeric token wins over a digit short: `-1`, `-10`, `-1.5` never bind a `ShortTerm '0'`–`'9'` option even when one is declared (guard at `ArgumentParser.cs:130-140`; numeric test `IsNumericValue` at `:393-406`). The digit short stays reachable only via in-token forms (`-1=value` per `SubCommandOptionInfo.cs:365,391-397`, compact `-1x` for valued options per `:369,412-415`) or after `--`.
 - Combined shorts expand left to right: `-abc` binds each flag `true`; the last short takes the attached remainder (`-abdvalue` binds `Data: value`); an unknown char rejects the whole token (`Unknown option: -abx`, exit 2, `UnknownOption`). `-h`/`-V` inside a cluster win as help/version even mid-cluster.
 - `--no-<name>` negates a boolean flag (`--no-verbose` binds `false`); `--no-<name>=value` never accepts a value. A known name (flag, valued, or collection — including secret valued options resolved through the command's full option scope) is rejected as `InvalidValue` (exit 2) with secret-aware text that omits the value for secrets; an unknown name reports `Unknown option: --no-<name>` (exit 2) with a name-only suggestion, never echoing the value; an empty base (`--no-=value`) fails closed as `InvalidValue` (exit 2) with redaction on.
 - Bare-flag repetition is idempotent (`--verbose --verbose` succeeds); valued repeats are last-wins (`--text=a --text=b` binds `b`), except a trailing bare repeat of a satisfied required valued scalar fails `MissingRequired` (exit 2) regardless of env fallback, while a trailing bare repeat of a satisfied optional is ignored and the prior value stands (`ParameterValidator.cs:64-65` merged-values gate). Unsatisfied bare (`--config` with no value anywhere) is not a repeat — it fails per the tokenizer bullet above even with env set. Bare-then-valued heals; collections accumulate; bare boolean flags stay idempotent.
@@ -168,8 +168,8 @@ Exit matrix (`CompletionGateway.cs:24-57,106-204`):
 
 Mark a writable instance property with `[FromServices]` (unkeyed) or
 `[FromKeyedServices(key)]` (keyed). Owner: `ServiceInjectionGate`
-(`src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-120`,
-single `Inject` entry at `:101`). The thin `CommandExecutor`
+(`src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-126`,
+single `Inject` entry at `:111`). The thin `CommandExecutor`
 (`src/ApplicationBuilderHelpers/CommandLineParser/CommandExecutor.cs:19-33`)
 creates one `IServiceScope` per command run, then the gate injects those
 properties from `scope.ServiceProvider` after CLI binding; the command runs,
@@ -198,8 +198,8 @@ public class BuildCommand : Command
 
 Compilable keyed path: define a same-named property-capable shim (or a
 `using`-alias to one). The gate matches by attribute simple name
-(`ServiceInjectionGate.cs:24-30,65-66` — reuse-only seam, no new library
-dependency) and reads the key from attribute metadata (`:140-168`), so no
+(`ServiceInjectionGate.cs:24-30,75-77` — reuse-only seam, no new library
+dependency) and reads the key from attribute metadata (`:146-174`), so no
 new library dependency is needed. This is
 exactly what `ServicePropertyInjectionTests` proves:
 
@@ -213,12 +213,21 @@ public sealed class FromKeyedServicesAttribute(object key) : Attribute
 
 Rules:
 
+- Canonical bound identity: a property is CLI-bound iff it carries
+  `[CommandOption]` or `[CommandArgument]`. The predicate lives once as
+  `CommandReflectionCache.IsCliBound` (`:212-216`), next to `Walk` (`:229-248`),
+  and both the reflection cache (`Build` at `:131-162`) and the injection
+  plan (`ServiceInjectionGate.cs:51-109`) call it. The plan additionally
+  hoists a bound-name set derived once from that same predicate over the
+  walk (`:53-70`) — so cross-entry hide conflicts (base CLI + derived
+  service under one name) throw too — never re-derived per `Inject` call
+  from the per-run `AllOptions`/`AllArguments` view (that second source
+  is deleted).
 - Disjoint sets: CLI-bound properties (`[CommandOption]` /
   `[CommandArgument]`) are never injected. A property marked with both a
   CLI attribute and a service attribute throws `InvalidOperationException`
-  from the gate's single fail-fast point (`ServiceInjectionGate.cs:127-133`,
-  exact historical message preserved; checked both in the cached plan at
-  `:72-76` and at inject time at `:109-112`) — surfaces as a fault,
+  from the gate's single fail-fast point (`ServiceInjectionGate.cs:133-139`,
+  exact historical message preserved) — surfaces as a fault,
   exit 1, never a usage error. Injection runs after
   binding, so CLI values are never overwritten.
   Fault-path re-verify: an injection throw propagates out of
@@ -226,6 +235,33 @@ Rules:
   orchestrator runs, so no `Exiting` callback fires and only the `Exited`
   `finally` at `:94-99` runs — the same fault-path shape as a faulted
   command/host win.
+- Always-error on hiding: member hiding (`new`) never excuses a conflict.
+  The walk keeps hidden members as base-first duplicates
+  (`CommandReflectionCache.cs:229-248`, characterization
+  `Options_HiddenMember_CharacterizesCurrentWalk`), so any dual-marked
+  `PropertyInfo` anywhere in the walk chain throws — checking the hidden
+  derived entry alone is not enough.
+- Injection plans are cached: the per-`Type` target list (property plus
+  optional keyed-service key) is built once under the shared
+  double-checked lock (`TypePlanCache.cs`; gate use at
+  `ServiceInjectionGate.cs:44-48`) and reused across runs; the CLI-bound
+  set is hoisted into the cached plan at `:53-70`. Reflection descriptors
+  are cached separately per builder through the same shared core
+  (`CommandReflectionCache.cs:107-125`, miss-counted by `BuildCount` at
+  `:109-112`; shared core at `TypePlanCache.cs`). Marker matching stays
+  narrow: by attribute simple name (`ServiceInjectionGate.cs:24-30,75-77`
+  — reuse-only seam, no new library dependency) with the key read from
+  attribute metadata (`:146-174`).
+
+```csharp
+// Dual-marked example — always throws InvalidOperationException (fault, exit 1):
+public class BadCommand : Command
+{
+    [CommandOption("name")]
+    [FromServices] // configuration error: CLI-bound AND service-marked
+    public IMyService Service { get; set; } = null!;
+}
+```
 - Keyed services resolve from the same per-command scope via
   `GetRequiredKeyedService(type, key)`.
 - A missing service throws out of the executor and maps to a fault
@@ -257,7 +293,7 @@ Thin sequencer `CommandExecutor` (`CommandLineParser/CommandExecutor.cs:19-33`) 
 | Shutdown scope (linked CTS joining outer token + Ctrl+C; host `ApplicationStopping` stays host-owned downstream) + Ctrl+C subscribe/dispose | `CommandShutdownScope` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandShutdownScope.cs:6-14,23-46` |
 | Console cancel signal (injectable; production forwarder) | `IConsoleCancelSignal` / `ConsoleCancelSignal` | `src/ApplicationBuilderHelpers/CommandLineParser/IConsoleCancelSignal.cs:14-26`, `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleCancelSignal.cs:12-38` |
 | Console adapter only (Out/Error routing + `CancelKeyPress` forwarder) | `ConsoleOutput` | `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleOutput.cs:6-35` |
-| Per-command service injection (single `Inject` entry) | `ServiceInjectionGate` | `src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-41,101-120` |
+| Per-command service injection (single `Inject` entry) | `ServiceInjectionGate` | `src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-44,111-126` |
 | Joint command/host run + exactly-once `Exiting` fan-out | `CommandRunOrchestrator` → `CommandRunOutcome` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOrchestrator.cs:23-30`, `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOutcome.cs:8-41` |
 | Single cancel-wins classification point | `CommandExitMapper` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandExitMapper.cs:6-40` |
 | Exactly-once guards (fail-safe) | `LifetimeGlobalService` | `src/ApplicationBuilderHelpers/Services/LifetimeGlobalService.cs:17-22,58-86` |
@@ -272,8 +308,8 @@ Single classification point: `CommandExitMapper` (`src/ApplicationBuilderHelpers
 
 | Outcome | Exit code |
 |---|---|
-| `Run` returns normally (also `--help` / `--version`); internal-only cooperative `OperationCanceledException` | `0` (`CommandLineParser.cs:131-135`) |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` — `MissingRequired` also covers an explicit bare valued option, which fails even with env set (`Missing value for option: <display-name>` for optional, `Missing required option: <display-name>` for required; `ParameterValidator.cs:20-71`; env rescues only omitted options) |
+| `Run` returns normally (also `--help` / `--version`); internal-only cooperative `OperationCanceledException` | `0` (`CommandLineParser.cs:131-135`; conversion failure beats help-with-values, invalid+version still `0` via the pre-validation version guard at `:83-87`) |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` — `MissingRequired` also covers an explicit bare valued option, which fails even with env set (`Missing value for option: <display-name>` for optional, `Missing required option: <display-name>` for required; `ParameterValidator.cs:20-71`; env rescues only omitted options). Missing and invalid failures aggregate: every missing error reports first, then every invalid-value error, joined with newlines in one exit-`2` failure (missing-only keeps kind `MissingRequired`, any invalid line makes the kind `InvalidValue`); conversion failure beats help-with-values via the Step 7a probe while missing errors keep winning over help |
 | Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` passthrough (`CommandException.cs:13,43-46`; non-zero host-winner throws `CommandException` at `CommandRunOrchestrator.cs:91-94`; surfaced at `CommandLineParser.cs:121-125`) |
 | External cancellation (outer `CancellationToken` / Ctrl+C, incl. pre-cancelled token) | `130` — Unix 128 + SIGINT convention (`CommandExecutor.cs:39`; `ExternalCancellationException` at `:45-51` always maps to it; surfaced at `CommandLineParser.cs:116-119,126-129`). Windows note: Windows has no SIGINT exit-code convention — a Ctrl+C kill tears the process down at OS level with its own status — so `130` is the library-level cancellation mapping on all platforms (`CommandExitMapper.cs:13-17`, code remark only). |
 

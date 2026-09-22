@@ -33,7 +33,7 @@ public class ApplicationBuilder : ICommandBuilder
 | `SetHelpBorderWidth(int)` | `ApplicationBuilder` | Set help border indentation |
 | `RunAsync(string[], CancellationToken)` | `Task<int>` | Parse args and run |
 
-Repeated `RunAsync` calls rebuild the command topology from live registrations, so late `AddCommand` / `AddCommandTypeParser` calls are visible on the next run; type-registered commands get a fresh instance per run while instance registrations reuse the same reference. Per-`Type` reflection descriptors are cached per builder (immutable snapshots) and reassembled into fresh per-run nodes, with enum `FromAmong` auto-population (options and positional arguments) suppressed when a live parser exists for that enum type. The cache layer is thread-safe via immutable descriptors with locked population plus per-run reassembly, but `ApplicationBuilder` collections, shared console output, instance-registered commands, and user command state remain caller-responsibility and are not safe for concurrent runs/mutation.
+Repeated `RunAsync` calls rebuild the command topology from live registrations, so late `AddCommand` / `AddCommandTypeParser` calls are visible on the next run; type-registered commands get a fresh instance per run while instance registrations reuse the same reference. Per-`Type` reflection descriptors are cached per builder (immutable snapshots, double-checked lock, miss-counted by `CommandReflectionCache.BuildCount`) and reassembled into fresh per-run nodes, with enum `FromAmong` auto-population (options and positional arguments) suppressed when a live parser exists for that enum type. The per-`Type` service-injection plan (property plus optional keyed-service key, CLI-bound set hoisted in) is cached separately via its own `TypePlanCache` instance sharing the same double-checked-lock core; CLI-bound identity is one canonical predicate (`CommandReflectionCache.IsCliBound`, next to `Walk`), and any dual-marked property in the walk chain always throws `InvalidOperationException` (fault, exit 1). The cache layer is thread-safe via immutable descriptors with locked population plus per-run reassembly, but `ApplicationBuilder` collections, shared console output, instance-registered commands, and user command state remain caller-responsibility and are not safe for concurrent runs/mutation.
 
 ## Command
 
@@ -222,7 +222,7 @@ Exit contract for `RunAsync`:
 | Outcome | Exit code |
 |---|---|
 | `Run` returns normally (also `--help` / `--version`) | `0` |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
@@ -235,7 +235,7 @@ public enum CommandErrorKind
     RequiresSubcommand,
     InvalidValue,
     UnknownCommand,
-    DuplicateOption,
+    DuplicateOption, // Reserved for compatibility; never thrown — valued repeats resolve last-wins.
     NoImplementation,
 }
 

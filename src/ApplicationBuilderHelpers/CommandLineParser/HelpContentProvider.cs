@@ -48,7 +48,7 @@ internal sealed class HelpContentProvider(
                 {
                     globalOptions.Add(option);
                 }
-                else if (IsBaseCommandOption(option))
+                else if (option.IsGlobal)
                 {
                     baseCommandOptions.Add(option);
                 }
@@ -251,7 +251,7 @@ internal sealed class HelpContentProvider(
                 {
                     global.Add(option);
                 }
-                else if (IsBaseCommandOption(option))
+                else if (option.IsGlobal)
                 {
                     baseOptions.Add(option);
                 }
@@ -282,30 +282,7 @@ internal sealed class HelpContentProvider(
 
     private static string BuildOptionSignature(SubCommandOptionInfo option)
     {
-        var signature = new StringBuilder("    ");
-
-        if (option.ShortName.HasValue)
-        {
-            signature.Append($"-{option.ShortName}");
-            if (!string.IsNullOrEmpty(option.LongName))
-            {
-                signature.Append(", ");
-            }
-        }
-
-        if (!string.IsNullOrEmpty(option.LongName))
-        {
-            signature.Append($"--{option.LongName}");
-        }
-
-        if (!option.IsFlag)
-        {
-            var paramName = HelpTypeDisplay.GetParameterPlaceholder(option);
-            if (!string.IsNullOrEmpty(paramName))
-                signature.Append($" {paramName}");
-        }
-
-        return signature.ToString();
+        return "    " + option.GetSignature();
     }
 
     private string BuildOptionDescription(SubCommandOptionInfo option)
@@ -381,38 +358,51 @@ internal sealed class HelpContentProvider(
         }
 
         var hierarchyOption = commandInfo.Options.FirstOrDefault(IsHierarchySpecificOption);
-        if (hierarchyOption != null && hierarchyOption.Property.DeclaringType != null)
-        {
-            var declaringTypeName = hierarchyOption.Property.DeclaringType.Name;
-            if (declaringTypeName.EndsWith("Command", StringComparison.OrdinalIgnoreCase))
-            {
-                return declaringTypeName[..^"Command".Length].ToLowerInvariant();
-            }
-            return declaringTypeName.ToLowerInvariant();
-        }
-
-        return null;
-    }
-
-    private static bool IsBaseCommandOption(SubCommandOptionInfo option)
-    {
-        var declaringType = option.Property.DeclaringType;
-        return declaringType != null && declaringType.Name == "BaseCommand";
+        return hierarchyOption?.OwnerCommand?.Name
+            ?? hierarchyOption?.BindTarget?.Name
+            ?? commandInfo.Parent?.Name;
     }
 
     private static bool IsHierarchySpecificOption(SubCommandOptionInfo option)
     {
-        var declaringType = option.Property.DeclaringType;
-
-        if (declaringType != null && declaringType.IsAbstract &&
-            declaringType != typeof(object) && declaringType.Name != "BaseCommand" &&
-            declaringType.Name != "Command")
+        if (!option.IsInherited || option.IsGlobal)
         {
-            return true;
+            return false;
+        }
+
+        var declaringType = option.Property.DeclaringType;
+        if (declaringType is null || !declaringType.IsAbstract)
+        {
+            return false;
+        }
+
+        // Structural: the declaring type must sit inside the framework command
+        // lineage — walk the abstract BaseType chain and terminate at the
+        // framework Command root (generic or non-generic, the ICommand owner).
+        // Never compare simple type names and never reference a sample command
+        // type. The framework roots themselves are not hierarchy-specific
+        // (their options are global or command-local, as before).
+        if (IsFrameworkCommandRoot(declaringType))
+        {
+            return false;
+        }
+
+        for (var current = declaringType.BaseType;
+            current is not null && current != typeof(object);
+            current = current.BaseType)
+        {
+            if (IsFrameworkCommandRoot(current))
+            {
+                return true;
+            }
         }
 
         return false;
     }
+
+    private static bool IsFrameworkCommandRoot(Type type) =>
+        type == typeof(Command) ||
+        (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Command<>));
 
     private object? GetOptionDefaultValue(SubCommandOptionInfo option)
     {
