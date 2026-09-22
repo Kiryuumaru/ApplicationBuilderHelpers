@@ -471,7 +471,8 @@ internal sealed class ArgumentParser
                 continue;
             if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
                 continue;
-            if (allOptions.Any(o => o.MatchesArgument(token)))
+            if (allOptions.Any(o => o.MatchesArgument(token))
+                && !(token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('=')))
                 continue;
             if (IsClusterToken(allOptions, token))
                 continue;
