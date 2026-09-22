@@ -475,8 +475,19 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--no-secure' does not accept a value.", error);
+        Assert.Contains("Option '--no-secure' does not accept a value. Use bare '--no-secure' to set the flag to 'false'.", error);
         Assert.DoesNotContain("oops", error);
+    }
+
+    [Fact]
+    public async Task PlainFlag_NegatedWithValue_KeepsBareRemedy()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--no-open=oops"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--no-open' does not accept a value 'oops'. Use bare '--no-open' to set the flag to 'false'.", error);
+        Assert.DoesNotContain("[REDACTED]", error);
     }
 
     [Fact]
@@ -486,8 +497,9 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--no-secret-token' does not accept a value. Use bare '--no-secret-token' to set the flag to 'false'.", error);
+        Assert.Contains("Option '--no-secret-token' does not accept a value. Negation applies to boolean flags only; omit '--no-secret-token' or use '--secret-token=<value>'.", error);
         Assert.DoesNotContain("s3cr3t-leak", error);
+        Assert.DoesNotContain("Use bare '--no-secret-token'", error);
     }
 
     [Fact]
@@ -497,8 +509,9 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--no-plain-token' does not accept a value 'shown'. Use bare '--no-plain-token' to set the flag to 'false'.", error);
+        Assert.Contains("Option '--no-plain-token' does not accept a value 'shown'. Negation applies to boolean flags only; omit '--no-plain-token' or use '--plain-token=<value>'.", error);
         Assert.DoesNotContain("[REDACTED]", error);
+        Assert.DoesNotContain("Use bare '--no-plain-token'", error);
     }
 
     [Fact]
@@ -508,8 +521,9 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--no-count' does not accept a value. Use bare '--no-count' to set the flag to 'false'.", error);
+        Assert.Contains("Option '--no-count' does not accept a value. Negation applies to boolean flags only; omit '--no-count' or use '--count=<value>'.", error);
         Assert.DoesNotContain("424242", error);
+        Assert.DoesNotContain("Use bare '--no-count'", error);
     }
 
     [Fact]
@@ -519,8 +533,9 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--no-scores' does not accept a value. Use bare '--no-scores' to set the flag to 'false'.", error);
+        Assert.Contains("Option '--no-scores' does not accept a value. Negation applies to boolean flags only; omit '--no-scores' or use '--scores=<value>'.", error);
         Assert.DoesNotContain("777", error);
+        Assert.DoesNotContain("Use bare '--no-scores'", error);
     }
 
     [Fact]
@@ -530,8 +545,30 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--no-scores' does not accept a value '777'. Use bare '--no-scores' to set the flag to 'false'.", error);
+        Assert.Contains("Option '--no-scores' does not accept a value '777'. Negation applies to boolean flags only; omit '--no-scores' or use '--scores=<value>'.", error);
         Assert.DoesNotContain("[REDACTED]", error);
+        Assert.DoesNotContain("Use bare '--no-scores'", error);
+    }
+
+    [Fact]
+    public async Task ValuedOption_PrescribedRemedy_ParsesSuccessfully()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--plain-token=shown"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("tokens:hunter2:shown", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task ValuedOption_BareNegation_ReportsUnknown()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-secret-token"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --no-secret-token", error);
+        Assert.DoesNotContain("does not accept", error);
     }
 
     [Fact]

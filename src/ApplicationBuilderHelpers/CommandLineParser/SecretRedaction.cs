@@ -112,15 +112,30 @@ internal static class SecretRedaction
 
     /// <summary>
     /// Error message for a --no-&lt;name&gt;=value occurrence, which never accepts a value.
+    /// Boolean flags keep the bare-form remedy; non-boolean options never prescribe
+    /// bare --no-&lt;name&gt; (it would itself reject as Unknown option) and instead
+    /// prescribe omitting the option or using --&lt;base&gt;=&lt;value&gt; as a
+    /// value-free template. Secret values are never echoed.
     /// </summary>
-    public static string NoValueAcceptedMessage(string optionName, string rejectedValue, bool isSecret)
+    public static string NoValueAcceptedMessage(string optionName, string rejectedValue, bool isSecret, bool isFlag, string? positiveLongName = null)
     {
-        if (isSecret)
+        if (isFlag)
         {
-            return $"Option '{optionName}' does not accept a value. Use bare '{optionName}' to set the flag to 'false'.";
+            if (isSecret)
+            {
+                return $"Option '{optionName}' does not accept a value. Use bare '{optionName}' to set the flag to 'false'.";
+            }
+
+            return $"Option '{optionName}' does not accept a value '{rejectedValue}'. Use bare '{optionName}' to set the flag to 'false'.";
         }
 
-        return $"Option '{optionName}' does not accept a value '{rejectedValue}'. Use bare '{optionName}' to set the flag to 'false'.";
+        var positive = positiveLongName != null ? $" or use '--{positiveLongName}=<value>'" : string.Empty;
+        if (isSecret)
+        {
+            return $"Option '{optionName}' does not accept a value. Negation applies to boolean flags only; omit '{optionName}'{positive}.";
+        }
+
+        return $"Option '{optionName}' does not accept a value '{rejectedValue}'. Negation applies to boolean flags only; omit '{optionName}'{positive}.";
     }
 
     /// <summary>

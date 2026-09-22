@@ -214,9 +214,9 @@ internal sealed class ArgumentParser
                     var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
                     var noValueCommandName = result.TargetCommand.FullCommandName;
                     if (resolved != null)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     if (name.Length == "--no-".Length)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     var noValueSuggestion = DidYouMean.FindBestMatch(
                         name,
                         DidYouMean.OptionCandidates(allOptions));

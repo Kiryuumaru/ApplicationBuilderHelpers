@@ -402,7 +402,7 @@ internal class SubCommandOptionInfo
             if (argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal))
             {
                 var rejected = argument[$"--no-{LongName}=".Length..];
-                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--no-{LongName}", rejected, IsSecret), 2, CommandErrorKind.InvalidValue);
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--no-{LongName}", rejected, IsSecret, isFlag: true, positiveLongName: LongName), 2, CommandErrorKind.InvalidValue);
             }
 
             return "false";
