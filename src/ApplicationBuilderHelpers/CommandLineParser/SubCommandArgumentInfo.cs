@@ -120,8 +120,8 @@ internal class SubCommandArgumentInfo
 
     /// <summary>
     /// Creates a per-run copy from a cached descriptor. Descriptor primitives
-    /// are copied onto a fresh node; inheritance uses the existing name-based
-    /// scope, applied to the per-run copy only.
+    /// are copied onto a fresh node; positional scope stays per-command
+    /// (no name-based rule), applied to the per-run copy only.
     /// </summary>
     public static SubCommandArgumentInfo FromDescriptor(CommandArgumentDescriptor descriptor, SubCommandInfo? ownerCommand, object[]? resolvedValidValues)
     {
@@ -167,7 +167,7 @@ internal class SubCommandArgumentInfo
     /// <summary>
     /// Per-kind core: single attribute-read loop for arguments (Position
     /// sort) shared by the <c>FromCommandType</c>/<c>FromDeclaredType</c>
-    /// shims. Inheritance keeps the name-based heuristic.
+    /// shims. Positional scope is per-command by default (no name-based rule).
     /// </summary>
     private static List<SubCommandArgumentInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand, ICommandTypeParserCollection? typeParserCollection)
     {
@@ -208,25 +208,21 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
-    /// Determines whether this argument should be inherited by child commands
+    /// Determines whether this argument should be inherited by child commands.
+    /// Positional arguments are per-command (leaf-local) by default: common
+    /// names do not auto-inherit. Only an explicit opt-in (IsGlobal/IsInherited
+    /// preset true before this call) flows to child commands. No opt-in
+    /// surface exists on CommandArgumentAttribute today, so the pin below
+    /// holds every argument leaf-local; the preset branch is reserved for a
+    /// future opt-in surface or preset-only callers.
     /// </summary>
     private void DetermineInheritanceScope()
     {
-        // Arguments are typically more specific to individual commands
-        // But some arguments like input files might be common across command hierarchies
-        var commonArgumentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "input", "file", "path", "directory", "target", "source"
-        };
-
-        var isCommonArgument = Name != null && commonArgumentNames.Contains(Name);
-
-        if (isCommonArgument)
-        {
-            IsGlobal = false; // Arguments are rarely truly global
-            IsInherited = true;
-        }
-        else
+        // Intent: pin the per-command default. CommandArgumentAttribute
+        // exposes no scope flags, so nothing can preset true through the
+        // attribute path; leave the preset-true branch intact for a future
+        // opt-in surface or preset-only callers.
+        if (!IsGlobal && !IsInherited)
         {
             IsGlobal = false;
             IsInherited = false;

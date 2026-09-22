@@ -152,6 +152,8 @@ A positional argument is present when its token is supplied — even as `""` —
 
 **Breaking change:** code that relied on `""` arriving as `null` (e.g. `== null` sentinels) must migrate to `string.IsNullOrEmpty` — an explicitly supplied `""` now binds as `""`, never `null`.
 
+Positional arguments are per-command (leaf-local) by default and never inherit by name: a root positional (even a common name like `target`) is invisible to leaf scopes, so a surplus leaf token fails as a usage error (`Unexpected argument '<value>'`, exit 2 — `src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:261-280`) rather than binding the root value. See ADR-0008 (`docs/adr/0008-positional-no-inherit.md`); scope pinned by `DetermineInheritanceScope` (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandArgumentInfo.cs:219-230`).
+
 ## Shell Completion
 
 Owner: `CompletionGateway` (`src/ApplicationBuilderHelpers/CommandLineParser/CompletionGateway.cs:17-19`, ctor `ICommandBuilder` + `ConsoleOutput`) delegating to `CompletionEngine` (probe), `CompletionScriptWriter` (script), `CompletionInstaller` (install/uninstall). Wired in `CommandLineParser` after hierarchy build, before help/parsing.
