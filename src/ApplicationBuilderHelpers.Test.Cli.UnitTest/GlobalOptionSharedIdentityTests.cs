@@ -91,6 +91,32 @@ public sealed class GlobalOptionSharedIdentityTests
         }
     }
 
+    [Command("identinit alpha", "First leaf with identical initializer-backed shared option.")]
+    public sealed class IdenticalInitializerAlphaCommand : Command
+    {
+        [CommandOption("shared", Description = "Shared value.")]
+        public string Shared { get; set; } = "same-default";
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"identinit alpha:{Shared}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("identinit beta", "Second leaf with identical initializer-backed shared option.")]
+    public sealed class IdenticalInitializerBetaCommand : Command
+    {
+        [CommandOption("shared", Description = "Shared value.")]
+        public string Shared { get; set; } = "same-default";
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"identinit beta:{Shared}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Command("scalewins", "Probes scalar repeat resolution.")]
     public sealed class ScalarLastWinsCommand : Command
     {
@@ -180,6 +206,44 @@ public sealed class GlobalOptionSharedIdentityTests
         Assert.Contains("GLOBAL OPTIONS:", output);
         Assert.DoesNotContain("--shared", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task IdenticalInitializer_PromotedGlobalHelpShowsDefinitionDefault()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<IdenticalInitializerAlphaCommand>().AddCommand<IdenticalInitializerBetaCommand>(),
+            ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("GLOBAL OPTIONS:", output);
+        Assert.Contains("--shared", output);
+        Assert.Contains("Default: same-default", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task DivergentInitializer_PerScopeLeafHelpShowsOwnDefault()
+    {
+        var (alphaCode, alphaOutput, alphaError) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<InitializerDivergentAlphaCommand>().AddCommand<InitializerDivergentBetaCommand>(),
+            ["initdiv", "alpha", "--help"]);
+
+        Assert.Equal(0, alphaCode);
+        Assert.Contains("--shared", alphaOutput);
+        Assert.Contains("Default: alpha-default", alphaOutput);
+        Assert.DoesNotContain("beta-default", alphaOutput);
+        Assert.True(string.IsNullOrWhiteSpace(alphaError), $"Expected empty stderr but got: {alphaError}");
+
+        var (betaCode, betaOutput, betaError) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<InitializerDivergentAlphaCommand>().AddCommand<InitializerDivergentBetaCommand>(),
+            ["initdiv", "beta", "--help"]);
+
+        Assert.Equal(0, betaCode);
+        Assert.Contains("--shared", betaOutput);
+        Assert.Contains("Default: beta-default", betaOutput);
+        Assert.DoesNotContain("alpha-default", betaOutput);
+        Assert.True(string.IsNullOrWhiteSpace(betaError), $"Expected empty stderr but got: {betaError}");
     }
 
     [Fact]

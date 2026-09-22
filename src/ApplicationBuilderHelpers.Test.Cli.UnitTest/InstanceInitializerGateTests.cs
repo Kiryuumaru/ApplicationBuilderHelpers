@@ -45,6 +45,32 @@ public sealed class InstanceInitializerGateTests
         }
     }
 
+    [Command("instident alpha", "First leaf with identical initializer-backed shared option.")]
+    public sealed class InstanceIdenticalAlphaCommand : Command
+    {
+        [CommandOption("shared", Description = "Shared value.")]
+        public string Shared { get; set; } = "same-default";
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"instident alpha:{Shared}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("instident beta", "Second leaf with identical initializer-backed shared option.")]
+    public sealed class InstanceIdenticalBetaCommand : Command
+    {
+        [CommandOption("shared", Description = "Shared value.")]
+        public string Shared { get; set; } = "same-default";
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"instident beta:{Shared}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Fact]
     public async Task InstanceRegistrations_SecondRunStillComparesRegistrationDefaults()
     {
@@ -74,6 +100,68 @@ public sealed class InstanceInitializerGateTests
         Assert.Equal(0, exitCode);
         Assert.Contains("GLOBAL OPTIONS:", output);
         Assert.DoesNotContain("--shared", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task InstanceRegistrations_SecondRunLeafHelpShowsRegistrationDefaults()
+    {
+        var builder = CreateBuilder();
+        builder.AddCommand(new InstanceSharedAlphaCommand());
+        builder.AddCommand(new InstanceSharedBetaCommand());
+
+        // Bind an explicit value through a real run: this mutates the shared
+        // alpha instance to beta's default, so a live-value help read on the
+        // next run would report the bound value as the default.
+        var mutate = await RunCapturedAsync(builder, ["instshared", "alpha", "--shared=beta-default"]);
+
+        Assert.Equal(0, mutate.ExitCode);
+        Assert.Contains("instshared alpha:beta-default", mutate.Output);
+
+        // Registration defaults diverge (alpha-default vs beta-default), so
+        // each leaf help must still report its own registration default.
+        var (alphaCode, alphaOutput, alphaError) = await RunCapturedAsync(builder, ["instshared", "alpha", "--help"]);
+
+        Assert.Equal(0, alphaCode);
+        Assert.Contains("--shared", alphaOutput);
+        Assert.Contains("Default: alpha-default", alphaOutput);
+        Assert.DoesNotContain("Default: beta-default", alphaOutput);
+        Assert.True(string.IsNullOrWhiteSpace(alphaError), $"Expected empty stderr but got: {alphaError}");
+
+        var (betaCode, betaOutput, betaError) = await RunCapturedAsync(builder, ["instshared", "beta", "--help"]);
+
+        Assert.Equal(0, betaCode);
+        Assert.Contains("--shared", betaOutput);
+        Assert.Contains("Default: beta-default", betaOutput);
+        Assert.DoesNotContain("Default: alpha-default", betaOutput);
+        Assert.True(string.IsNullOrWhiteSpace(betaError), $"Expected empty stderr but got: {betaError}");
+    }
+
+    [Fact]
+    public async Task IdenticalInstanceRegistrations_SecondRunRootHelpShowsRegistrationDefault()
+    {
+        var builder = CreateBuilder();
+        builder.AddCommand(new InstanceIdenticalAlphaCommand());
+        builder.AddCommand(new InstanceIdenticalBetaCommand());
+
+        // Bind an explicit value through a real run: this mutates the shared
+        // alpha instance away from the registration default, so a live-value
+        // help read on the next run would report the bound value as the
+        // promoted global default.
+        var mutate = await RunCapturedAsync(builder, ["instident", "alpha", "--shared=mutated"]);
+
+        Assert.Equal(0, mutate.ExitCode);
+        Assert.Contains("instident alpha:mutated", mutate.Output);
+
+        // Registration defaults still match (same-default), so the option
+        // stays promoted and root help reports the registration default.
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("GLOBAL OPTIONS:", output);
+        Assert.Contains("--shared", output);
+        Assert.Contains("Default: same-default", output);
+        Assert.DoesNotContain("Default: mutated", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
