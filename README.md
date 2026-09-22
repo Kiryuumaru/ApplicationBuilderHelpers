@@ -111,6 +111,8 @@ public class DeployProductionCommand : Command { /* ... */ }
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
+Bare root (no root implementation, only leaf subcommands): `myapp` with zero args exits `2` with `'<root>' requires a subcommand. Available subcommands: ...` plus the two-sentence global usage footer (`SubCommandInfo.cs:32`; `ArgumentParser.cs:71-83`; `CommandErrorFooter.cs:20-23`). Help-first (`myapp --help greet`) renders global help, exit `0` (`ArgumentParser.cs:64-70`; `HelpFormatter.cs:42-44`) — see [Advanced Topics](docs/advanced.md#bare-root-and-help-first).
+
 Return normally on success. Throw `CommandException` for errors to return a non-zero exit code from `RunAsync`:
 
 ```csharp

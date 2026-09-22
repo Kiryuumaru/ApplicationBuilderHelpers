@@ -175,6 +175,10 @@ public class CommandAttribute : Attribute
 }
 ```
 
+### `CommandAttribute.Term` Validation Contract
+
+Build-time guard — violations throw `InvalidOperationException` (fault, exit `1`): null `Term` merges at the root; non-null empty/whitespace throws (`term must not be empty or whitespace`); any dash-led part throws (`command names must not start with '-'`); multi-space normalizes via `Split(' ', RemoveEmptyEntries)`. Enforced at both `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:140-159` (`FromCommand`) and `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204` (hierarchy build + abstract-base match). See [Commands](commands.md#term-validation-contract) and [Advanced Topics](advanced.md#bare-root-and-help-first).
+
 ### CommandOptionAttribute
 
 ```csharp

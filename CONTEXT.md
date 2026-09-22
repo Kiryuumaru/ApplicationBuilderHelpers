@@ -71,3 +71,15 @@ A property value left at its initializer because the CLI input was omitted.
 
 **Holding scope**:
 The command whose option list holds an option node. `SubCommandOptionInfo.OwnerCommand` is the definition site (the defining command); `SubCommandOptionInfo.BindTarget` is the holding scope (the defining command for a definition-site node, root or the per-command help scope for a global copy). Help default-value reads resolve definition-site first, then the holding scope.
+
+**Abstract root**:
+The root `SubCommandInfo` with no implementation (`IsRoot` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:130`) in a CLI that registers only leaf subcommands. Display name `"<root>"` (`:32`); `ToString()` renders `"<root>"` (`:301`).
+
+**Bare run**:
+Invoking with zero args (`[]`) on an abstract root: fails `RequiresSubcommand` (exit 2) with `'<root>' requires a subcommand. Available subcommands: ...` (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:85-97`); structured `CommandName` stays empty (`:87`) so the footer is global (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`).
+
+**Help-first**:
+A leading `--help`/`-h` (pre-`--` sentinel) on the abstract root or a known abstract parent (`IsRoot || argIndex > 0`, `ArgumentParser.cs:64-70`) sets `ShowHelp` without erroring, exit 0. Only the root globalizes: `HelpFormatter` branches on `IsRoot` alone (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:42-44`), so root renders the global help model (`COMMANDS:` section) while a named abstract parent keeps its parent-scoped view (`BuildCommandModel`).
+
+**Term validation**:
+The build-time `CommandAttribute.Term` guard: null merges at root; non-null empty/whitespace or dash-led throws `InvalidOperationException` (fault, exit 1); multi-space normalizes via `Split(' ', RemoveEmptyEntries)`. Enforced at both `SubCommandInfo.FromCommand` (`SubCommandInfo.cs:140-159`) and the hierarchy build (`src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204`).

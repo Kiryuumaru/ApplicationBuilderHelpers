@@ -37,7 +37,11 @@ internal class HelpFormatter(
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
 
-        var model = _contentProvider.BuildCommandModel(commandInfo);
+        // Help-first-at-root: root help renders the global model (COMMANDS
+        // section) so a leading --help never surfaces a command-scoped view.
+        var model = commandInfo.IsRoot
+            ? _contentProvider.BuildGlobalModel()
+            : _contentProvider.BuildCommandModel(commandInfo);
         LayoutRenderer.Render(model, theme, helpWidth);
     }
 }
