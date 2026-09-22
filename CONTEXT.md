@@ -70,7 +70,13 @@ A token of only whitespace (e.g. `" "`); for string-typed targets preserved verb
 A property value left at its initializer because the CLI input was omitted.
 
 **Holding scope**:
-The command whose option list holds an option node. `SubCommandOptionInfo.OwnerCommand` is the definition site (the defining command); `SubCommandOptionInfo.BindTarget` is the holding scope (the defining command for a definition-site node, root or the per-command help scope for a global copy). Help default-value reads resolve definition-site first, then the holding scope.
+The command whose option list holds an option node. `SubCommandOptionInfo.OwnerCommand` is the definition site (the defining command); `SubCommandOptionInfo.BindTarget` is the holding scope (the defining command for a definition-site node, root or the per-command help scope for a global copy). Help default-value reads resolve definition-site first, then the holding scope. Options-only: positional arguments carry `OwnerCommand` but no `BindTarget` and never participate in holding-scope copies.
+
+**Per-command positional**:
+A `[CommandArgument]` value that binds only in the command that declares it. Positional arguments never inherit by name — even a common name (`target`, `source`, …) declared on a parent is invisible to leaf scopes (`SubCommandArgumentInfo.DetermineInheritanceScope` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandArgumentInfo.cs:219-230` pins `IsGlobal = false, IsInherited = false` unless explicitly preset). A surplus leaf token fails as a usage error (`Unexpected argument '<value>'`, exit 2) instead of binding the parent value. See ADR-0008.
+
+**Inherited option vs non-inherited positional**:
+An inherited option is a parent `SubCommandOptionInfo` with `IsGlobal`/`IsInherited` set (e.g. base-class options via `ApplyInheritanceScope`, or promoted globals via `DetermineGlobalOptions`) that flows into child scopes through the `AllOptions` ref-dedup view (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:72-96`); a non-inherited positional is the default for every `[CommandArgument]` — same-name parent/child positionals are two independent locals, and `ValidateArgumentInheritance` (`SubCommandInfo.cs:271-294`) raises no conflict for them because the inherited-position scan (`:279-280`) matches nothing.
 
 **Abstract root**:
 The root `SubCommandInfo` with no implementation (`IsRoot` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:130`) in a CLI that registers only leaf subcommands. Display name `"<root>"` (`:32`); `ToString()` renders `"<root>"` (`:301`).

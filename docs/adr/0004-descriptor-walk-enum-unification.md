@@ -59,6 +59,12 @@ legacy entry points to `Obsolete` shims. No behavior change:
   heuristic (`DetermineInheritanceScope`, `SubCommandArgumentInfo.cs:209-230`).
   Merging the cores across kinds would collapse two different inheritance rules
   into one loop that owns neither.
+
+  > **Superseded (positional half only) by ADR-0008:** the name-based
+  > common-argument heuristic above is deleted — `DetermineInheritanceScope`
+  > (`SubCommandArgumentInfo.cs:219-230`) now pins positionals leaf-local
+  > unless explicitly opted in; see ADR-0008. Historical record preserved;
+  > options half unchanged.
 - **No descriptor filtering on the walk**: filtering by descriptor is
   deliberately not offered (`CommandReflectionCache.cs:218-229`) — see
   override/hide verdict below.
