@@ -1,6 +1,7 @@
 using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -421,8 +422,19 @@ internal sealed class HelpContentProvider(
             // scope holding this copy. Definition-site first (coincides with
             // the legacy first-scan-hit for identical globals: no behavior
             // change), then the copy-holding scope, then the legacy scan.
+            // For caller-supplied instance registrations the live
+            // definition-site instance may already carry a prior run's bound
+            // value, so consult the registration-time snapshot first (same
+            // seam the promotion gate uses). Snapshot-miss falls back to the
+            // existing live reads to preserve behavior.
             if (option.OwnerCommand?.Command != null)
             {
+                var holder = FindHolder(option.OwnerCommand.Command.GetType());
+                if (holder?.TryGetInitializerDefault(option.Property, out var snapshot) == true)
+                {
+                    return snapshot;
+                }
+
                 return option.Property.GetValue(option.OwnerCommand.Command);
             }
 
@@ -451,6 +463,22 @@ internal sealed class HelpContentProvider(
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Finds the registration holder for a command type. Multiple registrations
+    /// of one type are rejected elsewhere (duplicate-command validation), so
+    /// first match is the definition site. Mirrors the promotion-gate lookup.
+    /// </summary>
+    private TypedCommandHolder? FindHolder(Type commandType)
+    {
+        foreach (var holder in _commandBuilder.Commands)
+        {
+            if (holder.CommandType == commandType)
+                return holder;
+        }
+
+        return null;
     }
 
     /// <summary>
