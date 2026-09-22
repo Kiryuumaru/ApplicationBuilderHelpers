@@ -58,6 +58,9 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
         }
         catch (CommandException ex)
         {
+            // Host path has no argv: it cannot know whether the failing
+            // invocation already requested help, so the footer keeps both
+            // hints here (#509 suppression is gateway-only by design).
             ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName);
             return ex.ExitCode;
         }

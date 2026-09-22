@@ -2,6 +2,7 @@ using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -97,14 +98,17 @@ internal class CommandLineParser
             }
 
             // Step 7: Validate required options and arguments, then collect
-            // binding errors (#496 aggregation + #483 help precedence): missing
-            // errors order before binding errors, joined with newlines, exit 2
-            // and per-line message formats unchanged. Parse path errors (unknown
-            // option/command, duplicate, RequiresSubcommand) stay fail-fast.
-            // Invalid values beat help-with-values (#483): binding collection
-            // runs even when help was requested (bare-ledger keys skipped to
-            // preserve the --config --help carve-out), while missing errors
-            // still win over help per #408.
+            // binding errors (#496 aggregation + #483 help precedence + #509
+            // help-beats-missing): missing errors are suppressed when help was
+            // requested so help-with-values renders at Step 7b, while binding
+            // errors still collect through the same conversion pipeline, join
+            // with newlines, exit 2 and keep per-line message formats unchanged.
+            // Parse path errors (unknown option/command, duplicate,
+            // RequiresSubcommand) stay fail-fast. Invalid values beat
+            // help-with-values (#483 x #509): binding collection runs even
+            // when help was requested (bare-ledger keys skipped to preserve
+            // the --config --help carve-out), while missing errors yield to
+            // help per #509 (help always wins over missing required).
             ValidateAndBindParameters(parseResult);
 
             // Step 7b: Handle command help when values were collected
@@ -128,7 +132,11 @@ internal class CommandLineParser
         }
         catch (CommandException ex)
         {
-            ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName);
+            // #509: thread whether the failing invocation already requested
+            // help so the footer can suppress the circular --help hint.
+            // RequestedHelp mirrors the parser (stops at --, covers -h
+            // clusters); footer-only, exit codes unaffected.
+            ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName, HelpVersionGateway.RequestedHelp(args));
             return ex.ExitCode;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -144,6 +152,8 @@ internal class CommandLineParser
         catch (Exception ex)
         {
             // Unknown fault: styled stderr, exit 1. Never throws for expected failures.
+            // No help-signal threading here by design: Fault keeps the
+            // --help-only single-sentence footer regardless (#509 carve-out).
             ShowErrorMessage(ex.Message, CommandErrorKind.Fault, null);
             return 1;
         }
@@ -175,10 +185,10 @@ internal class CommandLineParser
         // that is the same idempotent merge the throwing path performed before
         // binding; no success-path command instance is touched). Collect-all so
         // a missing parameter no longer masks an invalid value. Binding
-        // collection runs even when help was requested (#483: invalid beats
-        // help-with-values), skipping only bare-ledger keys to preserve the
-        // --config --help carve-out, while required errors still win over help
-        // per #408.
+        // collection runs even when help was requested (#483 x #509: invalid
+        // beats help-with-values), skipping only bare-ledger keys to preserve
+        // the --config --help carve-out, while required errors yield to help
+        // per #509 (suppressed inside the validator when ShowHelp is set).
         var missingErrors = _validator.CollectRequiredErrors(result);
         var bindingErrors = _binder.CollectBindingErrors(result, skipBareWhenHelpRequested: true);
 
@@ -226,7 +236,7 @@ internal class CommandLineParser
     /// <summary>
     /// Shows a styled error message with helpful footer information
     /// </summary>
-    private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName) => _helpGateway.ShowErrorMessage(message, kind, commandName);
+    private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName, bool showHelpRequested = false) => _helpGateway.ShowErrorMessage(message, kind, commandName, showHelpRequested);
 
     #endregion
 }

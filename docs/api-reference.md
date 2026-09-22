@@ -226,7 +226,7 @@ Exit contract for `RunAsync`:
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
-Help/footer contract: every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:105-110,220-225`); usage-error footers hint at both `--help` and `--version` (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:15-36`), while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer (`CommandErrorFooter.cs:37-38`).
+Help/footer contract: every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:105-110,220-225`); usage-error footers hint at both `--help` and `--version` (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`), except when the failing invocation already contained `--help`/`-h`, when only the `--version` hint survives (#509), while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer (`CommandErrorFooter.cs:56-57`).
 
 ```csharp
 public enum CommandErrorKind

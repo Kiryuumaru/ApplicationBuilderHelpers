@@ -129,7 +129,7 @@ Parsers added between runs are visible on the next `RunAsync` (topology and enum
 
 ## Parser Purity (Validation May Call `Parse` Twice)
 
-Binding errors collect at Step 7 through the same conversion pipeline before help-with-values (`CommandLineParser.cs:99-115`; dry-run `ValueBinder.cs:29-65`), then bind through the identical pipeline at Step 8. The dry run discards its result and collects the identical `CommandException` messages, so `InvalidValue` (exit 2) beats help-with-values. Keep `ICommandTypeParser.Parse` pure (no side effects, same input → same output/error): on the success path it runs twice per value (collect + bind); the collect no-ops on empty maps and skips bare-ledger keys when `ShowHelp` is set (`ValueBinder.cs:46`).
+Binding errors collect at Step 7 through the same conversion pipeline before help-with-values (`CommandLineParser.cs:99-115`; dry-run `ValueBinder.cs:29-65`), then bind through the identical pipeline at Step 8. The dry run discards its result and collects the identical `CommandException` messages, so `InvalidValue` (exit 2) beats help-with-values; missing required is skipped under `ShowHelp` (#509), so help-with-values renders whenever the binding probe passes. Keep `ICommandTypeParser.Parse` pure (no side effects, same input → same output/error): on the success path it runs twice per value (collect + bind); the collect no-ops on empty maps and skips bare-ledger keys when `ShowHelp` is set (`ValueBinder.cs:46`).
 
 ## Built-in Parsers
 
