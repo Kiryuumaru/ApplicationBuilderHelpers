@@ -24,7 +24,16 @@ internal static class CommandErrorFooter
             case CommandErrorKind.UnknownOption:
             case CommandErrorKind.MissingRequired:
             case CommandErrorKind.UnknownCommand:
-                return $"Run '{executableName} <command> --help' for more information on specific command options.";
+            case CommandErrorKind.InvalidValue:
+            case CommandErrorKind.DuplicateOption:
+                if (!string.IsNullOrEmpty(commandName))
+                {
+                    return $"Run '{executableName} {commandName} --help' for more information on specific command options.";
+                }
+                else
+                {
+                    return $"Run '{executableName} --help' for more information on available commands and options.";
+                }
             default:
                 return $"Run '{executableName} --help' for more information on available commands and options.";
         }

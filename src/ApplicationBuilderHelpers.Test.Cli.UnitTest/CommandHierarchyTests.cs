@@ -1,4 +1,5 @@
 using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.CommandLineParser;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using Microsoft.Extensions.Hosting;
@@ -212,6 +213,78 @@ public sealed class CommandHierarchyTests
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
         {
             Console.WriteLine("misshub set ran");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("renhub", "Renamed hierarchy hub.")]
+    public abstract class RenamedLedger : Command
+    {
+        [CommandOption("hub-opt", Description = "Hub-level value.")]
+        public string HubOpt { get; set; } = "table";
+    }
+
+    [Command("renhub get", "Gets a renamed-hub value.")]
+    public sealed class RenamedLedgerGetCommand : RenamedLedger
+    {
+        [CommandOption("detail", Description = "Leaf detail flag.")]
+        public bool Detail { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"renhub get:{HubOpt}:{Detail}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("renhub set", "Sets a renamed-hub value.")]
+    public sealed class RenamedLedgerSetCommand : RenamedLedger
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"renhub set:{HubOpt}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("deep", "Deep root hub.")]
+    public abstract class DeepRoot : Command
+    {
+    }
+
+    [Command("deep mid", "Deep middle hub.")]
+    public abstract class DeepMiddle : DeepRoot
+    {
+        [CommandOption("mid-opt", Description = "Middle-level value.")]
+        public string MidOpt { get; set; } = "mid";
+    }
+
+    [Command("deep mid leaf", "Deep leaf command.")]
+    public sealed class DeepMidLeafCommand : DeepMiddle
+    {
+        [CommandOption("leaf-opt", Description = "Leaf value.")]
+        public bool LeafOpt { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"deep mid leaf:{MidOpt}:{LeafOpt}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("basecmd", "Userland command literally named BaseCommand.")]
+    public sealed class BaseCommand : Command
+    {
+        [CommandOption("trap", Description = "Trap value.")]
+        public string Trap { get; set; } = "inak";
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"basecmd:{Trap}");
             cancellationTokenSource.Cancel();
             return ValueTask.CompletedTask;
         }
@@ -677,6 +750,96 @@ public sealed class CommandHierarchyTests
             .SetExecutableTitle("Hier Test")
             .SetExecutableDescription("Hierarchy verification CLI.")
             .SetExecutableVersion("9.9.9");
+    }
+
+    private static HelpModel BuildCommandModel(ApplicationBuilder builder, string commandPath)
+    {
+        var hierarchy = new CommandHierarchyBuilder(
+            builder,
+            builder,
+            new CommandReflectionCache());
+        hierarchy.BuildCommandHierarchy();
+        var command = hierarchy.RootCommand.FindCommand(
+            commandPath.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        Assert.NotNull(command);
+        var provider = new HelpContentProvider(
+            builder,
+            hierarchy.RootCommand,
+            new Dictionary<string, SubCommandInfo>(hierarchy.AllCommands));
+        return provider.BuildCommandModel(command);
+    }
+
+    private static HelpSection? FindSection(HelpModel model, string optionLongName) =>
+        model.Sections.FirstOrDefault(section =>
+            section.Entries.Any(entry => entry.Left.Contains($"--{optionLongName}", StringComparison.Ordinal)));
+
+    [Fact]
+    public void RenamedIntermediateHub_KeepsHierarchySectionPlacement()
+    {
+        var builder = CreateBuilder()
+            .AddCommand<RenamedLedgerGetCommand>()
+            .AddCommand<RenamedLedgerSetCommand>()
+            .AddCommand<HubLeafCommand>();
+
+        var model = BuildCommandModel(builder, "renhub get");
+
+        var hubSection = FindSection(model, "hub-opt");
+        Assert.NotNull(hubSection);
+        Assert.Equal("OPTIONS (renhub):", hubSection.Header);
+        Assert.DoesNotContain(hubSection.Entries, entry => entry.Left.Contains("--detail", StringComparison.Ordinal));
+
+        var leafSection = FindSection(model, "detail");
+        Assert.NotNull(leafSection);
+        Assert.Equal("OPTIONS:", leafSection.Header);
+        Assert.DoesNotContain(leafSection.Entries, entry => entry.Left.Contains("--hub-opt", StringComparison.Ordinal));
+
+        var globalSection = model.Sections.FirstOrDefault(section => section.Header == "GLOBAL OPTIONS:");
+        Assert.True(globalSection is null ||
+            globalSection.Entries.All(entry => !entry.Left.Contains("--hub-opt", StringComparison.Ordinal)),
+            "--hub-opt must not be promoted to GLOBAL OPTIONS:");
+    }
+
+    [Fact]
+    public void ThreeDeepAbstractChain_MiddleOptionLandsInHierarchySection()
+    {
+        var builder = CreateBuilder()
+            .AddCommand<DeepMidLeafCommand>()
+            .AddCommand<HubLeafCommand>();
+
+        var model = BuildCommandModel(builder, "deep mid leaf");
+
+        var middleSection = FindSection(model, "mid-opt");
+        Assert.NotNull(middleSection);
+        Assert.Equal("OPTIONS (mid):", middleSection.Header);
+        Assert.DoesNotContain(middleSection.Entries, entry => entry.Left.Contains("--leaf-opt", StringComparison.Ordinal));
+
+        var leafSection = FindSection(model, "leaf-opt");
+        Assert.NotNull(leafSection);
+        Assert.Equal("OPTIONS:", leafSection.Header);
+
+        var globalSection = model.Sections.FirstOrDefault(section => section.Header == "GLOBAL OPTIONS:");
+        Assert.True(globalSection is null ||
+            globalSection.Entries.All(entry => !entry.Left.Contains("--mid-opt", StringComparison.Ordinal)),
+            "--mid-opt must not be promoted to GLOBAL OPTIONS:");
+    }
+
+    [Fact]
+    public void ConcreteBaseCommandName_DoesNotGetGlobalTreatment()
+    {
+        var builder = CreateBuilder()
+            .AddCommand<BaseCommand>()
+            .AddCommand<HubAlphaCommand>();
+
+        var model = BuildCommandModel(builder, "basecmd");
+
+        var trapSection = FindSection(model, "trap");
+        Assert.NotNull(trapSection);
+        Assert.Equal("OPTIONS (command):", trapSection.Header);
+
+        var globalSection = model.Sections.FirstOrDefault(section => section.Header == "GLOBAL OPTIONS:");
+        Assert.True(globalSection is null ||
+            globalSection.Entries.All(entry => !entry.Left.Contains("--trap", StringComparison.Ordinal)),
+            "--trap must not be promoted to GLOBAL OPTIONS:");
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(

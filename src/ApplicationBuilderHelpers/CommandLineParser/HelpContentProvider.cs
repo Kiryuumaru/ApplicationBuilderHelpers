@@ -1,6 +1,7 @@
 using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +48,7 @@ internal sealed class HelpContentProvider(
                 {
                     globalOptions.Add(option);
                 }
-                else if (IsBaseCommandOption(option))
+                else if (option.IsGlobal)
                 {
                     baseCommandOptions.Add(option);
                 }
@@ -250,7 +251,7 @@ internal sealed class HelpContentProvider(
                 {
                     global.Add(option);
                 }
-                else if (IsBaseCommandOption(option))
+                else if (option.IsGlobal)
                 {
                     baseOptions.Add(option);
                 }
@@ -380,38 +381,51 @@ internal sealed class HelpContentProvider(
         }
 
         var hierarchyOption = commandInfo.Options.FirstOrDefault(IsHierarchySpecificOption);
-        if (hierarchyOption != null && hierarchyOption.Property.DeclaringType != null)
-        {
-            var declaringTypeName = hierarchyOption.Property.DeclaringType.Name;
-            if (declaringTypeName.EndsWith("Command", StringComparison.OrdinalIgnoreCase))
-            {
-                return declaringTypeName[..^"Command".Length].ToLowerInvariant();
-            }
-            return declaringTypeName.ToLowerInvariant();
-        }
-
-        return null;
-    }
-
-    private static bool IsBaseCommandOption(SubCommandOptionInfo option)
-    {
-        var declaringType = option.Property.DeclaringType;
-        return declaringType != null && declaringType.Name == "BaseCommand";
+        return hierarchyOption?.OwnerCommand?.Name
+            ?? hierarchyOption?.BindTarget?.Name
+            ?? commandInfo.Parent?.Name;
     }
 
     private static bool IsHierarchySpecificOption(SubCommandOptionInfo option)
     {
-        var declaringType = option.Property.DeclaringType;
-
-        if (declaringType != null && declaringType.IsAbstract &&
-            declaringType != typeof(object) && declaringType.Name != "BaseCommand" &&
-            declaringType.Name != "Command")
+        if (!option.IsInherited || option.IsGlobal)
         {
-            return true;
+            return false;
+        }
+
+        var declaringType = option.Property.DeclaringType;
+        if (declaringType is null || !declaringType.IsAbstract)
+        {
+            return false;
+        }
+
+        // Structural: the declaring type must sit inside the framework command
+        // lineage — walk the abstract BaseType chain and terminate at the
+        // framework Command root (generic or non-generic, the ICommand owner).
+        // Never compare simple type names and never reference a sample command
+        // type. The framework roots themselves are not hierarchy-specific
+        // (their options are global or command-local, as before).
+        if (IsFrameworkCommandRoot(declaringType))
+        {
+            return false;
+        }
+
+        for (var current = declaringType.BaseType;
+            current is not null && current != typeof(object);
+            current = current.BaseType)
+        {
+            if (IsFrameworkCommandRoot(current))
+            {
+                return true;
+            }
         }
 
         return false;
     }
+
+    private static bool IsFrameworkCommandRoot(Type type) =>
+        type == typeof(Command) ||
+        (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Command<>));
 
     private object? GetOptionDefaultValue(SubCommandOptionInfo option)
     {
@@ -421,8 +435,19 @@ internal sealed class HelpContentProvider(
             // scope holding this copy. Definition-site first (coincides with
             // the legacy first-scan-hit for identical globals: no behavior
             // change), then the copy-holding scope, then the legacy scan.
+            // For caller-supplied instance registrations the live
+            // definition-site instance may already carry a prior run's bound
+            // value, so consult the registration-time snapshot first (same
+            // seam the promotion gate uses). Snapshot-miss falls back to the
+            // existing live reads to preserve behavior.
             if (option.OwnerCommand?.Command != null)
             {
+                var holder = FindHolder(option.OwnerCommand.Command.GetType());
+                if (holder?.TryGetInitializerDefault(option.Property, out var snapshot) == true)
+                {
+                    return snapshot;
+                }
+
                 return option.Property.GetValue(option.OwnerCommand.Command);
             }
 
@@ -451,6 +476,22 @@ internal sealed class HelpContentProvider(
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Finds the registration holder for a command type. Multiple registrations
+    /// of one type are rejected elsewhere (duplicate-command validation), so
+    /// first match is the definition site. Mirrors the promotion-gate lookup.
+    /// </summary>
+    private TypedCommandHolder? FindHolder(Type commandType)
+    {
+        foreach (var holder in _commandBuilder.Commands)
+        {
+            if (holder.CommandType == commandType)
+                return holder;
+        }
+
+        return null;
     }
 
     /// <summary>

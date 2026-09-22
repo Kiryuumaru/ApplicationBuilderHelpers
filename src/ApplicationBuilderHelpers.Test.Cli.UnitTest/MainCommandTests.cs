@@ -236,7 +236,7 @@ public class MainCommandTests : CliTestBase
         var result = await Runner.RunAsync("--invalid-option");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --invalid-option");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test <command> --help' for more information");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public class MainCommandTests : CliTestBase
         var result = await Runner.RunAsync("--unknown-flag");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Error: Unknown option: --unknown-flag");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test <command> --help' for more information");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
     }
 
     #endregion

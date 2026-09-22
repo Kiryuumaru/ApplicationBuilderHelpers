@@ -160,9 +160,29 @@ internal class CommandLineParser
     private SubCommandInfo GetRootCommandOrThrow() =>
         _rootCommand ?? throw new InvalidOperationException("Command hierarchy has not been built.");
 
-    private void ValidateRequiredParameters(ParseResult result) => _validator.ValidateRequiredParameters(result);
+    private void ValidateRequiredParameters(ParseResult result)
+    {
+        try
+        {
+            _validator.ValidateRequiredParameters(result);
+        }
+        catch (CommandException ex) when (ex.CommandName is null)
+        {
+            throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
+        }
+    }
 
-    private void SetCommandValues(ParseResult result) => _binder.SetCommandValues(result);
+    private void SetCommandValues(ParseResult result)
+    {
+        try
+        {
+            _binder.SetCommandValues(result);
+        }
+        catch (CommandException ex) when (ex.CommandName is null)
+        {
+            throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
+        }
+    }
 
     private Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken) =>
         _executor.ExecuteCommand(commandInfo, cancellationToken);
