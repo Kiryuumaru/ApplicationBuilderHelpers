@@ -70,7 +70,16 @@ internal sealed class ArgumentParser
             // This is an abstract command that requires a subcommand
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = string.IsNullOrEmpty(result.TargetCommand.FullCommandName) ? "" : result.TargetCommand.FullCommandName;
-            throw new CommandException($"'{commandName}' requires a subcommand. Available subcommands: {availableSubcommands}", 2, CommandErrorKind.RequiresSubcommand, commandName);
+            var baseMessage = $"'{commandName}' requires a subcommand. Available subcommands: {availableSubcommands}";
+            string? subcommandSuggestion = null;
+            var sentinelIndex = Array.IndexOf(args, "--");
+            if (argIndex < args.Length && !args[argIndex].StartsWith('-') && (sentinelIndex < 0 || argIndex < sentinelIndex))
+            {
+                subcommandSuggestion = DidYouMean.FindBestMatch(
+                    args[argIndex],
+                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
+            }
+            throw new CommandException(DidYouMean.WithSuggestion(baseMessage, subcommandSuggestion), 2, CommandErrorKind.RequiresSubcommand, commandName);
         }
 
         if (!result.TargetCommand.HasImplementation)
