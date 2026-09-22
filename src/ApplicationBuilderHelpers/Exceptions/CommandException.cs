@@ -19,7 +19,7 @@ public class CommandException : Exception
     public CommandErrorKind Kind { get; }
 
     /// <summary>
-    /// Optional structured command name for <see cref="CommandErrorKind.RequiresSubcommand"/> hints
+    /// Optional structured command name for per-command error footers
     /// (avoids parsing it back out of the message text).
     /// </summary>
     public string? CommandName { get; }

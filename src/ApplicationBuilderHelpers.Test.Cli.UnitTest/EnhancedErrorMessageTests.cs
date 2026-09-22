@@ -16,7 +16,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("--unknown-option");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Error: Unknown option: --unknown-option");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test <command> --help' for more information on specific command options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("build");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Error: Missing required argument");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test <command> --help' for more information on specific command options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test build --help' for more information on specific command options.");
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Error:");
         CliTestAssertions.AssertErrorContains(result, "not valid for option '--target'");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test --help'");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test build --help'");
     }
 
     #endregion
@@ -84,7 +84,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("plugin");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Missing required argument: action");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test <command> --help' for more information on specific command options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test plugin --help' for more information on specific command options.");
     }
 
     #endregion
@@ -116,7 +116,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("config", "get", "--invalid-option");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --invalid-option");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test <command> --help' for more information");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config get --help' for more information");
     }
 
     #endregion
@@ -129,7 +129,7 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", "--timeout=invalid");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: 'invalid'");
-        CliTestAssertions.AssertErrorContains(result, "Run 'test --help'");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test test --help' for more information on specific command options.");
     }
 
     [Fact]
@@ -236,7 +236,45 @@ public class EnhancedErrorMessageTests : CliTestBase
     {
         var result = await Runner.RunAsync("--invalid");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Run 'test <command> --help' for more information");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
+    }
+
+    [Fact]
+    public async Task Unknown_Option_On_Build_Should_Include_Command_Help_Suggestion()
+    {
+        var result = await Runner.RunAsync("build", "project.csproj", "--unknown-flag");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: --unknown-flag");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test build --help' for more information on specific command options.");
+    }
+
+    [Fact]
+    public async Task Unknown_Command_Should_Show_Global_Help_Footer()
+    {
+        var result = await Runner.RunAsync("invalid-command");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertErrorContains(result, "No command found");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --help' for more information on available commands and options.");
+    }
+
+    [Fact]
+    public async Task Error_Footers_Should_Never_Contain_Command_Placeholder()
+    {
+        var errorScenarios = new[]
+        {
+            new[] { "--unknown-option" },
+            new[] { "build" },
+            new[] { "build", "project.csproj", "--target", "InvalidTarget" },
+            new[] { "build", "project.csproj", "--unknown-flag" },
+            new[] { "invalid-command" },
+        };
+
+        foreach (var args in errorScenarios)
+        {
+            var result = await Runner.RunAsync(args);
+            CliTestAssertions.AssertFailure(result);
+            Assert.DoesNotContain("<command>", result.StandardError);
+        }
     }
 
     #endregion

@@ -145,7 +145,7 @@ public sealed class AssemblyAutoDetectionTests
         Assert.False(string.IsNullOrEmpty(entryName));
 
         Assert.Contains("Error: Unknown option: --unknown-option", error, StringComparison.Ordinal);
-        Assert.Contains($"Run '{entryName} <command> --help'", error, StringComparison.Ordinal);
+        Assert.Contains($"Run '{entryName} autoprobe --help'", error, StringComparison.Ordinal);
     }
 
     [Fact]
