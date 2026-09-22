@@ -9,7 +9,7 @@ internal class ServeCommand : BaseCommand
     [CommandOption('p', "port", Description = "Port number to listen on")]
     public int Port { get; set; } = 8080;
 
-    [CommandOption('h', "host", Description = "Host address to bind to")]
+    [CommandOption("host", Description = "Host address to bind to")]
     public string Host { get; set; } = "localhost";
 
     [CommandOption("https", Description = "Enable HTTPS")]

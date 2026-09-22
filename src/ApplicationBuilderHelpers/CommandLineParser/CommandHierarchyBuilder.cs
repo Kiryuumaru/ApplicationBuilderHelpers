@@ -484,6 +484,46 @@ internal sealed class CommandHierarchyBuilder(
                     $"Command '{command.FullCommandName}' has no implementation and no subcommands");
             }
         }
+
+        ValidateReservedShortNames();
+    }
+
+    /// <summary>
+    /// Rejects registration-time shadowing of the help/version gateway shorts:
+    /// <c>-h</c> (help) and <c>-V</c> (version) win inside combined short
+    /// clusters even mid-cluster (<c>ArgumentParser</c>), so a declared option
+    /// reusing either short (e.g. <c>-h/--host</c> on <c>serve</c>) would never
+    /// bind — <c>serve -hw</c> routes to help instead of <c>Host=w</c>. Only the
+    /// built-in <c>--help</c> owner may hold <c>-h</c>; <c>-V</c> is forbidden
+    /// for all local options because no built-in version node exists (version
+    /// is gateway-only), so any local <c>-V</c> would silently never bind.
+    /// </summary>
+    private void ValidateReservedShortNames()
+    {
+        if (RootCommand != null)
+            ValidateReservedShortNames(RootCommand);
+
+        foreach (var command in _allCommands.Values)
+            ValidateReservedShortNames(command);
+    }
+
+    private static void ValidateReservedShortNames(SubCommandInfo command)
+    {
+        var commandName = string.IsNullOrEmpty(command.FullCommandName) ? "<root>" : command.FullCommandName;
+        foreach (var option in command.Options)
+        {
+            if (option.ShortName == 'h' && option.LongName != "help")
+            {
+                throw new InvalidOperationException(
+                    $"Reserved short name conflict: '-h' on option '{option.GetDisplayName()}' in command '{commandName}' is reserved for help. Rename or remove the short name.");
+            }
+
+            if (option.ShortName == 'V')
+            {
+                throw new InvalidOperationException(
+                    $"Reserved short name conflict: '-V' on option '{option.GetDisplayName()}' in command '{commandName}' is reserved for version. Rename or remove the short name.");
+            }
+        }
     }
 
     /// <summary>

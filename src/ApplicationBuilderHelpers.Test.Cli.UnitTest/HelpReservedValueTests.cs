@@ -8,8 +8,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <c>--no-help=&lt;anything&gt;</c> are usage errors (exit 2), never help.
 /// Bare <c>--help</c>/<c>-h</c> still show help, <c>=</c>-less clusters,
 /// post-separator tokens, space-separated words, and lookalike names keep
-/// their existing meaning, and a real short <c>'h'</c> owner keeps its
-/// <c>=</c>-forms.
+/// their existing meaning, and long-only options (e.g. <c>serve --host</c>)
+/// never reclaim <c>-h=</c>-forms — those stay usage errors (exit 2) since
+/// short <c>'h'</c> is reserved for help.
 /// </summary>
 public class HelpReservedValueTests : CliTestBase
 {
@@ -256,11 +257,12 @@ public class HelpReservedValueTests : CliTestBase
     }
 
     [Fact]
-    public async Task ShortHelpEquals_WithRealShortOwner_BindsHost()
+    public async Task ShortHelpEquals_WithLongOnlyHost_IsInvalidValue()
     {
         var result = await Runner.RunAsync("serve", "-h=x");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Host: x");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '-h'");
     }
 
     [Fact]
