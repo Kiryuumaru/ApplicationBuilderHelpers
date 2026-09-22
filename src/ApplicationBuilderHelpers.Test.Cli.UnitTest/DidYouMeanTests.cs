@@ -172,6 +172,42 @@ public sealed class DidYouMeanTests
         Assert.DoesNotContain("Did you mean", error);
     }
 
+    [Fact]
+    public async Task Surplus_Exact_Child_Name_After_Help_Has_No_Suggestion()
+    {
+        var (exitCode, _, error) = await RunCapturedAsync(["config", "--help", "get"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'get'", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task Surplus_Exact_Child_Name_After_Separator_Has_No_Suggestion()
+    {
+        var (exitCode, _, error) = await RunCapturedAsync(["config", "--", "get"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'get'", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task Zero_Match_Command_Case_Variant_Suggests()
+    {
+        var (exitCode, _, error) = await RunCapturedAsync(["CONFIG"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("No command found for 'CONFIG'", error);
+        Assert.Contains("Did you mean 'config'?", error);
+    }
+
+    [Fact]
+    public async Task Surplus_Case_Variant_Suggests_Canonical_Child()
+    {
+        var (exitCode, _, error) = await RunCapturedAsync(["config", "Get"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown subcommand 'Get'", error);
+        Assert.Contains("Did you mean 'get'?", error);
+    }
+
     private static ApplicationBuilder CreateBuilder()
     {
         return ApplicationBuilder.Create()
