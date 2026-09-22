@@ -282,30 +282,7 @@ internal sealed class HelpContentProvider(
 
     private static string BuildOptionSignature(SubCommandOptionInfo option)
     {
-        var signature = new StringBuilder("    ");
-
-        if (option.ShortName.HasValue)
-        {
-            signature.Append($"-{option.ShortName}");
-            if (!string.IsNullOrEmpty(option.LongName))
-            {
-                signature.Append(", ");
-            }
-        }
-
-        if (!string.IsNullOrEmpty(option.LongName))
-        {
-            signature.Append($"--{option.LongName}");
-        }
-
-        if (!option.IsFlag)
-        {
-            var paramName = HelpTypeDisplay.GetParameterPlaceholder(option);
-            if (!string.IsNullOrEmpty(paramName))
-                signature.Append($" {paramName}");
-        }
-
-        return signature.ToString();
+        return "    " + option.GetSignature();
     }
 
     private string BuildOptionDescription(SubCommandOptionInfo option)
