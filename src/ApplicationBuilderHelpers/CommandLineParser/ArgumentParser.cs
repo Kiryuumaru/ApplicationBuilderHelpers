@@ -67,6 +67,14 @@ internal sealed class ArgumentParser
                 result.ShowHelp = true;
                 return result;
             }
+            // #512: reserved help-word =-forms and --no-help are usage errors
+            // (exit 2 InvalidValue), never a RequiresSubcommand report.
+            // Runs BEFORE the #508 unknown-option scan so reserved misuse
+            // reports InvalidValue, not UnknownOption.
+            var abstractHelpMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
+                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
+            if (abstractHelpMisuse != null)
+                throw HelpMisuseError(abstractHelpMisuse, result.TargetCommand.FullCommandName);
             // Issue #508: an unknown dash-led token on an abstract command must
             // report UnknownOption (with help suggestion), not RequiresSubcommand.
             // Runs after the version/help carve-outs so those keep precedence;
@@ -134,6 +142,12 @@ internal sealed class ArgumentParser
                 result.ShowHelp = true;
                 continue;
             }
+
+            // #512: reserved help-word =-forms and --no-help never reach the
+            // synthetic bool help node (its dummy Property faults in the
+            // binder for bool-valid literals). Reject here as a usage error.
+            if (IsHelpEqualsOrNegatedToken(arg, allOptions))
+                throw HelpMisuseError(arg, result.TargetCommand.FullCommandName);
 
             // Check for version flag (only leftover unconsumed tokens reach here)
             if (HelpVersionGateway.IsVersionToken(arg))
@@ -440,6 +454,9 @@ internal sealed class ArgumentParser
     /// message (fail-closed: strip any <c>=value</c> suffix) and a did-you-mean
     /// option hint. The bare <c>--</c> itself ends the scan (sentinel
     /// precedence); post-separator tokens stay silent for RequiresSubcommand.
+    /// NOTE: the #512 reserved help-word scan runs BEFORE this method at the
+    /// call site, so <c>--help=x</c>/<c>-h=x</c>/<c>--no-help</c> report
+    /// InvalidValue, never UnknownOption here.
     /// </summary>
     private static void ThrowOnUnknownPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
@@ -510,5 +527,67 @@ internal sealed class ArgumentParser
                 return true;
         }
         return true;
+    }
+
+    /// #512 reserved help-word gate: <c>--help=&lt;anything&gt;</c> (including
+    /// empty), <c>-h=&lt;anything&gt;</c> (including empty), bare
+    /// <c>--no-help</c>, and <c>--no-help=&lt;anything&gt;</c>. Ordinal and
+    /// anchored on <c>=</c>/exact: bare <c>--help</c>/<c>-h</c> stay real help
+    /// (handled by <see cref="HelpVersionGateway.IsHelpToken"/>), lookalikes
+    /// (<c>--helpful</c>, <c>--HELP=x</c>) never match, clusters without
+    /// <c>=</c> (e.g. <c>-hfalse</c>) never match, and post-separator tokens
+    /// never reach this gate. The synthetic bool help node must not shadow a
+    /// real <c>-h</c> owner for <c>=</c>-forms: when some non-help option owns
+    /// short <c>'h'</c> (e.g. <c>serve --host</c>), <c>-h=</c> tokens belong
+    /// to that option and are left to normal parsing.
+    /// </summary>
+    private static bool IsHelpEqualsOrNegatedToken(string token, List<SubCommandOptionInfo> allOptions)
+    {
+        if (token.StartsWith("--help=", StringComparison.Ordinal))
+            return true;
+
+        if (token.StartsWith("-h=", StringComparison.Ordinal))
+        {
+            var hasRealShortHOwner = allOptions.Any(o =>
+                o.ShortName == 'h' && !string.Equals(o.LongName, "help", StringComparison.Ordinal));
+            return !hasRealShortHOwner;
+        }
+
+        if (string.Equals(token, "--no-help", StringComparison.Ordinal)
+            || token.StartsWith("--no-help=", StringComparison.Ordinal))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// #512 usage error for reserved help-word misuse: exit 2
+    /// <see cref="CommandErrorKind.InvalidValue"/> with the per-command name
+    /// attached (same pattern as the <c>ExtractValue</c> rethrow above).
+    /// <c>=</c>-forms reuse the secret-aware helpers with
+    /// <c>isSecret:false</c>; bare <c>--no-help</c> uses a dedicated message
+    /// (never <c>NoValueAcceptedMessage</c> with an empty value).
+    /// </summary>
+    private static CommandException HelpMisuseError(string token, string commandName)
+    {
+        if (token.StartsWith("--help=", StringComparison.Ordinal))
+        {
+            var literal = token["--help=".Length..];
+            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "--help", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("-h=", StringComparison.Ordinal))
+        {
+            var literal = token["-h=".Length..];
+            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-h", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("--no-help=", StringComparison.Ordinal))
+        {
+            var rejected = token["--no-help=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-help", rejected, isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        return new CommandException("Option '--no-help' is not valid. Use '--help' to show help.", 2, CommandErrorKind.InvalidValue, commandName);
     }
 }
