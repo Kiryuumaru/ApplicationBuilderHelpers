@@ -222,7 +222,7 @@ Exit contract for `RunAsync`:
 | Outcome | Exit code |
 |---|---|
 | `Run` returns normally (also `--help` / `--version`) | `0` |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption`) | `2` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
@@ -235,7 +235,7 @@ public enum CommandErrorKind
     RequiresSubcommand,
     InvalidValue,
     UnknownCommand,
-    DuplicateOption,
+    DuplicateOption, // Reserved for compatibility; never thrown — valued repeats resolve last-wins.
     NoImplementation,
 }
 
