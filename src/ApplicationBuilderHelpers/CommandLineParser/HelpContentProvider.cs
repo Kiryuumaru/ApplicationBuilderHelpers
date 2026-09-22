@@ -61,21 +61,15 @@ internal sealed class HelpContentProvider(
 
         var sections = new List<HelpSection>();
 
-        var allRootOptions = new List<object>(rootCommandOptions);
         if (rootCommandOptions.Count > 0)
         {
-            allRootOptions.Add("VERSION"); // Special marker for version
-        }
-
-        if (allRootOptions.Count > 0)
-        {
             var entries = new List<HelpEntry>();
-            foreach (var item in allRootOptions)
+            foreach (var opt in rootCommandOptions)
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = item is SubCommandOptionInfo optLeft ? BuildOptionSignature(optLeft) : "    -V, --version",
-                    Right = item is SubCommandOptionInfo optRight ? BuildOptionDescription(optRight) : "Show version information",
+                    Left = BuildOptionSignature(opt),
+                    Right = BuildOptionDescription(opt),
                 });
             }
             sections.Add(new HelpSection { Header = "OPTIONS:", Entries = entries });
@@ -99,19 +93,21 @@ internal sealed class HelpContentProvider(
         var allGlobalOptions = new List<SubCommandOptionInfo>(baseCommandOptions);
         allGlobalOptions.AddRange(globalOptions);
 
-        if (allGlobalOptions.Count > 0)
+        var globalEntries = new List<HelpEntry>();
+        foreach (var opt in allGlobalOptions)
         {
-            var entries = new List<HelpEntry>();
-            foreach (var opt in allGlobalOptions)
+            globalEntries.Add(new HelpEntry
             {
-                entries.Add(new HelpEntry
-                {
-                    Left = BuildOptionSignature(opt),
-                    Right = BuildOptionDescription(opt),
-                });
-            }
-            sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = entries });
+                Left = BuildOptionSignature(opt),
+                Right = BuildOptionDescription(opt),
+            });
         }
+        globalEntries.Add(new HelpEntry
+        {
+            Left = "    -V, --version",
+            Right = "Show version information",
+        });
+        sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = globalEntries });
 
         return new HelpModel
         {
@@ -206,23 +202,27 @@ internal sealed class HelpContentProvider(
             sections.Add(new HelpSection { Header = "ARGUMENTS:", Entries = entries });
         }
 
-        // Merge base options and global options into a single GLOBAL OPTIONS section
+        // Merge base options and global options into a single GLOBAL OPTIONS section.
+        // -V, --version is listed unconditionally: it is handled by the gateway,
+        // never declared as a command option, so every help screen shows it.
         var allGlobalOptions = new List<SubCommandOptionInfo>(baseOptions);
         allGlobalOptions.AddRange(globalOptions);
 
-        if (allGlobalOptions.Count > 0)
+        var globalEntries = new List<HelpEntry>();
+        foreach (var opt in allGlobalOptions)
         {
-            var entries = new List<HelpEntry>();
-            foreach (var opt in allGlobalOptions)
+            globalEntries.Add(new HelpEntry
             {
-                entries.Add(new HelpEntry
-                {
-                    Left = BuildOptionSignature(opt),
-                    Right = BuildOptionDescription(opt),
-                });
-            }
-            sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = entries });
+                Left = BuildOptionSignature(opt),
+                Right = BuildOptionDescription(opt),
+            });
         }
+        globalEntries.Add(new HelpEntry
+        {
+            Left = "    -V, --version",
+            Right = "Show version information",
+        });
+        sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = globalEntries });
 
         return new HelpModel
         {
@@ -416,7 +416,9 @@ internal sealed class HelpContentProvider(
             // #453 Step 1: OwnerCommand is the definition site, BindTarget is the
             // scope holding this copy. Definition-site first (coincides with
             // the legacy first-scan-hit for identical globals: no behavior
-            // change), then the copy-holding scope, then the legacy scan.
+            // change), then the copy-holding scope, then the declaring-type
+            // holder fallback (#487: snapshot-first, live only when
+            // !IsInstanceRegistration), then the type-parser fallback.
             // For caller-supplied instance registrations the live
             // definition-site instance may already carry a prior run's bound
             // value, so consult the registration-time snapshot first (same
@@ -438,11 +440,21 @@ internal sealed class HelpContentProvider(
                 return option.Property.GetValue(option.BindTarget.Command);
             }
 
-            foreach (var command in _allCommands.Values)
+            var declaringType = option.Property.DeclaringType;
+            if (declaringType != null)
             {
-                if (command.Command != null && command.Options.Any(o => o.Property == option.Property))
+                var fallbackHolder = FindHolder(declaringType);
+                if (fallbackHolder != null)
                 {
-                    return option.Property.GetValue(command.Command);
+                    if (fallbackHolder.TryGetInitializerDefault(option.Property, out var fallbackSnapshot))
+                    {
+                        return fallbackSnapshot;
+                    }
+
+                    if (!fallbackHolder.IsInstanceRegistration)
+                    {
+                        return option.Property.GetValue(fallbackHolder.Command);
+                    }
                 }
             }
 
@@ -463,7 +475,13 @@ internal sealed class HelpContentProvider(
     /// <summary>
     /// Finds the registration holder for a command type. Multiple registrations
     /// of one type are rejected elsewhere (duplicate-command validation), so
-    /// first match is the definition site. Mirrors the promotion-gate lookup.
+    /// first match is the definition site. Deliberate divergence from the
+    /// promotion-gate lookup (<c>CommandHierarchyBuilder.FindHolder</c>): the
+    /// gate keys by the option property's declaring type and fails closed on
+    /// ambiguity because it compares initializers across definition sites,
+    /// while this lookup keys by the holding scope's concrete command type
+    /// because it reads one scope's default. Shared idiom: both consult the
+    /// holder's registration-time snapshot before any live instance read.
     /// </summary>
     private TypedCommandHolder? FindHolder(Type commandType)
     {

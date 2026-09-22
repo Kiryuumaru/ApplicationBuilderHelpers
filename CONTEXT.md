@@ -65,3 +65,6 @@ A token of only whitespace (e.g. `" "`); for string-typed targets preserved verb
 
 **Defaulted**:
 A property value left at its initializer because the CLI input was omitted.
+
+**Holding scope**:
+The command whose option list holds an option node. `SubCommandOptionInfo.OwnerCommand` is the definition site (the defining command); `SubCommandOptionInfo.BindTarget` is the holding scope (the defining command for a definition-site node, root or the per-command help scope for a global copy). Help default-value reads resolve definition-site first, then the holding scope.

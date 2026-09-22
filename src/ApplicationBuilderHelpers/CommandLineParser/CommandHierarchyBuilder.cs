@@ -294,15 +294,17 @@ internal sealed class CommandHierarchyBuilder(
     /// <summary>
     /// Compares initializer defaults across definition sites. No
     /// <c>DefaultValue</c> snapshot exists on the option node (removed per
-    /// ADR-0004), so divergence is read from the per-run command instances
-    /// (which carry the C# initializer defaults), mirroring
-    /// <c>HelpFormatter.GetOptionDefaultValue</c>. For caller-supplied instance
-    /// registrations the per-run instance is the shared mutable registration:
-    /// a prior run's binding may already have replaced the initializer, so the
-    /// comparison uses the holder's registration-time snapshot (captured on the
-    /// first gate read, before binding can mutate the instance). Any read
-    /// failure blocks promotion (stays local) rather than risking a wrong
-    /// global merge.
+    /// ADR-0004), so divergence is read from the registration holders keyed by
+    /// the option property's declaring type (#487 Phase 2a), mirroring
+    /// <c>HelpContentProvider.GetOptionDefaultValue</c>. For type registrations the
+    /// holder's registration instance is pristine (binding mutates per-run
+    /// copies, never the registration). For caller-supplied instance
+    /// registrations the registration instance is the shared mutable
+    /// registration: a prior run's binding may already have replaced the
+    /// initializer, so the comparison uses the holder's registration-time
+    /// snapshot (captured on the first gate read, before binding can mutate
+    /// the instance). Any unknown or ambiguous holder, or any read failure,
+    /// blocks promotion (stays local) rather than risking a wrong global merge.
     /// </summary>
     private bool InitializerValuesEqual(SubCommandOptionInfo option, SubCommandOptionInfo firstOption)
     {
@@ -310,6 +312,8 @@ internal sealed class CommandHierarchyBuilder(
         {
             var current = ReadInitializerValue(option);
             var first = ReadInitializerValue(firstOption);
+            if (current is InitializerValuesUnreadable || first is InitializerValuesUnreadable)
+                return false;
             if (current is Array currentArray && first is Array firstArray)
             {
                 if (currentArray.Length != firstArray.Length)
@@ -332,29 +336,43 @@ internal sealed class CommandHierarchyBuilder(
     }
 
     /// <summary>
-    /// Reads one option's initializer default for the promotion gate: the
-    /// holder's registration-time snapshot for caller-supplied instance
-    /// registrations (fail-closed when the snapshot is missing or unreadable),
-    /// otherwise the live per-run instance value.
+    /// Reads one option's initializer default for the promotion gate off the
+    /// registration holder keyed by the option property's declaring type (#487
+    /// Phase 2a): the holder's registration-time snapshot for caller-supplied
+    /// instance registrations, otherwise the holder's registration instance
+    /// value. Fail-closed (sentinel) when the holder is unknown, ambiguous
+    /// (more than one holder for the declaring type), missing, or unreadable.
     /// </summary>
     private object? ReadInitializerValue(SubCommandOptionInfo option)
     {
-        if (option.OwnerCommand?.Command is null)
-            return null;
-
-        var holder = FindHolder(option.OwnerCommand.Command.GetType());
-        if (holder?.TryGetInitializerDefault(option.Property, out var snapshot) == true)
-            return snapshot;
-
-        if (holder is { IsInstanceRegistration: true })
+        var declaringType = option.Property.DeclaringType;
+        if (declaringType is null)
             return InitializerValuesUnreadable.Value;
 
-        return option.Property.GetValue(option.OwnerCommand.Command);
+        var holder = FindHolder(declaringType);
+        if (holder is null)
+            return InitializerValuesUnreadable.Value;
+
+        if (holder.TryGetInitializerDefault(option.Property, out var snapshot))
+            return snapshot;
+
+        if (holder.IsInstanceRegistration)
+            return InitializerValuesUnreadable.Value;
+
+        try
+        {
+            return option.Property.GetValue(holder.Command);
+        }
+        catch
+        {
+            return InitializerValuesUnreadable.Value;
+        }
     }
 
     /// <summary>
-    /// Sentinel that never equals a real initializer default, so a missing or
-    /// unreadable instance-registration snapshot blocks promotion (stays local).
+    /// Sentinel that never equals a real initializer default, so an unknown or
+    /// ambiguous holder, or a missing/unreadable instance-registration snapshot,
+    /// blocks promotion (stays local).
     /// </summary>
     private sealed class InitializerValuesUnreadable
     {
@@ -363,19 +381,29 @@ internal sealed class CommandHierarchyBuilder(
     }
 
     /// <summary>
-    /// Finds the registration holder for a command type. Multiple registrations
-    /// of one type are rejected elsewhere (duplicate-command validation), so
-    /// first match is the definition site.
+    /// Finds the single registration holder whose command type can supply the
+    /// declaring type's initializer default: a holder whose
+    /// <c>CommandType</c> equals the declaring type, or whose type derives from
+    /// it (inherited option reports the base declaring type). Returns null when
+    /// no holder matches or more than one matches (ambiguous) — both
+    /// fail-closed at the gate. Multiple same-type registrations are rejected
+    /// elsewhere (duplicate-command validation), so a single exact-type match
+    /// remains the common definition-site case.
     /// </summary>
-    private Models.TypedCommandHolder? FindHolder(Type commandType)
+    private Models.TypedCommandHolder? FindHolder(Type declaringType)
     {
+        Models.TypedCommandHolder? match = null;
         foreach (var holder in commandBuilder.Commands)
         {
-            if (holder.CommandType == commandType)
-                return holder;
+            if (holder.CommandType == declaringType || declaringType.IsAssignableFrom(holder.CommandType))
+            {
+                if (match is not null)
+                    return null;
+                match = holder;
+            }
         }
 
-        return null;
+        return match;
     }
 
     /// <summary>

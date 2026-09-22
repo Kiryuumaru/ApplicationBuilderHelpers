@@ -91,6 +91,7 @@ public sealed class ConsoleDecouplingTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Unknown option: --unknown-option", error);
         Assert.Contains("Run 'decouple-test greet --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'decouple-test greet --version' to show version information.", error);
     }
 
     [Fact]
@@ -102,6 +103,7 @@ public sealed class ConsoleDecouplingTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Missing required argument", error);
         Assert.Contains("Run 'decouple-test publish --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'decouple-test publish --version' to show version information.", error);
     }
 
     [Fact]

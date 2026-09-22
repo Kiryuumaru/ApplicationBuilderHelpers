@@ -93,11 +93,11 @@ The library catches `CommandException` during execution and returns its exit cod
 
 ### Error Footers
 
-Usage errors print a `Run '...' --help` footer selected by error kind:
+Usage errors print a two-sentence `Run '...' --help` + `Run '...' --version` footer selected by error kind (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:15-36`):
 
-- `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options.`; without one → the global footer below. A near-miss surplus token appends a `Did you mean 'x'?` pointer via Did-You-Mean admission; a far token stays silent.
-- `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue` with a command name → `Run '<exe> <command-name> --help' for more information on specific command options.`; without one (e.g. no command matched) → the global footer below. (`DuplicateOption` is reserved and never thrown — its footer arm is kept only for compatibility.)
-- Anything else → `Run '<exe> --help' for more information on available commands and options.`
+- `RequiresSubcommand` with a command name → `Run '<exe> <command-name> --help' to see available subcommands and options. Run '<exe> <command-name> --version' to show version information.`; without one → the two-sentence global usage footer below. A near-miss surplus token appends a `Did you mean 'x'?` pointer via Did-You-Mean admission; a far token stays silent.
+- `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue`, `DuplicateOption` with a command name → `Run '<exe> <command-name> --help' for more information on specific command options. Run '<exe> <command-name> --version' to show version information.`; without one (e.g. no command matched) → the two-sentence global usage footer below. (`DuplicateOption` is reserved and never thrown — its footer arm is kept only for compatibility.)
+- `Fault`, `NoImplementation` (anything else) → single-sentence `Run '<exe> --help' for more information on available commands and options.` (no `--version` second sentence; `CommandErrorFooter.cs:37-38`).
 
 `<exe>` is the configured executable name when set on the gateway path, otherwise the auto-detected one (the host path always auto-detects). Both error paths render the same footer for the same kind.
 
@@ -131,7 +131,7 @@ myapp deploy --help # Command-specific help: shows options & sub-commands
 myapp --version    # Shows version number
 ```
 
-The `--help` and `--version` flags are handled automatically — you don't need to define them.
+The `--help` and `--version` flags are handled automatically — you don't need to define them. Every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:105-110,220-225`): it is gateway-handled, never declared as a command option. Precedence is unchanged: completion > help > parse > version.
 
 Help precedence (`CommandLineParser.cs:93-115`): bare help with zero collected values exits at Step 6 before validation; required validation runs at Step 7 (help never skips it — `Help_Does_Not_Skip_Required_Validation`); binding errors collect at Step 7 through the same conversion pipeline so `InvalidValue` (exit 2) beats help-with-values; help-with-values renders at Step 7b only when validation passes. Carve-outs preserved: `--config --help` shows help (optional-bare pass skipped when `ShowHelp` is set, `ParameterValidator.cs:63`; binding collection skips bare-ledger keys, `ValueBinder.cs:46`); `--config --version` fires version (post-parse check at `CommandLineParser.cs:83-87`, before validation). Help never masks path errors (unknown option/command still exit 2).
 
