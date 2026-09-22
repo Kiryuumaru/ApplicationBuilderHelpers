@@ -1,4 +1,3 @@
-using ApplicationBuilderHelpers.Exceptions;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,19 +9,29 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal sealed class ParameterValidator
 {
     /// <summary>
+    /// Collects every missing-required error without throwing (#496 aggregation).
     /// Validates that all required parameters are provided.
     /// A satisfied-then-bare repeat (#470) also fails: each bare valued
     /// occurrence is a missing value on its own merits, regardless of env.
     /// An unsatisfied bare optional valued option (#503) fails the same way
     /// even with env set (env rescues only omitted options); a satisfied-then-bare
     /// optional repeat keeps the first value and succeeds.
+    /// The caller (<see cref="CommandLineParser"/>) joins these with the
+    /// binding errors so one failure no longer masks another; missing errors
+    /// order before binding errors in the final message. Options are visited
+    /// once per logical option (canonical key) so global-copy identities never
+    /// report twice, and arguments once per display name.
     /// </summary>
-    public void ValidateRequiredParameters(ParseResult result)
+    public List<string> CollectRequiredErrors(ParseResult result)
     {
-        var commandName = result.TargetCommand.FullCommandName;
+        var errors = new List<string>();
         // Check required options
+        var seenOptionKeys = new HashSet<string>(System.StringComparer.Ordinal);
         foreach (var option in result.TargetCommand.AllOptions.Where(o => o.IsRequired))
         {
+            if (!seenOptionKeys.Add(ParseResult.GetCanonicalOptionKey(option)))
+                continue;
+
             if (!result.TryGetMergedOptionValues(option, out _))
             {
                 // Explicit bare claims ownership: env rescues only omitted
@@ -31,14 +40,15 @@ internal sealed class ParameterValidator
                     && EnvVarFallback.Apply(result, option, requiredOnly: true))
                     continue;
 
-                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired, commandName);
+                errors.Add($"Missing required option: {option.GetDisplayName()}");
+                continue;
             }
 
             if (!option.IsCollection
                 && !option.IsFlag
                 && result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
             {
-                throw new CommandException($"Missing required option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired, commandName);
+                errors.Add($"Missing required option: {option.GetDisplayName()}");
             }
         }
 
@@ -67,17 +77,23 @@ internal sealed class ParameterValidator
 
                 // Explicit bare claims ownership: env fallback applies only
                 // to omitted (never-typed) options, never to a typed bare.
-                throw new CommandException($"Missing value for option: {option.GetDisplayName()}", 2, CommandErrorKind.MissingRequired);
+                errors.Add($"Missing value for option: {option.GetDisplayName()}");
             }
         }
 
         // Check required arguments
+        var seenArgumentNames = new HashSet<string>(System.StringComparer.Ordinal);
         foreach (var argument in result.TargetCommand.AllArguments.Where(a => a.IsRequired))
         {
+            if (!seenArgumentNames.Add(argument.DisplayName))
+                continue;
+
             if (!result.ArgumentValues.TryGetValue(argument, out List<string>? value) || value.Count == 0)
             {
-                throw new CommandException($"Missing required argument: {argument.DisplayName}", 2, CommandErrorKind.MissingRequired, commandName);
+                errors.Add($"Missing required argument: {argument.DisplayName}");
             }
         }
+
+        return errors;
     }
 }

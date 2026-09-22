@@ -96,8 +96,12 @@ internal class CommandLineParser
                 return 0;
             }
 
-            // Step 7: Validate required options and arguments
-            ValidateRequiredParameters(parseResult);
+            // Step 7: Validate required options and arguments, then collect
+            // binding errors (#496 aggregation): missing errors order before
+            // binding errors, joined with newlines, exit 2 and per-line message
+            // formats unchanged. Parse path errors (unknown option/command,
+            // duplicate, RequiresSubcommand) and the #483 help axis stay fail-fast.
+            ValidateAndBindParameters(parseResult);
 
             // Step 7b: Handle command help when values were collected
             if (parseResult.ShowHelp)
@@ -106,7 +110,7 @@ internal class CommandLineParser
                 return 0;
             }
 
-            // Step 8: Set property values on command instance
+            // Step 8: Bind the already-validated values onto the command instance.
             SetCommandValues(parseResult);
 
             // Step 9: Execute the command. A normal return means success (exit code 0).
@@ -160,16 +164,34 @@ internal class CommandLineParser
     private SubCommandInfo GetRootCommandOrThrow() =>
         _rootCommand ?? throw new InvalidOperationException("Command hierarchy has not been built.");
 
-    private void ValidateRequiredParameters(ParseResult result)
+    private void ValidateAndBindParameters(ParseResult result)
     {
-        try
-        {
-            _validator.ValidateRequiredParameters(result);
-        }
-        catch (CommandException ex) when (ex.CommandName is null)
-        {
-            throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
-        }
+        // Dry runs only: neither collector mutates bound state (the missing
+        // pass may still inject env fallback values into the parse result, but
+        // that is the same idempotent merge the throwing path performed before
+        // binding; no success-path command instance is touched). Collect-all so
+        // a missing parameter no longer masks an invalid value. Binding
+        // collection is skipped when command help was requested: pre-#496,
+        // Step 7b showed help for invalid+--help (binding ran after help at
+        // Step 8), while required errors still won over help per #408 — gating
+        // here preserves both precedences exactly.
+        var missingErrors = _validator.CollectRequiredErrors(result);
+        var bindingErrors = result.ShowHelp ? new List<string>() : _binder.CollectBindingErrors(result);
+
+        var allErrors = new List<string>(missingErrors.Count + bindingErrors.Count);
+        allErrors.AddRange(missingErrors);
+        allErrors.AddRange(bindingErrors);
+        if (allErrors.Count == 0)
+            return;
+
+        // Mixed usage failure stays a usage error (exit 2). Both kinds already
+        // share the same per-command footer; InvalidValue names the dominant
+        // (binding) failure while MissingRequired-only paths keep their kind.
+        throw new CommandException(
+            string.Join(Environment.NewLine, allErrors),
+            2,
+            bindingErrors.Count == 0 ? CommandErrorKind.MissingRequired : CommandErrorKind.InvalidValue,
+            result.TargetCommand.FullCommandName);
     }
 
     private void SetCommandValues(ParseResult result)
