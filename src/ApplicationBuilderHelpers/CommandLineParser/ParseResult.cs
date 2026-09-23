@@ -77,7 +77,7 @@ internal class ParseResult
 
     /// <summary>
     /// Sole identity reader for one logical (canonical-key) option group.
-    /// First: the first <see cref="TargetCommand.AllOptions"/> node in walk order
+    /// First: the first <see cref="SubCommandInfo.AllOptions"/> node in walk order
     /// whose canonical key matches (the target command's own copy, which sorts
     /// before inherited globals). Second: encounter-order fallback, the first
     /// <see cref="OptionValues"/> key in insertion order whose canonical key
