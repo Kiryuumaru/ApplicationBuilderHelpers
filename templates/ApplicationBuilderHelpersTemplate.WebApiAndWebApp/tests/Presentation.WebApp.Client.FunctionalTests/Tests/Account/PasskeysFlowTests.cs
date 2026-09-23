@@ -15,11 +15,11 @@ public class PasskeysFlowTests : WebAppTestBase
     [Fact]
     public async Task PasskeysPage_RequiresAuthentication()
     {
-        // Act - Navigate to passkeys page without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/passkeys");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login or show unauthorized content
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
 
@@ -35,18 +35,18 @@ public class PasskeysFlowTests : WebAppTestBase
     [Fact]
     public async Task PasskeysPage_LoadsWhenAuthenticated()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"pkey_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to passkeys page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/passkeys");
         await WaitForBlazorAsync();
 
-        // Assert - Page should load with passkeys content
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasPasskeysContent = pageContent.Contains("Passkey", StringComparison.OrdinalIgnoreCase) ||
@@ -60,18 +60,18 @@ public class PasskeysFlowTests : WebAppTestBase
     [Fact]
     public async Task PasskeysPage_HasAddButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"addbtn_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to passkeys page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/passkeys");
         await WaitForBlazorAsync();
 
-        // Assert - Should have add passkey button
+        // Assert
         var addButton = await Page.QuerySelectorAsync("button:has-text('Add'), button:has-text('Register'), button:has-text('Create')");
         
         Assert.NotNull(addButton);
@@ -80,18 +80,18 @@ public class PasskeysFlowTests : WebAppTestBase
     [Fact]
     public async Task PasskeysPage_ShowsEmptyState_ForNewUser()
     {
-        // Arrange - Register and login (new user has no passkeys)
+        // Arrange
         var username = $"empty_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to passkeys page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/passkeys");
         await WaitForBlazorAsync();
 
-        // Assert - Should show empty state message
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasEmptyState = pageContent.Contains("No passkey", StringComparison.OrdinalIgnoreCase) ||
@@ -105,18 +105,18 @@ public class PasskeysFlowTests : WebAppTestBase
     [Fact]
     public async Task PasskeysPage_ShowsSecurityDescription()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"desc_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to passkeys page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/passkeys");
         await WaitForBlazorAsync();
 
-        // Assert - Should show description about passkeys
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasDescription = pageContent.Contains("passwordless", StringComparison.OrdinalIgnoreCase) ||
@@ -130,18 +130,18 @@ public class PasskeysFlowTests : WebAppTestBase
     [Fact]
     public async Task PasskeysPage_HasPageTitle()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"title_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to passkeys page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/passkeys");
         await WaitForBlazorAsync();
 
-        // Assert - Page should have title
+        // Assert
         var title = await Page.TitleAsync();
         
         Assert.Contains("Passkey", title, StringComparison.OrdinalIgnoreCase);
@@ -150,18 +150,18 @@ public class PasskeysFlowTests : WebAppTestBase
     [Fact]
     public async Task PasskeysPage_ShowsKeyIcon()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"icon_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to passkeys page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/passkeys");
         await WaitForBlazorAsync();
 
-        // Assert - Should show some visual indicator (icon or emoji)
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasVisualElement = pageContent.Contains("🔐", StringComparison.OrdinalIgnoreCase) ||

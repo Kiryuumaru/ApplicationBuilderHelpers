@@ -22,8 +22,6 @@ public sealed class RefreshTokenMisuseTests : WebApiTestBase
     [Fact]
     public async Task Refresh_WithBodyTokenOfUserA_AndAuthorizationHeaderOfUserB_IssuesTokensForUserA()
     {
-        Output.WriteLine("[TEST] Refresh_WithBodyTokenOfUserA_AndAuthorizationHeaderOfUserB_IssuesTokensForUserA");
-
         // Arrange: two distinct users
         var userA = await RegisterUserAsync();
         Assert.NotNull(userA);
@@ -65,8 +63,6 @@ public sealed class RefreshTokenMisuseTests : WebApiTestBase
     [Fact]
     public async Task RefreshToken_AsBearerToken_CannotAccessUserSessions_Returns403()
     {
-        Output.WriteLine("[TEST] RefreshToken_AsBearerToken_CannotAccessUserSessions_Returns403");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth!.User);

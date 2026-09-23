@@ -15,11 +15,11 @@ public class UsersManagementTests : WebAppTestBase
     [Fact]
     public async Task UsersPage_RequiresAuthentication()
     {
-        // Act - Try to access users page without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/users");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login or show unauthorized
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
 
@@ -33,14 +33,14 @@ public class UsersManagementTests : WebAppTestBase
     [Fact]
     public async Task UsersPage_Authenticated_ShowsUserTableOrAccessDenied()
     {
-        // Arrange - Register and login (regular user, may not have admin role)
+        // Arrange
         var username = $"users_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to users page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/users");
         await WaitForBlazorAsync();
 
@@ -48,7 +48,7 @@ public class UsersManagementTests : WebAppTestBase
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"Users page URL: {currentUrl}");
 
-        // Assert - Should either show user management content OR deny access (not just silently do nothing)
+        // Assert
         var redirectedToLogin = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
         var hasUsersContent = pageContent.Contains("user", StringComparison.OrdinalIgnoreCase) &&
                               (pageContent.Contains("management", StringComparison.OrdinalIgnoreCase) ||
@@ -69,21 +69,21 @@ public class UsersManagementTests : WebAppTestBase
     [Fact]
     public async Task UsersPage_HasSearchFunctionality()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"search_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to users page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/users");
         await WaitForBlazorAsync();
 
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
 
-        // Assert - If page is accessible (not redirected), it must have search
+        // Assert
         var redirectedAway = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
         var hasAccessDenied = pageContent.Contains("access denied", StringComparison.OrdinalIgnoreCase) ||
                               pageContent.Contains("unauthorized", StringComparison.OrdinalIgnoreCase);
@@ -102,14 +102,14 @@ public class UsersManagementTests : WebAppTestBase
     [Fact]
     public async Task UsersPage_HasRoleFilter()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"filter_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to users page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/users");
         await WaitForBlazorAsync();
 
@@ -127,7 +127,7 @@ public class UsersManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should have role filter dropdown
+        // Assert
         var roleFilter = await Page.QuerySelectorAsync("select");
         Output.WriteLine($"Role filter found: {roleFilter != null}");
         Assert.NotNull(roleFilter);
@@ -136,14 +136,14 @@ public class UsersManagementTests : WebAppTestBase
     [Fact]
     public async Task UsersPage_HasAddUserButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"adduser_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to users page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/users");
         await WaitForBlazorAsync();
 
@@ -161,7 +161,7 @@ public class UsersManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should have add user button
+        // Assert
         var addButton = await Page.QuerySelectorAsync("button:has-text('Add'), button:has-text('Create'), button:has-text('New')");
         Output.WriteLine($"Add user button found: {addButton != null}");
         Assert.NotNull(addButton);
@@ -170,14 +170,14 @@ public class UsersManagementTests : WebAppTestBase
     [Fact]
     public async Task UsersPage_ShowsUserTable_WithColumns()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"table_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to users page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/users");
         await WaitForBlazorAsync();
 
@@ -195,7 +195,7 @@ public class UsersManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should have table with expected columns
+        // Assert
         var table = await Page.QuerySelectorAsync("table");
         Assert.NotNull(table);
 
@@ -215,14 +215,14 @@ public class UsersManagementTests : WebAppTestBase
     [Fact]
     public async Task UsersPage_HasPagination()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"page_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to users page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/users");
         await WaitForBlazorAsync();
 
@@ -240,7 +240,7 @@ public class UsersManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should have pagination
+        // Assert
         var pagination = await Page.QuerySelectorAsync("nav[aria-label*='pagination' i], .pagination, [class*='pagination']");
         var prevButton = await Page.QuerySelectorAsync("button:has-text('Previous'), button[aria-label*='previous' i]");
         var nextButton = await Page.QuerySelectorAsync("button:has-text('Next'), button[aria-label*='next' i]");

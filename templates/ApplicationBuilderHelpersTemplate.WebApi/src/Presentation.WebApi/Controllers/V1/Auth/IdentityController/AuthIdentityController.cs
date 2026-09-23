@@ -30,7 +30,7 @@ public sealed partial class AuthIdentityController(
     /// Gets the user's linked identities.
     /// </summary>
     /// <remarks>
-    /// Returns a comprehensive view of all authentication methods linked to the account.
+    /// Returns all authentication methods linked to the account.
     /// Includes password status, email, OAuth providers, and passkeys.
     /// Use this to display account security settings and linked auth methods.
     /// </remarks>

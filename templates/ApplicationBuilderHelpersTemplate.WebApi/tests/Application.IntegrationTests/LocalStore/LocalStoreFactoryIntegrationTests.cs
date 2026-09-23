@@ -227,7 +227,7 @@ public sealed class LocalStoreFactoryIntegrationTests
 		using (var store = await fixture.Factory.OpenStoreAsync("transactions", CancellationToken.None))
 		{
 			await store.SetAsync("item-1", "auto-committed-value", CancellationToken.None);
-			// No explicit CommitAsync - just dispose
+			// No explicit CommitAsync; dispose rolls back
 		}
 
 		// Verify the data persisted after auto-commit on dispose
@@ -249,7 +249,7 @@ public sealed class LocalStoreFactoryIntegrationTests
 		{
 			await store.SetAsync("key-1", "value-1", CancellationToken.None);
 			await store.SetAsync("key-2", "value-2", CancellationToken.None);
-			// No explicit CommitAsync - just dispose
+			// No explicit CommitAsync; dispose auto-commits
 		}
 
 		// Verify the data persisted

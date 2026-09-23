@@ -12,7 +12,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// Block format: start marker + managed line + script body + end marker.
 /// Bash/Zsh/Pwsh targets are rc/profile files (replace-in-place or append);
 /// fish target is a file-drop. Home/XDG/SHELL/OS lookups are injectable for tests.
-/// Executable names are validated once here (single owner); shell function
+/// Executable names are validated here; shell function
 /// identifiers use the transliterated projection in <see cref="CompletionScriptWriter"/>.
 /// Mutating install/uninstall paths hold a per-target sibling lock file;
 /// dry-run paths are lock-free.
@@ -26,10 +26,10 @@ internal static class CompletionInstaller
     internal const int MaxExeNameLength = 64;
 
     /// <summary>
-    /// Single owner for executable-name policy: empty/whitespace falls back to
+    /// Location for executable-name policy: empty/whitespace falls back to
     /// <c>myapp</c>; otherwise the trimmed name must be ASCII letters/digits plus
     /// <c>.</c>, <c>_</c>, <c>-</c> (max 64 chars) and start with an ASCII letter
-    /// or <c>_</c> (leading <c>-</c>/<c>.</c>/digits break shell shims).
+    /// or <c>_</c> (leading <c>-</c>/<c>.</c>/digits break shell scripts).
     /// Anything else is rejected with a usage error (exit 2) naming the allowed set.
     /// </summary>
     internal static string RequireValidExe(string? exe)
@@ -195,8 +195,6 @@ internal static class CompletionInstaller
         {
             if (File.Exists(target))
             {
-                // Byte-exact comparison: managed fish files are always written
-                // UTF8-no-BOM, so stale encodings count as drift and reinstall.
                 byte[] existingBytes;
                 try
                 {
@@ -590,7 +588,6 @@ internal static class CompletionInstaller
         }
         catch
         {
-            // Best effort: directory fsync is advisory; the file fsync above already landed the content.
         }
     }
 

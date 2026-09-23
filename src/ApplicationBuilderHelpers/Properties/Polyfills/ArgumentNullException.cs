@@ -32,7 +32,7 @@ internal static class ArgumentNullException
     /// <typeparam name="T">The type of values to check.</typeparam>
     /// <remarks>
     /// This type is needed because if there had been a generic overload with a generic parameter, all calls
-    /// would have just been bound by that by the compiler instead of the <see cref="object"/> overload.
+    /// would have been bound by that by the compiler instead of the <see cref="object"/> overload.
     /// </remarks>
     public static class For<T>
     {

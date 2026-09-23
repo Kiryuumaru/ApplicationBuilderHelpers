@@ -143,7 +143,7 @@ public static class CliHelpers
                 File.Delete(scriptPath);
             }
         }
-        catch { /* Best-effort temp file cleanup; non-critical if it fails */ }
+        catch { /* Temp file cleanup may fail silently. */ }
     }
 
     public static async Task<string> RunOnce(

@@ -4,18 +4,16 @@ using System.Collections.Generic;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Industry-standard "did you mean" suggestions for CLI dead-ends.
+/// "Did you mean" suggestions for unmatched option or command names.
 /// Damerau-Levenshtein (optimal string alignment), case-insensitive,
-/// dash-stripped, single best match, silent on far-miss.
+/// dash-stripped, single best match, null when nothing is close.
 /// </summary>
 internal static class DidYouMean
 {
     private const int MaxDistance = 2;
 
     /// <summary>
-    /// Extended bound for the same-first-character prefix bonus. The prefix
-    /// path is intentionally capped so far misses stay silent even when they
-    /// share an initial character (e.g. "--verbosity-garbage-xyz").
+    /// Larger limit when the first character matches.
     /// </summary>
     private const int PrefixBonusMaxDistance = 4;
 
@@ -23,9 +21,9 @@ internal static class DidYouMean
     /// Finds the single best suggestion for <paramref name="input"/> among
     /// <paramref name="candidates"/>, or null when nothing is close.
     /// Each candidate is a (normalized comparison key, display text) pair.
-    /// Admission rule: distance within <see cref="MaxDistance"/> suggests;
-    /// a shared normalized first character (prefix bonus) extends admission
-    /// to <see cref="PrefixBonusMaxDistance"/>; anything farther stays silent.
+    /// Suggests when the distance is within <see cref="MaxDistance"/>;
+    /// a shared normalized first character extends the limit
+    /// to <see cref="PrefixBonusMaxDistance"/>; anything farther returns null.
     /// Ties break by prefix match, then alphabetically.
     /// </summary>
     internal static string? FindBestMatch(string input, IEnumerable<(string Key, string Display)> candidates)

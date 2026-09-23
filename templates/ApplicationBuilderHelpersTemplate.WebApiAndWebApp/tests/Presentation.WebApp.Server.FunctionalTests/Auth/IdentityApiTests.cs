@@ -20,8 +20,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetIdentity_WithoutToken_Returns401()
     {
-        Output.WriteLine("[TEST] GetIdentity_WithoutToken_Returns401");
-
         var randomUserId = Guid.NewGuid();
         Output.WriteLine($"[STEP] GET /api/v1/auth/users/{randomUserId}/identity without token...");
         var response = await HttpClient.GetAsync($"/api/v1/auth/users/{randomUserId}/identity");
@@ -35,8 +33,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetIdentity_WithValidToken_ReturnsIdentityInfo()
     {
-        Output.WriteLine("[TEST] GetIdentity_WithValidToken_ReturnsIdentityInfo");
-
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
 
@@ -67,8 +63,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetIdentity_ForOtherUser_Returns403()
     {
-        Output.WriteLine("[TEST] GetIdentity_ForOtherUser_Returns403");
-
         var user1 = await RegisterUniqueUserAsync();
         var user2 = await RegisterUniqueUserAsync();
         Assert.NotNull(user1);
@@ -88,8 +82,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetIdentity_NonExistentUser_Returns404()
     {
-        Output.WriteLine("[TEST] GetIdentity_NonExistentUser_Returns404");
-
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
 
@@ -113,8 +105,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetIdentity_UserWithOAuth_ReturnsLinkedProviders()
     {
-        Output.WriteLine("[TEST] GetIdentity_UserWithOAuth_ReturnsLinkedProviders");
-
         // Create user via OAuth
         var authResult = await CreateUserViaOAuthAsync();
         Assert.NotNull(authResult);
@@ -143,8 +133,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetIdentity_EmailConfirmedStatus_Correct()
     {
-        Output.WriteLine("[TEST] GetIdentity_EmailConfirmedStatus_Correct");
-
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
 
@@ -171,8 +159,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task Journey_RegisterThenCheckIdentity()
     {
-        Output.WriteLine("[TEST] Journey_RegisterThenCheckIdentity");
-
         var username = $"journey_{Guid.NewGuid():N}";
         var email = $"{username}@example.com";
 
@@ -213,8 +199,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task Journey_OAuthUserLinksPasswordThenCheckIdentity()
     {
-        Output.WriteLine("[TEST] Journey_OAuthUserLinksPasswordThenCheckIdentity");
-
         // Step 1: Create user via OAuth (anonymous with OAuth)
         var authResult = await CreateUserViaOAuthAsync();
         Assert.NotNull(authResult);
@@ -269,8 +253,6 @@ public class IdentityApiTests : WebAppTestBase
     [TimedFact]
     public async Task Journey_TwoUsersHaveIndependentIdentities()
     {
-        Output.WriteLine("[TEST] Journey_TwoUsersHaveIndependentIdentities");
-
         // Create two users
         var user1 = await RegisterUniqueUserAsync();
         var user2 = await CreateUserViaOAuthAsync();
@@ -416,7 +398,5 @@ public class IdentityApiTests : WebAppTestBase
 
     #endregion
 }
-
-
 
 

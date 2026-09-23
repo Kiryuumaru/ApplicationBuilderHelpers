@@ -8,17 +8,16 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Owns the joint command/host run and exactly-once <c>Exiting</c> fan-out.
-/// Moved verbatim from the executor's race block (mechanical split, no behavior
-/// change): command-wins faulted/canceled/success, host-wins faulted/canceled/
-/// success-with-code, including the host-nonzero winner and the
-/// host-won-with-success-but-command-canceled OCE rethrow.
+/// Runs the command task and the host task; invokes <c>Exiting</c> once.
+/// Command-finished faulted/canceled/success, host-finished faulted/canceled/
+/// success-with-code, including the host-nonzero result and the
+/// host-finished-with-success-but-command-canceled OCE rethrow.
 /// Fault and canceled resolutions propagate as exceptions (identity and stack
 /// preserved); only the success resolutions return a <see cref="CommandRunOutcome"/>
 /// (<see cref="CommandRunOutcome.CommandSuccess"/> or
 /// <see cref="CommandRunOutcome.HostSuccessWithCode"/>).
 /// <see cref="LifetimeGlobalService"/>'s own exactly-once guards stay untouched as
-/// the fail-safe; this orchestrator owns calling <c>Exiting</c> at the right sites.
+/// the backup; this class calls <c>Exiting</c> at the matching completion branches.
 /// </summary>
 internal static class CommandRunOrchestrator
 {
@@ -37,18 +36,17 @@ internal static class CommandRunOrchestrator
 
         if (ReferenceEquals(finished, commandTask))
         {
-            // Command finished first: normal return = success, so stop the host.
             if (commandTask.IsFaulted)
             {
                 hostCts.Cancel();
-                try { await hostTask.ConfigureAwait(false); } catch { /* Host outcome is irrelevant: the command failed. */ }
+                try { await hostTask.ConfigureAwait(false); } catch { }
                 await commandTask.ConfigureAwait(false);
                 throw new InvalidOperationException("Unreachable: the faulted command task rethrows on await.");
             }
             else if (commandTask.IsCanceled)
             {
                 hostCts.Cancel();
-                try { await hostTask.ConfigureAwait(false); } catch { /* Host outcome is irrelevant: the command was canceled. */ }
+                try { await hostTask.ConfigureAwait(false); } catch { }
                 await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync().ConfigureAwait(false);
                 scope.ThrowIfExternalAbort();
                 await commandTask.ConfigureAwait(false);
@@ -58,23 +56,21 @@ internal static class CommandRunOrchestrator
             {
                 await commandTask.ConfigureAwait(false);
                 hostCts.Cancel();
-                try { await hostTask.ConfigureAwait(false); } catch (OperationCanceledException) { /* Expected: framework stopped the host after command success. */ }
+                try { await hostTask.ConfigureAwait(false); } catch (OperationCanceledException) {  }
                 return CommandRunOutcome.CommandSuccess;
             }
         }
         else
         {
-            // Host stopped first (e.g. IHost.StopAsync): drain the command so a
-            // faulted/canceled command is still observed, then honor its outcome.
             if (hostTask.IsFaulted)
             {
-                try { await commandTask.ConfigureAwait(false); } catch { /* Command outcome is irrelevant: the host failed. */ }
+                try { await commandTask.ConfigureAwait(false); } catch { }
                 _ = await hostTask.ConfigureAwait(false);
                 throw new InvalidOperationException("Unreachable: the faulted host task rethrows on await.");
             }
             else if (hostTask.IsCanceled)
             {
-                try { await commandTask.ConfigureAwait(false); } catch { /* Command outcome is irrelevant: the host was canceled. */ }
+                try { await commandTask.ConfigureAwait(false); } catch { }
                 await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync().ConfigureAwait(false);
                 _ = await hostTask.ConfigureAwait(false);
                 throw new InvalidOperationException("Unreachable: the canceled host task rethrows on await.");
@@ -83,7 +79,7 @@ internal static class CommandRunOrchestrator
             {
                 int hostExitCode = await hostTask.ConfigureAwait(false);
                 try { await commandTask.ConfigureAwait(false); }
-                catch (OperationCanceledException) // Host won with success but command canceled: run Exiting once (Lifetime Callbacks contract); OCE-only so faults still run only Exited.
+                catch (OperationCanceledException)
                 {
                     await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync().ConfigureAwait(false);
                     throw;

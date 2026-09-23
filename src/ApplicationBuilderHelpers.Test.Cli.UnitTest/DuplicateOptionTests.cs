@@ -8,8 +8,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// In-process duplicate-option tests for the CLI parser.
 /// Scalar and valued-flag repeats resolve last-wins (industry standard);
 /// array options stay repeatable and bare boolean flags stay idempotent.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class DuplicateOptionTests

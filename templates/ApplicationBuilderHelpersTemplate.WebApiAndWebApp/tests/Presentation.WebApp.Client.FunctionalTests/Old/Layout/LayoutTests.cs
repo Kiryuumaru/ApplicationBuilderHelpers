@@ -17,17 +17,17 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task MainLayout_HasSidebar()
     {
-        // Arrange - Login (navigates to home page after success)
+        // Arrange
         var username = $"sidebar_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login, wait for authenticated state to be restored
+        // Act
         await WaitForAuthenticatedStateAsync();
 
-        // Assert - Should have sidebar navigation
+        // Assert
         var sidebar = await Page.QuerySelectorAsync("aside, .sidebar, [class*='sidebar']");
         var nav = await Page.QuerySelectorAsync("nav");
 
@@ -37,17 +37,17 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task MainLayout_HasHeader()
     {
-        // Arrange - Login (navigates to home page after success)
+        // Arrange
         var username = $"header_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login, wait for authenticated state to be restored
+        // Act
         await WaitForAuthenticatedStateAsync();
 
-        // Assert - Should have header
+        // Assert
         var header = await Page.QuerySelectorAsync("header, .header, [class*='header']");
         Output.WriteLine($"Header found: {header != null}");
     }
@@ -55,17 +55,17 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task MainLayout_HasUserMenu()
     {
-        // Arrange - Login (navigates to home page after success)
+        // Arrange
         var username = $"usermenu_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login, wait for authenticated state to be restored
+        // Act
         await WaitForAuthenticatedStateAsync();
 
-        // Assert - Should have user menu or logout option
+        // Assert
         var userMenu = await Page.QuerySelectorAsync("[class*='user'], [class*='avatar'], button:has-text('Logout')");
         var pageContent = await Page.ContentAsync();
         var hasUserElements = pageContent.Contains("logout", StringComparison.OrdinalIgnoreCase) ||
@@ -77,17 +77,17 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task MainLayout_HasLogoutOption()
     {
-        // Arrange - Login (navigates to home page after success)
+        // Arrange
         var username = $"logout_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login, wait for authenticated state to be restored
+        // Act
         await WaitForAuthenticatedStateAsync();
 
-        // Assert - Should have logout button/link
+        // Assert
         var logoutButton = await Page.QuerySelectorAsync("button:has-text('Logout'), a:has-text('Logout'), [data-testid='logout']");
         var pageContent = await Page.ContentAsync();
         var hasLogout = pageContent.Contains("logout", StringComparison.OrdinalIgnoreCase) ||
@@ -99,17 +99,17 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task MainLayout_HasMainContentArea()
     {
-        // Arrange - Register and login (main layout requires auth, navigates to home after success)
+        // Arrange
         var username = $"maincontent_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login, wait for authenticated state to be restored
+        // Act
         await WaitForAuthenticatedStateAsync();
 
-        // Assert - Should have main content area
+        // Assert
         var main = await Page.QuerySelectorAsync("main, [role='main'], .main-content, [class*='content']");
         Assert.NotNull(main);
     }
@@ -124,7 +124,7 @@ public class LayoutTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Login should be centered (auth layout)
+        // Assert
         var content = await Page.ContentAsync();
         var pageHtml = await Page.InnerHTMLAsync("body");
 
@@ -144,7 +144,7 @@ public class LayoutTests : WebAppTestBase
         // Act
         await GoToRegisterAsync();
 
-        // Assert - Register should be centered (auth layout)
+        // Assert
         var card = await Page.QuerySelectorAsync(".bg-white, [class*='card']");
         Assert.NotNull(card);
     }
@@ -155,7 +155,7 @@ public class LayoutTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Should have some branding
+        // Assert
         var pageContent = await Page.ContentAsync();
         var title = await Page.TitleAsync();
 
@@ -170,7 +170,7 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task Layout_Mobile_AdjustsCorrectly()
     {
-        // Arrange - Set mobile viewport before login
+        // Arrange
         await Page.SetViewportSizeAsync(375, 667);
         
         var username = $"mobile_{Guid.NewGuid():N}".Substring(0, 20);
@@ -179,10 +179,10 @@ public class LayoutTests : WebAppTestBase
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login
+        // Act
         await WaitForBlazorAsync();
 
-        // Assert - Page should still be usable
+        // Assert
         var content = await Page.ContentAsync();
         Assert.False(string.IsNullOrEmpty(content), "Should render on mobile");
 
@@ -197,7 +197,7 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task Layout_Tablet_AdjustsCorrectly()
     {
-        // Arrange - Set tablet viewport before login
+        // Arrange
         await Page.SetViewportSizeAsync(768, 1024);
         
         var username = $"tablet_{Guid.NewGuid():N}".Substring(0, 20);
@@ -206,10 +206,10 @@ public class LayoutTests : WebAppTestBase
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login
+        // Act
         await WaitForBlazorAsync();
 
-        // Assert - Page should render correctly
+        // Assert
         var content = await Page.ContentAsync();
         Assert.False(string.IsNullOrEmpty(content), "Should render on tablet");
 
@@ -220,7 +220,7 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task Layout_Desktop_ShowsFullLayout()
     {
-        // Arrange - Set desktop viewport before login
+        // Arrange
         await Page.SetViewportSizeAsync(1920, 1080);
         
         var username = $"desktop_{Guid.NewGuid():N}".Substring(0, 20);
@@ -229,10 +229,10 @@ public class LayoutTests : WebAppTestBase
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login
+        // Act
         await WaitForBlazorAsync();
 
-        // Assert - Should show full layout with sidebar
+        // Assert
         var sidebar = await Page.QuerySelectorAsync("aside, nav, .sidebar");
         var main = await Page.QuerySelectorAsync("main, [role='main']");
 
@@ -246,7 +246,7 @@ public class LayoutTests : WebAppTestBase
     [Fact]
     public async Task Layout_SupportsDarkMode()
     {
-        // Act - Check if dark mode classes exist
+        // Act
         await GoToHomeAsync();
 
         var pageContent = await Page.ContentAsync();

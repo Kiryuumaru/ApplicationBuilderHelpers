@@ -13,8 +13,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// instance-based application dependencies, instance-based command type parsers,
 /// command preparation forwarding through <see cref="ICommand"/>, and short-only
 /// option help rendering.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class InstanceOverloadTests

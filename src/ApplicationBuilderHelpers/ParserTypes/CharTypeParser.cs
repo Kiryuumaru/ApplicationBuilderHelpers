@@ -8,7 +8,6 @@ internal class CharTypeParser : CommandTypeParser<char>
 {
     public override char ParseValue(string? value, out string? validateError)
     {
-        // No provider overload exists; the single-char grammar has no culture-sensitive elements.
         if (char.TryParse(value, out var result))
         {
             validateError = null;

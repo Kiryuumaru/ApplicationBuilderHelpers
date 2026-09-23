@@ -4,7 +4,7 @@ using System;
 namespace ApplicationBuilderHelpers.Themes;
 
 /// <summary>
-/// Default console color theme - colorful and well-contrasted.
+/// Default console color theme.
 /// </summary>
 public class DefaultConsoleTheme : IConsoleTheme
 {
@@ -45,7 +45,7 @@ public class DefaultConsoleTheme : IConsoleTheme
 }
 
 /// <summary>
-/// Monochrome console theme - uses only grayscale colors for maximum compatibility.
+/// Monochrome console theme. It uses only grayscale colors.
 /// </summary>
 public class MonochromeConsoleTheme : IConsoleTheme
 {
@@ -86,7 +86,7 @@ public class MonochromeConsoleTheme : IConsoleTheme
 }
 
 /// <summary>
-/// High contrast console theme - maximum visibility with bright colors.
+/// High contrast console theme. It uses bright colors.
 /// </summary>
 public class HighContrastConsoleTheme : IConsoleTheme
 {
@@ -127,7 +127,7 @@ public class HighContrastConsoleTheme : IConsoleTheme
 }
 
 /// <summary>
-/// Minimal console theme - subtle colors for a clean, professional appearance.
+/// Minimal console theme. It uses muted colors.
 /// </summary>
 public class MinimalConsoleTheme : IConsoleTheme
 {
@@ -168,7 +168,7 @@ public class MinimalConsoleTheme : IConsoleTheme
 }
 
 /// <summary>
-/// Dark console theme - designed for dark terminal backgrounds.
+/// Dark console theme for dark terminal backgrounds.
 /// </summary>
 public class DarkConsoleTheme : IConsoleTheme
 {
@@ -209,7 +209,7 @@ public class DarkConsoleTheme : IConsoleTheme
 }
 
 /// <summary>
-/// Light console theme - designed for light terminal backgrounds.
+/// Light console theme for light terminal backgrounds.
 /// </summary>
 public class LightConsoleTheme : IConsoleTheme
 {

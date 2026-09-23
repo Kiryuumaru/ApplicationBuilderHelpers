@@ -9,7 +9,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Immutable snapshot of a single <see cref="CommandOptionAttribute"/>-backed property.
-/// Stores only pure-reflection data: the <see cref="PropertyInfo"/> plus copied
+/// Stores only reflection data: the <see cref="PropertyInfo"/> plus copied
 /// attribute primitives, the declaring type, the C# <c>required</c>-keyword result,
 /// and the enum-candidate snapshot. Never stores parser-derived state.
 /// </summary>
@@ -45,7 +45,7 @@ internal sealed record CommandOptionDescriptor(
 
 /// <summary>
 /// Immutable snapshot of a single <see cref="CommandArgumentAttribute"/>-backed property.
-/// Stores only pure-reflection data: the <see cref="PropertyInfo"/> plus copied
+/// Stores only reflection data: the <see cref="PropertyInfo"/> plus copied
 /// attribute primitives, the declaring type, the C# <c>required</c>-keyword result,
 /// and the enum-candidate snapshot. Never stores parser-derived state.
 /// </summary>
@@ -79,9 +79,9 @@ internal sealed record CommandArgumentDescriptor(
 
 /// <summary>
 /// Immutable snapshot of one command type: its option and argument descriptors.
-/// Arguments are ordered by <c>Position</c>, mirroring
-/// <c>SubCommandArgumentInfo.FromCommandType</c>. Options preserve base-first
-/// property order, mirroring <c>SubCommandOptionInfo.FromCommandType</c>.
+/// Arguments are ordered by <c>Position</c> (see
+/// <c>SubCommandArgumentInfo.FromCommandType</c>). Options preserve base-first
+/// property order (see <c>SubCommandOptionInfo.FromCommandType</c>).
 /// </summary>
 /// <param name="CommandType">The reflected command type.</param>
 /// <param name="Options">Frozen option snapshots in base-first property order.</param>
@@ -92,42 +92,37 @@ internal sealed record CommandTypeDescriptor(
     CommandArgumentDescriptor[] Arguments);
 
 /// <summary>
-/// S9 cache core: pure-reflection snapshot cache keyed by command <see cref="Type"/>.
-/// The factory performs reflection only and never consults type parsers, command
-/// instances, or hierarchy state. Effective required is
-/// <c>Required || IsRequiredByKeyword</c> (mirroring
+/// Reflection snapshot cache keyed by command <see cref="Type"/>.
+/// The factory performs reflection only. Effective required is
+/// <c>Required || IsRequiredByKeyword</c> (see
 /// <c>SubCommandOptionInfo.FromProperty</c> / <c>SubCommandArgumentInfo.FromProperty</c>);
-/// enum auto-populate decisions stay with the parser layer, which reads
+/// enum auto-population stays in the parser layer with
 /// <c>EnumCandidateType</c> / <c>EnumCandidateNames</c>.
-/// Never stored here: ICommand, SubCommandInfo, IsGlobal/IsInherited, OwnerCommand/BindTarget,
-/// or parser-derived ValidValues.
+/// Excluded: ICommand, SubCommandInfo, IsGlobal/IsInherited, OwnerCommand/BindTarget,
+/// parser-derived ValidValues.
 /// </summary>
 internal sealed class CommandReflectionCache
 {
     private readonly TypePlanCache<CommandTypeDescriptor> _plans = new();
 
     /// <summary>
-    /// Number of times the reflection factory ran (cache misses). Test hook.
+    /// Number of times the reflection factory ran (cache misses).
     /// </summary>
     internal int BuildCount => _plans.BuildCount;
 
     /// <summary>
     /// Gets the cached descriptor for the command type, building it once on first use.
-    /// The miss counter increments exactly when this cache populates a new entry.
-    /// Shares the double-checked-lock core in <see cref="TypePlanCache{TValue}"/>
-    /// via the annotated <see cref="PlanFactory{TValue}"/> delegate hop
-    /// (method-group delegate creation reports IL2111, suppressed explicitly
-    /// below: the target is statically referenced, never reflection-invoked
-    /// by name).
+    /// Shares the core in <see cref="TypePlanCache{TValue}"/>
+    /// with the annotated <see cref="PlanFactory{TValue}"/> delegate.
     /// </summary>
-    [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Method-group Build is statically referenced, never reflection-invoked by name; the All-annotated type flows via the annotated PlanFactory delegate.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Method-group Build is statically referenced, never reflection-invoked by name; the All-annotated type flows through the annotated PlanFactory delegate.")]
     internal CommandTypeDescriptor GetOrAdd([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
         return _plans.GetOrAdd(commandType, Build);
     }
 
     /// <summary>
-    /// Pure-reflection factory: snapshots options and arguments for the command type.
+    /// Reflection factory: snapshots options and arguments for the command type.
     /// Bound detection uses the canonical <see cref="IsCliBound"/> predicate.
     /// </summary>
     private static CommandTypeDescriptor Build([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
@@ -218,13 +213,13 @@ internal sealed class CommandReflectionCache
     }
 
     /// <summary>
-    /// Single owned property walk: full BaseType chain base-first. Carries
+    /// Single property walk: full BaseType chain base-first. Holds
     /// <c>All</c> so the full BaseType loop (which reflects off
     /// <c>BaseType</c> hops) and every full-walk caller flow without trim
-    /// warnings. The declared-only walk lives in
+    /// warnings. The declared-only walk is in
     /// <see cref="WalkDeclaredOnly(Type)"/> with its own narrow annotation
     /// so neither path needs a suppression; filtering by descriptor is
-    /// deliberately not offered (override/hide members must keep their
+    /// not offered (override/hide members must keep their
     /// duplicate walk entries). Shared by SubCommandOptionInfo /
     /// SubCommandArgumentInfo so the walk exists once.
     /// </summary>
@@ -253,7 +248,7 @@ internal sealed class CommandReflectionCache
     /// Declared-only walk: the properties declared directly on
     /// <paramref name="type"/>. Carries only
     /// <c>PublicProperties | NonPublicProperties</c>, matching the leaf
-    /// <c>FromDeclaredType</c> shims' own annotations, so those callers
+    /// <c>FromDeclaredType</c> overloads' own annotations, so those callers
     /// flow without a trim suppression.
     /// </summary>
     internal static List<PropertyInfo> WalkDeclaredOnly([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type type)

@@ -30,7 +30,7 @@ public sealed class TokenSeparationTests(ITestOutputHelper output) : WebApiTestB
 
     /// <summary>
     /// The key test: Access tokens CANNOT be used as refresh tokens.
-    /// This verifies that the deny;api:auth:refresh directive works.
+    /// The deny;api:auth:refresh directive rejects access tokens used as refresh tokens.
     /// </summary>
     [Fact]
     public async Task AccessTokenAsRefreshToken_IsRejected_Returns401()
@@ -54,7 +54,7 @@ public sealed class TokenSeparationTests(ITestOutputHelper output) : WebApiTestB
 
     /// <summary>
     /// Refresh tokens CAN be used as refresh tokens.
-    /// This verifies they have allow;api:auth:refresh.
+    /// Refresh tokens carry allow;api:auth:refresh.
     /// </summary>
     [Fact]
     public async Task RefreshTokenAsRefreshToken_IsAccepted_Returns200()
@@ -84,7 +84,7 @@ public sealed class TokenSeparationTests(ITestOutputHelper output) : WebApiTestB
 
     /// <summary>
     /// Refresh tokens CANNOT access endpoints with [RequiredPermission].
-    /// This verifies they only have the refresh permission.
+    /// Refresh tokens carry only the refresh permission.
     /// </summary>
     [Fact]
     public async Task RefreshToken_CannotAccessProtectedEndpoint_Returns403()

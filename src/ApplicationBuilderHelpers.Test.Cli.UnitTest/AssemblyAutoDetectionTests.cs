@@ -16,8 +16,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <c>ExecutableDescription</c> / <c>ExecutableVersion</c>) unset so the help,
 /// version, and error-footer paths fall back to entry-assembly auto-detection.
 /// Also verifies that explicitly configured metadata overrides auto-detection.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class AssemblyAutoDetectionTests

@@ -1,6 +1,6 @@
 # Initialize ApplicationBuilderHelpers C# Project
 
-You are initializing a C# project using the **ApplicationBuilderHelpers** framework — a dependency injection and application lifecycle framework built on clean architecture principles. It provides `ApplicationDependency` lifecycle management, command hierarchy with CLI option parsing, multi-source configuration with `@ref:` chains, build-time encrypted embedded config, source-generated build constants, structured logging, and a middleware pipeline.
+You are initializing a C# project using the **ApplicationBuilderHelpers** framework, a dependency injection and application lifecycle framework built on clean architecture principles. It provides `ApplicationDependency` lifecycle management, command hierarchy with CLI option parsing, multi-source configuration with `@ref:` chains, build-time encrypted embedded config, source-generated build constants, structured logging, and a middleware pipeline.
 
 Refer to the [ApplicationBuilderHelpers](https://github.com/nicenemo/ApplicationBuilderHelpers) repository for the NuGet package and core documentation. Use this template repository as the reference implementation.
 
@@ -35,14 +35,14 @@ cp /tmp/abht_source/AGENTS.md .
 
 Read every file in `.github/instructions/` before writing any code. Treat them as MUST/NEVER constraints, not suggestions:
 
-- `project-context.instructions.md` — terminology, project status, breaking-change policy
-- `rule-style.instructions.md` — how rules are written
-- `architecture.instructions.md` — layering, folder structure, DI lifetimes, ports/adapters, ApplicationDependency, ServiceCollectionExtensions, ConfigurationExtensions, commands, workers, naming, prohibited patterns
-- `code-quality.instructions.md` — nullable handling, commenting, constructors, fix hygiene
-- `documentation.instructions.md` — when to update docs
-- `workflow.instructions.md` — build/test commands, pre-commit checks
-- `agent-terminal.instructions.md` — terminal usage rules (no `&&`, `|`, `;`, redirections)
-- `ui-test-practices.instructions.md` — test conventions, assertions, no `Task.Delay`
+- `project-context.instructions.md`: terminology, project status, breaking-change policy
+- `rule-style.instructions.md`: how rules are written
+- `architecture.instructions.md`: layering, folder structure, DI lifetimes, ports/adapters, ApplicationDependency, ServiceCollectionExtensions, ConfigurationExtensions, commands, workers, naming, prohibited patterns
+- `code-quality.instructions.md`: nullable handling, commenting, constructors, fix hygiene
+- `documentation.instructions.md`: when to update docs
+- `workflow.instructions.md`: build/test commands, pre-commit checks
+- `agent-terminal.instructions.md`: terminal usage rules (no `&&`, `|`, `;`, redirections)
+- `ui-test-practices.instructions.md`: test conventions, assertions, no `Task.Delay`
 
 ---
 
@@ -120,7 +120,7 @@ Create `global.json` at the project root to pin the .NET SDK version:
 }
 ```
 
-Run `dotnet --list-sdks` to find the installed version and adjust accordingly. Use `latestFeature` roll-forward for flexibility within the same feature band.
+Run `dotnet --list-sdks` to find the installed version and adjust accordingly. Use `latestFeature` roll-forward.
 
 ---
 
@@ -138,7 +138,7 @@ Create `YourSolution.slnx` using the XML-based format:
 </Solution>
 ```
 
-The `.slnx` format is supported since .NET 9.0.200 SDK and Visual Studio 17.13+. It eliminates GUIDs and configuration boilerplate from the old `.sln` format.
+The `.slnx` format is supported since .NET 9.0.200 SDK and Visual Studio 17.13+. It eliminates GUIDs and configuration setup from the old `.sln` format.
 
 ---
 
@@ -641,7 +641,7 @@ MUST pass 100%.
 
 ## Reminder: Rules Take Precedence
 
-When adding any feature beyond this scaffold, MUST consult the rules in `.github/instructions/` first. The architecture rules govern:
+When adding any feature beyond this starter template, MUST consult the rules in `.github/instructions/` first. The architecture rules govern:
 
 - Where each type of file lives (entities, value objects, services, adapters, etc.)
 - Which layer may reference which other layer (Domain→nothing, Application→Domain, Infrastructure→Domain+Application, Presentation→Domain+Application)

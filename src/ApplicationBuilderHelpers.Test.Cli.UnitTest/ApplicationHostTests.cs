@@ -17,12 +17,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// entry point to cover the host run pipeline: generic host accessors, preparation
 /// hook ordering, sync/async preparation markers and failures, hosted-service
 /// exit codes, cancellation, and host-builder construction errors.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
-/// Note: ApplicationHostBuilder&lt;T&gt;.AddApplication overloads mutate the
-/// dependency list and therefore cannot be invoked from inside the build hooks
-/// (which enumerate that list) without throwing; they are documented as an
-/// accepted gap.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
+/// Dependency lists cannot be modified from inside the build hooks
+/// (which enumerate that list).
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ApplicationHostTests

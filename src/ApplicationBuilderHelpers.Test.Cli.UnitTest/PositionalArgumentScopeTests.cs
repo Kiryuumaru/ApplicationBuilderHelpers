@@ -11,8 +11,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// a root positional is leaf-local only, so a leaf never accepts the root
 /// value, never lists it in leaf help, and never collides with a leaf-local
 /// positional of the same name at any depth.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class PositionalArgumentScopeTests

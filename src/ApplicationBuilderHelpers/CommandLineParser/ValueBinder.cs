@@ -7,7 +7,7 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Binds parsed values onto the command instance via the shared
+/// Binds parsed values onto the command instance with the shared
 /// <see cref="TypeConversion.TypeConversion"/> scalar pipeline and <see cref="CollectionShape"/>
 /// collection materialization (per-element conversion for collections,
 /// scalar conversion otherwise).
@@ -15,30 +15,21 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollection)
 {
     /// <summary>
-    /// Validates every supplied value without binding (#496 aggregation dry run
-    /// plus #483 help precedence). Runs the exact same conversion/materialization
-    /// calls as <see cref="SetCommandValues"/>, discarding the converted results
-    /// instead of assigning them, so each present value's conversion error is
-    /// observed without stopping at the first. Env fallback runs first (same as
-    /// the bind path), then each option/argument value is converted in
-    /// deterministic canonical-key order. Skips bare-ledger keys when ShowHelp
-    /// is set to preserve the --config --help carve-out (bare valued + help
-    /// neighbor). Collected messages join the missing errors in the caller; the
-    /// first message keeps the legacy single-error text byte-identical.
+    /// Validates every supplied value without binding. Applies
+    /// environment-variable fallback, converts each option/argument value in
+    /// canonical-key order, and skips bare-occurrence keys when help is
+    /// requested. Error messages join the missing errors in the caller; the
+    /// first message matches the single-error text.
     /// </summary>
     public List<string> CollectBindingErrors(ParseResult result, bool skipBareWhenHelpRequested = false)
     {
         var errors = new List<string>();
 
-        // Same env fallback as the bind path so env-supplied values are
-        // validated (ValidValues/conversion) exactly like CLI-supplied ones.
         foreach (var option in result.TargetCommand.AllOptions.Where(o => !string.IsNullOrEmpty(o.EnvironmentVariable)))
         {
             EnvVarFallback.Apply(result, option, requiredOnly: false);
         }
 
-        // Validate option values (grouped by canonical key so global-copy
-        // identities validate one logical option once with merged CLI-wins values)
         foreach (var group in result.OptionValues
             .OrderBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal)
             .GroupBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal))
@@ -53,7 +44,6 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             ValidateOptionGroup(option, values, errors);
         }
 
-        // Validate argument values
         foreach (var (argument, values) in result.ArgumentValues.OrderBy(entry => entry.Key.DisplayName, StringComparer.Ordinal))
         {
             if (values.Count == 0) continue;
@@ -71,16 +61,11 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
     {
         var command = result.TargetCommand.Command!;
 
-        // First, check for environment variable fallback for all options with environment variables
         foreach (var option in result.TargetCommand.AllOptions.Where(o => !string.IsNullOrEmpty(o.EnvironmentVariable)))
         {
             EnvVarFallback.Apply(result, option, requiredOnly: false);
         }
 
-        // Set option values (grouped by canonical key so global-copy
-        // identities bind one logical option once with merged CLI-wins values).
-        // Identity comes from the ParseResult sole reader (target command's own
-        // copy first, encounter-order fallback); values stay the merged list.
         foreach (var group in result.OptionValues.GroupBy(
             entry => ParseResult.GetCanonicalOptionKey(entry.Key),
             StringComparer.Ordinal))
@@ -112,14 +97,10 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                 propertyValue = TypeConversion.TypeConversion.Convert(values[0], option, displayName, typeParserCollection);
             }
 
-            // Note: FromAmong (ValidValues) validation is applied inside
-            // TypeConversion.Convert (convert-then-compare). ValidateValue is only
-            // used for required field validation in the required-validation pass.
 
             option.Property.SetValue(command, propertyValue);
         }
 
-        // Set argument values
         foreach (var (argument, values) in result.ArgumentValues)
         {
             if (values.Count == 0) continue;

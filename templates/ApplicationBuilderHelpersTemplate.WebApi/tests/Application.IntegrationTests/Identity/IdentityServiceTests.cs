@@ -205,9 +205,8 @@ public sealed class IdentityServiceTests
         // Create a user who doesn't yet have the User role assigned manually
         var user = await fixture.UserRegistrationService.RegisterUserAsync(new UserRegistrationRequest("epsilon", "pass"), CancellationToken.None);
 
-        // Try to assign User role without providing the required roleUserId parameter
-        // (Note: registration already assigns User role with correct params, 
-        // but trying to assign it again without params should fail)
+        // Registration already assigns the User role with correct params;
+        // assigning it again without params should fail
         await Assert.ThrowsAsync<Domain.Shared.Exceptions.ValidationException>(() => fixture.UserAuthorizationService.AssignRoleAsync(
             user.Id,
             new RoleAssignmentRequest(RolesConstants.User.Code), // Missing roleUserId parameter
@@ -321,7 +320,7 @@ public sealed class IdentityServiceTests
         var dbContext = dbContextFactory.CreateDbContext();
         dbContext.Database.EnsureCreated();
         
-        // Note: Built-in roles (Admin, User) are served from static constants in Domain.Authorization.Constants.Roles
+        // Built-in roles (Admin, User) are served from static constants in Domain.Authorization.Constants.Roles
         // and do not need to be seeded in the database. The EFCoreRoleRepository checks static roles first.
         
         // Signal that database is initialized (uses internal method via InternalsVisibleTo)

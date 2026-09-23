@@ -21,7 +21,7 @@ public class PasswordResetTests : WebAppTestBase
         await Page.GotoAsync($"{WebAppUrl}/auth/forgot-password");
         await WaitForBlazorAsync();
 
-        // Assert - Verify form elements exist
+        // Assert
         var emailInput = await Page.QuerySelectorAsync("input[type='email'], input[name='email']");
         var submitButton = await Page.QuerySelectorAsync("button[type='submit']");
 
@@ -36,7 +36,7 @@ public class PasswordResetTests : WebAppTestBase
         await Page.GotoAsync($"{WebAppUrl}/auth/forgot-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should have a link back to login
+        // Assert
         var loginLink = await Page.QuerySelectorAsync("a[href*='login' i]");
         Assert.NotNull(loginLink);
     }
@@ -48,7 +48,7 @@ public class PasswordResetTests : WebAppTestBase
         await Page.GotoAsync($"{WebAppUrl}/auth/forgot-password");
         await WaitForBlazorAsync();
 
-        // Act - Submit email
+        // Act
         var emailInput = await Page.QuerySelectorAsync("input[type='email'], input[name='email']");
         if (emailInput != null)
         {
@@ -58,7 +58,7 @@ public class PasswordResetTests : WebAppTestBase
         await Page.ClickAsync("button[type='submit']");
         await Task.Delay(1000);
 
-        // Assert - Should show confirmation message after submitting email
+        // Assert
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"Page content after submit: {pageContent.Substring(0, Math.Min(500, pageContent.Length))}");
 
@@ -76,7 +76,7 @@ public class PasswordResetTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Should have forgot password link
+        // Assert
         var forgotLink = await Page.QuerySelectorAsync("a[href*='forgot' i], a[href*='reset' i]");
         Assert.NotNull(forgotLink);
     }
@@ -87,7 +87,7 @@ public class PasswordResetTests : WebAppTestBase
         // Arrange
         await GoToLoginAsync();
 
-        // Act - Click forgot password link
+        // Act
         var forgotLink = await Page.QuerySelectorAsync("a[href*='forgot' i], a[href*='reset' i]");
         if (forgotLink != null)
         {

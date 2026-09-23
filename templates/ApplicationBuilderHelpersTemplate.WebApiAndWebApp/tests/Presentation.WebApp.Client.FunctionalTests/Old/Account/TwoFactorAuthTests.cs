@@ -15,7 +15,7 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact(Skip = "Blazor app does not redirect unauthenticated users to login for 2FA page - shows unauthorized content instead")]
     public async Task TwoFactor_RequiresAuthentication()
     {
-        // Act - Try to access 2FA setup without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
         
@@ -23,7 +23,7 @@ public class TwoFactorAuthTests : WebAppTestBase
         await Task.Delay(500);
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login or show unauthorized
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
         var redirectedToLogin = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
@@ -39,18 +39,18 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_Authenticated_ShowsSecurityPage()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"security_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to 2FA page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
 
-        // Assert - Should show security page
+        // Assert
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"Security page content length: {pageContent.Length}");
 
@@ -65,18 +65,18 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_ShowsCurrentStatus()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"status_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to 2FA page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
 
-        // Assert - Should show 2FA status
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasStatusInfo = pageContent.Contains("enabled", StringComparison.OrdinalIgnoreCase) ||
                            pageContent.Contains("disabled", StringComparison.OrdinalIgnoreCase) ||
@@ -89,18 +89,18 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_HasEnableButton_WhenDisabled()
     {
-        // Arrange - Register and login (new user, 2FA should be disabled)
+        // Arrange
         var username = $"enable_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to 2FA page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
 
-        // Assert - Should have enable button or show setup instructions
+        // Assert
         var enableButton = await Page.QuerySelectorAsync("button:has-text('Enable'), button:has-text('Set up'), button:has-text('Configure'), button:has-text('Verify')");
         var pageContent = await Page.ContentAsync();
         var hasEnableOption = enableButton != null ||
@@ -117,14 +117,14 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_EnableFlow_ShowsQRCode()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"qr_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to security page and start 2FA setup
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/security");
         await WaitForBlazorAsync();
 
@@ -134,7 +134,7 @@ public class TwoFactorAuthTests : WebAppTestBase
             await enableButton.ClickAsync();
             await Task.Delay(1000);
 
-            // Assert - Should show QR code
+            // Assert
             var qrCode = await Page.QuerySelectorAsync("img[alt*='QR' i], [class*='qr' i], svg");
             var pageContent = await Page.ContentAsync();
             var hasQrContent = qrCode != null ||
@@ -153,14 +153,14 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_EnableFlow_ShowsManualKey()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"manual_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to security page and start 2FA setup
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/security");
         await WaitForBlazorAsync();
 
@@ -170,7 +170,7 @@ public class TwoFactorAuthTests : WebAppTestBase
             await enableButton.ClickAsync();
             await Task.Delay(1000);
 
-            // Assert - Should show manual key option
+            // Assert
             var pageContent = await Page.ContentAsync();
             var hasManualKey = pageContent.Contains("manual", StringComparison.OrdinalIgnoreCase) ||
                               pageContent.Contains("key", StringComparison.OrdinalIgnoreCase) ||
@@ -184,14 +184,14 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_EnableFlow_RequiresVerificationCode()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"verify_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to security page and start 2FA setup
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/security");
         await WaitForBlazorAsync();
 
@@ -201,7 +201,7 @@ public class TwoFactorAuthTests : WebAppTestBase
             await enableButton.ClickAsync();
             await Task.Delay(1000);
 
-            // Assert - Should have verification code input
+            // Assert
             var codeInput = await Page.QuerySelectorAsync("input[name*='code' i], input[placeholder*='code' i], input[type='text'][maxlength='6']");
             var pageContent = await Page.ContentAsync();
             var hasCodeInput = codeInput != null ||
@@ -216,18 +216,18 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_ShowsRecoveryCodesOption()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"recovery_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to security page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/security");
         await WaitForBlazorAsync();
 
-        // Assert - Should mention recovery codes
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasRecoveryInfo = pageContent.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
                              pageContent.Contains("backup", StringComparison.OrdinalIgnoreCase);
@@ -238,14 +238,14 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_NavigationFromSidebar()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"nav_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate via sidebar
+        // Act
         await GoToHomeAsync();
         var securityLink = await Page.QuerySelectorAsync("a[href*='security' i]");
 
@@ -254,7 +254,7 @@ public class TwoFactorAuthTests : WebAppTestBase
             await securityLink.ClickAsync();
             await WaitForBlazorAsync();
 
-            // Assert - Should be on security page
+            // Assert
             AssertUrlContains("/account/security");
             Output.WriteLine("✅ Security page accessible via navigation");
         }
@@ -267,18 +267,18 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_DisableOptionExists()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"disable_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to security page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/security");
         await WaitForBlazorAsync();
 
-        // Assert - Page should have disable option (visible when 2FA is enabled)
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasDisableOption = pageContent.Contains("disable", StringComparison.OrdinalIgnoreCase);
 
@@ -288,18 +288,18 @@ public class TwoFactorAuthTests : WebAppTestBase
     [Fact]
     public async Task TwoFactor_AuthenticatorAppSupported()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"app_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to security page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/security");
         await WaitForBlazorAsync();
 
-        // Assert - Should mention authenticator app
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasAuthenticatorInfo = pageContent.Contains("authenticator", StringComparison.OrdinalIgnoreCase) ||
                                    pageContent.Contains("google authenticator", StringComparison.OrdinalIgnoreCase) ||

@@ -14,10 +14,6 @@ internal class LifetimeGlobalService
     private readonly List<Func<Task>> ApplicationExitingTaskCallback = [];
     private readonly List<Func<Task>> ApplicationExitedTaskCallback = [];
 
-    // Exactly-once guards: CommandExecutor invokes Exiting from the
-    // command-wins-canceled, host-wins-canceled, and trailing success paths,
-    // where early rethrows can otherwise skip or repeat a call site.
-    // The first caller wins via Interlocked.Exchange; late callers no-op.
     private int exitingInvoked;
     private int exitedInvoked;
 
@@ -53,7 +49,7 @@ internal class LifetimeGlobalService
 
     /// <summary>
     /// Invokes registered ApplicationExiting callbacks exactly once.
-    /// The first caller runs the callbacks; concurrent or late callers no-op.
+    /// Runs callbacks once; later calls return a completed task.
     /// </summary>
     public Task InvokeApplicationExitingCallbacksAsync()
     {
@@ -76,7 +72,7 @@ internal class LifetimeGlobalService
 
     /// <summary>
     /// Invokes registered ApplicationExited callbacks exactly once.
-    /// The finally-path owner wins; repeat invocations no-op.
+    /// The first finally-path call runs the callbacks; later calls return a completed task.
     /// </summary>
     public Task InvokeApplicationExitedCallbacksAsync()
     {

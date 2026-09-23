@@ -22,8 +22,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task CreateRole_AsAdmin_Succeeds()
     {
-        Output.WriteLine("[TEST] CreateRole_AsAdmin_Succeeds");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -67,8 +65,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task CreateRole_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] CreateRole_AsRegularUser_Returns403");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
 
@@ -94,8 +90,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task CreateRole_DuplicateCode_Returns409()
     {
-        Output.WriteLine("[TEST] CreateRole_DuplicateCode_Returns409");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -139,8 +133,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task CreateRole_ReservedCode_Returns409()
     {
-        Output.WriteLine("[TEST] CreateRole_ReservedCode_Returns409");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -166,8 +158,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task GetRole_ExistingRole_ReturnsRole()
     {
-        Output.WriteLine("[TEST] GetRole_ExistingRole_ReturnsRole");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -213,8 +203,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task GetRole_NonExistentRole_Returns404()
     {
-        Output.WriteLine("[TEST] GetRole_NonExistentRole_Returns404");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -234,8 +222,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task UpdateRole_AsAdmin_Succeeds()
     {
-        Output.WriteLine("[TEST] UpdateRole_AsAdmin_Succeeds");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -287,8 +273,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task UpdateRole_SystemRole_Returns400()
     {
-        Output.WriteLine("[TEST] UpdateRole_SystemRole_Returns400");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -315,8 +299,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task DeleteRole_AsAdmin_Succeeds()
     {
-        Output.WriteLine("[TEST] DeleteRole_AsAdmin_Succeeds");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -361,8 +343,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task DeleteRole_SystemRole_Returns400()
     {
-        Output.WriteLine("[TEST] DeleteRole_SystemRole_Returns400");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -383,8 +363,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task ListRoles_AsAdmin_ReturnsAllRoles()
     {
-        Output.WriteLine("[TEST] ListRoles_AsAdmin_ReturnsAllRoles");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -416,8 +394,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task CustomRole_GrantsCorrectPermissions()
     {
-        Output.WriteLine("[TEST] CustomRole_GrantsCorrectPermissions");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -493,8 +469,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task CustomRole_WithParameters_GrantsScopedPermissions()
     {
-        Output.WriteLine("[TEST] CustomRole_WithParameters_GrantsScopedPermissions");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -577,8 +551,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task RemoveRole_RevokesPermissions()
     {
-        Output.WriteLine("[TEST] RemoveRole_RevokesPermissions");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -659,8 +631,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task RemoveRole_DoesNotAffectExistingTokenUntilReLogin()
     {
-        Output.WriteLine("[TEST] RemoveRole_DoesNotAffectExistingTokenUntilReLogin");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -757,8 +727,7 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task ModifyRole_TakesEffectWithoutReLogin()
     {
-        Output.WriteLine("[TEST] ModifyRole_TakesEffectWithoutReLogin");
-        Output.WriteLine("This test verifies the core RBAC principle: token contains role code, permissions resolved at runtime");
+        Output.WriteLine("Core RBAC principle: token contains role code, permissions resolved at runtime");
 
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
@@ -874,8 +843,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task AssignRole_NonExistentRole_Returns404()
     {
-        Output.WriteLine("[TEST] AssignRole_NonExistentRole_Returns404");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -904,8 +871,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task AssignRole_NonExistentUser_Returns404()
     {
-        Output.WriteLine("[TEST] AssignRole_NonExistentUser_Returns404");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -931,8 +896,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task CreateRole_InvalidScopeTemplateType_Returns400()
     {
-        Output.WriteLine("[TEST] CreateRole_InvalidScopeTemplateType_Returns400");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -965,8 +928,6 @@ public class CustomRoleManagementTests : WebAppTestBase
     [TimedFact]
     public async Task RoleEndpoints_Unauthenticated_Returns401()
     {
-        Output.WriteLine("[TEST] RoleEndpoints_Unauthenticated_Returns401");
-
         var endpoints = new[]
         {
             ("GET", "/api/v1/iam/roles"),
@@ -1113,10 +1074,5 @@ public class CustomRoleManagementTests : WebAppTestBase
 
     #endregion
 }
-
-
-
-
-
 
 

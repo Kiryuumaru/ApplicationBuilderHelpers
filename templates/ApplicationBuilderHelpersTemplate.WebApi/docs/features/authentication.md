@@ -280,11 +280,11 @@ The `ApiKeyCleanupWorker` background service automatically deletes:
 
 ## Token Structure
 
-Authentication uses a permission-based token separation model where access tokens and refresh tokens have distinct permission scopes, enforced by the permission system (not just token type claims).
+Authentication uses a permission-based token separation model where access tokens and refresh tokens have distinct permission scopes, enforced by the permission system.
 
 ### Token Generation Architecture
 
-Token generation is handled by `IUserTokenService` in the Application layer, ensuring clean separation from presentation concerns:
+Token generation is handled by `IUserTokenService` in the Application layer. This keeps presentation concerns separate:
 
 ```csharp
 public interface IUserTokenService

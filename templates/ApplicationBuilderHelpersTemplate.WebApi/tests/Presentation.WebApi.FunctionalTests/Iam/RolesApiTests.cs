@@ -21,8 +21,6 @@ public sealed class RolesApiTests : WebApiTestBase
     [Fact]
     public async Task AssignRole_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] AssignRole_AsRegularUser_Returns403");
-
         var userAuth = await RegisterUserAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -45,8 +43,6 @@ public sealed class RolesApiTests : WebApiTestBase
     [Fact]
     public async Task RemoveRole_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] RemoveRole_AsRegularUser_Returns403");
-
         var userAuth = await RegisterUserAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;

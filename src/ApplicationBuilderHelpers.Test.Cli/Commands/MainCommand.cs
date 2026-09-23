@@ -17,7 +17,6 @@ internal class MainCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-        // Always print debug info first if enabled
         PrintDebugInfo();
 
         Console.WriteLine("ApplicationBuilderHelpers Test CLI - Default Command");
@@ -62,12 +61,10 @@ internal class MainCommand : BaseCommand
     {
         var nonDefaultOptions = new List<string>();
 
-        // Check all properties for non-default values
         if (Verbose) nonDefaultOptions.Add("verbose=true");
         if (!string.IsNullOrEmpty(ConfigPath)) nonDefaultOptions.Add($"config=\"{ConfigPath}\"");
         if (Timeout != 30) nonDefaultOptions.Add($"timeout={Timeout}");
 
-        // Base class options
         if (LogLevel != "information") nonDefaultOptions.Add($"log-level={LogLevel}");
         if (Quiet) nonDefaultOptions.Add("quiet=true");
         if (EnvironmentVariables.Length > 0) nonDefaultOptions.Add($"env=[{string.Join(", ", EnvironmentVariables)}]");

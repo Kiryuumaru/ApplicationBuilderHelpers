@@ -6,7 +6,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// Tests for a known flag in <c>=</c>-form with an invalid literal on the
-/// abstract-root path (issue #542): a CLI that registers only leaf
+/// abstract-root path: a CLI that registers only leaf
 /// subcommands has no root implementation, so pre-separator tokens stay on
 /// the abstract branch of <c>ArgumentParser</c>. A root-visible (globally
 /// promoted) flag rejects <c>--verbose=banana</c> as <c>InvalidValue</c>
@@ -14,8 +14,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <c>RequiresSubcommand</c>; valid literals, bare flags, valued options,
 /// leaf-only bases, and post-separator tokens keep their existing paths.
 /// Error kinds are pinned via their distinct help footers.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class AbstractRootFlagLiteralTests

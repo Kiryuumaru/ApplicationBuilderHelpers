@@ -314,7 +314,7 @@ public class TokenApiTests : WebAppTestBase
         var response = await HttpClient.SendAsync(request);
 
         // Access tokens typically remain valid until expiration
-        // This test documents the current behavior
+        // The resulting status code reflects current behavior
         Output.WriteLine($"Access token after refresh: {(int)response.StatusCode}");
     }
 

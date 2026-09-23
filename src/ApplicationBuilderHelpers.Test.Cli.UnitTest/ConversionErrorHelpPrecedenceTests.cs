@@ -158,8 +158,6 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     [Fact]
     public async Task Conversion_Error_With_Help_Beats_Missing_Required()
     {
-        // #483 x #509: under --help, missing is suppressed but the binding
-        // probe still runs, so the invalid value wins (still exit 2).
         var result = await Runner.RunAsync("required-test", "mytarget", "--age", "abc", "--help");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);

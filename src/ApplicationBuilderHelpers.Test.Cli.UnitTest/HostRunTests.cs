@@ -13,8 +13,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// entry point through the <c>ApplicationHost</c> run preparation path: sync preparation
 /// markers, async preparation failures, hosted-service exit codes, sequential runs,
 /// and pre-cancelled execution.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class HostRunTests

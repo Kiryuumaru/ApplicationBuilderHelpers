@@ -45,7 +45,7 @@ internal sealed class TokenValidationService(
 
             case TokenType.Refresh:
                 // Refresh tokens need session validation to ensure the session hasn't been revoked.
-                // Note: This allows refresh tokens to pass authentication, but they will still
+                // Refresh tokens pass authentication, but they still
                 // fail authorization (403) on protected endpoints because they lack permission claims.
                 return await ValidateRefreshTokenAsync(principal, cancellationToken);
 
@@ -111,7 +111,7 @@ internal sealed class TokenValidationService(
             }
             catch
             {
-                // Ignore errors in background update - not critical
+                // Ignore errors in background update
             }
         }, CancellationToken.None);
 

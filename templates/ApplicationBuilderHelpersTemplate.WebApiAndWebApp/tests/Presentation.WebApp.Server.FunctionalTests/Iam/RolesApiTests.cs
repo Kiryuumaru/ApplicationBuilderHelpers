@@ -23,8 +23,6 @@ public class RolesApiTests : WebAppTestBase
     [TimedFact]
     public async Task AssignRole_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] AssignRole_AsRegularUser_Returns403");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -47,8 +45,6 @@ public class RolesApiTests : WebAppTestBase
     [TimedFact]
     public async Task RemoveRole_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] RemoveRole_AsRegularUser_Returns403");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -89,7 +85,7 @@ public class RolesApiTests : WebAppTestBase
         
         if (registerResponse.StatusCode == HttpStatusCode.Conflict)
         {
-            // User already exists, just login
+            // User already exists, login
             var loginReq = new { Username = username, Password = TestPassword };
             registerResponse = await HttpClient.PostAsJsonAsync("/api/v1/auth/login", loginReq);
         }
@@ -129,10 +125,5 @@ public class RolesApiTests : WebAppTestBase
 
     #endregion
 }
-
-
-
-
-
 
 

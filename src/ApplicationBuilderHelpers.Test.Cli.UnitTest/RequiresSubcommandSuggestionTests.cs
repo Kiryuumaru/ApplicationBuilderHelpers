@@ -13,8 +13,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Exit-code contract: every error scenario below fails with exit code 2
 /// (usage error per the structured CommandErrorKind contract); the
 /// <c>RequiresSubcommand</c> kind is pinned via its distinct help footer.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class RequiresSubcommandSuggestionTests
@@ -93,9 +92,6 @@ public sealed class RequiresSubcommandSuggestionTests
     [Fact]
     public async Task Dash_Led_Token_Reports_Unknown_Option()
     {
-        // Issue #508: a dash-led leftover on an abstract command reports
-        // UnknownOption (with the UnknownOption footer), not RequiresSubcommand.
-        // "--gett" is a far miss from "--help", so no hint is appended.
         var (exitCode, _, error) = await RunCapturedAsync(["config", "--gett"]);
         Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --gett", error);
@@ -107,7 +103,6 @@ public sealed class RequiresSubcommandSuggestionTests
     [Fact]
     public async Task Dash_Led_Near_Miss_Suggests_Known_Option()
     {
-        // Issue #508: a near-miss root flag suggests the known option.
         var (exitCode, _, error) = await RunCapturedAsync(["config", "--hepl"]);
         Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --hepl", error);

@@ -8,16 +8,13 @@ using System.Reflection;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process coverage for the cancellation classification seams:
-/// <see cref="CommandExitMapper"/> cancel-wins truth table plus
+/// Cancellation classification coverage through the public
+/// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
+/// <see cref="CommandExitMapper"/> cancel-wins mapping plus
 /// <see cref="CommandExitMapper.ThrowIfExternalAbort"/> throw/no-throw, and
 /// <see cref="CommandShutdownScope"/> Ctrl+C observation through a capturing
-/// <see cref="IConsoleCancelSignal"/> fake (subscribe/unsubscribe,
-/// in-process handler raise, <see cref="CommandShutdownScope.IsExternalAbortRequested"/>)
-/// with the executor 130 mapping pinned through the public
-/// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// executor-mapping fact captures the process-global console streams.
+/// <see cref="IConsoleCancelSignal"/> fake, with the executor 130 mapping.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class CommandExternalAbortTests

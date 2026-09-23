@@ -95,7 +95,6 @@ internal static class TaskUtils
             {
                 attempt++;
 
-                // Handle both sync and async onRetry callbacks
                 switch (onRetry)
                 {
                     case Action<(Exception, int)> syncCallback:

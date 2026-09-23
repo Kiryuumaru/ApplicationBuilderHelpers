@@ -95,7 +95,6 @@ internal class SubCommandArgumentInfo
     /// </summary>
     public static SubCommandArgumentInfo FromProperty(PropertyInfo property, CommandArgumentAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
-        // Check if the property has the C# required keyword (auto-detection)
         var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
 
         var argumentInfo = new SubCommandArgumentInfo
@@ -112,7 +111,6 @@ internal class SubCommandArgumentInfo
             OwnerCommand = ownerCommand
         };
 
-        // Determine if this argument should be inherited
         argumentInfo.DetermineInheritanceScope();
 
         return argumentInfo;
@@ -139,7 +137,6 @@ internal class SubCommandArgumentInfo
             OwnerCommand = ownerCommand
         };
 
-        // Determine if this argument should be inherited
         argumentInfo.DetermineInheritanceScope();
 
         return argumentInfo;
@@ -156,8 +153,8 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
-    /// Resolves per-run valid values for a cached descriptor: delegates to
-    /// the shared <see cref="EnumValidValues"/> predicate (parity with options).
+    /// Resolves per-run valid values for a cached descriptor: uses
+    /// the shared <see cref="EnumValidValues"/> predicate.
     /// </summary>
     internal static object[]? ResolveValidValues(CommandArgumentDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
     {
@@ -165,9 +162,9 @@ internal class SubCommandArgumentInfo
     }
 
     /// <summary>
-    /// Per-kind core: single attribute-read loop for arguments (Position
-    /// sort) shared by the <c>FromCommandType</c>/<c>FromDeclaredType</c>
-    /// shims. Positional scope is per-command by default (no name-based rule).
+    /// Reads arguments from properties; shared by the <c>FromCommandType</c>/
+    /// <c>FromDeclaredType</c> overloads. Positional scope is per-command by
+    /// default (no name-based rule).
     /// </summary>
     private static List<SubCommandArgumentInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand, ICommandTypeParserCollection? typeParserCollection)
     {
@@ -188,9 +185,9 @@ internal class SubCommandArgumentInfo
 
     /// <summary>
     /// Creates a list of SubCommandArgumentInfo objects from a command type.
-    /// Shim over the per-kind core (full walk).
+    /// Full walk.
     /// </summary>
-    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand, typeParserCollection);
@@ -199,9 +196,9 @@ internal class SubCommandArgumentInfo
     /// <summary>
     /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts).
-    /// Shim over the per-kind core (declared-only walk).
+    /// Declared-only walk.
     /// </summary>
-    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand, typeParserCollection);
@@ -209,19 +206,11 @@ internal class SubCommandArgumentInfo
 
     /// <summary>
     /// Determines whether this argument should be inherited by child commands.
-    /// Positional arguments are per-command (leaf-local) by default: common
-    /// names do not auto-inherit. Only an explicit opt-in (IsGlobal/IsInherited
-    /// preset true before this call) flows to child commands. No opt-in
-    /// surface exists on CommandArgumentAttribute today, so the pin below
-    /// holds every argument leaf-local; the preset branch is reserved for a
-    /// future opt-in surface or preset-only callers.
+    /// Positional arguments are per-command by default and do not auto-inherit.
+    /// Only IsGlobal/IsInherited set before this call flows to child commands.
     /// </summary>
     private void DetermineInheritanceScope()
     {
-        // Intent: pin the per-command default. CommandArgumentAttribute
-        // exposes no scope flags, so nothing can preset true through the
-        // attribute path; leave the preset-true branch intact for a future
-        // opt-in surface or preset-only callers.
         if (!IsGlobal && !IsInherited)
         {
             IsGlobal = false;
@@ -252,12 +241,10 @@ internal class SubCommandArgumentInfo
     {
         if (IsCollection)
         {
-            // Collection arguments can accept values at their position and beyond
             return position >= Position;
         }
         else
         {
-            // Non-collection arguments accept only at their exact position
             return position == Position;
         }
     }

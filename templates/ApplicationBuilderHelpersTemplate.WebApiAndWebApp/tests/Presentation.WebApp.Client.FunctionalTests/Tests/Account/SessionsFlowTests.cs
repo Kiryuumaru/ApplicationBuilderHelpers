@@ -15,11 +15,11 @@ public class SessionsFlowTests : WebAppTestBase
     [Fact]
     public async Task SessionsPage_RequiresAuthentication()
     {
-        // Act - Navigate to sessions page without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login or show unauthorized content
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
 
@@ -35,18 +35,18 @@ public class SessionsFlowTests : WebAppTestBase
     [Fact]
     public async Task SessionsPage_LoadsWhenAuthenticated()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"sess_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Page should load with sessions content
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasSessionsContent = pageContent.Contains("Sessions", StringComparison.OrdinalIgnoreCase) ||
@@ -59,18 +59,18 @@ public class SessionsFlowTests : WebAppTestBase
     [Fact]
     public async Task SessionsPage_ShowsCurrentSession()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"curr_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should show at least one session (the current one)
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasCurrentSession = pageContent.Contains("Current", StringComparison.OrdinalIgnoreCase) ||
@@ -82,18 +82,18 @@ public class SessionsFlowTests : WebAppTestBase
     [Fact]
     public async Task SessionsPage_HasRevokeAllButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"revall_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should have revoke all button
+        // Assert
         var revokeAllButton = await Page.QuerySelectorAsync("button:has-text('Revoke All'), button:has-text('Revoke all')");
         
         Assert.NotNull(revokeAllButton);
@@ -102,18 +102,18 @@ public class SessionsFlowTests : WebAppTestBase
     [Fact]
     public async Task SessionsPage_ShowsSessionDetails()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"details_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should show session details like IP, device, or date
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasSessionDetails = pageContent.Contains("IP", StringComparison.OrdinalIgnoreCase) ||
@@ -127,18 +127,18 @@ public class SessionsFlowTests : WebAppTestBase
     [Fact]
     public async Task SessionsPage_HasPageTitle()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"title_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Page should have title
+        // Assert
         var title = await Page.TitleAsync();
         
         Assert.Contains("Session", title, StringComparison.OrdinalIgnoreCase);

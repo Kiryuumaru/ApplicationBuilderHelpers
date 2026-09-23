@@ -194,7 +194,6 @@ public class AllCommandsTests : CliTestBase
     [Fact]
     public async Task Config_Get_With_Filters()
     {
-        // Use --section instead of --filter which doesn't exist
         var result = await Runner.RunAsync("config", "get", "--section", "database");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Configuration Get Operation");

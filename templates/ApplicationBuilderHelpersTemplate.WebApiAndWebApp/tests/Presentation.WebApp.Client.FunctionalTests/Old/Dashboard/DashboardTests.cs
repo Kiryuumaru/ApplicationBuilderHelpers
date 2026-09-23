@@ -19,7 +19,7 @@ public class DashboardTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Dashboard should load
+        // Assert
         var title = await Page.TitleAsync();
         Output.WriteLine($"Dashboard title: {title}");
 
@@ -30,7 +30,7 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_ShowsStatisticsCards()
     {
-        // Arrange - Authenticate (dashboard requires auth to show cards)
+        // Arrange
         var username = $"stats_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -40,7 +40,7 @@ public class DashboardTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Should show statistics cards
+        // Assert
         var cards = await Page.QuerySelectorAllAsync(".card, [class*='card']");
         Output.WriteLine($"Cards found: {cards.Count}");
 
@@ -59,7 +59,7 @@ public class DashboardTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Should show get started message for unauthenticated users
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasGetStarted = pageContent.Contains("get started", StringComparison.OrdinalIgnoreCase) ||
                            pageContent.Contains("sign in", StringComparison.OrdinalIgnoreCase) ||
@@ -73,17 +73,17 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_Authenticated_ShowsWelcomeMessage()
     {
-        // Arrange - Register and login (navigates to home after success)
+        // Arrange
         var username = $"welcome_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login
+        // Act
         await WaitForBlazorAsync();
 
-        // Assert - Should show welcome message
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasWelcome = pageContent.Contains("welcome", StringComparison.OrdinalIgnoreCase) ||
                         pageContent.Contains("signed in", StringComparison.OrdinalIgnoreCase) ||
@@ -96,17 +96,17 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_Authenticated_HasProfileLink()
     {
-        // Arrange - Register and login (navigates to home after success)
+        // Arrange
         var username = $"proflink_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login
+        // Act
         await WaitForBlazorAsync();
 
-        // Assert - Should have link to profile
+        // Assert
         var profileLink = await Page.QuerySelectorAsync("a[href*='profile' i]");
         Assert.NotNull(profileLink);
     }
@@ -114,17 +114,17 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_HasNavigationMenu()
     {
-        // Arrange - Register and login (dashboard requires auth, navigates to home after success)
+        // Arrange
         var username = $"navmenu_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login
+        // Act
         await WaitForBlazorAsync();
 
-        // Assert - Should have navigation
+        // Assert
         var nav = await Page.QuerySelectorAsync("nav, [role='navigation'], .nav, .navbar, .sidebar");
         Assert.NotNull(nav);
     }
@@ -132,17 +132,17 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_ShowsCorrectTitle()
     {
-        // Arrange - Register and login (dashboard requires auth, navigates to home after success)
+        // Arrange
         var username = $"title_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Already on home page after login
+        // Act
         await WaitForBlazorAsync();
 
-        // Assert - Should show dashboard title
+        // Assert
         var title = await Page.TitleAsync();
         var pageContent = await Page.ContentAsync();
 
@@ -156,7 +156,7 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_RolesCard_ShowsInfo()
     {
-        // Arrange - Authenticate (dashboard requires auth)
+        // Arrange
         var username = $"roles_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -166,7 +166,7 @@ public class DashboardTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Roles card should show user's roles
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasRolesCard = pageContent.Contains("roles", StringComparison.OrdinalIgnoreCase);
 
@@ -177,7 +177,7 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_AccountStatusCard_ShowsActive()
     {
-        // Arrange - Authenticate (dashboard requires auth)
+        // Arrange
         var username = $"status_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -187,7 +187,7 @@ public class DashboardTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Account Status card should show Active
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasActiveCard = pageContent.Contains("active", StringComparison.OrdinalIgnoreCase);
 
@@ -198,7 +198,7 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_QuickActions_ShowsSessionsLink()
     {
-        // Arrange - Authenticate (dashboard requires auth)
+        // Arrange
         var username = $"sess_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -208,7 +208,7 @@ public class DashboardTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Quick Actions should have sessions link
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasSessionsLink = pageContent.Contains("sessions", StringComparison.OrdinalIgnoreCase);
 
@@ -219,11 +219,11 @@ public class DashboardTests : WebAppTestBase
     [Fact]
     public async Task Dashboard_ResponsiveLayout()
     {
-        // Act - Test mobile viewport
+        // Act
         await Page.SetViewportSizeAsync(375, 667);
         await GoToHomeAsync();
 
-        // Assert - Page should still render correctly
+        // Assert
         var content = await Page.ContentAsync();
         Assert.False(string.IsNullOrEmpty(content), "Dashboard should render on mobile viewport");
 

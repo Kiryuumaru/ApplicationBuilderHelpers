@@ -5,14 +5,13 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process tokenizer truth-table tests for the CLI parser.
-/// Pins the frozen surface through the public
+/// Tokenizer behavior tests for the CLI parser.
+/// Pins the frozen set through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// bare flags, <c>=</c>-form boolean literals, no space-consumption for flags,
 /// the <c>--</c> separator, negative positionals, combined short flags,
 /// <c>--no-</c> negation, and bare-flag repetition.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class TokenizerTruthTableTests

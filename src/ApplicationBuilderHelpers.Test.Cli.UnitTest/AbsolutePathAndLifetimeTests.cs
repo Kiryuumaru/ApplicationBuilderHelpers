@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process coverage for Brunel targets 4-5: the default-registered
+/// Coverage for the default-registered
 /// <c>AbsolutePath</c> type parser (internal, reached through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point
 /// via <c>AbsolutePath</c>-typed options/arguments) and
@@ -17,8 +17,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// (<c>ApplicationHost.Services</c> inside <c>Command.Run</c>), including the
 /// <c>Func&lt;Task&gt;</c> callback overloads that drive the
 /// <c>LifetimeGlobalService.Invoke*</c> task tails.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class AbsolutePathAndLifetimeTests

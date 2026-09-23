@@ -16,11 +16,11 @@ public class TwoFactorTests : WebAppTestBase
     [Fact]
     public async Task TwoFactorSetup_RequiresAuthentication()
     {
-        // Act - Try to access 2FA setup without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login
+        // Assert
         var currentUrl = Page.Url;
         Output.WriteLine($"2FA setup URL when unauthenticated: {currentUrl}");
 
@@ -31,18 +31,18 @@ public class TwoFactorTests : WebAppTestBase
     [Fact]
     public async Task TwoFactorSetup_Authenticated_ShowsSetupPage()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"2fa_setup_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to 2FA setup
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
 
-        // Assert - Should show 2FA setup page content
+        // Assert
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"2FA setup page loaded");
 
@@ -57,18 +57,18 @@ public class TwoFactorTests : WebAppTestBase
     [Fact]
     public async Task TwoFactorSetup_ShowsQRCodePlaceholder()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"2fa_qr_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to 2FA setup
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
 
-        // Assert - Should have QR code area or setup instructions
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasSetupInstructions = pageContent.Contains("step", StringComparison.OrdinalIgnoreCase) ||
                                    pageContent.Contains("scan", StringComparison.OrdinalIgnoreCase) ||
@@ -80,18 +80,18 @@ public class TwoFactorTests : WebAppTestBase
     [Fact]
     public async Task TwoFactorSetup_HasSetupOrVerificationOption()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"2fa_input_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to 2FA setup
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/two-factor");
         await WaitForBlazorAsync();
 
-        // Assert - Should have setup button (initial state), code input (after starting setup), 
+        // Assert
         // or enable/verify button
         var setupButton = await Page.QuerySelectorAsync("button:has-text('Set Up'), button:has-text('Setup')");
         var codeInput = await Page.QuerySelectorAsync("input[type='text'], input[placeholder*='000000'], input#code, input#verificationCode");
@@ -108,18 +108,18 @@ public class TwoFactorTests : WebAppTestBase
     [Fact]
     public async Task Profile_HasTwoFactorLink()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"2fa_link_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to profile
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
-        // Assert - Should have link to 2FA setup
+        // Assert
         var twoFactorLink = await Page.QuerySelectorAsync("a[href*='two-factor' i]");
         Assert.NotNull(twoFactorLink);
     }

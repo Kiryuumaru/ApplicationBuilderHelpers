@@ -8,12 +8,11 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// In-process reserved-short tests for the CLI hierarchy gate.
 /// The help/version gateway shorts (<c>-h</c>/<c>-V</c>) win inside combined
 /// short clusters even mid-cluster, so a declared option reusing either short
-/// would never bind — validation rejects the registration with a fault
+/// would never bind. Validation rejects the registration with a fault
 /// (exit 1) instead. Only the built-in <c>--help</c> owner may hold
 /// <c>-h</c>; <c>-V</c> is forbidden for all local options because no
 /// built-in version node exists (version is gateway-only). Joins the
-/// non-parallel <c>ConsoleDecoupling</c> collection because the console
-/// streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ReservedShortNameTests

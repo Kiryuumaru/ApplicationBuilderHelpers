@@ -55,10 +55,10 @@ public class EdgeCaseTests : CliTestBase
     public async Task Mixed_Option_Styles_In_Same_Command()
     {
         var result = await Runner.RunAsync("test", "target",
-            "--verbose",           // Flag
-            "--timeout=60",       // Long with equals
-            "-t=unit",           // Short with equals  
-            "--parallel=true"); // Boolean with value
+            "--verbose",
+            "--timeout=60",
+            "-t=unit",
+            "--parallel=true");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Timeout: 60s");
         CliTestAssertions.AssertOutputContains(result, "Tags: unit");

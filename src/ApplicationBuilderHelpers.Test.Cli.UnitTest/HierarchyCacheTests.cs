@@ -12,8 +12,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// entry point with the same builder instance across runs: repeated runs stay
 /// correct, commands added between runs are visible, bound values do not leak
 /// across runs, and type parsers added between runs apply to later runs.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class HierarchyCacheTests

@@ -11,8 +11,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// scalar type conversions, allowed-value validation, array binding,
 /// and positional argument binding.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ValueBindingTests
@@ -806,10 +805,6 @@ public sealed class ValueBindingTests
     [Fact]
     public async Task Argument_Boolean_EmptyValue_BindsTrue()
     {
-        // Positional-only semantics: unlike a named bool option where an
-        // explicit empty literal is rejected at the flag-literal gate (see
-        // Scalar_Boolean_EmptyValue_Rejected), a positional has no literal
-        // gate so "" flows to the bool parser and binds true.
         var (exitCode, output, error) = await RunCapturedAsync(["bindboolarg", string.Empty]);
 
         Assert.Equal(0, exitCode);
@@ -820,10 +815,6 @@ public sealed class ValueBindingTests
     [Fact]
     public async Task Scalar_Boolean_EmptyValue_Rejected()
     {
-        // Per-type semantics: unlike string options where "" binds verbatim,
-        // a bool flag rejects an explicit empty literal at the flag-literal
-        // gate (ValidateFlagLiteral) before BoolTypeParser is reached, while
-        // the bare flag still binds true (see Scalar_Boolean_BareFlag_BindsTrue).
         var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", "--verbose="]);
 
         Assert.Equal(2, exitCode);

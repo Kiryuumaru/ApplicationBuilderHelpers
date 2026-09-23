@@ -36,7 +36,6 @@ public abstract class BaseCommand<[DynamicallyAccessedMembers(DynamicallyAccesse
 
         services.Configure<ConsoleLifetimeOptions>(opts => opts.SuppressStatusMessages = true);
 
-        // Default fallback logging - Infrastructure can ClearProviders() and replace
         services.AddLogging(builder =>
         {
             builder.SetMinimumLevel(applicationBuilder.Configuration.LoggerLevel);

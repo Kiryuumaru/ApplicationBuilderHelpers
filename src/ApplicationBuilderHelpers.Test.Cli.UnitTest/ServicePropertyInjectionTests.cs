@@ -9,13 +9,12 @@ using System.Reflection;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process tests for the C9 reuse-only service-property seam in
+/// Tests for service-property injection in
 /// <see cref="CommandExecutor"/>: per-command scope injection of
 /// <c>FromServices</c>/<c>FromKeyedServices</c>-marked properties, disjoint
 /// from CLI binding, with faults mapping to exit 1 and help/version/
 /// validation paths never reaching the executor.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 /// <remarks>
 /// Reuse-only seam: no new attribute types are introduced. The framework
@@ -359,10 +358,6 @@ public sealed class ServicePropertyInjectionTests
     [Fact]
     public async Task DualMarkedHiddenServiceMember_MapsToFaultNeverUsage()
     {
-        // Base carries the CLI marker, the derived hide carries the service
-        // marker on the same name: the walk keeps both entries, so the
-        // identity check must still throw (never pass one check by identity
-        // and fail the other by NAME string).
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<HiddenDualDerived>(), ["svchide"]);
 
@@ -374,8 +369,6 @@ public sealed class ServicePropertyInjectionTests
     [Fact]
     public async Task DualMarkedHiddenCliMember_MapsToFaultNeverUsage()
     {
-        // Mirror: base carries the service marker, the derived hide carries
-        // the CLI marker on the same name.
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<HiddenCliDerived>(), ["svcderivecli"]);
 
@@ -387,9 +380,6 @@ public sealed class ServicePropertyInjectionTests
     [Fact]
     public async Task OverriddenCliMember_ConvergesToSingleBinding()
     {
-        // Override collapses to one entry (attribute inheritance delivers
-        // the marker through the override), so the canonical predicate and
-        // the descriptor build converge and the run binds once.
         var descriptor = new CommandReflectionCache().GetOrAdd(typeof(OverriddenCliDerived));
         var walk = CommandReflectionCache.Walk(typeof(OverriddenCliDerived));
         var boundProperties = new HashSet<PropertyInfo>(
@@ -412,9 +402,6 @@ public sealed class ServicePropertyInjectionTests
     [Fact]
     public async Task SameNameUnrelatedMembers_StayDisjoint()
     {
-        // Different names (Code vs Probe) prove the hoisted bound-name set
-        // never over-fires: unrelated service members inject while CLI
-        // values survive binding.
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<SameNameUnrelatedCommand>(), ["svcsamename", "--code", "cli-value"]);
 
@@ -427,9 +414,6 @@ public sealed class ServicePropertyInjectionTests
     [Fact]
     public void IsCliBound_MatchesBuildBoundSetOnFullWalk()
     {
-        // The canonical predicate and the descriptor build must agree on
-        // every walk PropertyInfo: bound iff an option or argument
-        // descriptor was snapshotted for it.
         foreach (var commandType in new[] { typeof(BindPreserveCommand), typeof(HiddenDualDerived), typeof(HiddenCliDerived), typeof(OverriddenCliDerived) })
         {
             var descriptor = new CommandReflectionCache().GetOrAdd(commandType);

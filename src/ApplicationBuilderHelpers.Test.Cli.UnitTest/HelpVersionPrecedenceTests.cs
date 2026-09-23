@@ -4,7 +4,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// Tests for help/version flag precedence: a bare valued option never consumes
-/// a flag-looking neighbor (#469, reject-by-default), so the neighbor binds or
+/// a flag-looking neighbor, so the neighbor binds or
 /// errors on its own merits while the valued option falls back to the
 /// trailing-bare missing sentinel (env fallback or MissingRequired), and help
 /// never masks path errors.
@@ -14,8 +14,6 @@ public class HelpVersionPrecedenceTests : CliTestBase
     [Fact]
     public async Task Version_Flag_As_Option_Value_Is_Not_Consumed()
     {
-        // #469: --version is flag-looking, so --config leaves it alone and the
-        // post-parse version check fires on the leftover token.
         var result = await Runner.RunAsync("test", "mytarget", "--config", "--version");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
@@ -77,8 +75,6 @@ public class HelpVersionPrecedenceTests : CliTestBase
     [Fact]
     public async Task Help_Skips_Required_Validation()
     {
-        // #509: help always wins over missing required. Missing required
-        // options/arguments no longer block help-with-values (exit 0 + USAGE).
         var result = await Runner.RunAsync("required-test", "mytarget", "--help");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertExitCode(result, 0);
@@ -88,7 +84,6 @@ public class HelpVersionPrecedenceTests : CliTestBase
     [Fact]
     public async Task Help_Skips_Required_Argument_Validation()
     {
-        // #509: missing required argument also yields to help (exit 0 + USAGE).
         var result = await Runner.RunAsync("required-test", "--name", "John", "--email", "john@example.com", "--help");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertExitCode(result, 0);
@@ -98,7 +93,6 @@ public class HelpVersionPrecedenceTests : CliTestBase
     [Fact]
     public async Task Help_Skips_All_Required_Validation()
     {
-        // #509: nothing provided at all beyond the command — still help (exit 0).
         var result = await Runner.RunAsync("required-test", "--help");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertExitCode(result, 0);
@@ -108,7 +102,6 @@ public class HelpVersionPrecedenceTests : CliTestBase
     [Fact]
     public async Task Short_Help_Skips_Required_Validation()
     {
-        // #509 short-flag variant: -h wins over missing required too (exit 0 + USAGE).
         var result = await Runner.RunAsync("required-test", "mytarget", "-h");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertExitCode(result, 0);
@@ -118,8 +111,6 @@ public class HelpVersionPrecedenceTests : CliTestBase
     [Fact]
     public async Task Version_Skips_Required_Validation()
     {
-        // #509 version pin: missing required yields to the Step 4b version
-        // guard, which fires before validation (exit 0, no USAGE).
         var result = await Runner.RunAsync("required-test", "mytarget", "--version");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertExitCode(result, 0);

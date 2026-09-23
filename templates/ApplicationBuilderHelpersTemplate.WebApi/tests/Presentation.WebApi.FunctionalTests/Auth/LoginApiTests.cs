@@ -354,7 +354,7 @@ public sealed class LoginApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task Login_WithUnicodeUsername_WorksCorrectly()
     {
-        // Note: This test may need adjustment based on actual username validation rules
+        // Username validation rules determine which unicode names register successfully
         var username = $"用户_{Guid.NewGuid():N}"; // Chinese characters
         var registerResponse = await HttpClient.PostAsJsonAsync("/api/v1/auth/register", new
         {

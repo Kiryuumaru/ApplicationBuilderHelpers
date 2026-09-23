@@ -4,19 +4,18 @@ using System;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Single shared enum auto-population predicate for options and arguments
-/// (Option B, issue #478). Explicit <c>FromAmong</c> wins; else the
+/// Single shared enum auto-population predicate for options and arguments.
+/// Explicit <c>FromAmong</c> wins; else the
 /// frozen/live enum names iff a candidate exists and no live parser is
-/// registered for that enum type; else null. Parser policy stays here in
-/// the parser layer (per ADR-0003); the leaf
-/// (<see cref="CommandDescriptorReflection"/>) only supplies the candidate.
+/// registered for that enum type; else null. Parser policy stays here;
+/// <see cref="CommandDescriptorReflection"/> only supplies the candidate.
 /// Large enums show the full list; suppression is symmetric across kinds.
 /// </summary>
 internal static class EnumValidValues
 {
     /// <summary>
-    /// Single enum predicate (live overload): unwraps via the leaf's
-    /// <c>GetEnumCandidate</c> then delegates to the frozen overload.
+    /// Single enum predicate (live overload): unwraps with
+    /// <c>GetEnumCandidate</c>, then uses the frozen overload.
     /// </summary>
     internal static object[]? Resolve(Type propertyType, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
     {

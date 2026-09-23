@@ -31,7 +31,7 @@ public class TokenSeparationTests : WebAppTestBase
 
     /// <summary>
     /// The key test: Access tokens CANNOT be used as refresh tokens.
-    /// This verifies that the deny;api:auth:refresh directive works.
+    /// The deny;api:auth:refresh directive rejects access tokens used as refresh tokens.
     /// </summary>
     [TimedFact]
     public async Task AccessTokenAsRefreshToken_IsRejected_Returns401()
@@ -55,7 +55,7 @@ public class TokenSeparationTests : WebAppTestBase
 
     /// <summary>
     /// Refresh tokens CAN be used as refresh tokens.
-    /// This verifies they have allow;api:auth:refresh.
+    /// Refresh tokens carry allow;api:auth:refresh.
     /// </summary>
     [TimedFact]
     public async Task RefreshTokenAsRefreshToken_IsAccepted_Returns200()
@@ -85,7 +85,7 @@ public class TokenSeparationTests : WebAppTestBase
 
     /// <summary>
     /// Refresh tokens CANNOT access endpoints with [RequiredPermission].
-    /// This verifies they only have the refresh permission.
+    /// Refresh tokens carry only the refresh permission.
     /// </summary>
     [TimedFact]
     public async Task RefreshToken_CannotAccessProtectedEndpoint_Returns403()

@@ -122,7 +122,7 @@ public sealed class Permission
             throw new FormatException("Permission identifier cannot be empty.");
         }
 
-        // Format: "path;key=value;key2=value2" or just "path" (no parameters)
+        // Format: "path;key=value;key2=value2" or "path" (no parameters)
         var semicolonIndex = trimmed.IndexOf(';');
         if (semicolonIndex > 0)
         {

@@ -62,9 +62,9 @@ public static class CancellationTokenExtensions
     /// 2. The returned token is garbage collected without being cancelled (via finalizer)
     /// </para>
     /// <para>
-    /// The implementation uses ConditionalWeakTable for automatic cleanup and finalizers as a 
-    /// safety net. For critical long-running operations, consider manually managing 
-    /// CancellationTokenSource lifetime instead.
+    /// The implementation uses ConditionalWeakTable for automatic cleanup and finalizers as a
+    /// fallback. For critical long-running operations, manage CancellationTokenSource lifetime
+    /// manually instead.
     /// </para>
     /// </remarks>
     public static CancellationToken WithTimeout(this CancellationToken cancellationToken, TimeSpan timeout)

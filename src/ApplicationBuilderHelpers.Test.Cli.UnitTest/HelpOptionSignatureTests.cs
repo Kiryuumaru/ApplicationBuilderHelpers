@@ -9,8 +9,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Pins the indented option signatures rendered in the help options table.
 /// Exercises the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
 /// entry point so the help-table path (indent + name + placeholder) stays in sync
-/// with the bare option signature. Joins the non-parallel <c>ConsoleDecoupling</c>
-/// collection because the console streams are process-global mutable state.
+/// with the bare option signature.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class HelpOptionSignatureTests

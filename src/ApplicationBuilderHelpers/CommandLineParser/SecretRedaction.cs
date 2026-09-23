@@ -4,7 +4,7 @@ using System.Collections;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Central helper for secret redaction in help text and error messages.
+/// Central secret redaction for help text and error messages.
 /// Secret values never echo the provided value; help keeps the Default: label
 /// with a masked value, and errors keep the option/argument name plus the
 /// valid-values list. Exit codes are unchanged by redaction.
@@ -157,7 +157,7 @@ internal static class SecretRedaction
     }
 
     /// <summary>
-    /// Case-insensitive redaction layer: rescans for the same quote-wrapped
+    /// Case-insensitive redaction check: scans for the same quote-wrapped
     /// containment with an OrdinalIgnoreCase scan so case variants of the
     /// provided value redact too. Exact-case matches are already replaced.
     /// </summary>

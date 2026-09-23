@@ -21,8 +21,6 @@ public class RefreshTokenMisuseTests : WebAppTestBase
     [TimedFact]
     public async Task Refresh_WithBodyTokenOfUserA_AndAuthorizationHeaderOfUserB_IssuesTokensForUserA()
     {
-        Output.WriteLine("[TEST] Refresh_WithBodyTokenOfUserA_AndAuthorizationHeaderOfUserB_IssuesTokensForUserA");
-
         // Arrange: two distinct users
         var userA = await RegisterUniqueUserAsync();
         Assert.NotNull(userA);
@@ -64,8 +62,6 @@ public class RefreshTokenMisuseTests : WebAppTestBase
     [TimedFact]
     public async Task RefreshToken_AsBearerToken_CannotAccessUserSessions_Returns403()
     {
-        Output.WriteLine("[TEST] RefreshToken_AsBearerToken_CannotAccessUserSessions_Returns403");
-
         var auth = await RegisterUniqueUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth!.User);
@@ -156,7 +152,5 @@ public class RefreshTokenMisuseTests : WebAppTestBase
         public bool IsAnonymous { get; set; }
     }
 }
-
-
 
 

@@ -105,8 +105,8 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("123456", "123456")]
     [InlineData("-1", "-1")]
     [InlineData("-42", "-42")]
-    [InlineData("2147483647", "2147483647")] // int.MaxValue
-    [InlineData("-2147483648", "-2147483648")] // int.MinValue
+    [InlineData("2147483647", "2147483647")]
+    [InlineData("-2147483648", "-2147483648")]
     public async Task Integer_Parser_Valid_Values(string input, string expected)
     {
         var result = await Runner.RunAsync("test", "target", $"--timeout={input}", "-v");
@@ -152,7 +152,6 @@ public class BuiltinParserTypesTests : CliTestBase
     [Fact]
     public async Task Double_Parser_Negative_Values_Without_Equals()
     {
-        // Test negative values passed as separate arguments (the problematic case)
         var result = await Runner.RunAsync("test", "target", "--coverage-threshold", "-1.5", "-v");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Coverage Threshold: -1.5%");
@@ -191,7 +190,7 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("0")]
     [InlineData("1")]
     [InlineData("42")]
-    [InlineData("2147483647")] // Use int.MaxValue since seed appears to be int-typed
+    [InlineData("2147483647")]
     public async Task Long_Parser_Valid_Values(string input)
     {
         var result = await Runner.RunAsync("test", "target", $"--seed={input}", "-v");
@@ -202,7 +201,7 @@ public class BuiltinParserTypesTests : CliTestBase
     [Theory]
     [InlineData("abc")]
     [InlineData("12.34")]
-    [InlineData("9223372036854775808")] // Beyond int.MaxValue
+    [InlineData("9223372036854775808")]
     public async Task Long_Parser_Invalid_Values(string invalidValue)
     {
         var result = await Runner.RunAsync("test", "target", $"--seed={invalidValue}");
@@ -218,11 +217,11 @@ public class BuiltinParserTypesTests : CliTestBase
     public async Task All_Basic_Types_Can_Be_Parsed_Without_Errors()
     {
         var result = await Runner.RunAsync("test", "target", 
-            "--config=test.json",           // String
-            "--timeout=300",                // Int
-            "--coverage-threshold=85.5",    // Double
-            "--diag=true",                  // Boolean
-            "--seed=12345",                 // Long/Nullable Int
+            "--config=test.json",
+            "--timeout=300",
+            "--coverage-threshold=85.5",
+            "--diag=true",
+            "--seed=12345",
             "-v");
 
         CliTestAssertions.AssertSuccess(result);
@@ -294,7 +293,6 @@ public class BuiltinParserTypesTests : CliTestBase
     {
         var args = new List<string> { "test", "target" };
         
-        // Add multiple options of different types
         for (int i = 0; i < 10; i++)
         {
             args.Add("--tags");
@@ -318,13 +316,12 @@ public class BuiltinParserTypesTests : CliTestBase
 
     #endregion
 
-    #region Regression Tests
+    #region Parser Type Tests
 
     [Fact]
     public async Task Nullable_Type_Parsing_Regression()
     {
         var result = await Runner.RunAsync("test", "target", "--seed=null", "-v");
-        // This might fail if "null" isn't handled, which is expected behavior
         if (!result.IsSuccess)
         {
             CliTestAssertions.AssertErrorContains(result, "Invalid");
@@ -343,7 +340,6 @@ public class BuiltinParserTypesTests : CliTestBase
     [Fact]
     public async Task Unicode_Character_Handling_Regression()
     {
-        // Test with ASCII characters only due to console encoding limitations
         var asciiString = "test-file.json";
         var result = await Runner.RunAsync("test", "target", $"--config={asciiString}", "-v");
         CliTestAssertions.AssertSuccess(result);

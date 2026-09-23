@@ -18,8 +18,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task GetProviders_ReturnsAvailableProviders()
     {
-        Output.WriteLine("[TEST] GetProviders_ReturnsAvailableProviders");
-
         Output.WriteLine("[STEP] GET /api/v1/auth/external/providers...");
         var response = await HttpClient.GetAsync("/api/v1/auth/external/providers");
 
@@ -45,8 +43,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task GetProviders_NoAuthRequired()
     {
-        Output.WriteLine("[TEST] GetProviders_NoAuthRequired");
-
         // This endpoint should be accessible without authentication
         Output.WriteLine("[STEP] GET /api/v1/auth/external/providers without token...");
         var response = await HttpClient.GetAsync("/api/v1/auth/external/providers");
@@ -64,8 +60,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task InitiateOAuth_WithMockProvider_ReturnsAuthorizationUrl()
     {
-        Output.WriteLine("[TEST] InitiateOAuth_WithMockProvider_ReturnsAuthorizationUrl");
-
         var request = new OAuthLoginRequest("mock", "https://localhost/callback");
 
         Output.WriteLine("[STEP] POST /api/v1/auth/external/mock...");
@@ -89,8 +83,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task InitiateOAuth_WithInvalidProvider_Returns400()
     {
-        Output.WriteLine("[TEST] InitiateOAuth_WithInvalidProvider_Returns400");
-
         var request = new OAuthLoginRequest("invalidprovider", "https://localhost/callback");
 
         Output.WriteLine("[STEP] POST /api/v1/auth/external/invalidprovider...");
@@ -105,8 +97,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task InitiateOAuth_WithDisabledProvider_Returns400()
     {
-        Output.WriteLine("[TEST] InitiateOAuth_WithDisabledProvider_Returns400");
-
         var request = new OAuthLoginRequest("google", "https://localhost/callback");
 
         // Google is not configured, so it should be disabled
@@ -126,8 +116,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task OAuthCallback_WithMockProvider_CreatesNewUserAndSession()
     {
-        Output.WriteLine("[TEST] OAuthCallback_WithMockProvider_CreatesNewUserAndSession");
-
         // First, initiate OAuth to get a state
         var initiateRequest = new OAuthLoginRequest("mock", "https://localhost/callback");
         var initiateResponse = await HttpClient.PostAsJsonAsync("/api/v1/auth/external/mock", initiateRequest);
@@ -166,8 +154,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task OAuthCallback_WithEmptyState_Returns400()
     {
-        Output.WriteLine("[TEST] OAuthCallback_WithEmptyState_Returns400");
-
         var callbackRequest = new OAuthCallbackRequest(
             Provider: "mock",
             Code: "mock_auth_code",
@@ -193,8 +179,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task GetExternalLogins_WithoutAuth_Returns401()
     {
-        Output.WriteLine("[TEST] GetExternalLogins_WithoutAuth_Returns401");
-
         var randomUserId = Guid.NewGuid();
         Output.WriteLine($"[STEP] GET /api/v1/auth/users/{randomUserId}/identity/external without token...");
         var response = await HttpClient.GetAsync($"/api/v1/auth/users/{randomUserId}/identity/external");
@@ -208,8 +192,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task GetExternalLogins_WithAuth_ReturnsEmptyListForNewUser()
     {
-        Output.WriteLine("[TEST] GetExternalLogins_WithAuth_ReturnsEmptyListForNewUser");
-
         // Register a new user with password (no external logins)
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
@@ -242,8 +224,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task UnlinkExternalLogin_WithoutAuth_Returns401()
     {
-        Output.WriteLine("[TEST] UnlinkExternalLogin_WithoutAuth_Returns401");
-
         var randomUserId = Guid.NewGuid();
         Output.WriteLine($"[STEP] DELETE /api/v1/auth/users/{randomUserId}/identity/external/mock without token...");
         var response = await HttpClient.DeleteAsync($"/api/v1/auth/users/{randomUserId}/identity/external/mock");
@@ -257,8 +237,6 @@ public sealed class OAuthApiTests(ITestOutputHelper output) : WebApiTestBase(out
     [Fact]
     public async Task UnlinkExternalLogin_NonExistentProvider_Returns404()
     {
-        Output.WriteLine("[TEST] UnlinkExternalLogin_NonExistentProvider_Returns404");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);

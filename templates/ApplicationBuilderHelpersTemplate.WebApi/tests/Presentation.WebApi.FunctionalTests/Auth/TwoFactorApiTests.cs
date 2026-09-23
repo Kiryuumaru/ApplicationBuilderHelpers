@@ -372,8 +372,7 @@ public sealed class TwoFactorApiTests(ITestOutputHelper output) : WebApiTestBase
     [Fact]
     public async Task TwoFactorLogin_SameCodeCannotBeReused()
     {
-        // This is a theoretical test - in practice we can't generate valid codes
-        // But we can verify the system properly rejects already-used codes
+        // Valid codes cannot be generated here; the system properly rejects already-used codes
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);

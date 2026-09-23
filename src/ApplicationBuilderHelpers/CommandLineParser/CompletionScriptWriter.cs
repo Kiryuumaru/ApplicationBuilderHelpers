@@ -4,12 +4,12 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Writes dotnet-style shell completion shims that re-invoke
+/// Writes dotnet-style shell completion scripts that re-invoke
 /// <c>myapp complete --position N "&lt;commandline&gt;"</c> on each TAB.
 /// N is always a 0-based character offset into the full command-line string
-/// (same unit the gateway slices with: <c>commandline[..position]</c>).
+/// (same unit CompletionGateway slices with: <c>commandline[..position]</c>).
 /// Stdout only (<see cref="ConsoleOutput"/> Write/WriteLine methods);
-/// descriptions are supported by zsh/pwsh shims only, omitted for bash/fish.
+/// descriptions are supported by zsh/pwsh scripts only, omitted for bash/fish.
 /// </summary>
 internal static class CompletionScriptWriter
 {

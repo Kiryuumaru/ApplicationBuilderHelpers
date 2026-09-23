@@ -8,9 +8,8 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <summary>
 /// Layout renderer for help output: left-column width calculation, word
 /// wrapping, theme application, and <see cref="ConsoleOutput"/> writes.
-/// Moved verbatim from <see cref="HelpFormatter"/> (mechanical split, no
-/// behavior change). Knows nothing about options, arguments, categorization,
-/// or defaults — it only lays out the <see cref="HelpModel"/> it is given.
+/// Knows nothing about options, arguments, categorization,
+/// or defaults, it only lays out the <see cref="HelpModel"/> it is given.
 /// </summary>
 internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 {
@@ -65,7 +64,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
         const int Padding = 2;
 
-        // Display all items with the fixed left column width
         foreach (var item in items)
         {
             var leftColumn = getLeftColumn(item);
@@ -74,13 +72,11 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
             if (leftDisplayWidth > leftColumnWidth)
             {
-                // Left content is too long - put right content on next line
                 _consoleOutput.WriteLine(leftColumn);
                 WriteWrappedText(rightColumn, totalWidth - 4, 4, theme);
             }
             else
             {
-                // Standard two-column layout with fixed left column width
                 var rightColumnWidth = totalWidth - leftColumnWidth - Padding;
 
                 _consoleOutput.Write(leftColumn);
@@ -93,18 +89,15 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
     private int CalculateOptimalLeftColumnWidth(List<string> leftColumnItems, int totalWidth)
     {
-        if (leftColumnItems.Count == 0) return 25; // Default reasonable width
+        if (leftColumnItems.Count == 0) return 25;
 
-        // Calculate the maximum width needed for the left column
         var maxLeftWidth = leftColumnItems.Max(GetDisplayWidth);
 
-        // Set reasonable bounds for the left column
         const int MinLeftColumnWidth = 20;
-        const int MaxLeftColumnWidth = 35;  // More reasonable maximum
+        const int MaxLeftColumnWidth = 35;
 
-        // Ensure the right column has enough space (floor from #450: 20 min-left + 40 right reservation)
-        var effectiveWidth = Math.Max(totalWidth, 60); // never throws on narrow widths
-        var maxAllowedLeftWidth = effectiveWidth - 40; // Ensure at least 40 chars for right column
+        var effectiveWidth = Math.Max(totalWidth, 60);
+        var maxAllowedLeftWidth = effectiveWidth - 40;
 
         var leftColumnWidth = Math.Min(Math.Max(maxLeftWidth, MinLeftColumnWidth),
                                        Math.Min(MaxLeftColumnWidth, maxAllowedLeftWidth));
@@ -177,7 +170,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
     private void WriteCommaPackedValues(string valuesText, int width, int indent, string indentStr, IConsoleTheme? theme, int currentPos)
     {
-        // Split values by comma and fit as many as possible per line
         var values = valuesText.Split(',').Select(v => v.Trim()).ToArray();
 
         for (int i = 0; i < values.Length; i++)
@@ -186,15 +178,13 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             var textToAdd = i == 0 ? $" {value}" : $", {value}";
             var textLength = GetDisplayWidth(textToAdd);
 
-            // Check if it fits on current line with some buffer
-            if (currentPos + textLength < width - 2) // Leave 2 chars buffer
+            if (currentPos + textLength < width - 2)
             {
                 WriteColoredText(textToAdd, theme?.ParameterColor);
                 currentPos += textLength;
             }
             else
             {
-                // Move to next line
                 _consoleOutput.WriteLine();
                 _consoleOutput.Write(indentStr);
                 WriteColoredText(value, theme?.ParameterColor);
@@ -217,7 +207,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             return;
         }
 
-        // Split the text by explicit line breaks first
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         var indentStr = new string(' ', indent);
         var firstLine = true;
@@ -236,7 +225,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             }
             else
             {
-                // Normal word wrapping for other lines
                 WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
             }
 
@@ -270,7 +258,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
                 currentLineLength++;
             }
 
-            WriteColoredText(word, null); // No coloring for regular words
+            WriteColoredText(word, null);
             currentLineLength += wordLength;
             lineStarted = true;
         }
@@ -297,7 +285,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         var indentStr = new string(' ', indent);
         var availableWidth = maxWidth - indent;
 
-        // Split text into words while preserving console color formatting
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var currentLineLength = 0;
         var lineStarted = false;
@@ -306,7 +293,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         {
             var wordLength = GetDisplayWidth(word);
 
-            // Check if we need to wrap to next line
             if (lineStarted && currentLineLength + wordLength + 1 > availableWidth)
             {
                 _consoleOutput.WriteLine();
@@ -315,7 +301,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
                 lineStarted = false;
             }
 
-            // Add space before word if not at line start
             if (lineStarted)
             {
                 _consoleOutput.Write(" ");
@@ -339,7 +324,6 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
     {
         if (string.IsNullOrEmpty(text)) return 0;
 
-        // Since we're not using ANSI codes anymore, just return the string length
         return text.Length;
     }
 }

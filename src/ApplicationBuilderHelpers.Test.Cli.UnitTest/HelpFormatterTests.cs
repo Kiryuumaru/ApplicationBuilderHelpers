@@ -10,8 +10,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Exercises the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
 /// entry point: global help, leaf help, parent help listing children,
 /// option default values, and unknown-command error footers.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class HelpFormatterTests

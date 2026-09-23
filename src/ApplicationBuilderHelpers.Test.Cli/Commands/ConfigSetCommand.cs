@@ -29,7 +29,6 @@ internal class ConfigSetCommand : ConfigCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-        // Print debug info if requested
         PrintDebugInfo();
 
         Console.WriteLine("Configuration Set Operation");

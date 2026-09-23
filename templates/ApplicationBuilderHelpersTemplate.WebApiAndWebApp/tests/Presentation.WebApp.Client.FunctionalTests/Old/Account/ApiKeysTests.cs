@@ -15,11 +15,11 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_RequiresAuthentication()
     {
-        // Act - Try to access API keys without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login
+        // Assert
         var currentUrl = Page.Url;
         var redirectedToLogin = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
         Assert.True(redirectedToLogin, "Should redirect to login when accessing API keys unauthenticated");
@@ -28,18 +28,18 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_Authenticated_ShowsApiKeysPage()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"apikeys_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to API keys
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
-        // Assert - Should show API keys page
+        // Assert
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"API keys page content length: {pageContent.Length}");
 
@@ -53,18 +53,18 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_HasCreateButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"create_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to API keys
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
-        // Assert - Should have create button
+        // Assert
         var createButton = await Page.QuerySelectorAsync("button:has-text('Create'), button:has-text('Generate'), button:has-text('New'), button:has-text('Add')");
         var pageContent = await Page.ContentAsync();
         var hasCreateOption = createButton != null ||
@@ -78,14 +78,14 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_CreateForm_HasRequiredFields()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"form_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to API keys and open create form
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
@@ -95,7 +95,7 @@ public class ApiKeysTests : WebAppTestBase
             await createButton.ClickAsync();
             await Task.Delay(500);
 
-            // Assert - Should show form with name/description field
+            // Assert
             var nameInput = await Page.QuerySelectorAsync("input[name='name' i], input[placeholder*='name' i]");
             var descriptionInput = await Page.QuerySelectorAsync("input[name='description' i], textarea[name='description' i]");
 
@@ -107,18 +107,18 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_ShowsExistingKeys()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"list_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to API keys
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
-        // Assert - Page should handle empty state or show existing keys
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasEmptyState = pageContent.Contains("no api key", StringComparison.OrdinalIgnoreCase) ||
                            pageContent.Contains("no keys", StringComparison.OrdinalIgnoreCase) ||
@@ -138,18 +138,18 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_ShowsCreateKeyButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"create_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to API keys
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
-        // Assert - Check for create key button
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasCreateButton = pageContent.Contains("Create", StringComparison.OrdinalIgnoreCase) &&
                               pageContent.Contains("Key", StringComparison.OrdinalIgnoreCase);
@@ -161,18 +161,18 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_ShowsEmptyStateMessage()
     {
-        // Arrange - Register and login (fresh user with no keys)
+        // Arrange
         var username = $"empty_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to API keys
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
-        // Assert - Check for empty state message
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasEmptyState = pageContent.Contains("No API keys", StringComparison.OrdinalIgnoreCase) ||
                            pageContent.Contains("Create one", StringComparison.OrdinalIgnoreCase) ||
@@ -185,14 +185,14 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_NavigationFromSidebar()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"nav_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate via sidebar
+        // Act
         await GoToHomeAsync();
         var apiKeysLink = await Page.QuerySelectorAsync("a[href*='api-keys' i]");
 
@@ -201,7 +201,7 @@ public class ApiKeysTests : WebAppTestBase
             await apiKeysLink.ClickAsync();
             await WaitForBlazorAsync();
 
-            // Assert - Should be on API keys page
+            // Assert
             AssertUrlContains("/account/api-keys");
             Output.WriteLine("✅ API keys page accessible via navigation");
         }
@@ -214,18 +214,18 @@ public class ApiKeysTests : WebAppTestBase
     [Fact]
     public async Task ApiKeys_HasApiKeysTitle()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"title_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to API keys
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/api-keys");
         await WaitForBlazorAsync();
 
-        // Assert - Page should have API Keys title
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasTitle = pageContent.Contains("API Keys", StringComparison.Ordinal);
 

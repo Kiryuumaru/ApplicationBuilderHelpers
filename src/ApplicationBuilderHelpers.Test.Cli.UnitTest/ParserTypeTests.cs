@@ -9,8 +9,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Exercises the built-in parsers through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// valid values bind, overflow/empty/invalid values report stderr errors.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ParserTypeTests

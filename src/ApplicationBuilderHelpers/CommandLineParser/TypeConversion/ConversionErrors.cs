@@ -6,14 +6,14 @@ namespace ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 /// <summary>
 /// Factory for type-conversion <see cref="CommandException"/> errors.
 /// Centralizes the message text shared by the option and argument conversion
-/// paths (previously thrown from per-type <c>ConvertValue</c> helpers) so options
+/// paths so options
 /// and arguments share one shape:
 /// exit code 2 with <see cref="CommandErrorKind.InvalidValue"/>.
 /// </summary>
 internal static class ConversionErrors
 {
     /// <summary>
-    /// Creates an invalid-value error, preserving the
+    /// Creates an invalid-value error, with the
     /// <c>"Invalid value '{raw}' for {displayName}: {reason}"</c> shape
     /// (argument conversion parser-error template). Option parser
     /// errors are passed through as <paramref name="reason"/>, so their
@@ -22,7 +22,7 @@ internal static class ConversionErrors
     /// (<c>"Invalid format for value ..."</c>) is passed as <paramref name="reason"/>
     /// by the caller to avoid losing substrings.
     /// When <paramref name="isSecret"/> is true, the raw value is masked as
-    /// <c>[REDACTED]</c> and the parser reason is redacted via
+    /// <c>[REDACTED]</c> and the parser reason is redacted through
     /// <see cref="SecretRedaction.RedactParserError"/> so secret values never echo.
     /// </summary>
     /// <param name="raw">The raw CLI text that failed conversion.</param>
@@ -42,21 +42,15 @@ internal static class ConversionErrors
                     && redactedReason.Contains(raw, StringComparison.Ordinal);
                 if (reasonStillEchoesValue)
                 {
-                    // Parser reason templates we cannot fully redact (e.g. ChangeType
-                    // fallback text) must not leak the value: fall back to the mask.
                     redactedReason = SecretRedaction.Mask;
                 }
 
-                // Mask the echoed raw value, keep the (redacted) reason detail.
                 return new CommandException(
                     $"Invalid value {SecretRedaction.Mask} for {displayName}: {redactedReason}",
                     2,
                     CommandErrorKind.InvalidValue);
             }
 
-            // No parser detail to preserve (enum / null reason): use the upstream
-            // InvalidArgumentFormat shape when the kind prefix marks an argument,
-            // else the secret InvalidFormat shape for options.
             const string argumentPrefix = "argument '";
             if (displayName.StartsWith(argumentPrefix, StringComparison.Ordinal)
                 && displayName.EndsWith("'", StringComparison.Ordinal)
@@ -84,26 +78,20 @@ internal static class ConversionErrors
     }
 
     /// <summary>
-    /// Creates a not-among-allowed-values error, preserving the
-    /// <c>"Value '{raw}' is not valid for {displayName}. Must be one of: {allowedDisplay}"</c>
-    /// shape shared by the option and argument conversion paths.
+    /// Creates a not-among-allowed-values error.
     /// When <paramref name="isSecret"/> is true, the provided value is omitted
-    /// (upstream <c>SecretRedaction.InvalidOptionValueMessage</c> /
-    /// <c>InvalidArgumentValueMessage</c> shapes) while keeping the
-    /// valid-values list. The <paramref name="isArgument"/> flag selects the
-    /// option vs. argument template. Non-secret calls keep the legacy shape.
+    /// while keeping the valid-values list. The <paramref name="isArgument"/>
+    /// flag selects the argument template, otherwise the option template.
     /// </summary>
     /// <param name="raw">The raw CLI text that was rejected.</param>
     /// <param name="displayName">Display name including kind prefix, e.g. <c>"option '--mode'"</c> or <c>"argument 'level'"</c>.</param>
     /// <param name="allowedDisplay">Pre-joined allowed-values display text, e.g. <c>"json, xml"</c>.</param>
     /// <param name="isSecret">Whether the target option/argument is secret.</param>
-    /// <param name="isArgument">True for the argument template, false for the option template.</param>
+    /// <param name="isArgument"><c>true</c> for the argument template, <c>false</c> for the option template.</param>
     internal static CommandException NotAmong(string? raw, string displayName, string allowedDisplay, bool isSecret = false, bool isArgument = false)
     {
         if (isSecret)
         {
-            // Strip the "option '--x'" / "argument 'x'" kind prefix back to the
-            // bare name so the upstream secret templates stay byte-identical.
             string bareName = displayName;
             const string optionPrefix = "option '--";
             const string argumentPrefix = "argument '";

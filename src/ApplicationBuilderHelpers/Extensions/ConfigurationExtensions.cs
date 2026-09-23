@@ -20,7 +20,7 @@ public static class ConfigurationExtensions
     /// <param name="configuration">The configuration instance.</param>
     /// <param name="varName">The variable name to get the value for.</param>
     /// <param name="value">When this method returns, contains the resolved value if found; otherwise, null.</param>
-    /// <returns>True if the value was found and resolved successfully; otherwise, false.</returns>
+    /// <returns><c>true</c> if the value was found and resolved successfully; otherwise, <c>false</c>.</returns>
     public static bool TryGetRefValue(this IConfiguration configuration, string varName, [NotNullWhen(true)] out string? value)
     {
         const int maxDepth = 32;
@@ -55,7 +55,7 @@ public static class ConfigurationExtensions
     /// </summary>
     /// <param name="configuration">The configuration instance.</param>
     /// <param name="varName">The variable name to check.</param>
-    /// <returns>True if the value exists and can be resolved; otherwise, false.</returns>
+    /// <returns><c>true</c> if the value exists and can be resolved; otherwise, <c>false</c>.</returns>
     public static bool ContainsRefValue(this IConfiguration configuration, string varName)
     {
         return TryGetRefValue(configuration, varName, out _);

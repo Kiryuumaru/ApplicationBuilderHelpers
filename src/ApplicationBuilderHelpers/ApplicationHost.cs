@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers;
 
 /// <summary>
-/// Represents a builder for managing application dependencies and running the configured application.
+/// Represents the built application host wrapping the configured <see cref="IHost"/>.
 /// </summary>
 public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost host) : ApplicationHostBuilderBase(builder)
 {
@@ -28,11 +28,12 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     internal ConsoleOutput ConsoleOutput { get; set; } = new ConsoleOutput();
 
     /// <summary>
-    /// Runs the configured application.
+    /// Runs the configured application by running <c>AddMiddlewares</c>,
+    /// <c>AddMappings</c>, <c>RunPreparation</c>, and
+    /// <c>RunPreparationAsync</c>.
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation. Returns an integer exit code.</returns>
-    /// <exception cref="Exception">Thrown if there is an error during application startup.</exception>
+    /// <returns>A task that represents the asynchronous operation. Returns 0 on success or the <see cref="Exceptions.CommandException"/> exit code when the host run reports a command error.</returns>
     internal async Task<int> Run(CancellationToken cancellationToken = default)
     {
         foreach (var applicationDependency in ApplicationDependencies)
@@ -58,9 +59,6 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
         }
         catch (CommandException ex)
         {
-            // Host path has no argv: it cannot know whether the failing
-            // invocation already requested help, so the footer keeps both
-            // hints here (#509 suppression is gateway-only by design).
             ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName);
             return ex.ExitCode;
         }
@@ -69,11 +67,9 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
     }
 
     /// <summary>
-    /// Shows a styled error message with helpful footer information, mirroring the
-    /// command-line gateway path. Uses the auto-detected executable name and the
-    /// default error color since no <see cref="Interfaces.ICommandBuilder"/> theme
-    /// is reachable here without new coupling.
-    /// Footer selection dispatches on <see cref="CommandErrorKind"/>, never on message text.
+    /// Shows an error message with footer information.
+    /// Uses the detected executable name. Footer selection depends on
+    /// <see cref="CommandErrorKind"/>.
     /// </summary>
     private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName)
     {
@@ -88,7 +84,7 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
 }
 
 /// <summary>
-/// Represents a builder for managing application dependencies and running the configured application.
+/// Represents the built application host for a specific host application builder type.
 /// </summary>
 /// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
 public class ApplicationHost<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder, IHost host) : ApplicationHost(builder, host)

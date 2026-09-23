@@ -9,9 +9,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// <c>-1</c> binds a positional even when a digit short exists, never silently
 /// binds the digit flag; in-token forms (<c>-1=value</c>, compact <c>-1x</c>)
-/// still reach the digit option. Joins the non-parallel
-/// <c>ConsoleDecoupling</c> collection because the console streams are
-/// process-global mutable state.
+/// still reach the digit option.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class NumericDigitShortPrecedenceTests

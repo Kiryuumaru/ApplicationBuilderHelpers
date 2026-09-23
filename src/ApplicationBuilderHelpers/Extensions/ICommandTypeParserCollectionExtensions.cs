@@ -5,14 +5,14 @@ using System.Diagnostics.CodeAnalysis;
 namespace ApplicationBuilderHelpers.Extensions;
 
 /// <summary>
-/// Provides extension methods for <see cref="ICommandTypeParserCollection"/> to simplify adding command type parsers.
+/// Provides extension methods for <see cref="ICommandTypeParserCollection"/> to add command type parsers.
 /// </summary>
 public static class ICommandTypeParserCollectionExtensions
 {
     /// <summary>
     /// Adds a command type parser to the collection.
-    /// Replaces (upserts) any parser already registered for the same <see cref="ICommandTypeParser.Type"/>,
-    /// so user-registered parsers override the built-in defaults.
+    /// Replaces any parser already registered for the same <see cref="ICommandTypeParser.Type"/>,
+    /// so user-registered parsers override the defaults.
     /// </summary>
     /// <typeparam name="TICommandTypeParserCollection">The type of the command type parser collection.</typeparam>
     /// <param name="commandTypeParserCollection">The collection to add the parser to.</param>
@@ -30,8 +30,8 @@ public static class ICommandTypeParserCollectionExtensions
 
     /// <summary>
     /// Adds a command type parser to the collection by creating an instance of the specified parser type.
-    /// Replaces (upserts) any parser already registered for the same <see cref="ICommandTypeParser.Type"/>,
-    /// so user-registered parsers override the built-in defaults.
+    /// Replaces any parser already registered for the same <see cref="ICommandTypeParser.Type"/>,
+    /// so user-registered parsers override the defaults.
     /// </summary>
     /// <typeparam name="TCommandTypeParser">The type of the command type parser to create and add.</typeparam>
     /// <typeparam name="TICommandTypeParserCollection">The type of the command type parser collection.</typeparam>

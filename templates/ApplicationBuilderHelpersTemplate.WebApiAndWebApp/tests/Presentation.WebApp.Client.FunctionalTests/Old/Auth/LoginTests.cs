@@ -19,7 +19,7 @@ public class LoginTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Verify form elements exist (page uses email, not username)
+        // Assert
         var emailInput = await Page.QuerySelectorAsync("input#email, input[type='email']");
         var passwordInput = await Page.QuerySelectorAsync("input#password, input[type='password']");
         var submitButton = await Page.QuerySelectorAsync("button[type='submit']");
@@ -35,7 +35,7 @@ public class LoginTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Should have a link to registration page
+        // Assert
         var registerLink = await Page.QuerySelectorAsync("a[href*='register' i]");
         Assert.NotNull(registerLink);
     }
@@ -43,13 +43,13 @@ public class LoginTests : WebAppTestBase
     [Fact]
     public async Task Login_WithValidCredentials_RedirectsToHome()
     {
-        // Arrange - First register a new user
+        // Arrange
         var username = $"login_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
 
-        // Act - Now login (using email, not username)
+        // Act
         var success = await LoginAsync(email, TestPassword);
 
         // Assert
@@ -60,13 +60,13 @@ public class LoginTests : WebAppTestBase
     [Fact]
     public async Task Login_WithInvalidPassword_StaysOnLoginPage()
     {
-        // Arrange - First register a new user
+        // Arrange
         var username = $"login_bad_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
 
-        // Act - Try to login with wrong password (using email, not username)
+        // Act
         await GoToLoginAsync();
         await Page.FillAsync("input#email, input[type='email']", email);
         await Page.FillAsync("input#password, input[type='password']", "WrongPassword123!");
@@ -74,7 +74,7 @@ public class LoginTests : WebAppTestBase
 
         await Task.Delay(1000);
 
-        // Assert - Should still be on login page
+        // Assert
         var currentUrl = Page.Url;
         Output.WriteLine($"URL after bad password: {currentUrl}");
 
@@ -98,7 +98,7 @@ public class LoginTests : WebAppTestBase
 
         await Task.Delay(1000);
 
-        // Assert - Should still be on login page
+        // Assert
         var currentUrl = Page.Url;
         Output.WriteLine($"URL after non-existent user: {currentUrl}");
 
@@ -114,7 +114,7 @@ public class LoginTests : WebAppTestBase
         // Arrange
         await GoToLoginAsync();
 
-        // Act - Click register link
+        // Act
         await Page.ClickAsync("a[href*='register' i]");
         await WaitForBlazorAsync();
 

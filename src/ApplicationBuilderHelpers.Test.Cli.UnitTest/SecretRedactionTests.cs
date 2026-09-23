@@ -13,8 +13,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// variable name, error messages omit the provided secret value while keeping
 /// the option name and valid-values list, and the global option copy preserves
 /// the flag across sibling commands.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class SecretRedactionTests
@@ -435,9 +434,6 @@ public sealed class SecretRedactionTests
     [Fact]
     public async Task SecretEnumArgument_InvalidValue_OmitsValue()
     {
-        // A secret plain-enum argument auto-populates ValidValues, so
-        // unparseable input reports the NotAmong shape (value omitted, allowed
-        // list kept) — same as SecretArgument_InvalidAllowedValue.
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secenumarg", "BogusKind"]);
 
         Assert.Equal(2, exitCode);

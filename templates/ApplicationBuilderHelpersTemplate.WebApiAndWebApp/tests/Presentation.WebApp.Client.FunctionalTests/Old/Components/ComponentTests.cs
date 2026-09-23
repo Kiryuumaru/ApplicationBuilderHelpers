@@ -20,7 +20,7 @@ public class ComponentTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Cards should render with proper styling
+        // Assert
         var cards = await Page.QuerySelectorAllAsync(".bg-white, [class*='card']");
         Output.WriteLine($"Card elements found: {cards.Count}");
 
@@ -37,7 +37,7 @@ public class ComponentTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Submit button should exist
+        // Assert
         var submitButton = await Page.QuerySelectorAsync("button[type='submit']");
         Assert.NotNull(submitButton);
 
@@ -49,17 +49,17 @@ public class ComponentTests : WebAppTestBase
     [Fact]
     public async Task Button_ShowsLoadingState()
     {
-        // Arrange - Go to login page
+        // Arrange
         await GoToLoginAsync();
 
         // Fill in form but with invalid credentials to trigger loading
         await Page.FillAsync("input[type='email']", "test@example.com");
         await Page.FillAsync("input[type='password']", "password");
 
-        // Act - Click submit and immediately check for loading state
+        // Act
         await Page.ClickAsync("button[type='submit']");
 
-        // Assert - Button should show loading state (may be brief)
+        // Assert
         var pageContent = await Page.ContentAsync();
         Output.WriteLine("Button loading state test completed");
     }
@@ -74,7 +74,7 @@ public class ComponentTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Should have labeled inputs
+        // Assert
         var labels = await Page.QuerySelectorAllAsync("label");
         Output.WriteLine($"Labels found: {labels.Count}");
 
@@ -87,11 +87,11 @@ public class ComponentTests : WebAppTestBase
         // Arrange
         await GoToLoginAsync();
 
-        // Act - Submit empty form to trigger validation
+        // Act
         await Page.ClickAsync("button[type='submit']");
         await Task.Delay(500);
 
-        // Assert - Should show validation errors
+        // Assert
         var validationMessages = await Page.QuerySelectorAllAsync(".validation-message, .text-red, [class*='error']");
         Output.WriteLine($"Validation messages found: {validationMessages.Count}");
     }
@@ -102,7 +102,7 @@ public class ComponentTests : WebAppTestBase
         // Act
         await GoToLoginAsync();
 
-        // Assert - Password field should be type="password"
+        // Assert
         var passwordInput = await Page.QuerySelectorAsync("input[type='password']");
         Assert.NotNull(passwordInput);
     }
@@ -117,13 +117,13 @@ public class ComponentTests : WebAppTestBase
         // Arrange
         await GoToLoginAsync();
 
-        // Act - Submit with invalid credentials
+        // Act
         await Page.FillAsync("input[type='email']", "nonexistent@example.com");
         await Page.FillAsync("input[type='password']", "wrongpassword");
         await Page.ClickAsync("button[type='submit']");
         await Task.Delay(1500);
 
-        // Assert - Should show error alert
+        // Assert
         var alert = await Page.QuerySelectorAsync("[class*='alert'], [class*='error'], .bg-red");
         var pageContent = await Page.ContentAsync();
         var hasError = pageContent.Contains("error", StringComparison.OrdinalIgnoreCase) ||
@@ -137,17 +137,17 @@ public class ComponentTests : WebAppTestBase
     [Fact]
     public async Task Alert_IsDismissible()
     {
-        // This test verifies alert component has dismiss functionality
+        // Alert component has dismiss functionality
         // Actual dismissal depends on implementation
 
-        // Arrange - Trigger an error
+        // Arrange
         await GoToLoginAsync();
         await Page.FillAsync("input[type='email']", "test@example.com");
         await Page.FillAsync("input[type='password']", "wrong");
         await Page.ClickAsync("button[type='submit']");
         await Task.Delay(1500);
 
-        // Assert - Look for dismiss button
+        // Assert
         var dismissButton = await Page.QuerySelectorAsync("button[aria-label*='dismiss' i], button[aria-label*='close' i], .alert button");
         Output.WriteLine($"Dismiss button found: {dismissButton != null}");
     }
@@ -159,7 +159,7 @@ public class ComponentTests : WebAppTestBase
     [Fact]
     public async Task LoadingSpinner_ShowsDuringPageLoad()
     {
-        // Act - Navigate and check for loading indicator
+        // Act
         Page.Request += (_, request) =>
         {
             // During navigation, loading might appear
@@ -171,7 +171,7 @@ public class ComponentTests : WebAppTestBase
         var loadingElement = await Page.QuerySelectorAsync(".loading, [class*='spinner'], [class*='loading']");
         Output.WriteLine($"Loading spinner found: {loadingElement != null}");
 
-        // Loading spinner might have already completed, so we just verify the test runs
+        // The loading spinner may have already completed; verify the test runs
     }
 
     #endregion
@@ -181,7 +181,7 @@ public class ComponentTests : WebAppTestBase
     [Fact]
     public async Task Navigation_HasMenuItems()
     {
-        // Arrange - Login first
+        // Arrange
         var username = $"nav_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -191,7 +191,7 @@ public class ComponentTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Should have navigation links
+        // Assert
         var navLinks = await Page.QuerySelectorAllAsync("nav a, .sidebar a, [role='navigation'] a");
         Output.WriteLine($"Navigation links found: {navLinks.Count}");
 
@@ -201,7 +201,7 @@ public class ComponentTests : WebAppTestBase
     [Fact]
     public async Task Navigation_HighlightsActivePage()
     {
-        // Arrange - Login
+        // Arrange
         var username = $"active_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -211,7 +211,7 @@ public class ComponentTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Current page should be highlighted in nav
+        // Assert
         // Look for active state styling
         var activeNavItem = await Page.QuerySelectorAsync("[class*='active'], [aria-current='page']");
         Output.WriteLine($"Active nav item found: {activeNavItem != null}");
@@ -224,10 +224,10 @@ public class ComponentTests : WebAppTestBase
     [Fact]
     public async Task AuthorizeView_ShowsNotAuthorizedContent()
     {
-        // Act - Go to home page without authentication
+        // Act
         await GoToHomeAsync();
 
-        // Assert - Should show NotAuthorized content
+        // Assert
         var signInLink = await Page.QuerySelectorAsync("a[href*='login' i]");
         var getStartedContent = await Page.ContentAsync();
         var hasNotAuthorizedContent = getStartedContent.Contains("sign in", StringComparison.OrdinalIgnoreCase) ||
@@ -239,7 +239,7 @@ public class ComponentTests : WebAppTestBase
     [Fact]
     public async Task AuthorizeView_ShowsAuthorizedContent()
     {
-        // Arrange - Login
+        // Arrange
         var username = $"authview_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -249,7 +249,7 @@ public class ComponentTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Should show Authorized content
+        // Assert
         var content = await Page.ContentAsync();
         var hasAuthorizedContent = content.Contains("welcome", StringComparison.OrdinalIgnoreCase) ||
                                    content.Contains("profile", StringComparison.OrdinalIgnoreCase) ||

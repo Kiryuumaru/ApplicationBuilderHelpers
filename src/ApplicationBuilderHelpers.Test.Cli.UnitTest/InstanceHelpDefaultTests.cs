@@ -5,15 +5,14 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process regression tests for second-run <c>--help</c> defaults with
+/// In-process tests for second-run <c>--help</c> defaults with
 /// caller-supplied instance registrations.
 /// <c>AddCommand(ICommand)</c>-style registrations keep identity across runs, so
 /// value binding mutates the shared instance. Help must report the
 /// registration-time initializer default on every run, not the live
 /// (possibly already-bound) property value. Type registrations resolve a fresh
-/// instance per run and are unaffected. Joins the non-parallel
-/// <c>ConsoleDecoupling</c> collection because the console streams are
-/// process-global mutable state.
+/// instance per run and are unaffected.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class InstanceHelpDefaultTests
@@ -39,9 +38,6 @@ public sealed class InstanceHelpDefaultTests
         var builder = CreateBuilder();
         builder.AddCommand(new InstanceHelpCommand());
 
-        // Bind an explicit value through a real run: this mutates the shared
-        // instance, so a live-value help read on the next run would report
-        // the bound value as the default.
         var bound = await RunCapturedAsync(builder, ["insthelp", "--mode", "prod"]);
 
         Assert.Equal(0, bound.ExitCode);

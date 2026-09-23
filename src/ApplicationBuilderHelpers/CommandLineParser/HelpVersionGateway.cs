@@ -7,8 +7,7 @@ using System.Collections.Generic;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Help/version gateway delegating to the existing HelpFormatter and ConsoleOutput.
-/// Moved verbatim from CommandLineParser (mechanical split, no behavior change).
+/// Help/version pre-parse step that calls HelpFormatter and ConsoleOutput.
 /// </summary>
 internal sealed class HelpVersionGateway(
     ICommandBuilder commandBuilder,
@@ -16,14 +15,11 @@ internal sealed class HelpVersionGateway(
 {
     internal static bool ShouldShowGlobalHelp(string[] args)
     {
-        // Only show global help if explicitly requested with --help/-h
         if (args.Length == 1 && IsHelpToken(args[0]))
         {
             return true;
         }
 
-        // Never show global help for empty args - let ParseCommandLine handle it
-        // This allows root commands to execute normally or show subcommand requirements
         return false;
     }
 
@@ -38,12 +34,11 @@ internal sealed class HelpVersionGateway(
     }
 
     /// <summary>
-    /// Mirrors the parser's help-detection surface (#509 footer signal):
+    /// Matches the parser's help-detection surface (footer signal):
     /// <see cref="IsHelpToken"/> per-token plus an <c>h</c> char inside a
-    /// dash-led cluster (the parser's cluster rule at
-    /// <c>ArgumentParser.cs:328-332</c>), scanning only up to the first bare
+    /// dash-led cluster (the dash-led cluster rule), scanning only up to the first bare
     /// <c>--</c> separator (tokens after it are positional per
-    /// <c>ArgumentParser.cs:113-123</c> and never set <c>ShowHelp</c>).
+    /// the global-help rule and never set <c>ShowHelp</c>).
     /// Footer-only: exit codes are unaffected.
     /// </summary>
     internal static bool RequestedHelp(string[] args)
@@ -63,9 +58,6 @@ internal sealed class HelpVersionGateway(
 
     private static bool IsHelpCluster(string token)
     {
-        // Same cluster gate as the parser (ArgumentParser.cs:287): bare
-        // multi-char short bundles only — no '=', not '--' long form, not
-        // numeric. The 'h' char wins as help even mid-cluster (:328-332).
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('='))
             return false;
         if (char.IsDigit(token[1]) || token[1] == '.')
@@ -93,22 +85,19 @@ internal sealed class HelpVersionGateway(
     }
 
     /// <summary>
-    /// Shows a styled error message with helpful footer information.
-    /// Footer selection dispatches on <see cref="CommandErrorKind"/>, never on message text.
+    /// Shows a styled error message with footer information.
+    /// Footer selection branches on <see cref="CommandErrorKind"/>, never on message text.
     /// The circular <c>--help</c> hint is suppressed when the failing invocation
-    /// already requested help (#509): only the <c>--version</c> hint survives.
+    /// already requested help: only the <c>--version</c> hint survives.
     /// </summary>
     internal void ShowErrorMessage(string message, CommandErrorKind kind = CommandErrorKind.Fault, string? commandName = null, bool showHelpRequested = false)
     {
         var theme = commandBuilder.Theme;
-        // Use auto-detection for null ExecutableName
         var executableName = commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
 
-        // Show the error message in red color if theme is available
         var errorColor = theme?.RequiredColor ?? ConsoleColor.Red;
         consoleOutput.WriteLineError($"Error: {message}", errorColor);
 
-        // Add helpful footer message based on error kind
         consoleOutput.WriteLineError();
 
         consoleOutput.WriteLineError(CommandErrorFooter.Resolve(kind, executableName, commandName, showHelpRequested));

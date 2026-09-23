@@ -32,7 +32,7 @@ dotnet publish src/Presentation.Cli -o publish
 
 ### Running Published Application
 
-The published binary name follows `AssemblyName` (defaults to `sampleapp`; renames automatically with it — substitute `<YourApp>` with your actual name):
+The published binary name follows `AssemblyName` (defaults to `sampleapp`; renames automatically with it: substitute `<YourApp>` with your actual name):
 
 ```powershell
 ./publish/<YourApp>
@@ -62,26 +62,26 @@ Environments configured in `src/Domain/AppEnvironment/Constants/AppEnvironments.
 
 ## Pre-Session Data Flow Mapping
 
-Before any session starts — before planning, before coding, before implementation — the agent MUST map the data flow. This is the foundation that prevents AI from guessing and creating technical debt.
+Map the data flow before planning, coding, or implementation. Guessing creates technical debt.
 
 ### Why
 
-AI has no map of how data moves through the app. Without it, AI guesses. Those guesses become technical debt — duplicate entities, leaked state, broken flows. Real speed is not generating 500 lines in 10 seconds, it's not spending 3 hours deleting wrong code.
+Guessing creates technical debt: duplicate entities, leaked state, broken flows.
 
 ### What to Map
 
 For every session, start by producing a brief data flow outline covering:
 
-1. **Main entities** — What domain objects are involved? (e.g., `OrderEntity`, `PaymentEntity`)
-2. **Data sources** — Where does data come from? (HTTP request, CLI input, background worker, external API, database)
-3. **Data destinations** — Where does data go? (Database table, response body, notification, cache, message queue)
-4. **What changes** — What state transitions happen? (e.g., `OrderCreated → PaymentProcessed → OrderCompleted`)
+1. **Main entities**: What domain objects are involved? (e.g., `OrderEntity`, `PaymentEntity`)
+2. **Data sources**: Where does data come from? (HTTP request, CLI input, background worker, external API, database)
+3. **Data destinations**: Where does data go? (Database table, response body, notification, cache, message queue)
+4. **What changes**: What state transitions happen? (e.g., `OrderCreated → PaymentProcessed → OrderCompleted`)
 
 ### How to Produce It
 
 - Read the relevant architecture docs first (`architecture.instructions.md`)
 - Scan the existing codebase for related entities, services, and repositories
-- Write a **short** outline (5-10 lines max) — not a giant architecture doc
+- Write a **short** outline (5-10 lines max): not a giant architecture doc
 - Paste it as the first output of the session
 
 Example:
@@ -95,7 +95,7 @@ Example:
 
 ### When to Skip
 
-NEVER skip this step. It applies to every session regardless of scope — bug fix, new feature, refactoring, documentation update. The map may be tiny for small changes, but it grounds the AI.
+NEVER skip this step. It applies to every session regardless of scope: bug fix, new feature, refactoring, documentation update. The map may be tiny for small changes, but it grounds the AI.
 
 ---
 

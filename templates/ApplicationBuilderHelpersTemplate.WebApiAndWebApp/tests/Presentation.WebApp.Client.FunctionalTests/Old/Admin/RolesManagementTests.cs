@@ -15,11 +15,11 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_RequiresAuthentication()
     {
-        // Act - Try to access roles page without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login or show unauthorized
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
 
@@ -33,14 +33,14 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_Authenticated_ShowsRoleCardsOrAccessDenied()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"roles_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to roles page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
@@ -48,7 +48,7 @@ public class RolesManagementTests : WebAppTestBase
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"Roles page URL: {currentUrl}");
 
-        // Assert - Should either show content, deny access, or redirect
+        // Assert
         var redirectedToLogin = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
         var hasRolesContent = pageContent.Contains("role", StringComparison.OrdinalIgnoreCase) &&
                               (pageContent.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
@@ -65,14 +65,14 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_HasAddRoleButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"addrole_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to roles page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
@@ -90,7 +90,7 @@ public class RolesManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should have add role button
+        // Assert
         var addButton = await Page.QuerySelectorAsync("button:has-text('Add'), button:has-text('Create'), button:has-text('New')");
         Output.WriteLine($"Add role button found: {addButton != null}");
         Assert.NotNull(addButton);
@@ -99,14 +99,14 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_DisplaysRolePermissions()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"perms_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to roles page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
@@ -124,7 +124,7 @@ public class RolesManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should display permissions for roles
+        // Assert
         var hasPermissions = pageContent.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
                             pageContent.Contains("read", StringComparison.OrdinalIgnoreCase) ||
                             pageContent.Contains("write", StringComparison.OrdinalIgnoreCase) ||
@@ -137,14 +137,14 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_ShowsUserCount()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"count_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to roles page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
@@ -162,7 +162,7 @@ public class RolesManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should show user count for roles
+        // Assert
         var hasUserCount = pageContent.Contains("user", StringComparison.OrdinalIgnoreCase) ||
                           pageContent.Contains("member", StringComparison.OrdinalIgnoreCase);
 
@@ -173,14 +173,14 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_SystemRolesNotDeletable()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"system_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to roles page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
@@ -198,7 +198,7 @@ public class RolesManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Admin/User system roles should exist and be visible
+        // Assert
         var hasAdminRole = pageContent.Contains("Admin", StringComparison.Ordinal);
         var hasUserRole = pageContent.Contains("User", StringComparison.Ordinal);
         Output.WriteLine($"Has Admin role: {hasAdminRole}");
@@ -210,14 +210,14 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_HasEditButtons()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"edit_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to roles page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
@@ -235,7 +235,7 @@ public class RolesManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should have edit buttons for roles
+        // Assert
         var editButtons = await Page.QuerySelectorAllAsync("button[aria-label*='edit' i], button:has(svg)");
         Output.WriteLine($"Edit buttons found: {editButtons.Count}");
         Assert.True(editButtons.Count > 0, "Roles page should have edit buttons");
@@ -244,14 +244,14 @@ public class RolesManagementTests : WebAppTestBase
     [Fact]
     public async Task RolesPage_DisplaysRoleDescription()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"desc_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to roles page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/admin/roles");
         await WaitForBlazorAsync();
 
@@ -269,7 +269,7 @@ public class RolesManagementTests : WebAppTestBase
             return;
         }
 
-        // Assert - Should show role descriptions
+        // Assert
         var hasDescriptions = pageContent.Contains("access", StringComparison.OrdinalIgnoreCase) ||
                              pageContent.Contains("management", StringComparison.OrdinalIgnoreCase) ||
                              pageContent.Contains("description", StringComparison.OrdinalIgnoreCase);

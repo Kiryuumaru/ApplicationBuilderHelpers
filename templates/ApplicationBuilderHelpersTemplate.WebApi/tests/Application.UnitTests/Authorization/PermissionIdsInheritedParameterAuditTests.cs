@@ -16,7 +16,7 @@ namespace Application.UnitTests.Authorization;
 /// The audit enforces:
 ///   1. For every emitted permission class with parameter constants, every parameter
 ///      MUST be reachable as a <c>public static With{Param}(string) -&gt; ScopeBuilder</c>
-///      chain-starter on that class (not just the first one).
+///      chain-starter on that class (every matching method, not only the first).
 ///   2. The corresponding <c>PermissionRequestBuilder</c> (where present) MUST expose
 ///      <c>With{Param}(string) -&gt; PermissionRequestBuilder</c> for every parameter.
 ///   3. The <c>ScopeBuilder</c> struct emitted inside the permission class MUST expose
@@ -536,8 +536,8 @@ public sealed class PermissionIdsInheritedParameterAuditTests
     public void BoundaryValue_ValueWithSemicolon_IsEmittedVerbatim()
     {
         // The builder does NOT escape special directive characters. A value containing
-        // ';' will corrupt the directive grammar at parse time. This test pins down the
-        // current unescaped behavior; a future change adding escaping would be breaking.
+        // ';' will corrupt the directive grammar at parse time. The current unescaped
+        // behavior is pinned here; a future change adding escaping would be breaking.
         var directive = PermissionIds.Api.Auth.Me.WithUserId("a;b").Allow();
         Assert.Equal("allow;api:auth:me;userId=a;b", directive);
     }

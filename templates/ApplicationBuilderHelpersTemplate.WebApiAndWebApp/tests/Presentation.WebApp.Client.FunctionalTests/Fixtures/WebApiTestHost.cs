@@ -94,10 +94,10 @@ public class WebApiTestHost : IAsyncDisposable
         // Find the apphost executable in publish output (extensionless on Linux/macOS,
         // .exe on Windows). Fall back to the server dll launched via the SDK's dotnet
         // (PATH inside tests resolves to the system 8.x SDK, which cannot run net10
-        // appdlls — hence prefer the apphost which carries its own apphost resolver).
+        // appdlls, hence prefer the apphost which carries its own apphost resolver).
         // Derive the executable name from the published *.runtimeconfig.json so renaming
         // <AssemblyName> keeps working. Skip Blazor WASM client runtimeconfigs
-        // (*.client.*) — those are browser assets without a native apphost.
+        // (*.client.*), those are browser assets without a native apphost.
         var exeCandidates = Directory.GetFiles(_publishDir, "*.runtimeconfig.json")
             .Where(rc => !Path.GetFileName(rc).Contains(".client.", StringComparison.OrdinalIgnoreCase))
             // Single apphost assumption: one non-client runtimeconfig is expected; sort so any extra match picks deterministically.

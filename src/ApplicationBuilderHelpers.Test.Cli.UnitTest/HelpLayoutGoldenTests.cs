@@ -6,21 +6,15 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Exact frozen golden tests for CLI help rendering.
+/// Exact help rendering tests for the CLI.
 /// Exercises the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
-/// entry point and pins the full help bytes (layout, wrapping, column sharing) so the
-/// pending HelpFormatter split stays byte-identical. Captures the process-global console
-/// streams, so joins the non-parallel <c>ConsoleDecoupling</c> collection.
+/// entry point and pins the full help bytes (layout, wrapping, column sharing). Captures the process-global console
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class HelpLayoutGoldenTests
 {
     private static readonly SemaphoreSlim ConsoleGate = new(1, 1);
-
-    // Goldens are exact stdout bytes with \n endings. Raw-string closers sit
-    // at column 0 so no line carries stray indentation; the final content
-    // line has NO trailing newline in source, then + "\n" pins the single
-    // (global) or double (command) trailing newline the formatter emits.
 
     [Command("deploy", "Deploy the application to the target environment.")]
     public sealed class DeployCommand : Command

@@ -23,7 +23,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentLogins_50Users_AllSucceed()
     {
-        Output.WriteLine("[TEST] ConcurrentLogins_50Users_AllSucceed");
 
         const int userCount = 50;
 
@@ -59,7 +58,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentRegistrations_30Users_AllSucceed()
     {
-        Output.WriteLine("[TEST] ConcurrentRegistrations_30Users_AllSucceed");
 
         const int userCount = 30;
         var usernames = Enumerable.Range(0, userCount)
@@ -85,7 +83,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentTokenRefresh_20Sessions_AllSucceed()
     {
-        Output.WriteLine("[TEST] ConcurrentTokenRefresh_20Sessions_AllSucceed");
 
         const int sessionCount = 20;
         var username = $"stress_refresh_{Guid.NewGuid():N}";
@@ -128,8 +125,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task UserAccessWhilePermissionsChange_HandledGracefully()
     {
-        Output.WriteLine("[TEST] UserAccessWhilePermissionsChange_HandledGracefully");
-
         // Create admin and regular user
         var adminAuth = await CreateAdminAsync();
         var userAuth = await RegisterUserAsync($"stress_perm_{Guid.NewGuid():N}");
@@ -206,8 +201,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task RoleAssignmentWhileUserActive_HandledGracefully()
     {
-        Output.WriteLine("[TEST] RoleAssignmentWhileUserActive_HandledGracefully");
-
         var adminAuth = await CreateAdminAsync();
         var userAuth = await RegisterUserAsync($"stress_role_{Guid.NewGuid():N}");
         Assert.NotNull(adminAuth);
@@ -245,8 +238,7 @@ public sealed class StressTests : WebApiTestBase
             {
                 try
                 {
-                    // Note: In real scenario, you'd need to track the role assignment ID
-                    // For this test, we just verify the operations don't crash
+                    // Role assignment IDs are not tracked here; the operations must not crash
                     if (i % 2 == 0)
                     {
                         // Assign a custom role (this may fail if role doesn't exist, which is OK)
@@ -283,8 +275,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentRoleAssignment_SameUser_NoCorruption()
     {
-        Output.WriteLine("[TEST] ConcurrentRoleAssignment_SameUser_NoCorruption");
-
         var adminAuth = await CreateAdminAsync();
         var userAuth = await RegisterUserAsync($"stress_race_{Guid.NewGuid():N}");
         Assert.NotNull(adminAuth);
@@ -326,8 +316,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentPermissionGrant_SameUserSamePermission_NoCorruption()
     {
-        Output.WriteLine("[TEST] ConcurrentPermissionGrant_SameUserSamePermission_NoCorruption");
-
         var adminAuth = await CreateAdminAsync();
         var userAuth = await RegisterUserAsync($"stress_perm_race_{Guid.NewGuid():N}");
         Assert.NotNull(adminAuth);
@@ -374,8 +362,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentRoleCreation_SameName_OnlyOneSucceeds()
     {
-        Output.WriteLine("[TEST] ConcurrentRoleCreation_SameName_OnlyOneSucceeds");
-
         var adminAuth = await CreateAdminAsync();
         Assert.NotNull(adminAuth);
 
@@ -409,18 +395,15 @@ public sealed class StressTests : WebApiTestBase
 
         Output.WriteLine($"[INFO] Created: {successCount}, Conflicts: {conflictCount}, 500 Errors: {serverErrorCount}");
 
-        // Note: This test documents current behavior. Ideally 500s should be 409s.
-        // The test verifies at least one succeeds and no data corruption occurs.
+        // Concurrent duplicate creation: at least one succeeds and no data corruption occurs.
         Assert.True(successCount >= 1, "At least one creation should succeed");
 
-        Output.WriteLine("[PASS] Duplicate role creation handled (note: 500 errors indicate missing conflict handling)");
+        Output.WriteLine("[PASS] Duplicate role creation handled (500 errors indicate missing conflict handling)");
     }
 
     [Fact]
     public async Task ConcurrentUserUpdate_SameUser_LastWriteWins()
     {
-        Output.WriteLine("[TEST] ConcurrentUserUpdate_SameUser_LastWriteWins");
-
         var adminAuth = await CreateAdminAsync();
         var userAuth = await RegisterUserAsync($"stress_update_{Guid.NewGuid():N}");
         Assert.NotNull(adminAuth);
@@ -463,8 +446,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentTokenRefresh_SameRefreshToken_OnlyOneSucceeds()
     {
-        Output.WriteLine("[TEST] ConcurrentTokenRefresh_SameRefreshToken_OnlyOneSucceeds");
-
         var userAuth = await RegisterUserWithRetryAsync("stress_double_refresh");
 
         var refreshToken = userAuth.RefreshToken;
@@ -500,8 +481,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentLogout_MultipleSessions_AllHandled()
     {
-        Output.WriteLine("[TEST] ConcurrentLogout_MultipleSessions_AllHandled");
-
         var username = $"stress_logout_{Guid.NewGuid():N}";
         var auth = await RegisterUserAsync(username);
         Assert.NotNull(auth);
@@ -545,8 +524,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentPasswordChange_SameUser_OnlyOneSucceeds()
     {
-        Output.WriteLine("[TEST] ConcurrentPasswordChange_SameUser_OnlyOneSucceeds");
-
         var username = $"stress_pwd_{Guid.NewGuid():N}";
         var userAuth = await RegisterUserAsync(username);
         Assert.NotNull(userAuth);
@@ -596,8 +573,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task TokenUseWhileSessionRevoked_HandledGracefully()
     {
-        Output.WriteLine("[TEST] TokenUseWhileSessionRevoked_HandledGracefully");
-
         var userAuth = await RegisterUserWithRetryAsync("stress_token_revoke");
 
         var userId = userAuth.User.Id;
@@ -685,8 +660,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentRegistration_SameUsername_OnlyOneSucceeds()
     {
-        Output.WriteLine("[TEST] ConcurrentRegistration_SameUsername_OnlyOneSucceeds");
-
         var username = $"race_user_{Guid.NewGuid():N}";
         const int concurrentRegistrations = 15;
 
@@ -725,8 +698,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentRoleAssignAndRemove_SameUserSameRole_Consistent()
     {
-        Output.WriteLine("[TEST] ConcurrentRoleAssignAndRemove_SameUserSameRole_Consistent");
-
         var adminAuth = await CreateAdminAsync();
         Assert.NotNull(adminAuth);
         var userAuth = await RegisterUserWithRetryAsync("stress_assign_remove");
@@ -804,8 +775,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task ConcurrentSessionRevocation_SameUser_AllHandled()
     {
-        Output.WriteLine("[TEST] ConcurrentSessionRevocation_SameUser_AllHandled");
-
         var username = $"stress_revoke_{Guid.NewGuid():N}";
         var initialAuth = await RegisterUserAsync(username);
         Assert.NotNull(initialAuth);
@@ -870,8 +839,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task HighFrequencyMeEndpoint_100Requests_AllSucceed()
     {
-        Output.WriteLine("[TEST] HighFrequencyMeEndpoint_100Requests_AllSucceed");
-
         var userAuth = await RegisterUserAsync($"stress_me_{Guid.NewGuid():N}");
         Assert.NotNull(userAuth);
 
@@ -903,8 +870,6 @@ public sealed class StressTests : WebApiTestBase
     [Fact]
     public async Task MixedReadWriteOperations_NoDeadlocks()
     {
-        Output.WriteLine("[TEST] MixedReadWriteOperations_NoDeadlocks");
-
         var adminAuth = await CreateAdminAsync();
         Assert.NotNull(adminAuth);
 

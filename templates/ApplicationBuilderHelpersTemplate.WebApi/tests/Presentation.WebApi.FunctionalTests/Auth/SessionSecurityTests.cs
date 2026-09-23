@@ -18,8 +18,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokeSession_WithInvalidGuid_Returns404()
     {
-        Output.WriteLine("[TEST] RevokeSession_WithInvalidGuid_Returns404");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -45,8 +43,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokeSession_WithEmptyGuid_Returns404OrBadRequest()
     {
-        Output.WriteLine("[TEST] RevokeSession_WithEmptyGuid_Returns404OrBadRequest");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -71,8 +67,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokeSession_OtherUsersSession_Returns404OrForbidden()
     {
-        Output.WriteLine("[TEST] RevokeSession_OtherUsersSession_Returns404OrForbidden");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
 
@@ -116,8 +110,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task ListSessions_OnlyReturnsOwnSessions()
     {
-        Output.WriteLine("[TEST] ListSessions_OnlyReturnsOwnSessions");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
 
@@ -154,8 +146,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task ListSessions_DoesNotLeakOtherUserInfo()
     {
-        Output.WriteLine("[TEST] ListSessions_DoesNotLeakOtherUserInfo");
-
         var user1 = await RegisterUserAsync();
         Assert.NotNull(user1);
         Assert.NotNull(user1.User);
@@ -184,8 +174,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task ConcurrentSessions_AllWork_Independently()
     {
-        Output.WriteLine("[TEST] ConcurrentSessions_AllWork_Independently");
-
         var username = $"concurrent_{Guid.NewGuid():N}";
         var sessions = new List<AuthResponse>();
 
@@ -220,8 +208,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokeOneSession_OthersStillWork()
     {
-        Output.WriteLine("[TEST] RevokeOneSession_OthersStillWork");
-
         var username = $"revokeone_{Guid.NewGuid():N}";
 
         var session1 = await RegisterUserAsync(username);
@@ -268,8 +254,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokedSession_AccessToken_Returns401()
     {
-        Output.WriteLine("[TEST] RevokedSession_AccessToken_Returns401");
-
         var username = $"revokedaccess_{Guid.NewGuid():N}";
 
         var session1 = await RegisterUserAsync(username);
@@ -310,8 +294,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokedSession_RefreshToken_Returns401()
     {
-        Output.WriteLine("[TEST] RevokedSession_RefreshToken_Returns401");
-
         var username = $"revokedrefresh_{Guid.NewGuid():N}";
 
         var session1 = await RegisterUserAsync(username);
@@ -356,8 +338,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task EachLogin_CreatesNewSession()
     {
-        Output.WriteLine("[TEST] EachLogin_CreatesNewSession");
-
         var username = $"newsession_{Guid.NewGuid():N}";
 
         var session1 = await RegisterUserAsync(username);
@@ -395,8 +375,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokeAllSessions_CurrentAlsoRevoked()
     {
-        Output.WriteLine("[TEST] RevokeAllSessions_CurrentAlsoRevoked");
-
         var username = $"revokeall_{Guid.NewGuid():N}";
 
         await RegisterUserAsync(username);
@@ -425,8 +403,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokeAllSessions_AllInvalidated()
     {
-        Output.WriteLine("[TEST] RevokeAllSessions_AllInvalidated");
-
         var username = $"revokeall_others_{Guid.NewGuid():N}";
 
         var session1 = await RegisterUserAsync(username);
@@ -464,8 +440,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RevokeAllSessions_ReturnsCorrectCount()
     {
-        Output.WriteLine("[TEST] RevokeAllSessions_ReturnsCorrectCount");
-
         var username = $"revokecount_{Guid.NewGuid():N}";
 
         await RegisterUserAsync(username);
@@ -508,8 +482,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task ListSessions_ShowsIsCurrent_Correctly()
     {
-        Output.WriteLine("[TEST] ListSessions_ShowsIsCurrent_Correctly");
-
         var username = $"iscurrent_{Guid.NewGuid():N}";
 
         await RegisterUserAsync(username);
@@ -537,8 +509,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task ListSessions_HasCreatedAt()
     {
-        Output.WriteLine("[TEST] ListSessions_HasCreatedAt");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -570,8 +540,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task Logout_RevokesCurrentSessionOnly()
     {
-        Output.WriteLine("[TEST] Logout_RevokesCurrentSessionOnly");
-
         var username = $"logout_{Guid.NewGuid():N}";
 
         var session1 = await RegisterUserAsync(username);
@@ -601,8 +569,6 @@ public sealed class SessionSecurityTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task Logout_MultipleTimesFromSameSession_NoError()
     {
-        Output.WriteLine("[TEST] Logout_MultipleTimesFromSameSession_NoError");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 

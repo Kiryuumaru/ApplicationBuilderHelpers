@@ -3,8 +3,8 @@ using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Tests for enhanced error messages including colored output, contextual help suggestions,
-/// and improved user experience in error scenarios.
+/// Tests for error messages including colored output, help suggestions,
+/// and user experience in error scenarios.
 /// </summary>
 public class EnhancedErrorMessageTests : CliTestBase
 {
@@ -110,7 +110,6 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("build", "project.csproj", "--unknown-flag");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --unknown-flag");
-        // Error messages should not contain technical details
         Assert.DoesNotContain("Exception", result.StandardError);
         Assert.DoesNotContain("Stack trace", result.StandardError);
     }
@@ -166,7 +165,6 @@ public class EnhancedErrorMessageTests : CliTestBase
     [Fact]
     public async Task Error_Should_Not_Prevent_Help_From_Working()
     {
-        // Even if we have an error scenario, help should still work
         var helpResult = await Runner.RunAsync("--help");
         CliTestAssertions.AssertSuccess(helpResult);
         CliTestAssertions.AssertOutputContains(helpResult, "USAGE:");
@@ -176,7 +174,6 @@ public class EnhancedErrorMessageTests : CliTestBase
     [Fact]
     public async Task Error_Should_Not_Prevent_Version_From_Working()
     {
-        // Even if we have an error scenario, version should still work
         var versionResult = await Runner.RunAsync("--version");
         CliTestAssertions.AssertSuccess(versionResult);
         CliTestAssertions.AssertOutputMatches(versionResult, @"\d+\.\d+\.\d+");
@@ -185,7 +182,6 @@ public class EnhancedErrorMessageTests : CliTestBase
     [Fact]
     public async Task Command_Specific_Help_Should_Work_After_Error()
     {
-        // Test that command-specific help works even if the command itself would error
         var helpResult = await Runner.RunAsync("build", "--help");
         CliTestAssertions.AssertSuccess(helpResult);
         CliTestAssertions.AssertOutputContains(helpResult, "Build the project");
@@ -203,7 +199,6 @@ public class EnhancedErrorMessageTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", "--invalid1", "--invalid2");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --invalid1");
-        // Should not continue to process --invalid2 after first error
     }
 
     [Fact]

@@ -2,17 +2,14 @@
 
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
-    <!-- Parallel test execution: tests in same collection share fixture, different collections run in parallel -->
     <xUnitParallelizeTestCollections>true</xUnitParallelizeTestCollections>
   </PropertyGroup>
 
-  <!-- Exclude Old/ folder from compilation (archived tests that used deprecated API patterns) -->
   <ItemGroup>
     <Compile Remove="Old\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Reference projects to ensure they build first, but don't need actual reference -->
     <ProjectReference Include="..\..\src\Presentation.WebApp.Client\Presentation.WebApp.Client.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

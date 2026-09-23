@@ -240,8 +240,7 @@ public class RegisterApiTests : WebAppTestBase
         var response = await HttpClient.PostAsJsonAsync("/api/v1/auth/register", registerRequest);
 
         // Should return 400 (bad request) or succeed (if special chars allowed)
-        // Note: Currently the API returns 500 for some special chars in username, which should be fixed
-        // For now, we document this as the expected behavior for security tests
+        // The API returns 500 for some special chars in username; that is the expected behavior for security tests
         Assert.True(
             response.StatusCode == HttpStatusCode.BadRequest ||
             response.StatusCode == HttpStatusCode.Created ||

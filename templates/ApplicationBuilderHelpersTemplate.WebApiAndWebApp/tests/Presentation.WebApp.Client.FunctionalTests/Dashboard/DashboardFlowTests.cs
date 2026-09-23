@@ -15,23 +15,22 @@ public class DashboardFlowTests : WebAppTestBase
     [Fact]
     public async Task Journey_DashboardLoads_HasContent()
     {
-        // Act - Navigate to home/dashboard
+        // Act
         await GoToHomeAsync();
 
-        // Assert - Dashboard has content
+        // Assert
         var pageContent = await Page.ContentAsync();
         Assert.False(string.IsNullOrEmpty(pageContent));
 
-        Output.WriteLine($"[TEST] Dashboard loaded with content. URL: {Page.Url}");
     }
 
     [Fact]
     public async Task Journey_UnauthenticatedDashboard_ShowsGetStarted()
     {
-        // Act - Navigate to home without authentication
+        // Act
         await GoToHomeAsync();
 
-        // Assert - Should show get started or login prompts
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasGetStarted = pageContent.Contains("get started", StringComparison.OrdinalIgnoreCase) ||
                            pageContent.Contains("sign in", StringComparison.OrdinalIgnoreCase) ||
@@ -39,24 +38,23 @@ public class DashboardFlowTests : WebAppTestBase
                            pageContent.Contains("register", StringComparison.OrdinalIgnoreCase);
 
         Assert.True(hasGetStarted, "Dashboard should prompt unauthenticated users");
-        Output.WriteLine("[TEST] Unauthenticated dashboard shows get started content");
     }
 
     [Fact]
     public async Task Journey_AuthenticatedDashboard_ShowsWelcome()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = GenerateUsername("dash");
         var email = GenerateEmail(username);
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Go to home (should redirect there after login anyway)
+        // Act
         await GoToHomeAsync();
         await WaitForBlazorAsync();
 
-        // Assert - Should show welcome or authenticated content
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasWelcome = pageContent.Contains("welcome", StringComparison.OrdinalIgnoreCase) ||
                         pageContent.Contains("signed in", StringComparison.OrdinalIgnoreCase) ||
@@ -64,24 +62,23 @@ public class DashboardFlowTests : WebAppTestBase
                         pageContent.Contains("dashboard", StringComparison.OrdinalIgnoreCase);
 
         Assert.True(hasWelcome, "Authenticated dashboard should show welcome content");
-        Output.WriteLine("[TEST] Authenticated dashboard shows welcome content");
     }
 
     [Fact]
     public async Task Journey_AuthenticatedDashboard_HasNavigationToProfile()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = GenerateUsername("profnav");
         var email = GenerateEmail(username);
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Go to home
+        // Act
         await GoToHomeAsync();
         await AssertIsAuthenticatedAsync();
 
-        // Assert - Should have user menu that leads to profile
+        // Assert
         var userMenu = Page.Locator("button:has(.rounded-full)").First;
         Assert.True(await userMenu.CountAsync() > 0, "Should have user menu button");
 
@@ -93,20 +90,19 @@ public class DashboardFlowTests : WebAppTestBase
         var profileLink = Page.Locator("a[href*='profile']").First;
         Assert.True(await profileLink.CountAsync() > 0, "Should have profile link in menu");
 
-        Output.WriteLine("[TEST] Dashboard has navigation to profile");
     }
 
     [Fact]
     public async Task Journey_AuthenticatedDashboard_HasLogoutOption()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = GenerateUsername("logout");
         var email = GenerateEmail(username);
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Go to home
+        // Act
         await GoToHomeAsync();
         await AssertIsAuthenticatedAsync();
 
@@ -115,17 +111,16 @@ public class DashboardFlowTests : WebAppTestBase
         await userMenu.ClickAsync();
         await Task.Delay(300);
 
-        // Assert - Should have logout option
+        // Assert
         var signOutButton = Page.Locator("button:has-text('Sign out')").First;
         Assert.True(await signOutButton.CountAsync() > 0, "Should have sign out button in menu");
 
-        Output.WriteLine("[TEST] Dashboard has logout option");
     }
 
     [Fact]
     public async Task Journey_ClickLogoutFromDashboard_LogsOut()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = GenerateUsername("logoutclick");
         var email = GenerateEmail(username);
 
@@ -134,13 +129,12 @@ public class DashboardFlowTests : WebAppTestBase
         await GoToHomeAsync();
         await AssertIsAuthenticatedAsync();
 
-        // Act - Logout via UI
+        // Act
         await LogoutAsync();
 
-        // Assert - Should be logged out
+        // Assert
         await AssertIsNotAuthenticatedAsync();
         AssertUrlContains("/auth/login");
 
-        Output.WriteLine("[TEST] Logout from dashboard works");
     }
 }

@@ -16,8 +16,6 @@ public sealed class PermissionChaosTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task MixedRoles_AllowAndDeny_ForSamePermission_DenyWins()
     {
-        Output.WriteLine("[TEST] MixedRoles_AllowAndDeny_ForSamePermission_DenyWins");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -79,8 +77,6 @@ public sealed class PermissionChaosTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RoleDeny_BeatsDirectAllow_ForSameEndpoint()
     {
-        Output.WriteLine("[TEST] RoleDeny_BeatsDirectAllow_ForSameEndpoint");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 

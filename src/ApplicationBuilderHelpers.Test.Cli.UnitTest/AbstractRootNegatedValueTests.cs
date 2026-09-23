@@ -14,8 +14,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <c>RequiresSubcommand</c>, leaf-only bases still report
 /// <c>UnknownOption</c>, and post-separator tokens stay silent.
 /// Error kinds are pinned via their distinct help footers.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class AbstractRootNegatedValueTests

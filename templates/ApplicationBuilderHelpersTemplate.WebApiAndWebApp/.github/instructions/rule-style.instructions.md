@@ -163,7 +163,7 @@ Instruction file names:
 
 1. **Atomic rules** - One concept per bullet/section
 2. **No redundancy** - State each rule once, in one place
-3. **Concrete examples** - Show, don't just tell
+3. **Concrete examples** - Give examples
 4. **Consistent terminology** - Same term for same concept
 5. **Scannable** - Tables and bullets over paragraphs
 
@@ -173,7 +173,7 @@ Instruction file names:
 
 - NEVER use passive voice ("should be used")
 - NEVER use hedging ("usually", "generally", "often")
-- NEVER explain why unless critical to understanding
+- NEVER explain why unless required
 - NEVER use numbered lists for unordered items
 - NEVER nest bullets more than 2 levels
 - NEVER write paragraphs when a table works

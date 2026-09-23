@@ -27,13 +27,11 @@ internal abstract class BaseCommand : Command
         Console.WriteLine("[DEBUG] COMMAND LINE PARSER DEBUG INFORMATION");
         Console.WriteLine("===============================================");
 
-        // Print command info
         var commandAttr = GetType().GetCustomAttribute<CommandAttribute>();
         Console.WriteLine($"[CMD] Command: {commandAttr?.Term ?? GetType().Name}");
         Console.WriteLine($"[DSC] Description: {commandAttr?.Description ?? "No description"}");
         Console.WriteLine();
 
-        // Print all properties with their attributes and values
         var properties = GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead && p.CanWrite)
             .OrderBy(p => p.Name);
@@ -92,7 +90,6 @@ internal abstract class BaseCommand : Command
             }
         }
 
-        // Print raw command line arguments if available
         var args = Environment.GetCommandLineArgs();
         Console.WriteLine("[RAW] RAW COMMAND LINE:");
         Console.WriteLine("-----------------------------------------------");
@@ -102,7 +99,6 @@ internal abstract class BaseCommand : Command
         }
         Console.WriteLine();
 
-        // Print environment variables related to this command
         Console.WriteLine("[ENV] RELEVANT ENVIRONMENT VARIABLES:");
         Console.WriteLine("-----------------------------------------------");
         foreach (var prop in properties)

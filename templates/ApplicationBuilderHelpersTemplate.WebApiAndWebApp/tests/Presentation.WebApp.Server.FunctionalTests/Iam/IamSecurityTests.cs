@@ -20,8 +20,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotAssignRoleToSelf()
     {
-        Output.WriteLine("[TEST] User_CannotAssignRoleToSelf");
-
         // Register a user
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
@@ -46,8 +44,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotRemoveRoleFromSelf()
     {
-        Output.WriteLine("[TEST] User_CannotRemoveRoleFromSelf");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -72,8 +68,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotGrantPermissionToSelf()
     {
-        Output.WriteLine("[TEST] User_CannotGrantPermissionToSelf");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -102,8 +96,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotRevokePermissionFromSelf()
     {
-        Output.WriteLine("[TEST] User_CannotRevokePermissionFromSelf");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -134,8 +126,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotAccessOtherUserInfo()
     {
-        Output.WriteLine("[TEST] User_CannotAccessOtherUserInfo");
-
         // Register two users
         var user1Auth = await RegisterAndGetTokenAsync();
         var user2Auth = await RegisterAndGetTokenAsync();
@@ -159,8 +149,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotUpdateOtherUser()
     {
-        Output.WriteLine("[TEST] User_CannotUpdateOtherUser");
-
         var user1Auth = await RegisterAndGetTokenAsync();
         var user2Auth = await RegisterAndGetTokenAsync();
         Assert.NotNull(user1Auth);
@@ -185,8 +173,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotDeleteOtherUser()
     {
-        Output.WriteLine("[TEST] User_CannotDeleteOtherUser");
-
         var user1Auth = await RegisterAndGetTokenAsync();
         var user2Auth = await RegisterAndGetTokenAsync();
         Assert.NotNull(user1Auth);
@@ -209,8 +195,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotViewOtherUserPermissions()
     {
-        Output.WriteLine("[TEST] User_CannotViewOtherUserPermissions");
-
         var user1Auth = await RegisterAndGetTokenAsync();
         var user2Auth = await RegisterAndGetTokenAsync();
         Assert.NotNull(user1Auth);
@@ -233,8 +217,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotAssignRoleToOtherUser()
     {
-        Output.WriteLine("[TEST] User_CannotAssignRoleToOtherUser");
-
         var user1Auth = await RegisterAndGetTokenAsync();
         var user2Auth = await RegisterAndGetTokenAsync();
         Assert.NotNull(user1Auth);
@@ -259,8 +241,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotGrantPermissionToOtherUser()
     {
-        Output.WriteLine("[TEST] User_CannotGrantPermissionToOtherUser");
-
         var user1Auth = await RegisterAndGetTokenAsync();
         var user2Auth = await RegisterAndGetTokenAsync();
         Assert.NotNull(user1Auth);
@@ -294,8 +274,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task UnauthenticatedUser_CannotAccessIamEndpoints()
     {
-        Output.WriteLine("[TEST] UnauthenticatedUser_CannotAccessIamEndpoints");
-
         var endpoints = new[]
         {
             ("GET", "/api/v1/iam/users"),
@@ -332,8 +310,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task RegularUser_CannotListAllUsers()
     {
-        Output.WriteLine("[TEST] RegularUser_CannotListAllUsers");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
 
@@ -352,8 +328,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task RegularUser_CanAccessOwnInfo()
     {
-        Output.WriteLine("[TEST] RegularUser_CanAccessOwnInfo");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -379,8 +353,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task RegularUser_CanViewOwnPermissions()
     {
-        Output.WriteLine("[TEST] RegularUser_CanViewOwnPermissions");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -408,8 +380,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task RegularUser_CanUpdateOwnProfile()
     {
-        Output.WriteLine("[TEST] RegularUser_CanUpdateOwnProfile");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -443,8 +413,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotEscalateViaRoleAssignment()
     {
-        Output.WriteLine("[TEST] User_CannotEscalateViaRoleAssignment");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -472,8 +440,6 @@ public class IamSecurityTests : WebAppTestBase
     [TimedFact]
     public async Task User_CannotEscalateViaPermissionGrant()
     {
-        Output.WriteLine("[TEST] User_CannotEscalateViaPermissionGrant");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -591,7 +557,5 @@ public class IamSecurityTests : WebAppTestBase
 
     #endregion
 }
-
-
 
 

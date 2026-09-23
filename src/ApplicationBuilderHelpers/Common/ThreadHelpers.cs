@@ -46,7 +46,6 @@ internal static class ThreadHelpers
         }
         else
         {
-            //thread.Interrupt();
             throw new OperationCanceledException(cancellationToken);
         }
     }
@@ -91,7 +90,6 @@ internal static class ThreadHelpers
         }
         else
         {
-            //thread.Interrupt();
             throw new OperationCanceledException(cancellationToken);
         }
     }

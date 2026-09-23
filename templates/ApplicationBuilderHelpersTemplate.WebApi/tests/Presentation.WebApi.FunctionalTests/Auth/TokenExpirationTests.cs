@@ -21,8 +21,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task Login_Response_ExpiresIn_IsCorrectValue()
     {
-        Output.WriteLine("[TEST] Login_Response_ExpiresIn_IsCorrectValue");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -35,8 +33,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task Register_Response_ExpiresIn_IsCorrectValue()
     {
-        Output.WriteLine("[TEST] Register_Response_ExpiresIn_IsCorrectValue");
-
         var username = $"exptest_{Guid.NewGuid():N}";
         var registerRequest = new
         {
@@ -62,8 +58,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task Refresh_Response_ExpiresIn_IsCorrectValue()
     {
-        Output.WriteLine("[TEST] Refresh_Response_ExpiresIn_IsCorrectValue");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -85,8 +79,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task ExpiresIn_IsPositiveNumber()
     {
-        Output.WriteLine("[TEST] ExpiresIn_IsPositiveNumber");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -101,8 +93,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task AccessToken_HasExpClaim()
     {
-        Output.WriteLine("[TEST] AccessToken_HasExpClaim");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -126,8 +116,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task AccessToken_ExpClaimMatchesExpiresIn()
     {
-        Output.WriteLine("[TEST] AccessToken_ExpClaimMatchesExpiresIn");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -158,8 +146,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task AccessToken_HasIatClaim()
     {
-        Output.WriteLine("[TEST] AccessToken_HasIatClaim");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -184,8 +170,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_HasExpClaim()
     {
-        Output.WriteLine("[TEST] RefreshToken_HasExpClaim");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -210,8 +194,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_ExpiresLaterThanAccessToken()
     {
-        Output.WriteLine("[TEST] RefreshToken_ExpiresLaterThanAccessToken");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -236,8 +218,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_AfterSessionRevoked_Returns401()
     {
-        Output.WriteLine("[TEST] RefreshToken_AfterSessionRevoked_Returns401");
-
         var username = $"revoke_test_{Guid.NewGuid():N}";
         await RegisterUserAsync(username);
         var secondLogin = await LoginUserWithResponseAsync(username);
@@ -267,8 +247,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_AfterAllSessionsRevoked_Returns401()
     {
-        Output.WriteLine("[TEST] RefreshToken_AfterAllSessionsRevoked_Returns401");
-
         var username = $"revokeall_test_{Guid.NewGuid():N}";
         await RegisterUserAsync(username);
         var firstLogin = await LoginUserWithResponseAsync(username);
@@ -304,8 +282,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_ReusedAfterRotation_DetectsTheft()
     {
-        Output.WriteLine("[TEST] RefreshToken_ReusedAfterRotation_DetectsTheft");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -331,8 +307,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_ReusedMultipleTimes_AllFail()
     {
-        Output.WriteLine("[TEST] RefreshToken_ReusedMultipleTimes_AllFail");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -359,8 +333,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_TheftRevokesEntireSession()
     {
-        Output.WriteLine("[TEST] RefreshToken_TheftRevokesEntireSession");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -397,8 +369,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_ChainedRefreshes_EachTokenRotates()
     {
-        Output.WriteLine("[TEST] RefreshToken_ChainedRefreshes_EachTokenRotates");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -431,8 +401,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_OldTokenInChain_Invalid()
     {
-        Output.WriteLine("[TEST] RefreshToken_OldTokenInChain_Invalid");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -460,7 +428,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
         Assert.Equal(HttpStatusCode.OK, latestResponse.StatusCode);
 
         // After refreshing the latest, all OLD tokens in chain should be invalid
-        // Note: We need to get the new latest token after refreshing
         var latestContent = await latestResponse.Content.ReadAsStringAsync();
         var latestTokens = JsonSerializer.Deserialize<AuthResponse>(latestContent, JsonOptions);
 
@@ -483,8 +450,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_WithAccessToken_Returns401()
     {
-        Output.WriteLine("[TEST] RefreshToken_WithAccessToken_Returns401");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -501,8 +466,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task AccessToken_HasCorrectTokenTypeClaim()
     {
-        Output.WriteLine("[TEST] AccessToken_HasCorrectTokenTypeClaim");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -529,8 +492,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_HasCorrectTokenTypeClaim()
     {
-        Output.WriteLine("[TEST] RefreshToken_HasCorrectTokenTypeClaim");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -561,8 +522,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [InlineData("....")]
     public async Task RefreshToken_WithInvalidFormat_Returns401OrBadRequest(string invalidToken)
     {
-        Output.WriteLine($"[TEST] RefreshToken_WithInvalidFormat: '{invalidToken}'");
-
         var refreshRequest = new { RefreshToken = invalidToken };
         var response = await HttpClient.PostAsJsonAsync("/api/v1/auth/refresh", refreshRequest);
 
@@ -580,8 +539,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [InlineData(null)]
     public async Task RefreshToken_WithNullValue_Returns400(string? nullToken)
     {
-        Output.WriteLine("[TEST] RefreshToken_WithNullValue_Returns400");
-
         var refreshRequest = new { RefreshToken = nullToken };
         var response = await HttpClient.PostAsJsonAsync("/api/v1/auth/refresh", refreshRequest);
 
@@ -598,8 +555,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_WithEmptyObject_Returns400()
     {
-        Output.WriteLine("[TEST] RefreshToken_WithEmptyObject_Returns400");
-
         var response = await HttpClient.PostAsync(
             "/api/v1/auth/refresh",
             new StringContent("{}", Encoding.UTF8, "application/json"));
@@ -617,8 +572,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_WithExtraFields_StillWorks()
     {
-        Output.WriteLine("[TEST] RefreshToken_WithExtraFields_StillWorks");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -643,8 +596,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_FromDifferentSession_DoesNotAffectOther()
     {
-        Output.WriteLine("[TEST] RefreshToken_FromDifferentSession_DoesNotAffectOther");
-
         var username = $"multisession_{Guid.NewGuid():N}";
         var session1 = await RegisterUserAsync(username);
         var session2 = await LoginUserWithResponseAsync(username);
@@ -670,8 +621,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task RefreshToken_FromOtherUser_NotAccepted()
     {
-        Output.WriteLine("[TEST] RefreshToken_FromOtherUser_NotAccepted");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
 
@@ -690,7 +639,7 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
         var content = await response.Content.ReadAsStringAsync();
         var userInfo = JsonSerializer.Deserialize<UserInfoResponse>(content, JsonOptions);
 
-        // Verify it's actually user1's info
+        // Verify it's user1's info
         Assert.NotNull(userInfo);
         Assert.NotEqual(user2.User.Id, userInfo.Id);
         Output.WriteLine($"[INFO] User1 ID: {user1.User.Id}, Response ID: {userInfo.Id}");
@@ -705,8 +654,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task NewTokens_HaveDifferentValues_EachTime()
     {
-        Output.WriteLine("[TEST] NewTokens_HaveDifferentValues_EachTime");
-
         var username = $"unique_tokens_{Guid.NewGuid():N}";
         var auth1 = await RegisterUserAsync(username);
         var auth2 = await LoginUserWithResponseAsync(username);
@@ -732,8 +679,6 @@ public sealed class TokenExpirationTests(ITestOutputHelper output) : WebApiTestB
     [Fact]
     public async Task TokenType_IsBearerForAllResponses()
     {
-        Output.WriteLine("[TEST] TokenType_IsBearerForAllResponses");
-
         var username = $"tokentype_{Guid.NewGuid():N}";
         var registerResponse = await RegisterUserAsync(username);
         var loginResponse = await LoginUserWithResponseAsync(username);

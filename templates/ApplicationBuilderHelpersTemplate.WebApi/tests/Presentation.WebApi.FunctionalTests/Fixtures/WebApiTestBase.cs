@@ -46,20 +46,16 @@ public abstract class WebApiTestBase : IAsyncLifetime
 
     public virtual async ValueTask InitializeAsync()
     {
-        Output.WriteLine("[TEST] Initializing WebApi test host with random port...");
         _host = new WebApiTestHost(Output);
         await _host.StartAsync(TimeSpan.FromSeconds(60));
-        Output.WriteLine($"[TEST] WebApi started at {_host.BaseUrl}");
     }
 
     public virtual async ValueTask DisposeAsync()
     {
-        Output.WriteLine("[TEST] Disposing WebApi test host...");
         if (_host != null)
         {
             await _host.DisposeAsync();
         }
-        Output.WriteLine("[TEST] WebApi test host disposed");
     }
 
     #region Helper Methods

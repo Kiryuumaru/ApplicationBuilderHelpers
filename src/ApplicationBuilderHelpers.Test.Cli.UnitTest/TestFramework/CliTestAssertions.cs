@@ -77,7 +77,6 @@ public abstract class CliTestBase : IAsyncLifetime
 
         Runner = new CliTestRunner(_testExecutablePath, verbose: false);
         
-        // Validate that the executable works
         if (!await Runner.ValidateExecutableAsync())
         {
             throw new InvalidOperationException("Test executable failed validation. Cannot proceed with testing.");
@@ -96,13 +95,10 @@ public abstract class CliTestBase : IAsyncLifetime
         var apphostNames = OperatingSystem.IsWindows()
             ? new[] { "test.exe" }
             : new[] { "test", "test.exe" };
-        // Prefer the CLI binary matching this test run's own configuration (avoids stale cross-config picks).
         var configs = baseDir.Contains($"{Path.DirectorySeparatorChar}Debug{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
             ? new[] { "Debug", "Release" }
             : new[] { "Release", "Debug" };
 
-        // 1) Anchor off the test assembly directory: <...>/ApplicationBuilderHelpers.Test.Cli.UnitTest/bin/<Config>/<TFM>/
-        //    so resolution is independent of the test runner's CWD.
         var testAssemblyDir = new DirectoryInfo(baseDir);
         for (var dir = testAssemblyDir; dir != null; dir = dir.Parent)
         {
@@ -122,7 +118,6 @@ public abstract class CliTestBase : IAsyncLifetime
             }
         }
 
-        // 2) Sibling CLI output relative to the test assembly output (covers non-standard layouts).
         foreach (var tfm in new[] { "net10.0", "net9.0" })
         {
             foreach (var config in configs)
@@ -139,9 +134,6 @@ public abstract class CliTestBase : IAsyncLifetime
             }
         }
 
-        // 3) Legacy CWD-relative probes (kept for back-compat), extended to net10.0 + OS-aware names.
-        // Hybrid union: branch nativeName entries plus master's 4 literal net10.0/test.exe
-        // paths (M1-M4), so the literal superset holds on every OS.
         var possiblePaths = new[]
         {
             "../ApplicationBuilderHelpers.Test.Cli/bin/Debug/net10.0/" + nativeName,
@@ -178,7 +170,6 @@ public abstract class CliTestBase : IAsyncLifetime
             return null;
         }
 
-        // Prefer net10.0 apphost in matching config, then net9.0 legacy, then framework-dependent test.dll.
         foreach (var tfm in new[] { "net10.0", "net9.0" })
         {
             foreach (var config in configs)

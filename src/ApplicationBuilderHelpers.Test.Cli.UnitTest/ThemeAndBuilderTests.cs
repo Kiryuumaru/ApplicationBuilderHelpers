@@ -9,10 +9,9 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process coverage for Brunel top targets: console themes, command-builder
-/// help/theme/command extensions, and the small public-surface APIs around them.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because help/command
-/// runs capture the process-global console streams.
+/// Console themes, command-builder help/theme/command extensions,
+/// and the small public APIs around them.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ThemeAndBuilderTests

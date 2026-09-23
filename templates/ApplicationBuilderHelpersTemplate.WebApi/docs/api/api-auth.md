@@ -301,6 +301,6 @@ Authorization: Bearer {accessToken}
 
 ## Test Coverage
 
-See [features/authentication.md](../features/authentication.md#test-coverage) for comprehensive test coverage details.
+See [features/authentication.md](../features/authentication.md#test-coverage) for test coverage details.
 
 **Summary:** 330+ authentication tests covering login, registration, tokens, passwords, passkeys, 2FA, sessions, OAuth, API keys, and security.

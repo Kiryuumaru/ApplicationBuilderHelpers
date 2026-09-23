@@ -29,8 +29,8 @@ public static class AbsolutePathExtensions
             else if (source.Name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) || 
                      source.Name.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
             {
-                // For simplicity, we'll just copy the file for now
-                // In a real implementation, you'd use a library like SharpZipLib
+                // Copy the file
+                // Tar extraction uses a library like SharpZipLib; this path copies the file
                 File.Copy(source.ToString(), destination / source.Name, true);
             }
             else

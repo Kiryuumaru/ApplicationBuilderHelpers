@@ -100,6 +100,7 @@ class Build : BaseNukeBuildHelpers
             }
         });
 
+    /// Encodes commas, colons, and semicolons for the release-notes transfer.
     private string? NormalizeReleaseNotes(string? releaseNotes)
     {
         return releaseNotes?

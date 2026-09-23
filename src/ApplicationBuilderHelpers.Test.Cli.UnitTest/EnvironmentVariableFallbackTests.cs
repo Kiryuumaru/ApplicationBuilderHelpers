@@ -12,8 +12,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// as missing, a bare option without a value fails even with the environment
 /// set (fallback covers only omitted options), and required
 /// options can be satisfied from the environment.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because both the
-/// console streams and the process environment are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class EnvironmentVariableFallbackTests
@@ -187,11 +186,6 @@ public sealed class EnvironmentVariableFallbackTests
     [Fact]
     public async Task RequiredValidation_OptionalFallbackDoesNotSatisfyRequiredName()
     {
-        // The optional nickname declares an env fallback, but that does not
-        // satisfy the missing required name: name is still reported missing.
-        // Note: this does not exercise the internal Apply requiredOnly guard;
-        // ParameterValidator only iterates required options, so that path is
-        // unreachable through the public entry point.
         var (exitCode, output, error) = await RunCapturedAsync(["envrequired", "--token", "s3cret"],
             new Dictionary<string, string?> { [TokenVariable] = "from-env", [ConfigVariable] = "nick" });
 

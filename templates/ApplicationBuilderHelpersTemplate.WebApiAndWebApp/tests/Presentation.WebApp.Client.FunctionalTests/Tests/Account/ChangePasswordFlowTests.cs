@@ -15,11 +15,11 @@ public class ChangePasswordFlowTests : WebAppTestBase
     [Fact]
     public async Task ChangePasswordPage_RequiresAuthentication()
     {
-        // Act - Navigate to change password page without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login or show unauthorized content
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
 
@@ -35,18 +35,18 @@ public class ChangePasswordFlowTests : WebAppTestBase
     [Fact]
     public async Task ChangePasswordPage_LoadsWhenAuthenticated()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"chgpw_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Page should load with change password form
+        // Assert
         var pageContent = await Page.ContentAsync();
 
         var hasChangePasswordContent = pageContent.Contains("Change Password", StringComparison.OrdinalIgnoreCase) ||
@@ -59,18 +59,18 @@ public class ChangePasswordFlowTests : WebAppTestBase
     [Fact]
     public async Task ChangePasswordPage_HasPasswordFields()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"pwflds_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should have current password, new password, and confirm password fields
+        // Assert
         var currentPasswordInput = await Page.QuerySelectorAsync("input[type='password'][id*='current' i], input[type='password'][name*='current' i]");
         var newPasswordInput = await Page.QuerySelectorAsync("input[type='password'][id*='new' i], input[type='password'][name*='new' i]");
         var confirmPasswordInput = await Page.QuerySelectorAsync("input[type='password'][id*='confirm' i], input[type='password'][name*='confirm' i]");
@@ -84,18 +84,18 @@ public class ChangePasswordFlowTests : WebAppTestBase
     [Fact]
     public async Task ChangePasswordPage_HasSubmitButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"submit_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should have submit button
+        // Assert
         var submitButton = await Page.QuerySelectorAsync("button[type='submit'], button:has-text('Change'), button:has-text('Save'), button:has-text('Update')");
         
         Assert.NotNull(submitButton);
@@ -104,14 +104,14 @@ public class ChangePasswordFlowTests : WebAppTestBase
     [Fact]
     public async Task ChangePasswordPage_ShowsValidationOnEmptySubmit()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"valid_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password page and click submit without filling
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
@@ -121,7 +121,7 @@ public class ChangePasswordFlowTests : WebAppTestBase
             await submitButton.ClickAsync();
             await WaitForBlazorAsync();
 
-            // Assert - Should show validation or required field indicators
+            // Assert
             var pageContent = await Page.ContentAsync();
             var hasValidation = pageContent.Contains("required", StringComparison.OrdinalIgnoreCase) ||
                                pageContent.Contains("Please", StringComparison.OrdinalIgnoreCase) ||
@@ -135,18 +135,18 @@ public class ChangePasswordFlowTests : WebAppTestBase
     [Fact]
     public async Task ChangePasswordPage_HasPageTitle()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"title_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Page should have title
+        // Assert
         var title = await Page.TitleAsync();
         
         Assert.Contains("Password", title, StringComparison.OrdinalIgnoreCase);
@@ -155,18 +155,18 @@ public class ChangePasswordFlowTests : WebAppTestBase
     [Fact]
     public async Task ChangePasswordPage_ShowsPasswordRequirements()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"reqs_{Guid.NewGuid():N}"[..20];
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should show password requirements hint
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasPasswordHint = pageContent.Contains("8 character", StringComparison.OrdinalIgnoreCase) ||
                              pageContent.Contains("characters", StringComparison.OrdinalIgnoreCase) ||

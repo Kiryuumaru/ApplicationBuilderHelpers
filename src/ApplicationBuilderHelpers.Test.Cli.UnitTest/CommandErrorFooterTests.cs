@@ -3,7 +3,7 @@ using ApplicationBuilderHelpers.Exceptions;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Direct truth-table tests for the shared CLI error footer.
+/// Tests for the shared CLI error footer mapping.
 /// Pins the exact <see cref="CommandErrorKind"/>-to-footer mapping owned by
 /// <c>CommandErrorFooter.Resolve</c>: every kind with and without a command name,
 /// plus the empty-name boundary on the subcommand arm. Pure string assertions,
@@ -40,7 +40,7 @@ public sealed class CommandErrorFooterTests
     }
 
     /// <summary>
-    /// #509: when the failing invocation already requested help, the circular
+    /// When the failing invocation already requested help, the circular
     /// <c>--help</c> hint is suppressed and only the <c>--version</c> hint
     /// survives. The no-flag path (showHelpRequested: false) keeps both hints.
     /// </summary>

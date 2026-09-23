@@ -33,7 +33,7 @@ public class AuthFlowTests : WebAppTestBase
         Output.WriteLine("Step 3: Verify authenticated");
         await GoToHomeAsync();
         var isAuthenticated = await IsAuthenticatedAsync();
-        // Note: This may fail if there's no visible auth indicator - that's okay for minimal UI
+        // The check fails when there is no visible auth indicator, which is expected for minimal UI
         Output.WriteLine($"Is authenticated (UI check): {isAuthenticated}");
 
         // Step 4: Logout
@@ -61,7 +61,7 @@ public class AuthFlowTests : WebAppTestBase
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to different pages
+        // Act
         await GoToHomeAsync();
         var homeUrl = Page.Url;
         Output.WriteLine($"Home URL: {homeUrl}");
@@ -75,14 +75,14 @@ public class AuthFlowTests : WebAppTestBase
         // Go back home
         await GoToHomeAsync();
 
-        // Assert - Should still be authenticated
+        // Assert
         AssertUrlDoesNotContain("/auth/login");
     }
 
     [Fact]
     public async Task AuthFlow_MultipleLoginAttempts_LastLoginWins()
     {
-        // Arrange - Create two users
+        // Arrange
         var username1 = $"multi1_{Guid.NewGuid():N}".Substring(0, 20);
         var email1 = $"{username1}@test.example.com";
         await RegisterUserAsync(username1, email1, TestPassword);
@@ -91,14 +91,14 @@ public class AuthFlowTests : WebAppTestBase
         var email2 = $"{username2}@test.example.com";
         await RegisterUserAsync(username2, email2, TestPassword);
 
-        // Act - Login as first user, then login as second user
+        // Act
         await LoginAsync(email1, TestPassword);
         Output.WriteLine($"First login as {username1}");
 
         await LoginAsync(email2, TestPassword);
         Output.WriteLine($"Second login as {username2}");
 
-        // Assert - Should be logged in as second user
+        // Assert
         // This would require checking username display, but we verify by logout working
         await GoToHomeAsync();
         AssertUrlDoesNotContain("/auth/login");

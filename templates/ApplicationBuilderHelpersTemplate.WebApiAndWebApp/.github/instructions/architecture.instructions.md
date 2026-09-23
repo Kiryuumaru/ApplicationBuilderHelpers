@@ -935,7 +935,7 @@ Before creating any type, utility, or pattern:
 
 1. MUST search the codebase for existing types with similar purpose
 2. MUST check these locations in order:
-   - `Domain/Shared/` for domain primitives and interfaces
+    - `Domain/Shared/` for domain building blocks/value types and interfaces
    - `Domain/{Feature}/ValueObjects/` for domain value types
    - `Domain/{Feature}/Services/` for domain logic
    - `Application/Shared/Models/` for shared DTOs and results

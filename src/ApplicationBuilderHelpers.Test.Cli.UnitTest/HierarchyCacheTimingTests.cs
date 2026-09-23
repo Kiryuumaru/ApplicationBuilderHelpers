@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-test timing harness for the S9 benchmark gate.
+/// In-test timing helper for the S9 benchmark gate.
 /// Builds a 10-command tree (root + varied subcommands mirroring
 /// <c>Test.Cli/Commands</c>: single-level leaves, a <c>config get</c> /
 /// <c>config set</c> pair behind an abstract intermediate, and a
@@ -19,10 +19,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Exercises a root help run, a deep leaf run, a deep error run, plus N=50
 /// repeated same-builder runs measuring wall time and calling-thread
 /// allocated bytes (<see cref="GC.GetAllocatedBytesForCurrentThread"/>).
-/// Gates only on descriptor build-count (BuildCount == 10); timings are
-/// reported, never asserted, so the gate stays non-flaky.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Gates only on descriptor build-count.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class HierarchyCacheTimingTests
@@ -245,7 +243,6 @@ public sealed class HierarchyCacheTimingTests
     [Fact]
     public async Task S9Gate_TimingProbe_ReportsColdVsWarm()
     {
-        // Correctness phase on one builder: help, deep leaf, deep error.
         var builder = CreateBuilder();
 
         var help = await TimedRunCapturedAsync(builder, HelpArgs);
@@ -268,8 +265,6 @@ public sealed class HierarchyCacheTimingTests
 
         Assert.Equal(10, GetBuildCount(builder));
 
-        // Timing phase on a fresh builder so iteration 0 is genuinely cold
-        // (reflection cache empty) and iterations 1..N-1 are warm (cache hits).
         var timingBuilder = CreateBuilder();
         var elapsedMs = new double[RepeatCount];
         var allocatedBytes = new long[RepeatCount];
@@ -283,8 +278,6 @@ public sealed class HierarchyCacheTimingTests
             allocatedBytes[i] = run.AllocatedBytes;
         }
 
-        // Gate on build-count only: one descriptor build per command type,
-        // reused across all 50 same-builder runs. No wall-time assertions.
         Assert.Equal(10, GetBuildCount(timingBuilder));
 
         var warmMs = elapsedMs.Skip(1).ToArray();

@@ -25,8 +25,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task AllowGrant_GivesAccessWithoutRole()
     {
-        Output.WriteLine("[TEST] AllowGrant_GivesAccessWithoutRole");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -85,8 +83,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task RevokeAllowGrant_RemovesAccess()
     {
-        Output.WriteLine("[TEST] RevokeAllowGrant_RemovesAccess");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -157,8 +153,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task DenyGrant_BlocksAccessDespiteRole()
     {
-        Output.WriteLine("[TEST] DenyGrant_BlocksAccessDespiteRole");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -262,8 +256,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task RevokeDenyGrant_RestoresRoleAccess()
     {
-        Output.WriteLine("[TEST] RevokeDenyGrant_RestoresRoleAccess");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -355,8 +347,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task DenyGrant_WithNonMatchingParameters_DoesNotOverrideRoleAllow()
     {
-        Output.WriteLine("[TEST] DenyGrant_WithNonMatchingParameters_DoesNotOverrideRoleAllow");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -451,8 +441,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task AllowGrant_ForDifferentPermission_DoesNotGrantAccessToOtherPermission()
     {
-        Output.WriteLine("[TEST] AllowGrant_ForDifferentPermission_DoesNotGrantAccessToOtherPermission");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -515,8 +503,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task GlobalDeny_OverridesAllRolePermissions()
     {
-        Output.WriteLine("[TEST] GlobalDeny_OverridesAllRolePermissions");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -607,7 +593,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task PermissionGrants_RequireReLoginToTakeEffect()
     {
-        Output.WriteLine("[TEST] PermissionGrants_RequireReLoginToTakeEffect");
         Output.WriteLine("Testing that direct permission grants require re-login (they are baked into JWT)");
 
         var adminAuth = await CreateAdminUserAsync();
@@ -674,8 +659,6 @@ public sealed class PermissionAllowDenyTests(ITestOutputHelper output) : WebApiT
     [Fact]
     public async Task SpecificDeny_OverridesBroadAllow()
     {
-        Output.WriteLine("[TEST] SpecificDeny_OverridesBroadAllow");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 

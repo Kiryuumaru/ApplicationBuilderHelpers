@@ -83,7 +83,6 @@ internal class SubCommandInfo
             var current = Parent;
             while (current != null)
             {
-                // Add parent options that are marked as global or inherited
                 foreach (var option in current.Options.Where(o => o.IsGlobal || o.IsInherited))
                 {
                     if (seen.Add(option))
@@ -106,7 +105,6 @@ internal class SubCommandInfo
             var current = Parent;
             while (current != null)
             {
-                // Add parent arguments that are marked as global or inherited
                 allArguments.AddRange(current.Arguments.Where(a => a.IsGlobal || a.IsInherited));
                 current = current.Parent;
             }
@@ -120,17 +118,17 @@ internal class SubCommandInfo
     public int Depth => CommandParts.Length;
 
     /// <summary>
-    /// True if this is a leaf command (has no children)
+    /// Whether this is a leaf command (has no children)
     /// </summary>
     public bool IsLeaf => Children.Count == 0;
 
     /// <summary>
-    /// True if this is the root command
+    /// Whether this is the root command
     /// </summary>
     public bool IsRoot => Parent == null && CommandParts.Length == 0;
 
     /// <summary>
-    /// True if this command has an associated implementation
+    /// Whether this command has an associated implementation
     /// </summary>
     public bool HasImplementation => Command != null;
 
@@ -217,28 +215,22 @@ internal class SubCommandInfo
     /// </summary>
     public void Validate()
     {
-        // Validate that commands with implementations are leaf nodes or properly structured
         if (HasImplementation && !IsLeaf)
         {
-            // Allow non-leaf commands to have implementations for help/default behavior
         }
 
-        // Validate children
         foreach (var child in Children.Values)
         {
             child.Validate();
         }
 
-        // Validate option inheritance rules
         ValidateOptionInheritance();
 
-        // Validate argument inheritance rules  
         ValidateArgumentInheritance();
     }
 
     private void ValidateOptionInheritance()
     {
-        // Check for option conflicts between this level and inherited options
         var inheritedOptions = new HashSet<string>();
         var current = Parent;
         
@@ -258,7 +250,6 @@ internal class SubCommandInfo
             var optionKey = option.LongName ?? option.ShortName?.ToString();
             if (optionKey != null && inheritedOptions.Contains(optionKey))
             {
-                // Only throw if the option is not itself inherited (from base class)
                 if (!option.IsInherited)
                 {
                     throw new InvalidOperationException(
@@ -270,7 +261,6 @@ internal class SubCommandInfo
 
     private void ValidateArgumentInheritance()
     {
-        // Check for argument position conflicts
         var inheritedPositions = new HashSet<int>();
         var current = Parent;
         

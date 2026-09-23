@@ -12,8 +12,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// base-class option inheritance, exact typed-array materialization for
 /// <c>int[]</c>, enum parsing, and styled errors (never a raw fallback
 /// exception) when a typed-array factory is unavailable.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ReflectionResilienceTests
@@ -204,8 +203,8 @@ public sealed class ReflectionResilienceTests
     /// supply a typed array: materialize the real element type or report a
     /// styled usage error. What must never happen is the current fault path:
     /// the <c>object[]</c> fallback is unassignable to <c>int[]</c>, so
-    /// <c>Property.SetValue</c> throws a raw exception (exit 1). This test
-    /// fails on that fault and passes on either contracted outcome.
+    /// <c>Property.SetValue</c> throws a raw exception (exit 1). Fails
+    /// on that fault; passes on either contracted outcome.
     /// </summary>
     [Fact]
     public async Task IntegerArray_ArrayFactoryUnavailable_NeverFaults()
@@ -427,7 +426,7 @@ public sealed class ReflectionResilienceTests
     /// error naming the registration path, never a raw fault.
     /// Enum lists exercise this contract because enums convert via the scalar
     /// pipeline (no parser entry), so a valid value survives conversion and
-    /// the missing factory surfaces exactly at materialization.
+    /// the missing factory appears exactly at materialization.
     /// </summary>
     [Fact]
     public async Task ListShape_UnsupportedElementType_ReportsUsageError()

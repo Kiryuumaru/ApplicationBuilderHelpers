@@ -18,8 +18,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task ListApiKeys_WithoutToken_Returns401()
     {
-        Output.WriteLine("[TEST] ListApiKeys_WithoutToken_Returns401");
-
         var randomUserId = Guid.NewGuid();
         Output.WriteLine($"[STEP] GET /api/v1/auth/users/{randomUserId}/api-keys without token...");
         var response = await HttpClient.GetAsync($"/api/v1/auth/users/{randomUserId}/api-keys");
@@ -33,8 +31,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task ListApiKeys_AfterRegister_ReturnsEmptyList()
     {
-        Output.WriteLine("[TEST] ListApiKeys_AfterRegister_ReturnsEmptyList");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -62,8 +58,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task ListApiKeys_ForOtherUser_Returns403()
     {
-        Output.WriteLine("[TEST] ListApiKeys_ForOtherUser_Returns403");
-
         // Register two users
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
@@ -91,8 +85,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_WithValidData_ReturnsCreatedWithKey()
     {
-        Output.WriteLine("[TEST] CreateApiKey_WithValidData_ReturnsCreatedWithKey");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -126,8 +118,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_WithExpiration_ReturnsCreatedWithExpiry()
     {
-        Output.WriteLine("[TEST] CreateApiKey_WithExpiration_ReturnsCreatedWithExpiry");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -157,8 +147,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_WithPastExpiration_Returns400()
     {
-        Output.WriteLine("[TEST] CreateApiKey_WithPastExpiration_Returns400");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -182,8 +170,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_WithoutToken_Returns401()
     {
-        Output.WriteLine("[TEST] CreateApiKey_WithoutToken_Returns401");
-
         var randomUserId = Guid.NewGuid();
         var createRequest = new { Name = "Unauthorized Key" };
 
@@ -200,8 +186,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_ForOtherUser_Returns403()
     {
-        Output.WriteLine("[TEST] CreateApiKey_ForOtherUser_Returns403");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
         Assert.NotNull(user1);
@@ -226,8 +210,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_WithEmptyName_Returns400()
     {
-        Output.WriteLine("[TEST] CreateApiKey_WithEmptyName_Returns400");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -254,8 +236,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task RevokeApiKey_ExistingKey_Returns204()
     {
-        Output.WriteLine("[TEST] RevokeApiKey_ExistingKey_Returns204");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -281,8 +261,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task RevokeApiKey_NonExistentKey_Returns404()
     {
-        Output.WriteLine("[TEST] RevokeApiKey_NonExistentKey_Returns404");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -305,8 +283,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task RevokeApiKey_AlreadyRevoked_Returns404()
     {
-        Output.WriteLine("[TEST] RevokeApiKey_AlreadyRevoked_Returns404");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -340,8 +316,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task RevokeApiKey_ForOtherUser_Returns403()
     {
-        Output.WriteLine("[TEST] RevokeApiKey_ForOtherUser_Returns403");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
         Assert.NotNull(user1);
@@ -373,8 +347,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task UseApiKey_ForRegularEndpoint_ReturnsSuccess()
     {
-        Output.WriteLine("[TEST] UseApiKey_ForRegularEndpoint_ReturnsSuccess");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -408,7 +380,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     {
         // API keys are standalone JWTs - they cannot be used as refresh tokens.
         // Submitting an API key JWT as the refresh token should fail.
-        Output.WriteLine("[TEST] UseApiKey_AsRefreshToken_Returns401");
 
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
@@ -435,8 +406,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task UseApiKey_ToCreateAnotherApiKey_Returns403()
     {
-        Output.WriteLine("[TEST] UseApiKey_ToCreateAnotherApiKey_Returns403");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -463,8 +432,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task UseApiKey_ToListApiKeys_Returns403()
     {
-        Output.WriteLine("[TEST] UseApiKey_ToListApiKeys_Returns403");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -490,8 +457,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task UseApiKey_ToRevokeApiKey_Returns403()
     {
-        Output.WriteLine("[TEST] UseApiKey_ToRevokeApiKey_Returns403");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -520,8 +485,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task UseRevokedApiKey_Returns401()
     {
-        Output.WriteLine("[TEST] UseRevokedApiKey_Returns401");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -564,46 +527,44 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task UserJourney_CreateListRevokeApiKey_FullLifecycle()
     {
-        Output.WriteLine("[TEST] UserJourney_CreateListRevokeApiKey_FullLifecycle");
-
-        // Step 1: Register a new user
+        // Register a new user
         Output.WriteLine("[STEP 1] Registering new user...");
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
         var userId = authResult.User.Id;
 
-        // Step 2: List API keys (should be empty)
+        // List API keys (expects empty)
         Output.WriteLine("[STEP 2] Listing API keys (should be empty)...");
         var listBefore = await ListApiKeysAsync(userId, authResult.AccessToken);
         Assert.NotNull(listBefore);
         Assert.Empty(listBefore.Items);
 
-        // Step 3: Create first API key
+        // Create first API key
         Output.WriteLine("[STEP 3] Creating first API key...");
         var key1 = await CreateApiKeyAsync(userId, authResult.AccessToken, "Production Bot");
         Assert.NotNull(key1);
         var key1Jwt = key1.Key;
 
-        // Step 4: Create second API key
+        // Create second API key
         Output.WriteLine("[STEP 4] Creating second API key...");
         var key2 = await CreateApiKeyAsync(userId, authResult.AccessToken, "Development Bot");
         Assert.NotNull(key2);
 
-        // Step 5: List API keys (should have 2)
+        // List API keys (expects 2)
         Output.WriteLine("[STEP 5] Listing API keys (should have 2)...");
         var listAfterCreate = await ListApiKeysAsync(userId, authResult.AccessToken);
         Assert.NotNull(listAfterCreate);
         Assert.Equal(2, listAfterCreate.Items.Count);
 
-        // Step 6: Use first API key to access an endpoint
+        // Use first API key to access an endpoint
         Output.WriteLine("[STEP 6] Using first API key to access /auth/me...");
         using var meRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me");
         meRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key1Jwt);
         var meResponse = await HttpClient.SendAsync(meRequest);
         Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
 
-        // Step 7: Revoke first API key
+        // Revoke first API key
         Output.WriteLine("[STEP 7] Revoking first API key...");
         using var revokeRequest = new HttpRequestMessage(HttpMethod.Delete, 
             $"/api/v1/auth/users/{userId}/api-keys/{key1.Id}");
@@ -611,14 +572,14 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
         var revokeResponse = await HttpClient.SendAsync(revokeRequest);
         Assert.Equal(HttpStatusCode.NoContent, revokeResponse.StatusCode);
 
-        // Step 8: Verify revoked key doesn't work
+        // Verify revoked key is rejected
         Output.WriteLine("[STEP 8] Verifying revoked key is rejected...");
         using var rejectedRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me");
         rejectedRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key1Jwt);
         var rejectedResponse = await HttpClient.SendAsync(rejectedRequest);
         Assert.Equal(HttpStatusCode.Unauthorized, rejectedResponse.StatusCode);
 
-        // Step 9: List API keys (should have 1)
+        // List API keys (expects 1)
         Output.WriteLine("[STEP 9] Listing API keys (should have 1)...");
         var listAfterRevoke = await ListApiKeysAsync(userId, authResult.AccessToken);
         Assert.NotNull(listAfterRevoke);
@@ -631,8 +592,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task UserJourney_MultipleApiKeysWithDifferentPermissions()
     {
-        Output.WriteLine("[TEST] UserJourney_MultipleApiKeysWithDifferentPermissions");
-
         // Register user
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
@@ -679,10 +638,9 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_MultipleKeys_SucceedsUpToLimit()
     {
-        // Note: MaxApiKeysPerUser is 100 in ApiKeyService.cs
-        // This test creates a few keys and verifies they can be created,
-        // but doesn't test the actual 100 limit due to test runtime concerns.
-        Output.WriteLine("[TEST] CreateApiKey_MultipleKeys_SucceedsUpToLimit");
+        // MaxApiKeysPerUser is 100 in ApiKeyService.cs
+        // Five keys are created to verify creation works; the 100-key limit
+        // is not exercised due to test runtime cost.
 
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
@@ -710,8 +668,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task CreateApiKey_WithVeryLongName_Returns400()
     {
-        Output.WriteLine("[TEST] CreateApiKey_WithVeryLongName_Returns400");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -738,8 +694,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_CreateKeyUseItThenRevoke()
     {
-        Output.WriteLine("[TEST] Journey_CreateKeyUseItThenRevoke");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -772,8 +726,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_TwoUsersCannotShareKeys()
     {
-        Output.WriteLine("[TEST] Journey_TwoUsersCannotShareKeys");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
         Assert.NotNull(user1);
@@ -797,8 +749,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_CreateMultipleKeysRevokeOne()
     {
-        Output.WriteLine("[TEST] Journey_CreateMultipleKeysRevokeOne");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -840,8 +790,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_ApiKeyCannotManageItself()
     {
-        Output.WriteLine("[TEST] Journey_ApiKeyCannotManageItself");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -861,8 +809,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_AccessTokenAndApiKeyBothWork()
     {
-        Output.WriteLine("[TEST] Journey_AccessTokenAndApiKeyBothWork");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -886,8 +832,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_CreateKeyWithSpecialCharactersInName()
     {
-        Output.WriteLine("[TEST] Journey_CreateKeyWithSpecialCharactersInName");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -907,8 +851,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_RevokeAllKeysThenCreateNew()
     {
-        Output.WriteLine("[TEST] Journey_RevokeAllKeysThenCreateNew");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -943,8 +885,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_ApiKeyReturnsCorrectUserInMe()
     {
-        Output.WriteLine("[TEST] Journey_ApiKeyReturnsCorrectUserInMe");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -968,8 +908,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_KeyWithExpirationStillWorksBeforeExpiry()
     {
-        Output.WriteLine("[TEST] Journey_KeyWithExpirationStillWorksBeforeExpiry");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -990,8 +928,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_ListKeysShowsCorrectMetadata()
     {
-        Output.WriteLine("[TEST] Journey_ListKeysShowsCorrectMetadata");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1014,8 +950,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_RapidCreateAndRevoke()
     {
-        Output.WriteLine("[TEST] Journey_RapidCreateAndRevoke");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1042,8 +976,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_UseKeyThenRefreshAccessToken()
     {
-        Output.WriteLine("[TEST] Journey_UseKeyThenRefreshAccessToken");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1067,8 +999,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_TwoUsersDifferentKeyNames()
     {
-        Output.WriteLine("[TEST] Journey_TwoUsersDifferentKeyNames");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
         Assert.NotNull(user1);
@@ -1106,8 +1036,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_CreateKeyImmediatelyUse()
     {
-        Output.WriteLine("[TEST] Journey_CreateKeyImmediatelyUse");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1127,8 +1055,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_RevokeNonExistentKeyForUser()
     {
-        Output.WriteLine("[TEST] Journey_RevokeNonExistentKeyForUser");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1146,8 +1072,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_ListAfterMultipleOperations()
     {
-        Output.WriteLine("[TEST] Journey_ListAfterMultipleOperations");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1186,8 +1110,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_ApiKeyCannotAccessOtherUserData()
     {
-        Output.WriteLine("[TEST] Journey_ApiKeyCannotAccessOtherUserData");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
         Assert.NotNull(user1);
@@ -1212,8 +1134,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_CreateKeyWithMaxLengthName()
     {
-        Output.WriteLine("[TEST] Journey_CreateKeyWithMaxLengthName");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1229,8 +1149,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_UseMultipleKeysInSequence()
     {
-        Output.WriteLine("[TEST] Journey_UseMultipleKeysInSequence");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);
@@ -1257,8 +1175,6 @@ public sealed class ApiKeyApiTests(ITestOutputHelper output) : WebApiTestBase(ou
     [Fact]
     public async Task Journey_EmptyListAfterRegisterThenPopulate()
     {
-        Output.WriteLine("[TEST] Journey_EmptyListAfterRegisterThenPopulate");
-
         var auth = await RegisterUserAsync();
         Assert.NotNull(auth);
         Assert.NotNull(auth.User);

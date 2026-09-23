@@ -8,7 +8,6 @@ namespace ApplicationBuilderHelpers.Common;
 
 internal static class CancellationTokenExtensions
 {
-    // ConditionalWeakTable automatically removes entries when keys are GC'd
     private static readonly ConditionalWeakTable<object, TokenSourceTracker> _trackers = [];
 
     private sealed class TokenSourceTracker(CancellationTokenSource timeoutSource, CancellationTokenSource linkedSource)
@@ -27,7 +26,6 @@ internal static class CancellationTokenExtensions
         {
             if (Interlocked.Exchange(ref _disposed, 1) == 0)
             {
-                // Unregister first to prevent callback from firing during disposal
                 try
                 {
                     _registration.Unregister();
@@ -50,7 +48,6 @@ internal static class CancellationTokenExtensions
 
         ~TokenSourceTracker()
         {
-            // Finalizer ensures disposal even if token is never cancelled
             Dispose();
         }
     }
@@ -61,14 +58,12 @@ internal static class CancellationTokenExtensions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This method creates CancellationTokenSource instances that are automatically disposed when:
+    /// Creates CancellationTokenSource instances that are automatically disposed when:
     /// 1. The returned token is cancelled (by timeout or original token cancellation)
     /// 2. The returned token is garbage collected without being cancelled (via finalizer)
     /// </para>
     /// <para>
-    /// The implementation uses ConditionalWeakTable for automatic cleanup and finalizers as a 
-    /// safety net. For critical long-running operations, consider manually managing 
-    /// CancellationTokenSource lifetime instead.
+    /// The implementation uses ConditionalWeakTable for automatic cleanup.
     /// </para>
     /// </remarks>
     public static CancellationToken WithTimeout(this CancellationToken cancellationToken, TimeSpan timeout)
@@ -77,16 +72,13 @@ internal static class CancellationTokenExtensions
         var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
         var resultToken = linkedCts.Token;
 
-        // Create a tracker object that will be associated with the token
         var tracker = new TokenSourceTracker(timeoutCts, linkedCts);
-        
-        // Use a separate tracking key object to avoid struct equality issues
+
         var trackingKey = new object();
         _trackers.Add(trackingKey, tracker);
 
         try
         {
-            // Register disposal callback - this keeps trackingKey alive until cancellation
             var registration = resultToken.Register(state =>
             {
                 var key = state!;
@@ -97,12 +89,10 @@ internal static class CancellationTokenExtensions
                 }
             }, trackingKey);
 
-            // Store the registration in the tracker so it can be properly unregistered
             tracker.SetRegistration(registration);
         }
         catch (ObjectDisposedException)
         {
-            // Token was already disposed, clean up immediately
             _trackers.Remove(trackingKey);
             tracker.Dispose();
             throw;

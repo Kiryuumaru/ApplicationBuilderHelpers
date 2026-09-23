@@ -39,7 +39,6 @@ internal static class CompletionEngine
 
             var remaining = args.Skip(consumed).ToArray();
 
-            // 1. "--opt=val" value completion.
             var equals = partial.IndexOf('=');
             if (equals >= 0 && partial.StartsWith('-'))
             {
@@ -49,7 +48,6 @@ internal static class CompletionEngine
                 return CompleteValidValues(option?.ValidValues, option?.IsSecret == true, valuePrefix, partial[..(equals + 1)]);
             }
 
-            // 2. Previous token is a valued option awaiting its value ("--mode <TAB>").
             if (remaining.Length > 0 && string.IsNullOrEmpty(partial))
             {
                 var previous = remaining[^1];
@@ -66,7 +64,6 @@ internal static class CompletionEngine
                     return CompleteValidValues(option.ValidValues, option.IsSecret, partial, string.Empty);
             }
 
-            // 3. Option-name completion.
             if (partial.StartsWith('-'))
             {
                 var prefix = partial;
@@ -91,7 +88,6 @@ internal static class CompletionEngine
                 return [.. names.OrderBy(n => n, StringComparer.Ordinal)];
             }
 
-            // 4. Subcommand-name completion.
             var matches = target.Children.Keys
                 .Where(name => name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
@@ -99,7 +95,6 @@ internal static class CompletionEngine
             if (matches.Count > 0)
                 return matches;
 
-            // 5. Positional-argument ValidValues fallback.
             var position = remaining.Count(t => !t.StartsWith('-'));
             if (!string.IsNullOrEmpty(partial) && remaining.Length > 0 && !remaining[^1].StartsWith('-'))
                 position = Math.Max(0, position - 1);

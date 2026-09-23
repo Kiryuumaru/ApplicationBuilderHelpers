@@ -1,7 +1,7 @@
 namespace ApplicationBuilderHelpers.Exceptions;
 
 /// <summary>
-/// Single owner for the shared CLI error footer. Both the command-line gateway
+/// Resolves the shared CLI error footer. Both the command-line handling
 /// path and the host path render this footer so the same <see cref="CommandErrorKind"/>
 /// always prints the same footer regardless of raising path.
 /// Pure string resolver: no <c>ICommandBuilder</c>, theme, or console knowledge.
@@ -14,10 +14,9 @@ internal static class CommandErrorFooter
     }
 
     /// <summary>
-    /// Resolves the footer, suppressing the circular <c>--help</c> hint when
-    /// the failing invocation already requested help (#509): the user already
-    /// asked for help, so pointing back at <c>--help</c> is noise — keep only
-    /// the <c>--version</c> hint. The no-flag missing path keeps both hints.
+    /// Resolves the footer. When <paramref name="showHelpRequested"/> is true,
+    /// omits the <c>--help</c> hint and keeps only the <c>--version</c> hint;
+    /// otherwise keeps both hints.
     /// </summary>
     internal static string Resolve(CommandErrorKind kind, string executableName, string? commandName, bool showHelpRequested)
     {

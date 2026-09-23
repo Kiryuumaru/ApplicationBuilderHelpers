@@ -6,13 +6,12 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Issue #482 merged-copy bind-preference guards (green required, firing=stop).
+/// Merged-copy bind-preference guards.
 /// D1: merged groups bind under the target command's own copy identity with
 /// encounter-order values (secret values never echo under a non-secret copy).
 /// D2: bare-ledger fidelity (optional bare fails, satisfied-then-bare optional
 /// ignored, satisfied-then-bare required fails). D3: CLI wins over env.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams and the process environment are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class MergedCopyBindPreferenceTests
@@ -115,7 +114,6 @@ public sealed class MergedCopyBindPreferenceTests
         }
     }
 
-    // D1: secret value never echoes, even though the sibling copy is non-secret.
     [Fact]
     public async Task D1_SecretValue_NeverEchoesUnderNonSecretCopy()
     {
@@ -129,7 +127,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.DoesNotContain("hunter2secret", output);
     }
 
-    // D1: each target binds under its own copy's ValidValues list.
     [Fact]
     public async Task D1_TargetCopyValidValues_DecideBinding()
     {
@@ -149,7 +146,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.True(string.IsNullOrWhiteSpace(betaError), $"Expected empty stderr but got: {betaError}");
     }
 
-    // D1: merged collection values preserve encounter order.
     [Fact]
     public async Task D1_MergedCollectionValues_PreserveEncounterOrder()
     {
@@ -162,7 +158,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // D1: identity reader P1 prefers the target command's own copy.
     [Fact]
     public void D1_IdentityReader_PrefersTargetCommandCopy()
     {
@@ -179,7 +174,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.Same(targetCopy, resolved);
     }
 
-    // D1: identity reader P2 falls back to encounter order and never synthesizes.
     [Fact]
     public void D1_IdentityReader_FallsBackToEncounterOrder()
     {
@@ -201,7 +195,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.False(result.TryGetCanonicalIdentityOption("missing", out _));
     }
 
-    // D2: trailing bare optional valued option fails.
     [Fact]
     public async Task D2_TrailingBareOptional_ReportsMissing()
     {
@@ -213,7 +206,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.Contains("Missing value for option: -c, --config", error);
     }
 
-    // D2: satisfied-then-bare optional repeat keeps the first value.
     [Fact]
     public async Task D2_SatisfiedThenBareOptional_KeepsFirstValue()
     {
@@ -226,7 +218,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // D2: satisfied-then-bare required repeat fails.
     [Fact]
     public async Task D2_SatisfiedThenBareRequired_ReportsMissing()
     {
@@ -238,7 +229,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.Contains("Missing required option: -n, --name", error);
     }
 
-    // D2: bare valued option never consumes a flag-looking neighbor.
     [Fact]
     public async Task D2_BareValuedOption_WithFlagNeighbor_ReportsMissing()
     {
@@ -250,7 +240,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.Contains("Missing value for option: -c, --config", error);
     }
 
-    // D3: explicit CLI value wins over the environment fallback.
     [Fact]
     public async Task D3_ExplicitCliValue_WinsOverEnvironment()
     {
@@ -265,7 +254,6 @@ public sealed class MergedCopyBindPreferenceTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // D3: omitted option still binds from the environment.
     [Fact]
     public async Task D3_OmittedOption_BindsFromEnvironment()
     {

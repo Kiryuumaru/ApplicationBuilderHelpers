@@ -6,11 +6,11 @@ using System.Runtime.CompilerServices;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Narrow leaf for pure-reflection descriptor predicates shared by
+/// Descriptor predicates shared by
 /// <see cref="SubCommandOptionInfo"/>, <see cref="SubCommandArgumentInfo"/>
 /// and <see cref="CommandReflectionCache"/>: the C# <c>required</c>-keyword
 /// query and the nullable-unwrap/enum-candidate
-/// query. Owns no walk, no freeze, no ordering, and no parser-derived state.
+/// query. Performs no walk, no ordering, and keeps no parser-derived state.
 /// </summary>
 internal static class CommandDescriptorReflection
 {
@@ -19,7 +19,6 @@ internal static class CommandDescriptorReflection
     /// </summary>
     internal static bool IsPropertyRequired(PropertyInfo property)
     {
-        // Check for RequiredMemberAttribute which is added by the compiler when using the required keyword
 #if NET7_0_OR_GREATER
         var hasRequiredMemberAttribute = property.IsDefined(typeof(RequiredMemberAttribute), inherit: false);
 #else

@@ -5,15 +5,11 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Matrix for issue #387 (type pipeline: single registry,
+/// Matrix for the type pipeline (single registry,
 /// <see cref="IEnumerable{T}"/> binder, 6 scalars, FromAmong convert-then-compare).
-/// Exercises the desired end-state through the public
+/// Exercises the type pipeline through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point.
-/// All tests below PASS on current code (scalars resolve through the
-/// registered type-parser pipeline, <c>List{T}</c>/<c>IEnumerable{T}</c> bind
-/// like arrays, FromAmong compares converted values, nullable arguments unwrap).
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class TypePipelineScalarMatrixTests
@@ -188,7 +184,6 @@ public sealed class TypePipelineScalarMatrixTests
         }
     }
 
-    // ---- Per-scalar valid binding (registry, not ChangeType) ----
 
     [Fact]
     public async Task Scalar_TimeSpan_Valid_BindsValue()
@@ -250,7 +245,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // ---- Per-scalar invalid binding (registry-style error, no ChangeType fallthrough) ----
 
     [Fact]
     public async Task Scalar_TimeSpan_Invalid_ReportsRegistryError()
@@ -312,7 +306,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.Contains("Invalid FileInfo value", error);
     }
 
-    // ---- Per-scalar nullable binding ----
 
     [Fact]
     public async Task Scalar_TimeSpan_Nullable_BindsValue()
@@ -374,7 +367,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // ---- Per-scalar array binding ----
 
     [Fact]
     public async Task Scalar_TimeSpan_Array_BindsAllValues()
@@ -446,7 +438,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.Contains("Invalid TimeSpan value: 'abc'", error);
     }
 
-    // ---- List / IEnumerable parity with arrays ----
 
     [Fact]
     public async Task Collection_List_BindsAllValuesLikeArray()
@@ -478,7 +469,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.Contains("Invalid Int32 value: 'abc'", error);
     }
 
-    // ---- FromAmong convert-then-compare on the option path ----
 
     [Fact]
     public async Task FromAmong_IntOption_EquivalentRepresentation_Accepts()
@@ -510,7 +500,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // ---- FromAmong convert-then-compare on the argument path ----
 
     [Fact]
     public async Task FromAmong_IntArgument_EquivalentRepresentation_Accepts()
@@ -542,7 +531,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // ---- Nullable argument conversion ----
 
     [Fact]
     public async Task Argument_NullableInt_BindsValue()
@@ -565,7 +553,6 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // ---- No-ChangeType gate for known scalars (registry owns these types) ----
 
     [Theory]
     [InlineData("typematrix", "--delay=abc")]

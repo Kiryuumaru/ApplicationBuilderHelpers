@@ -14,14 +14,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// the exit code, and cancellation requested via the passed token maps to
 /// 128 + SIGINT (130) while internal shutdown stays success (0).
 /// Runs against the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
-/// entry point, following the <see cref="ConsoleDecouplingTests"/> pattern.
+/// entry point.
 /// </summary>
-/// <remarks>
-/// Ctrl+C gap: the CancelKeyPress handler lives inside the internal executor and
-/// <c>ApplicationBuilder.RunAsync</c> always constructs a real console output, so there
-/// is no seam to simulate Ctrl+C in-process. Real-signal coverage would need an
-/// out-of-process test or an internal-visible seam (not added here; tests only).
-/// </remarks>
 [Collection("ConsoleDecoupling")]
 public sealed class CancellationExitCodeTests
 {
@@ -85,8 +79,8 @@ public sealed class CancellationExitCodeTests
         public static bool ShimInvoked;
 
         [Obsolete("Intentional legacy-path probe.")]
-#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member (intentional: legacy path probe).
-#pragma warning disable CS0618 // Legacy overload is intentionally exercised here.
+#pragma warning disable CS0809
+#pragma warning disable CS0618
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
         {
             ShimInvoked = true;
@@ -108,8 +102,8 @@ public sealed class CancellationExitCodeTests
             return ValueTask.CompletedTask;
         }
 
-#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member (intentional: precedence probe).
-#pragma warning disable CS0618 // Legacy overload is intentionally exercised here.
+#pragma warning disable CS0809
+#pragma warning disable CS0618
         [Obsolete("Intentional legacy-path probe.")]
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
         {
@@ -123,8 +117,6 @@ public sealed class CancellationExitCodeTests
     [Command("Cancellation exit-code probe.")]
     private sealed class InternalCanceledCommand : Command
     {
-        // Cooperative cancellation observed from an internal source only:
-        // no outer token and no Ctrl+C involved, so this must stay success (exit 0).
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
             => throw new OperationCanceledException("Internal cooperative stop.");
     }
@@ -162,10 +154,6 @@ public sealed class CancellationExitCodeTests
             }
             catch (OperationCanceledException)
             {
-                // Hold the command open past the host's graceful stop so the
-                // executor drains the canceled path while cancel is pending
-                // (host-canceled or host-completed drain; no seam observes
-                // which drain is taken).
                 await Task.Delay(TimeSpan.FromMilliseconds(500));
                 throw;
             }
@@ -212,8 +200,6 @@ public sealed class CancellationExitCodeTests
     [Fact]
     public async Task InternalCancelWithoutOuterSignal_SignalsSuccess()
     {
-        // Cooperative cancellation observed from an internal source only
-        // (no outer token, no Ctrl+C): the success path (exit 0) applies.
         var exitCode = await RunCapturedAsync(() => CreateBuilder<InternalCanceledCommand>().RunAsync([]));
 
         Assert.Equal(0, exitCode);
@@ -242,8 +228,6 @@ public sealed class CancellationExitCodeTests
         Task<int> runTask = RunCapturedAsync(() => CreateBuilder(() => new CallbackCountingCommand(60_000)).RunAsync([], cts.Token));
         try
         {
-            // Gate the 250ms cancel budget on observed callback registration so
-            // slow executor startup cannot consume it before the command runs.
             Task registration = await Task.WhenAny(
                 CallbackCountingCommand.CallbacksRegistered.Task,
                 Task.Delay(TimeSpan.FromSeconds(10)));
@@ -275,9 +259,6 @@ public sealed class CancellationExitCodeTests
         Task<int> runTask = RunCapturedAsync(() => CreateBuilder<HostStoppedCanceledDrainCommand>().RunAsync([], cts.Token));
         try
         {
-            // Canceled-path exactly-once guard covering both host-canceled
-            // and host-completed drains: no seam observes hostTask
-            // completion, so this cannot deterministically pin either branch.
             Task registration = await Task.WhenAny(
                 HostStoppedCanceledDrainCommand.CallbacksRegistered.Task,
                 Task.Delay(TimeSpan.FromSeconds(10)));
@@ -288,8 +269,6 @@ public sealed class CancellationExitCodeTests
                 Task.Delay(TimeSpan.FromSeconds(10)));
             Assert.Same(HostStoppedCanceledDrainCommand.HostStopped.Task, stopped);
             await HostStoppedCanceledDrainCommand.HostStopped.Task;
-            // Gate cancel on observed host stop, then hold the command open
-            // so cancel lands while the host-stopped command is draining.
             await Task.Delay(TimeSpan.FromSeconds(2));
             cts.Cancel();
 

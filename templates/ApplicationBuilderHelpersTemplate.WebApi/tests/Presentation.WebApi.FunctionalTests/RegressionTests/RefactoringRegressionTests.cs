@@ -6,8 +6,8 @@ using Presentation.WebApi.FunctionalTests.Fixtures;
 namespace Presentation.WebApi.FunctionalTests.RegressionTests;
 
 /// <summary>
-/// Regression tests to verify all issues documented in WHAT_YOU_DID_WRONG_FOUND_BY_DEV.md are fixed.
-/// Each test corresponds to a specific issue number from the document.
+/// Auth regression guard: password linking, permissions in auth responses,
+/// refresh-token theft detection, session counts, and role assignments.
 /// </summary>
 public sealed class RefactoringRegressionTests : WebApiTestBase
 {
@@ -17,17 +17,16 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
     {
     }
 
-    #region Issue #2: LinkPassword Validation - Password Already Linked
+    #region Password linking
 
     /// <summary>
-    /// Issue #2: The LinkPassword endpoint is for converting ANONYMOUS users to full accounts.
+    /// The LinkPassword endpoint is for converting ANONYMOUS users to full accounts.
     /// Users who registered with a password should NOT be able to use LinkPassword.
-    /// (Note: This test demonstrates the API correctly rejects the attempt)
     /// </summary>
     [Fact]
-    public async Task Issue2_LinkPassword_WhenUserAlreadyHasPassword_Returns400BadRequest()
+    public async Task LinkPassword_WhenUserAlreadyHasPassword_ReturnsBadRequest()
     {
-        // Arrange - Register user WITH password (so they already have one)
+        // Arrange
         var username = $"issue2_haspass_{Guid.NewGuid():N}";
         var email = $"{username}@example.com";
 
@@ -47,8 +46,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var userId = registerResult!.User!.Id;
         var accessToken = registerResult.AccessToken;
 
-        // Act - Try to link a password using the LinkPassword endpoint
-        // This endpoint requires username, password, confirmPassword (it's for converting anonymous users)
+        // Act
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         var linkResponse = await Client.PostAsJsonAsync($"/api/v1/auth/users/{userId}/identity/password", new
         {
@@ -61,20 +59,20 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var linkContent = await linkResponse.Content.ReadAsStringAsync();
         Output.WriteLine($"LinkPassword response (status={linkResponse.StatusCode}): {linkContent}");
 
-        // Assert - Should return 400 Bad Request because user already has a password
+        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, linkResponse.StatusCode);
     }
 
     #endregion
 
-    #region Issue #3: Permissions Array Should NOT Be Empty
+    #region Auth permissions
 
     /// <summary>
-    /// Issue #3: Auth responses should return actual permissions, not empty array.
+    /// Auth responses should return actual permissions, not empty array.
     /// After login, the User.Permissions array should contain the user's effective permissions.
     /// </summary>
     [Fact]
-    public async Task Issue3_Login_ReturnsNonEmptyPermissionsArray()
+    public async Task Login_ReturnsNonEmptyPermissionsArray()
     {
         // Arrange
         var username = $"issue3_perms_{Guid.NewGuid():N}";
@@ -88,7 +86,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
             ConfirmPassword = TestPassword
         });
 
-        // Act - Login
+        // Act
         var loginResponse = await Client.PostAsJsonAsync("/api/v1/auth/login", new
         {
             Username = username,
@@ -117,10 +115,10 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
     }
 
     /// <summary>
-    /// Issue #3: Register response should also return permissions in user object.
+    /// Register response should also return permissions in user object.
     /// </summary>
     [Fact]
-    public async Task Issue3_Register_ReturnsNonEmptyPermissionsArray()
+    public async Task Register_ReturnsNonEmptyPermissionsArray()
     {
         // Arrange
         var username = $"issue3_reg_{Guid.NewGuid():N}";
@@ -153,10 +151,10 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
     }
 
     /// <summary>
-    /// Issue #3: Refresh token response should return permissions in user object.
+    /// Refresh token response should return permissions in user object.
     /// </summary>
     [Fact]
-    public async Task Issue3_Refresh_ReturnsNonEmptyPermissionsArray()
+    public async Task Refresh_ReturnsNonEmptyPermissionsArray()
     {
         // Arrange
         var username = $"issue3_refresh_{Guid.NewGuid():N}";
@@ -195,14 +193,13 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
 
     #endregion
 
-    #region Issue #5: Token Theft Detection
+    #region Token theft detection
 
     /// <summary>
-    /// Issue #5: Using an OLD refresh token after it has been rotated should be rejected.
-    /// This is the token theft detection mechanism.
+    /// Using a rotated refresh token again should be rejected.
     /// </summary>
     [Fact]
-    public async Task Issue5_TokenTheftDetection_OldRefreshToken_IsRejected()
+    public async Task TokenTheftDetection_OldRefreshToken_IsRejected()
     {
         // Arrange
         var username = $"issue5_theft_{Guid.NewGuid():N}";
@@ -219,21 +216,20 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var registerResult = JsonSerializer.Deserialize<AuthResponse>(regContent, JsonOptions);
         var originalRefreshToken = registerResult!.RefreshToken;
 
-        // First refresh - get new tokens (this should invalidate the original)
+        // First refresh - get new tokens
         var firstRefreshResponse = await Client.PostAsJsonAsync("/api/v1/auth/refresh", new
         {
             RefreshToken = originalRefreshToken
         });
         Assert.Equal(HttpStatusCode.OK, firstRefreshResponse.StatusCode);
 
-        // Act - Try to use the ORIGINAL (old) refresh token again
-        // This simulates an attacker trying to use a stolen token
+        // Act
         var theftAttemptResponse = await Client.PostAsJsonAsync("/api/v1/auth/refresh", new
         {
             RefreshToken = originalRefreshToken
         });
 
-        // Assert - Should be rejected (401 Unauthorized)
+        // Assert
         var errorContent = await theftAttemptResponse.Content.ReadAsStringAsync();
         Output.WriteLine($"Theft attempt status: {theftAttemptResponse.StatusCode}");
         Output.WriteLine($"Theft attempt response: {errorContent}");
@@ -242,11 +238,11 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
     }
 
     /// <summary>
-    /// Issue #5: After theft detection, even the NEW refresh token should be invalid
-    /// because the entire session should be revoked.
+    /// After theft detection, the rotated refresh token should be invalid
+    /// because the entire session is revoked.
     /// </summary>
     [Fact]
-    public async Task Issue5_TokenTheftDetection_RevokesEntireSession()
+    public async Task TokenTheftDetection_RevokesEntireSession()
     {
         // Arrange
         var username = $"issue5_revoke_{Guid.NewGuid():N}";
@@ -263,7 +259,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var registerResult = JsonSerializer.Deserialize<AuthResponse>(regContent, JsonOptions);
         var originalRefreshToken = registerResult!.RefreshToken;
 
-        // Legitimate user refreshes first
+        // Arrange
         var firstRefreshResponse = await Client.PostAsJsonAsync("/api/v1/auth/refresh", new
         {
             RefreshToken = originalRefreshToken
@@ -273,40 +269,39 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var firstRefreshResult = JsonSerializer.Deserialize<AuthResponse>(firstRefreshContent, JsonOptions);
         var newRefreshToken = firstRefreshResult!.RefreshToken;
 
-        // Attacker tries to use old token (triggers theft detection)
+        // Act
         var theftAttemptResponse = await Client.PostAsJsonAsync("/api/v1/auth/refresh", new
         {
             RefreshToken = originalRefreshToken
         });
         Assert.Equal(HttpStatusCode.Unauthorized, theftAttemptResponse.StatusCode);
 
-        // Act - Now try the NEW refresh token
-        // If theft detection revoked the session, this should also fail
+        // Act
         var newTokenAttemptResponse = await Client.PostAsJsonAsync("/api/v1/auth/refresh", new
         {
             RefreshToken = newRefreshToken
         });
 
-        // Assert - Session should be revoked, so even new token fails
+        // Assert
         Output.WriteLine($"New token attempt status: {newTokenAttemptResponse.StatusCode}");
         Assert.Equal(HttpStatusCode.Unauthorized, newTokenAttemptResponse.StatusCode);
     }
 
     #endregion
 
-    #region Issue #6: Double Session Creation
+    #region Sessions
 
     /// <summary>
-    /// Issue #6: Each login should create exactly ONE session, not two.
+    /// Each registration should create exactly ONE session.
     /// </summary>
     [Fact]
-    public async Task Issue6_Register_CreatesExactlyOneSession()
+    public async Task Register_CreatesExactlyOneSession()
     {
         // Arrange
         var username = $"issue6_single_{Guid.NewGuid():N}";
         var email = $"{username}@example.com";
 
-        // Act - Register
+        // Act
         var registerResponse = await Client.PostAsJsonAsync("/api/v1/auth/register", new
         {
             Username = username,
@@ -334,15 +329,15 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         
         Output.WriteLine($"Sessions count after register: {sessionsResult?.Items?.Length ?? 0}");
 
-        // Assert - Should be exactly 1 session
+        // Assert
         Assert.Single(sessionsResult!.Items!);
     }
 
     /// <summary>
-    /// Issue #6: Multiple logins should create the correct number of sessions (one per login).
+    /// Multiple logins create one session per login.
     /// </summary>
     [Fact]
-    public async Task Issue6_MultipleLogins_CreatesCorrectNumberOfSessions()
+    public async Task MultipleLogins_CreatesCorrectNumberOfSessions()
     {
         // Arrange
         var username = $"issue6_multi_{Guid.NewGuid():N}";
@@ -360,7 +355,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var userId = registerResult!.User!.Id;
         string? lastAccessToken = null;
 
-        // Act - Login 3 more times (4 total sessions including registration)
+        // Act
         for (int i = 0; i < 3; i++)
         {
             var loginResponse = await Client.PostAsJsonAsync("/api/v1/auth/login", new
@@ -386,21 +381,19 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
 
         Output.WriteLine($"Sessions count after 1 register + 3 logins: {sessionsResult?.Items?.Length ?? 0}");
 
-        // Assert - Should be exactly 4 sessions (1 register + 3 logins)
+        // Assert
         Assert.Equal(4, sessionsResult!.Items!.Length);
     }
 
     #endregion
 
-    #region Issue #7: RoleAssignments Loaded from Database
+    #region Role assignments
 
     /// <summary>
-    /// Issue #7: User should have the USER role assigned after registration.
-    /// The RoleAssignments should be properly loaded from the database.
-    /// Note: The user endpoint returns roleIds, not roles array.
+    /// User should have the USER role assigned after registration.
     /// </summary>
     [Fact]
-    public async Task Issue7_NewUser_HasUserRoleAssigned()
+    public async Task NewUser_HasUserRoleAssigned()
     {
         // Arrange
         var username = $"issue7_role_{Guid.NewGuid():N}";
@@ -420,7 +413,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var userId = registerResult!.User!.Id;
         var accessToken = registerResult.AccessToken;
 
-        // Act - Get user details
+        // Act
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         var userResponse = await Client.GetAsync($"/api/v1/iam/users/{userId}");
         Client.DefaultRequestHeaders.Authorization = null;
@@ -432,7 +425,6 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
 
         var userResult = JsonSerializer.Deserialize<JsonElement>(userContent, JsonOptions);
         
-        // User endpoint returns "roleIds" not "roles"
         Assert.True(userResult.TryGetProperty("roleIds", out var roleIds),
             "User should have 'roleIds' property");
 
@@ -447,11 +439,10 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
     }
 
     /// <summary>
-    /// Issue #7: Permissions should reflect the user's role assignments.
-    /// If user has USER role, they should have USER role's permissions.
+    /// Permissions should reflect the user's role assignments.
     /// </summary>
     [Fact]
-    public async Task Issue7_UserPermissions_ReflectRoleAssignments()
+    public async Task UserPermissions_ReflectRoleAssignments()
     {
         // Arrange
         var username = $"issue7_perm_{Guid.NewGuid():N}";
@@ -469,7 +460,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var userId = registerResult!.User!.Id;
         var accessToken = registerResult.AccessToken;
 
-        // Act - Get user permissions
+        // Act
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         var permResponse = await Client.GetAsync($"/api/v1/iam/users/{userId}/permissions");
         Client.DefaultRequestHeaders.Authorization = null;
@@ -498,14 +489,13 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
 
     #endregion
 
-    #region Issue #8: Static Roles Returned by Repository
+    #region Static roles
 
     /// <summary>
-    /// Issue #8: Static roles (ADMIN, USER) should be accessible even though they're not in DB.
-    /// Users should be assigned the USER role which should return roleIds.
+    /// Static roles (ADMIN, USER) should be accessible even though they're not in DB.
     /// </summary>
     [Fact]
-    public async Task Issue8_GetUserRoles_IncludesStaticRoles()
+    public async Task GetUserRoles_IncludesStaticRoles()
     {
         // Arrange
         var username = $"issue8_static_{Guid.NewGuid():N}";
@@ -523,7 +513,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var userId = registerResult!.User!.Id;
         var accessToken = registerResult.AccessToken;
 
-        // Act - Get user which includes roleIds
+        // Act
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         var userResponse = await Client.GetAsync($"/api/v1/iam/users/{userId}");
         Client.DefaultRequestHeaders.Authorization = null;
@@ -614,7 +604,7 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var userId = registerResult!.User!.Id;
         var accessToken = registerResult.AccessToken;
 
-        // Act - Change password
+        // Act
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         var changeResponse = await Client.PutAsJsonAsync($"/api/v1/auth/users/{userId}/identity/password", new
         {
@@ -667,14 +657,14 @@ public sealed class RefactoringRegressionTests : WebApiTestBase
         var accessToken = registerResult!.AccessToken;
         var refreshToken = registerResult.RefreshToken;
 
-        // Act - Logout
+        // Act
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         var logoutResponse = await Client.PostAsync("/api/v1/auth/logout", null);
         Client.DefaultRequestHeaders.Authorization = null;
 
         Assert.Equal(HttpStatusCode.NoContent, logoutResponse.StatusCode);
 
-        // Assert - Refresh token should no longer work
+        // Assert
         var refreshResponse = await Client.PostAsJsonAsync("/api/v1/auth/refresh", new
         {
             RefreshToken = refreshToken

@@ -152,7 +152,7 @@ internal sealed class UserRegistrationService(
             throw new ValidationException("userId", "User is not anonymous and cannot be upgraded.");
         }
 
-        // For passkey upgrade, we don't need a username - just mark as non-anonymous
+        // For passkey upgrade, we don't need a username - mark as non-anonymous
         user.UpgradeFromAnonymousWithPasskey();
         await userRepository.SaveAsync(user, cancellationToken).ConfigureAwait(false);
     }

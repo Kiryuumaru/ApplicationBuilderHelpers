@@ -18,8 +18,6 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task GetIdentity_WithoutToken_Returns401()
     {
-        Output.WriteLine("[TEST] GetIdentity_WithoutToken_Returns401");
-
         var randomUserId = Guid.NewGuid();
         Output.WriteLine($"[STEP] GET /api/v1/auth/users/{randomUserId}/identity without token...");
         var response = await HttpClient.GetAsync($"/api/v1/auth/users/{randomUserId}/identity");
@@ -33,8 +31,6 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task GetIdentity_WithValidToken_ReturnsIdentityInfo()
     {
-        Output.WriteLine("[TEST] GetIdentity_WithValidToken_ReturnsIdentityInfo");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -66,8 +62,6 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task GetIdentity_ForOtherUser_Returns403()
     {
-        Output.WriteLine("[TEST] GetIdentity_ForOtherUser_Returns403");
-
         var user1 = await RegisterUserAsync();
         var user2 = await RegisterUserAsync();
         Assert.NotNull(user1);
@@ -89,8 +83,6 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task GetIdentity_NonExistentUser_Returns404()
     {
-        Output.WriteLine("[TEST] GetIdentity_NonExistentUser_Returns404");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
 
@@ -114,8 +106,6 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task GetIdentity_UserWithOAuth_ReturnsLinkedProviders()
     {
-        Output.WriteLine("[TEST] GetIdentity_UserWithOAuth_ReturnsLinkedProviders");
-
         // Create user via OAuth
         var authResult = await CreateUserViaOAuthAsync();
         Assert.NotNull(authResult);
@@ -145,8 +135,6 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task GetIdentity_EmailConfirmedStatus_Correct()
     {
-        Output.WriteLine("[TEST] GetIdentity_EmailConfirmedStatus_Correct");
-
         var authResult = await RegisterUserAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
@@ -174,12 +162,10 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task Journey_RegisterThenCheckIdentity()
     {
-        Output.WriteLine("[TEST] Journey_RegisterThenCheckIdentity");
-
         var username = $"journey_{Guid.NewGuid():N}";
         var email = $"{username}@example.com";
 
-        // Step 1: Register
+        // Register
         var registerRequest = new
         {
             Username = username,
@@ -195,7 +181,7 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
 
         var userId = authResult.User.Id;
 
-        // Step 2: Get identity
+        // Get identity
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/auth/users/{userId}/identity");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
         var response = await HttpClient.SendAsync(request);
@@ -217,16 +203,14 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task Journey_OAuthUserLinksPasswordThenCheckIdentity()
     {
-        Output.WriteLine("[TEST] Journey_OAuthUserLinksPasswordThenCheckIdentity");
-
-        // Step 1: Create user via OAuth (anonymous with OAuth)
+        // Create user via OAuth (anonymous with OAuth)
         var authResult = await CreateUserViaOAuthAsync();
         Assert.NotNull(authResult);
         Assert.NotNull(authResult.User);
 
         var userId = authResult.User.Id;
 
-        // Step 2: Check identity before linking password
+        // Check identity before linking password
         using var request1 = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/auth/users/{userId}/identity");
         request1.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
         var response1 = await HttpClient.SendAsync(request1);
@@ -237,7 +221,7 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
         Assert.False(identityBefore.HasPassword, "OAuth user should not have password initially");
         Assert.NotEmpty(identityBefore.LinkedProviders);
 
-        // Step 3: Link password
+        // Link password
         var username = $"linked_{Guid.NewGuid():N}";
         var linkRequest = new
         {
@@ -253,7 +237,7 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
 
         Output.WriteLine($"[INFO] Link password response: {(int)linkResponse.StatusCode} {linkResponse.StatusCode}");
 
-        // Step 4: Check identity after linking password
+        // Check identity after linking password
         using var request2 = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/auth/users/{userId}/identity");
         request2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
         var response2 = await HttpClient.SendAsync(request2);
@@ -274,8 +258,6 @@ public sealed class IdentityApiTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task Journey_TwoUsersHaveIndependentIdentities()
     {
-        Output.WriteLine("[TEST] Journey_TwoUsersHaveIndependentIdentities");
-
         // Create two users
         var user1 = await RegisterUserAsync();
         var user2 = await CreateUserViaOAuthAsync();

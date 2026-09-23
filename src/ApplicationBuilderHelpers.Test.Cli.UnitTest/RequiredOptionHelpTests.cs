@@ -9,10 +9,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Exercises the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
 /// entry point: a required option renders the <c>(required)</c> marker on the line
 /// immediately after its description and omits the <c>Default:</c> line (even for
-/// value types whose CLR default would otherwise read as a phantom default),
+/// value types whose CLR default would otherwise read as a default),
 /// while an optional option with an explicit initializer keeps its
-/// <c>Default:</c> line. Joins the non-parallel <c>ConsoleDecoupling</c>
-/// collection because the console streams are process-global mutable state.
+/// <c>Default:</c> line.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class RequiredOptionHelpTests

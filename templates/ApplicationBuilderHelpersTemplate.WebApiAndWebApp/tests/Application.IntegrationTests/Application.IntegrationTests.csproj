@@ -1,15 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Integration tests share database state - run sequentially -->
     <xUnitParallelizeTestCollections>false</xUnitParallelizeTestCollections>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Application layer - tests integration through DI -->
     <ProjectReference Include="..\..\src\Application\Application.csproj" />
     <ProjectReference Include="..\..\src\Application.Server\Application.Server.csproj" />
-    <!-- Infrastructure implementations for integration testing -->
     <ProjectReference Include="..\..\src\Infrastructure.EFCore\Infrastructure.EFCore.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure.EFCore.Server.Identity\Infrastructure.EFCore.Server.Identity.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure.EFCore.LocalStore\Infrastructure.EFCore.LocalStore.csproj" />

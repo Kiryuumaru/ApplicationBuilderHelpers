@@ -10,8 +10,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// merging: case-distinct long names stay independent, divergent environment
 /// or initializer metadata stays local, scalar repeats resolve last-wins,
 /// collections accumulate, and initializers apply only when absent.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams and the process environment are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class GlobalOptionSharedIdentityTests

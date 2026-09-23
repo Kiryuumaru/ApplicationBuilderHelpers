@@ -13,14 +13,13 @@ public class CommandException : Exception
     public int ExitCode { get; }
 
     /// <summary>
-    /// Gets the structured error kind for programmatic handling (replaces message-sniffing).
-    /// Defaults to <see cref="CommandErrorKind.Fault"/> for backward compatibility.
+    /// Gets the structured error kind for programmatic handling.
+    /// Defaults to <see cref="CommandErrorKind.Fault"/>.
     /// </summary>
     public CommandErrorKind Kind { get; }
 
     /// <summary>
-    /// Optional structured command name for per-command error footers
-    /// (avoids parsing it back out of the message text).
+    /// Optional structured command name for per-command error footers.
     /// </summary>
     public string? CommandName { get; }
 
