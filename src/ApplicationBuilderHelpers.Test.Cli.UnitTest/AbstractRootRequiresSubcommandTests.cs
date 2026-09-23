@@ -15,8 +15,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// error kinds. Term validation (<c>SubCommandInfo.FromCommand</c> plus the
 /// hierarchy build) pins the empty/whitespace/dash-led guard and the
 /// whitespace-split normalization shared by both call sites.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class AbstractRootRequiresSubcommandTests

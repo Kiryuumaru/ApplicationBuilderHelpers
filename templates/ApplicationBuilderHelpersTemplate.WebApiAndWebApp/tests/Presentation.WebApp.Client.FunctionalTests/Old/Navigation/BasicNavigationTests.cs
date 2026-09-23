@@ -18,7 +18,7 @@ public class BasicNavigationTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Page should load without errors
+        // Assert
         var title = await Page.TitleAsync();
         Output.WriteLine($"Page title: {title}");
 
@@ -42,7 +42,7 @@ public class BasicNavigationTests : WebAppTestBase
         // Act
         await GoToHomeAsync();
 
-        // Assert - Should have navigation elements
+        // Assert
         var nav = await Page.QuerySelectorAsync("nav, [role='navigation'], .nav, .navbar");
         Output.WriteLine($"Navigation element found: {nav != null}");
 
@@ -111,7 +111,7 @@ public class BasicNavigationTests : WebAppTestBase
         await Page.GotoAsync($"{WebAppUrl}/this-page-does-not-exist-{Guid.NewGuid():N}");
         await WaitForBlazorAsync();
 
-        // Assert - Should either show 404 page or redirect to home
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
 

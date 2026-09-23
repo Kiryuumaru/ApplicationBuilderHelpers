@@ -33,7 +33,6 @@ public class EnumAutoPopulationTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Value 'InvalidValue' is not valid for option '--log-level'");
         CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        // Should contain all the enum values specified in FromAmong
         CliTestAssertions.AssertErrorContains(result, "trace");
         CliTestAssertions.AssertErrorContains(result, "debug");
         CliTestAssertions.AssertErrorContains(result, "information");

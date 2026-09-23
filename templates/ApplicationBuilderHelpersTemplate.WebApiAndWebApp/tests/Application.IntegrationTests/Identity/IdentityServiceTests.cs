@@ -347,7 +347,7 @@ public class IdentityServiceTests
         var dbContext = dbContextFactory.CreateDbContext();
         dbContext.Database.EnsureCreated();
         
-        // Note: Built-in roles (Admin, User) are served from static constants in Domain.Authorization.Constants.Roles
+        // Built-in roles (Admin, User) are served from static constants in Domain.Authorization.Constants.Roles
         // and do not need to be seeded in the database. The EFCoreRoleRepository checks static roles first.
         
         // Signal that database is initialized (uses internal method via InternalsVisibleTo)

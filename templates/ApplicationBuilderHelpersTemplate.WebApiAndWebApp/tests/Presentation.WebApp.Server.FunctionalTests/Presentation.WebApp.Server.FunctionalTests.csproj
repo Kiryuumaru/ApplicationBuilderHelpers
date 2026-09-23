@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <UserSecretsId>webapi-functional-tests-9f3c7d2a</UserSecretsId>
-    <!-- Each test class gets its own isolated WebApiTestHost with random port and unique database -->
     <xUnitParallelizeTestCollections>true</xUnitParallelizeTestCollections>
   </PropertyGroup>
 

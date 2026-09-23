@@ -19,8 +19,6 @@ public class TokenFormatTests : WebAppTestBase
     [TimedFact]
     public async Task AccessToken_UsesShortClaimTypeNames()
     {
-        Output.WriteLine("[TEST] AccessToken_UsesShortClaimTypeNames");
-
         var authResult = await RegisterAnonymousUserAsync();
         Assert.NotNull(authResult?.AccessToken);
 
@@ -48,8 +46,6 @@ public class TokenFormatTests : WebAppTestBase
     [TimedFact]
     public async Task AccessToken_RoleClaimHasInlineParameters()
     {
-        Output.WriteLine("[TEST] AccessToken_RoleClaimHasInlineParameters");
-
         var authResult = await RegisterAnonymousUserAsync();
         Assert.NotNull(authResult?.AccessToken);
         Assert.NotNull(authResult?.User?.Id);
@@ -71,8 +67,6 @@ public class TokenFormatTests : WebAppTestBase
     [TimedFact]
     public async Task AccessToken_DoesNotContainRoleDerivedScopes()
     {
-        Output.WriteLine("[TEST] AccessToken_DoesNotContainRoleDerivedScopes");
-
         var authResult = await RegisterAnonymousUserAsync();
         Assert.NotNull(authResult?.AccessToken);
 
@@ -97,8 +91,6 @@ public class TokenFormatTests : WebAppTestBase
     [TimedFact]
     public async Task RefreshToken_OnlyHasRefreshPermission()
     {
-        Output.WriteLine("[TEST] RefreshToken_OnlyHasRefreshPermission");
-
         var authResult = await RegisterAnonymousUserAsync();
         Assert.NotNull(authResult?.RefreshToken);
 
@@ -129,8 +121,6 @@ public class TokenFormatTests : WebAppTestBase
     [TimedFact]
     public async Task AuthResponse_RolesHaveInlineFormat()
     {
-        Output.WriteLine("[TEST] AuthResponse_RolesHaveInlineFormat");
-
         var authResult = await RegisterAnonymousUserAsync();
         Assert.NotNull(authResult?.User?.Roles);
         Assert.NotNull(authResult?.User?.Id);
@@ -150,8 +140,6 @@ public class TokenFormatTests : WebAppTestBase
     [TimedFact]
     public async Task AuthResponse_PermissionsIncludeRoleDerivedScopes()
     {
-        Output.WriteLine("[TEST] AuthResponse_PermissionsIncludeRoleDerivedScopes");
-
         var authResult = await RegisterAnonymousUserAsync();
         Assert.NotNull(authResult?.User?.Permissions);
         Assert.NotNull(authResult?.User?.Id);
@@ -176,8 +164,6 @@ public class TokenFormatTests : WebAppTestBase
     [TimedFact]
     public async Task AccessToken_HasRbacVersion2()
     {
-        Output.WriteLine("[TEST] AccessToken_HasRbacVersion2");
-
         var authResult = await RegisterAnonymousUserAsync();
         Assert.NotNull(authResult?.AccessToken);
 
@@ -223,7 +209,5 @@ public class TokenFormatTests : WebAppTestBase
 
     #endregion
 }
-
-
 
 

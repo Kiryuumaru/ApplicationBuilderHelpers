@@ -8,8 +8,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// In-process precedence tests for multi-value options backed by the environment.
 /// An explicit command line value wins over the environment: when command line
 /// values are present the environment must not append an extra element.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because both the
-/// console streams and the process environment are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class OptionPrecedenceTests

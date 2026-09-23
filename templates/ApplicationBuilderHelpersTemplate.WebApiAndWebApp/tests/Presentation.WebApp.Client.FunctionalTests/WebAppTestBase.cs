@@ -61,14 +61,10 @@ public abstract class WebAppTestBase : IAsyncLifetime
 
     public virtual async ValueTask InitializeAsync()
     {
-        Output.WriteLine("[TEST] Starting isolated WebApiTestHost...");
-
         // Create ISOLATED host for THIS TEST ONLY (unique port + unique in-memory DB)
         _host = new WebApiTestHost(Output);
         await _host.StartAsync();
 
-        Output.WriteLine($"[TEST] Host started at {_host.BaseUrl}");
-        Output.WriteLine("[TEST] Creating browser context...");
 
         // Create isolated browser context from shared Playwright fixture
         _context = await _playwrightFixture.CreateContextAsync();
@@ -90,12 +86,10 @@ public abstract class WebAppTestBase : IAsyncLifetime
             Output.WriteLine($"[BROWSER ERROR] {error}");
         };
 
-        Output.WriteLine($"[TEST] Browser context ready. WebApp at {WebAppUrl}");
     }
 
     public virtual async ValueTask DisposeAsync()
     {
-        Output.WriteLine("[TEST] Disposing test resources...");
 
         if (_page != null)
         {
@@ -113,7 +107,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
             await _host.DisposeAsync();
         }
 
-        Output.WriteLine("[TEST] Test resources disposed");
     }
 
     #region Navigation Helpers (UI-Only)
@@ -151,7 +144,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
     /// </summary>
     protected async Task ClickNavigateToProfileAsync()
     {
-        Output.WriteLine("[TEST] Clicking to navigate to Profile...");
         
         // Click user avatar/menu button to open dropdown
         // The button contains a div with rounded-full and user initial letter
@@ -164,7 +156,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
         await WaitForUrlContainsAsync("/account/profile");
         await WaitForBlazorAsync();
         
-        Output.WriteLine($"[TEST] Navigated to: {Page.Url}");
     }
 
     /// <summary>
@@ -173,7 +164,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
     /// </summary>
     protected async Task ClickNavigateToChangePasswordAsync()
     {
-        Output.WriteLine("[TEST] Clicking to navigate to Change Password...");
         
         // Click user avatar/menu button to open dropdown
         await Page.Locator("button:has(.rounded-full)").First.ClickAsync();
@@ -184,7 +174,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
         
         await WaitForBlazorAsync();
         
-        Output.WriteLine($"[TEST] Navigated to: {Page.Url}");
     }
 
     #endregion
@@ -199,7 +188,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
     {
         await GoToRegisterAsync();
 
-        Output.WriteLine($"[TEST] Registering user via UI: {username}");
 
         // Type into registration form fields
         await Page.Locator("#username").FillAsync(username);
@@ -215,13 +203,11 @@ public abstract class WebAppTestBase : IAsyncLifetime
         }
 
         // Click submit button
-        Output.WriteLine("[TEST] Clicking submit button...");
         await Page.Locator("button[type='submit']").ClickAsync();
 
         // Wait for navigation away from register page
         var success = await WaitForUrlNotContainsAsync("/auth/register", timeoutMs: 20000);
 
-        Output.WriteLine($"[TEST] Registration {(success ? "succeeded" : "failed")}. Current URL: {Page.Url}");
 
         return success;
     }
@@ -234,7 +220,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
     {
         await GoToLoginAsync();
 
-        Output.WriteLine($"[TEST] Logging in via UI as: {email}");
 
         // Type into login form fields
         await Page.Locator("#email").FillAsync(email);
@@ -246,7 +231,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
         // Wait for navigation away from login page
         var success = await WaitForUrlNotContainsAsync("/auth/login", timeoutMs: 20000);
 
-        Output.WriteLine($"[TEST] Login {(success ? "succeeded" : "failed")}. Current URL: {Page.Url}");
 
         return success;
     }
@@ -257,8 +241,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
     /// </summary>
     protected async Task LogoutAsync()
     {
-        Output.WriteLine("[TEST] Logging out via UI...");
-
         // Click user avatar/menu button to open dropdown
         var userMenu = Page.Locator("button:has(.rounded-full)").First;
         if (await userMenu.CountAsync() > 0)
@@ -283,7 +265,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
         await WaitForUrlContainsAsync("/auth/login", timeoutMs: 10000);
         await WaitForBlazorAsync();
 
-        Output.WriteLine("[TEST] Logout completed");
     }
 
     /// <summary>
@@ -292,8 +273,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
     /// </summary>
     protected async Task<bool> ChangePasswordAsync(string currentPassword, string newPassword)
     {
-        Output.WriteLine("[TEST] Changing password via UI...");
-
         // Navigate to change password page
         await ClickNavigateToChangePasswordAsync();
 
@@ -308,7 +287,6 @@ public abstract class WebAppTestBase : IAsyncLifetime
         // Wait for success indicator
         var success = await WaitForSuccessMessageAsync(timeoutMs: 10000);
 
-        Output.WriteLine($"[TEST] Change password {(success ? "succeeded" : "failed")}");
 
         return success;
     }
@@ -426,14 +404,12 @@ public abstract class WebAppTestBase : IAsyncLifetime
         {
             if (!Page.Url.Contains(urlPart, StringComparison.OrdinalIgnoreCase))
             {
-                Output.WriteLine($"[TEST] URL no longer contains '{urlPart}' after {elapsed}ms. Current: {Page.Url}");
                 return true;
             }
             await Task.Delay(pollInterval);
             elapsed += pollInterval;
         }
 
-        Output.WriteLine($"[TEST] Timeout waiting for URL to not contain '{urlPart}'. Current: {Page.Url}");
         return false;
     }
 

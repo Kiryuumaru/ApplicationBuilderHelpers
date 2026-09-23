@@ -13,8 +13,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point.
 /// Probes format numbers with <see cref="CultureInfo.InvariantCulture"/> explicitly
 /// because console display formatting is culture-sensitive by design (out of scope).
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class CultureInvariantParsingTests
@@ -68,7 +67,7 @@ public sealed class CultureInvariantParsingTests
     /// DateTime, ...) owns a registry parser, so <c>object</c> is the only
     /// type that converts successfully through the <c>ConvertCore</c>-to-
     /// <c>ChangeType</c> fallback. A registry parser for <c>object</c> would
-    /// silently reroute this test, which is why the probe uses <c>object</c>
+    /// silently reroute the probe, so the probe uses <c>object</c>
     /// rather than any registered scalar.
     /// </summary>
     [Command("culturefallback", "Probes the culture-invariant ChangeType fallback.")]
@@ -173,8 +172,6 @@ public sealed class CultureInvariantParsingTests
     [InlineData("--decimal-val=85,5", "DecimalVal: 855")]
     public async Task CommaInput_ResolvesAsThousandsSeparatorDeterministically(string option, string expectedLine)
     {
-        // ',' is the invariant group separator, so "85,5" reads as 855: it must
-        // never become 85.5, identically under a comma-decimal ambient culture.
         var (deExit, deOutput, deError) = await RunUnderCultureAsync(["cultureprobe", option], CommaDecimalCulture);
         var (ivExit, ivOutput, ivError) = await RunUnderCultureAsync(["cultureprobe", option], CultureInfo.InvariantCulture);
 

@@ -16,8 +16,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// the gateway, run-fault, and host paths: all three render the global footer
 /// when no command name is supplied (the host path resolves the executable
 /// name by auto-detection, so only the kind-specific suffix is pinned there).
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ErrorContractTests

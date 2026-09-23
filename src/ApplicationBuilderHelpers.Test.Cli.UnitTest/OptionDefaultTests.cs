@@ -8,8 +8,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// In-process property-default tests for the CLI parser.
 /// A property initializer is the declared fallback when neither the command line
 /// nor the environment supplies a value: omitting the option preserves it.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class OptionDefaultTests
@@ -42,10 +41,6 @@ public sealed class OptionDefaultTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
-    // Help text reads the live property initializer instead of descriptor
-    // metadata: descriptor nodes carry no DefaultValue member, so this pins
-    // its absence directly via reflection. The public fallback behavior is
-    // covered above.
     [Fact]
     public void OmittedOption_NoDefaultValueMetadataOnDescriptor()
     {

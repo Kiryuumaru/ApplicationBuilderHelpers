@@ -16,16 +16,15 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <see cref="CommandArgumentAttribute"/>) and a service marker is a
 /// configuration error. Values resolve from the per-command scope so
 /// scoped lifetimes stay isolated to one command run.
-/// Moved verbatim from the executor (mechanical split, no behavior change)
-/// with a single <see cref="Inject"/> entry point; the single dual-marked
-/// fail-fast check lives in the cached plan build and funnels into one
-/// throw helper preserving the exact message.
+/// With a single <see cref="Inject"/> entry point; the single dual-marked
+/// validation is in the cached plan build and calls one
+/// throw helper with the exact message.
 /// <para>
-/// Reuse-only seam: no new attribute types. Both markers bind by
+/// Reuse only: no new attribute types. Both markers bind by
 /// attribute simple name so this library gains no new package dependency:
 /// <c>FromServicesAttribute</c> (ASP.NET Core, property-targeted and
 /// directly usable) and <c>FromKeyedServicesAttribute</c> (already
-/// referenced via <c>Microsoft.Extensions.DependencyInjection.Abstractions</c>
+/// referenced by <c>Microsoft.Extensions.DependencyInjection.Abstractions</c>
 /// for the <c>Key</c> read and the keyed resolution call).
 /// </para>
 /// <para>
@@ -33,7 +32,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// declares <c>AttributeTargets.Parameter</c> only, so the C# compiler
 /// rejects direct property use (CS0592). The keyed path below still
 /// resolves any property attribute named <c>FromKeyedServicesAttribute</c>
-/// that exposes a <c>Key</c> property (same-named shim, emitted metadata,
+/// that exposes a <c>Key</c> property (same-named attribute, emitted metadata,
 /// or a future framework retargeting to properties).
 /// </para>
 /// </summary>
@@ -43,7 +42,7 @@ internal static class ServiceInjectionGate
 
     private static readonly TypePlanCache<ServiceInjectionTarget[]> InjectionPlanCache = new();
 
-    [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Method-group BuildInjectionPlan is statically referenced, never reflection-invoked by name; the All-annotated type flows via the annotated PlanFactory delegate.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Method-group BuildInjectionPlan is statically referenced, never reflection-invoked by name; the All-annotated type flows through the annotated PlanFactory delegate.")]
     private static ServiceInjectionTarget[] GetInjectionPlan([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
         return InjectionPlanCache.GetOrAdd(commandType, BuildInjectionPlan);
@@ -53,14 +52,6 @@ internal static class ServiceInjectionGate
     {
         var walk = CommandReflectionCache.Walk(commandType);
 
-        // Bound set hoisted into the cached plan: CLI-bound names derived
-        // once from the canonical IsCliBound predicate over the walk (never
-        // re-derived per Inject call from AllOptions/AllArguments). Member
-        // hiding (new) keeps both entries in the walk as duplicates with the
-        // hide breaking attribute inheritance, so a same-name conflict spread
-        // across two entries (base CLI + derived service, or vice versa)
-        // must throw here — checking the single PropertyInfo alone is not
-        // enough, and the old per-run NAME-string second check is deleted.
         var cliBoundNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in walk)
         {
@@ -81,10 +72,6 @@ internal static class ServiceInjectionGate
                 continue;
             }
 
-            // Canonical bound identity (single site): any dual-marked
-            // PropertyInfo anywhere in the walk chain throws, as does any
-            // service-marked property whose name is CLI-bound elsewhere in
-            // the chain (hiding never excuses the conflict).
             if (CommandReflectionCache.IsCliBound(property) || cliBoundNames.Contains(property.Name))
             {
                 ThrowForDualMarkedProperty(commandType, property);
@@ -127,9 +114,9 @@ internal static class ServiceInjectionGate
     }
 
     /// <summary>
-    /// Single fail-fast point for the disjoint-sets invariant: a property is
-    /// either CLI-bound or service-injected, never both. Preserves the exact
-    /// historical message from both former check sites.
+    /// Single validation point for the disjoint-sets invariant: a property is
+    /// either CLI-bound or service-injected, never both. Uses the exact
+    /// message from both validation blocks.
     /// </summary>
     private static void ThrowForDualMarkedProperty(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType,
@@ -141,8 +128,8 @@ internal static class ServiceInjectionGate
 
     /// <summary>
     /// Reads the <c>Key</c> of a same-named <c>FromKeyedServicesAttribute</c>
-    /// shim from attribute metadata (constructor argument or named argument),
-    /// without reflecting over the shim type itself (trim-safe).
+    /// from attribute metadata (constructor argument or named argument),
+    /// without reflecting over the attribute type itself (trim-safe).
     /// </summary>
     private static object? ReadKeyedServiceKey(PropertyInfo property, Type commandType)
     {

@@ -100,9 +100,8 @@ internal class SubCommandOptionInfo
     /// Explicit bind-target scope for this option copy: the command whose
     /// <see cref="SubCommandInfo.Options"/> list holds this node. For a
     /// definition-site node this equals <see cref="OwnerCommand"/>; for a
-    /// global copy <see cref="OwnerCommand"/> stays at the definition site
-    /// while this points at the scope holding the copy. Step 1 only: recorded
-    /// at every wiring point, read only by help default-value lookup.
+    /// global copy <see cref="OwnerCommand"/> keeps the definition site
+    /// while this identifies the scope holding the copy.
     /// </summary>
     public SubCommandInfo? BindTarget { get; set; }
 
@@ -111,7 +110,6 @@ internal class SubCommandOptionInfo
     /// </summary>
     public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
-        // Check if the property has the C# required keyword (auto-detection)
         var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
         
         var optionInfo = new SubCommandOptionInfo
@@ -121,7 +119,6 @@ internal class SubCommandOptionInfo
             ShortName = attribute.ShortTerm,
             LongName = attribute.Term ?? property.Name.ToLowerInvariant(),
             Description = attribute.Description,
-            // Required if explicitly set in attribute OR if property has required keyword
             IsRequired = attribute.Required || isRequiredByKeyword,
             EnvironmentVariable = attribute.EnvironmentVariable,
             IsCaseSensitive = attribute.CaseSensitive,
@@ -130,10 +127,8 @@ internal class SubCommandOptionInfo
             BindTarget = ownerCommand
         };
 
-        // Explicit FromAmong wins; else frozen/live enum names unless suppressed.
         optionInfo.ValidValues = ResolveEnumValues(property.PropertyType, attribute.FromAmong, typeParserCollection);
 
-        // Determine if this option should be inherited by checking if it comes from a base class
         optionInfo.ApplyInheritanceScope(property.DeclaringType, ownerCommand);
 
         return optionInfo;
@@ -154,7 +149,6 @@ internal class SubCommandOptionInfo
             ShortName = descriptor.ShortName,
             LongName = descriptor.LongName,
             Description = descriptor.Description,
-            // Required if explicitly set in attribute OR if property has required keyword
             IsRequired = descriptor.Required || descriptor.IsRequiredByKeyword,
             EnvironmentVariable = descriptor.EnvironmentVariable,
             ValidValues = resolvedValidValues,
@@ -164,15 +158,14 @@ internal class SubCommandOptionInfo
             BindTarget = ownerCommand
         };
 
-        // Determine if this option should be inherited by checking if it comes from a base class
         optionInfo.ApplyInheritanceScope(descriptor.DeclaringType, ownerCommand);
 
         return optionInfo;
     }
 
     /// <summary>
-    /// Single enum predicate (live overload): delegates to the shared
-    /// <see cref="EnumValidValues"/> predicate (behavior-neutral).
+    /// Single enum predicate (live overload): uses the shared
+    /// <see cref="EnumValidValues"/> predicate.
     /// </summary>
     private static object[]? ResolveEnumValues(Type propertyType, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
     {
@@ -180,8 +173,8 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Single enum predicate (frozen overload): delegates to the shared
-    /// <see cref="EnumValidValues"/> predicate (behavior-neutral).
+    /// Single enum predicate (frozen overload): uses the shared
+    /// <see cref="EnumValidValues"/> predicate.
     /// </summary>
     private static object[]? ResolveEnumValues(Type? enumCandidateType, string[]? enumCandidateNames, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
     {
@@ -189,8 +182,8 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Resolves per-run valid values for a cached descriptor: delegates to
-    /// the shared <see cref="EnumValidValues"/> predicate (behavior-neutral).
+    /// Resolves per-run valid values for a cached descriptor: uses
+    /// the shared <see cref="EnumValidValues"/> predicate.
     /// </summary>
     internal static object[]? ResolveValidValues(CommandOptionDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
     {
@@ -208,9 +201,9 @@ internal class SubCommandOptionInfo
     }
 
     /// <summary>
-    /// Per-kind core: single attribute-read loop for options (base-first,
-    /// no sort) shared by the <c>FromCommandType</c>/<c>FromDeclaredType</c>
-    /// shims. Inheritance keeps the declaringType-vs-targetType check.
+    /// Reads options from properties; shared by the <c>FromCommandType</c>/
+    /// <c>FromDeclaredType</c> overloads. Inheritance keeps the
+    /// declaringType-vs-targetType check.
     /// </summary>
     private static List<SubCommandOptionInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand, ICommandTypeParserCollection? typeParserCollection)
     {
@@ -231,9 +224,9 @@ internal class SubCommandOptionInfo
 
     /// <summary>
     /// Creates a list of SubCommandOptionInfo objects from a command type.
-    /// Shim over the per-kind core (full walk).
+    /// Full walk.
     /// </summary>
-    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand, typeParserCollection);
@@ -242,9 +235,9 @@ internal class SubCommandOptionInfo
     /// <summary>
     /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
     /// (excludes inherited properties to avoid conflicts).
-    /// Shim over the per-kind core (declared-only walk).
+    /// Declared-only walk.
     /// </summary>
-    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead. This member will be removed in a future major version.")]
+    [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand, typeParserCollection);
@@ -258,18 +251,13 @@ internal class SubCommandOptionInfo
     {
         var targetType = ownerCommand?.Command?.GetType();
 
-        // If we have a concrete command instance, check if the property comes from a base class
         if (targetType != null && declaringType != targetType && declaringType != null && declaringType.IsAssignableFrom(targetType))
         {
             IsInherited = true;
             DetermineInheritanceScope();
         }
-        // For abstract command processing (when we don't have a concrete command instance),
-        // we'll rely on the global option detection logic to determine inheritance patterns
         else if (targetType == null && declaringType != null)
         {
-            // This handles cases where we're processing abstract command hierarchies
-            // The inheritance will be determined later by the global option detection logic
             IsInherited = false;
         }
     }
@@ -279,10 +267,8 @@ internal class SubCommandOptionInfo
     /// </summary>
     private void DetermineInheritanceScope()
     {
-        // For options that come from base classes, they should be inherited but not automatically global
-        // Let the global option detection logic determine what's truly global based on actual usage patterns
-        IsGlobal = false;  // Don't automatically promote to global based on hardcoded names
-        IsInherited = true; // But do mark as inherited since this method is only called for base class options
+        IsGlobal = false;
+        IsInherited = true;
     }
 
     /// <summary>
@@ -296,8 +282,6 @@ internal class SubCommandOptionInfo
             throw new CommandException($"Required option '--{LongName ?? ShortName?.ToString()}' is missing", 2, CommandErrorKind.MissingRequired);
         }
 
-        // Note: ValidValues validation is applied inside TypeConversion.Convert
-        // (convert-then-compare) before type conversion completes, to keep error messages consistent.
     }
 
     /// <summary>
@@ -350,22 +334,17 @@ internal class SubCommandOptionInfo
     /// </summary>
     public bool MatchesArgument(string argument)
     {
-        // Long option format: --option or --option=value (Ordinal kind matching)
         if (LongName != null && (argument == $"--{LongName}" || argument.StartsWith($"--{LongName}=", StringComparison.Ordinal)))
             return true;
 
-        // Negated flag format: --no-<name> or --no-<name>=value, flags only.
-        // Bare binds false; =-form is rejected in ExtractValue.
         if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
             return true;
 
-        // Short option format: -o or -o=value or -ovalue (compact)
         if (ShortName.HasValue)
         {
             if (argument == $"-{ShortName}" || argument.StartsWith($"-{ShortName}=", StringComparison.Ordinal))
                 return true;
 
-            // Compact format for non-boolean options: -ovalue
             if (!IsFlag && argument.StartsWith($"-{ShortName}", StringComparison.Ordinal) && argument.Length > 2)
                 return true;
         }
@@ -378,7 +357,6 @@ internal class SubCommandOptionInfo
     /// </summary>
     public string? ExtractValue(string argument, string? nextArgument = null)
     {
-        // Handle --option=value format (Ordinal kind matching)
         if (LongName != null && argument.StartsWith($"--{LongName}=", StringComparison.Ordinal))
         {
             var literal = argument[$"--{LongName}=".Length..];
@@ -387,7 +365,6 @@ internal class SubCommandOptionInfo
             return literal;
         }
 
-        // Handle -o=value format
         if (ShortName.HasValue && argument.StartsWith($"-{ShortName}=", StringComparison.Ordinal))
         {
             var literal = argument[$"-{ShortName}=".Length..];
@@ -396,7 +373,6 @@ internal class SubCommandOptionInfo
             return literal;
         }
 
-        // Handle --no-<name> negation for boolean flags: bare binds false, =-form is rejected
         if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
         {
             if (argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal))
@@ -408,23 +384,21 @@ internal class SubCommandOptionInfo
             return "false";
         }
 
-        // Handle compact format -ovalue
         if (ShortName.HasValue && !IsFlag && argument.StartsWith($"-{ShortName}", StringComparison.Ordinal) && argument.Length > 2)
         {
             return argument[2..];
         }
 
-        // Handle --option value or -o value format
         if ((LongName != null && argument == $"--{LongName}") ||
             (ShortName.HasValue && argument == $"-{ShortName}"))
         {
             if (IsFlag)
             {
-                return "true"; // Flag without value means true; never consume next token
+                return "true";
             }
             else
             {
-                return nextArgument; // Use next argument as value
+                return nextArgument;
             }
         }
 

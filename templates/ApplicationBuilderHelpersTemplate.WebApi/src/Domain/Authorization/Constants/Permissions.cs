@@ -188,7 +188,7 @@ public static class Permissions
                     ),
 
                     // External logins (OAuth)
-                    // Note: Linking happens via OAuth flow at POST /external/{provider} + callback (unauthenticated)
+                    // Linking happens via OAuth flow at POST /external/{provider} + callback (unauthenticated)
                     Node(
                         "external",
                         "Manage linked external login providers.",

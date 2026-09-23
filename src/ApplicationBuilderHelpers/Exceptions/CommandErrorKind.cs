@@ -2,12 +2,12 @@ namespace ApplicationBuilderHelpers.Exceptions;
 
 /// <summary>
 /// Structured classification for <see cref="CommandException"/> errors.
-/// Lets hosts and help rendering branch programmatically instead of sniffing message text.
+/// Lets hosts and help rendering branch programmatically.
 /// </summary>
 public enum CommandErrorKind
 {
     /// <summary>
-    /// Unexpected fault (developer error, host failure, or unclassified error). Maps to exit 1 unless a custom code is supplied.
+    /// Unexpected fault (fault). Maps to exit 1 unless a custom code is supplied.
     /// </summary>
     Fault = 0,
 
@@ -37,12 +37,12 @@ public enum CommandErrorKind
     UnknownCommand = 5,
 
     /// <summary>
-    /// Reserved for compatibility; never thrown. Valued repeats resolve last-wins in the parser (<c>ParseResult.AddOptionValue</c>).
+    /// Never thrown. Valued repeats resolve last-wins in the parser (<c>ParseResult.AddOptionValue</c>).
     /// </summary>
     DuplicateOption = 6,
 
     /// <summary>
-    /// The matched command has no implementation (developer misconfiguration). Fault, exit 1.
+    /// The matched command has no implementation (misconfiguration). Fault, exit 1.
     /// </summary>
     NoImplementation = 7,
 }

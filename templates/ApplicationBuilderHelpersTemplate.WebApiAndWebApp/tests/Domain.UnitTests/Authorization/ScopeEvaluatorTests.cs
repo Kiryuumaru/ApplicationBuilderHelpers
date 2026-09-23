@@ -8,7 +8,7 @@ using Domain.Authorization.ValueObjects;
 namespace Domain.UnitTests.Authorization;
 
 /// <summary>
-/// Tests for ScopeEvaluator to verify new directive-based scope evaluation works correctly.
+/// Guards directive-based scope evaluation: allow/deny parsing and permission matching.
 /// </summary>
 public class ScopeEvaluatorTests
 {

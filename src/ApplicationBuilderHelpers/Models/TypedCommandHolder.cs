@@ -17,14 +17,14 @@ internal class TypedCommandHolder([DynamicallyAccessedMembers(DynamicallyAccesse
     /// <summary>
     /// True when the holder wraps a caller-supplied instance (<c>AddCommand(ICommand)</c>),
     /// which keeps identity across runs. Type registrations (<c>AddCommand{T}()</c>)
-    /// resolve a fresh instance per run so bound values cannot leak across repeated
+    /// resolve a fresh instance per run so bound values cannot carry over across repeated
     /// <c>RunAsync</c> calls on one builder.
     /// </summary>
     public bool IsInstanceRegistration { get; init; } = isInstanceRegistration;
 
     /// <summary>
     /// Marker stored when a registration-time default cannot be read.
-    /// Comparisons involving it fail closed (stay local).
+    /// Comparisons involving it stay local.
     /// </summary>
     private static readonly object UnreadableDefault = new();
 
@@ -36,9 +36,9 @@ internal class TypedCommandHolder([DynamicallyAccessedMembers(DynamicallyAccesse
     /// For caller-supplied instance registrations the snapshot is captured once
     /// on first read, which always happens during the first hierarchy build
     /// before value binding can mutate the shared instance; later runs compare
-    /// the frozen copy instead of live (possibly already-bound) values. Returns
-    /// false for type registrations, unknown properties, or unreadable defaults —
-    /// all fail closed at the promotion gate. Array defaults are cloned so later
+    /// copied defaults instead of live values. It returns
+    /// false for type registrations, unknown properties, or unreadable defaults.
+    /// All stay local to the promotion lookup. Array defaults are cloned so later
     /// replacement cannot alias the copy.
     /// </summary>
     internal bool TryGetInitializerDefault(PropertyInfo property, out object? value)
@@ -84,8 +84,7 @@ internal class TypedCommandHolder([DynamicallyAccessedMembers(DynamicallyAccesse
     /// caller-supplied instance for instance registrations, otherwise a fresh
     /// instance carrying property-initializer defaults so unprovided options
     /// reset each run. <c>CommandPreparation</c> then runs on the per-run copy.
-    /// Snapshotting has moved into <c>TryGetInitializerDefault</c> (lazy, one-shot
-    /// at first gate read); this stays the shared-instance pass-through.
+    /// Snapshotting is in <c>TryGetInitializerDefault</c> (lazy, one-shot at first read).
     /// </summary>
     public ICommand CreateRunInstance()
     {

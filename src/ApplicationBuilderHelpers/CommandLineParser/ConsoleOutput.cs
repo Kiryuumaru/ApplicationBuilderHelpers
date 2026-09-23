@@ -97,15 +97,12 @@ internal sealed class ConsoleOutput
             }
             catch (IOException)
             {
-                // Stream may have closed mid-write; value already attempted.
             }
             catch (PlatformNotSupportedException)
             {
-                // Color unsupported; text already written or unrecoverable.
             }
             catch (UnauthorizedAccessException)
             {
-                // Console access denied; text already written or unrecoverable.
             }
             finally
             {

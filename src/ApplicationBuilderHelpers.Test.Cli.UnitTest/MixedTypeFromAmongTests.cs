@@ -5,13 +5,12 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Regression tests for issue #486 (mixed-type FromAmong false-reject).
+/// Tests for mixed-type FromAmong false-reject.
 /// Non-string <c>FromAmong</c> entries are normalized into the effective target
 /// type before comparison, so an enum option with int entries accepts the
 /// defined numeric spellings (<c>0</c>, <c>1</c>) and rejects the undefined
 /// ones (<c>2</c>, <c>3</c>) with <c>NotAmong</c>.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class MixedTypeFromAmongTests

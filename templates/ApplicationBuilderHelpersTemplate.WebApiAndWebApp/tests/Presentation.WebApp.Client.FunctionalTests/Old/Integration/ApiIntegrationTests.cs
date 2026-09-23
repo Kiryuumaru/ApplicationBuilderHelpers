@@ -15,7 +15,7 @@ public class ApiIntegrationTests : WebAppTestBase
     [Fact]
     public async Task WebApi_HealthCheck_IsHealthy()
     {
-        // Act - Call WebApi health endpoint directly
+        // Act
         var response = await HttpClient.GetAsync("/health");
 
         // Assert
@@ -26,25 +26,25 @@ public class ApiIntegrationTests : WebAppTestBase
     [Fact]
     public async Task WebApp_CanConnectToApi_OnLogin()
     {
-        // Arrange - Register via API first to ensure user exists
+        // Arrange
         var username = $"api_conn_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
-        // Act - Register through WebApp UI
+        // Act
         var registerSuccess = await RegisterUserAsync(username, email, TestPassword);
         Assert.True(registerSuccess, "Registration should succeed - API connection works");
 
         // Login through WebApp UI
         var loginSuccess = await LoginAsync(email, TestPassword);
 
-        // Assert - Login working means API integration works
+        // Assert
         Assert.True(loginSuccess, "Login should succeed - API integration verified");
     }
 
     [Fact(Skip = "UI does not yet show logout link or username after login")]
     public async Task Integration_LoginStateReflectedInUI()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"ui_state_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -57,7 +57,7 @@ public class ApiIntegrationTests : WebAppTestBase
                                   beforeLoginContent.Contains("sign in", StringComparison.OrdinalIgnoreCase);
         Output.WriteLine($"Has login link before: {hasLoginLinkBefore}");
 
-        // Act - Login
+        // Act
         await LoginAsync(email, TestPassword);
 
         // Check UI after login
@@ -69,7 +69,7 @@ public class ApiIntegrationTests : WebAppTestBase
         Output.WriteLine($"Has logout link after: {hasLogoutLink}");
         Output.WriteLine($"Shows username: {hasUsername}");
 
-        // Assert - UI should change after login
+        // Assert
         Assert.True(hasLogoutLink || hasUsername,
             "UI should reflect logged-in state (show logout link or username)");
     }
@@ -77,7 +77,7 @@ public class ApiIntegrationTests : WebAppTestBase
     [Fact]
     public async Task Integration_NetworkRequestsToApi_AreSuccessful()
     {
-        // Arrange - Set up request interception to monitor API calls
+        // Arrange
         var apiRequests = new List<(string Method, string Url, int Status)>();
 
         await Page.RouteAsync("**/*", async route =>
@@ -99,35 +99,34 @@ public class ApiIntegrationTests : WebAppTestBase
             }
         };
 
-        // Act - Perform registration which should make API calls
+        // Act
         var username = $"network_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
 
-        // Assert - Should have made some API requests
+        // Assert
         Output.WriteLine($"Total API requests captured: {apiRequests.Count}");
         foreach (var req in apiRequests)
         {
             Output.WriteLine($"  {req.Method} {req.Url} -> {req.Status}");
         }
 
-        // Registration should trigger API call(s)
-        // Note: This test documents behavior - some implementations may not make visible network requests
-        // if using different patterns
+        // Registration should trigger API call(s). Some implementations may not make visible network requests
+        // if using different patterns.
     }
 
     [Fact]
     public async Task Integration_TokenStorage_PersistsInBrowser()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"token_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Check local storage for auth tokens
+        // Act
         var localStorage = await Page.EvaluateAsync<Dictionary<string, string>>(
             @"() => {
                 const items = {};
@@ -146,13 +145,13 @@ public class ApiIntegrationTests : WebAppTestBase
             Output.WriteLine($"  {kvp.Key}: {displayValue}");
         }
 
-        // Assert - Should have stored some auth-related data
+        // Assert
         var hasAuthData = localStorage.Keys.Any(k =>
             k.Contains("token", StringComparison.OrdinalIgnoreCase) ||
             k.Contains("auth", StringComparison.OrdinalIgnoreCase) ||
             k.Contains("user", StringComparison.OrdinalIgnoreCase));
 
-        // Note: Some implementations may use session storage or cookies instead
+        // Some implementations use session storage or cookies instead.
         Output.WriteLine($"Has auth data in localStorage: {hasAuthData}");
     }
 }

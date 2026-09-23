@@ -28,7 +28,7 @@ public sealed class AuthApiKeysController(IApiKeyService apiKeyService) : Contro
     /// <remarks>
     /// Returns all non-revoked API keys including name, creation date, and last usage.
     /// Use this to review which API keys are active before revoking them.
-    /// Note: The actual API key JWT cannot be retrieved after creation.
+    /// The actual API key JWT cannot be retrieved after creation.
     /// </remarks>
     /// <param name="userId">The user ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

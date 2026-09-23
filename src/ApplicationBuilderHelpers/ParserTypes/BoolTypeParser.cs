@@ -9,10 +9,10 @@ internal class BoolTypeParser : CommandTypeParser<bool>
 {
     public override bool ParseValue(string? value, out string? validateError)
     {
-        if (string.IsNullOrEmpty(value)) // bool only needs a flag, not a value
+        if (string.IsNullOrEmpty(value))
         {
             validateError = null;
-            return true; // Default to true if no value is provided
+            return true;
         }
         if (value.Equals("true", StringComparison.InvariantCultureIgnoreCase) ||
             value.Equals("yes", StringComparison.InvariantCultureIgnoreCase) ||
@@ -30,7 +30,6 @@ internal class BoolTypeParser : CommandTypeParser<bool>
             validateError = null;
             return false;
         }
-        // No provider overload exists; the True/False grammar has no culture-sensitive elements.
         else if (bool.TryParse(value, out var result))
         {
             validateError = null;

@@ -7,14 +7,11 @@ using System.Text;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process completion tests for the <c>complete</c> probe gateway.
-/// Exercises the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
-/// entry point via the <see cref="Console.SetOut(System.IO.TextWriter)"/> /
-/// <see cref="Console.SetError(System.IO.TextWriter)"/> + <see cref="StringWriter"/> pattern
-/// (same seam as <c>HelpFormatterTests</c>): asserts <c>complete</c> returns
+/// Completion tests for the <c>complete</c> probe gateway through the public
+/// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
+/// entry point: asserts <c>complete</c> returns
 /// command/option/ValidValues candidates, exit 0, stdout only, secrets suppressed.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class CompletionProbeTests
@@ -182,9 +179,10 @@ public sealed class CompletionProbeTests
 }
 
 /// <summary>
-/// In-process install/uninstall tests for the <c>completions install|uninstall</c> gateway.
+/// Install/uninstall tests for the <c>completions install|uninstall</c> gateway.
 /// Redirects <see cref="CommandLineParser.CompletionInstaller"/> home/env providers at a
-/// temp dir so no real rc file is touched. Joins <c>ConsoleDecoupling</c> (console capture).
+/// temp dir so no real rc file is touched.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class CompletionInstallTests : IDisposable
@@ -434,8 +432,6 @@ public sealed class CompletionInstallTests : IDisposable
         var target = Path.Combine(_home, ".bashrc");
         var lockPath = CommandLineParser.CompletionInstaller.LockPathFor(target);
         File.WriteAllText(lockPath, "holder\n");
-        // Pin the holder mtime ahead so the 10s waiter never classifies it as
-        // stale mid-wait (stale locks are reaped at the deadline boundary).
         File.SetLastWriteTimeUtc(lockPath, DateTime.UtcNow + TimeSpan.FromMinutes(2));
 
         var (exitCode, _, error) = await RunCapturedAsync(["completions", "install", "--shell", "bash"]);

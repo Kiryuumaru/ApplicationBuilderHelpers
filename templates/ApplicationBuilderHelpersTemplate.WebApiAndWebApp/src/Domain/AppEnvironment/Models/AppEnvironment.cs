@@ -62,7 +62,7 @@ public class AppEnvironment
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The environment tag serves as a deployment-specific identifier used in build systems,
+    /// The environment tag is a deployment-specific identifier used in build systems,
     /// CI/CD pipelines, and version management. It typically corresponds to release channels
     /// or deployment stages in the software delivery pipeline.
     /// </para>

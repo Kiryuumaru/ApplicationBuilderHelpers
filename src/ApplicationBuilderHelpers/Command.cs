@@ -25,18 +25,15 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     /// <summary>
     /// Runs the application. A normal return signals success (exit code 0);
     /// throw <see cref="Exceptions.CommandException"/> for a non-zero exit code.
-    /// The default forwards a linked <see cref="CancellationTokenSource"/> to the
-    /// legacy <c>Run(ApplicationHost, CancellationTokenSource)</c> overload so
-    /// legacy-only commands keep working; token-overriding commands never reach it.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
     /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     protected virtual async ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-#pragma warning disable CS0618 // Legacy overload is intentionally supported here for one version.
-        using var shim = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        await Run(applicationHost, shim).ConfigureAwait(false);
+#pragma warning disable CS0618 // Obsolete overload remains the dispatch target here.
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await Run(applicationHost, linkedCts).ConfigureAwait(false);
 #pragma warning restore CS0618
     }
 
@@ -47,14 +44,14 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     /// <param name="applicationHost">The application host.</param>
     /// <param name="cancellationTokenSource">A token source to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    [Obsolete("Override Run(ApplicationHost<THostApplicationBuilder>, CancellationToken) instead and simply return on success. This overload will be removed in a future major version.")]
+    [Obsolete("Override Run(ApplicationHost<THostApplicationBuilder>, CancellationToken) instead and return on success.")]
     protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
         throw new NotImplementedException($"Override {nameof(Run)}({nameof(ApplicationHost<THostApplicationBuilder>)}, {nameof(CancellationToken)}) instead.");
     }
 
     /// <summary>
-    /// Internal method for command preparation.
+    /// Explicit <see cref="ICommand"/> preparation member.
     /// </summary>
     /// <param name="applicationBuilder">The application builder.</param>
     void ICommand.CommandPreparationInternal(ApplicationBuilder applicationBuilder)
@@ -63,7 +60,7 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     }
 
     /// <summary>
-    /// Internal method for building the application.
+    /// Explicit <see cref="ICommand"/> builder member.
     /// </summary>
     /// <param name="stoppingToken">A token to cancel the operation.</param>
     /// <returns>An instance of <see cref="ApplicationHostBuilder"/>.</returns>
@@ -74,7 +71,7 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     }
 
     /// <summary>
-    /// Internal method for running the application.
+    /// Explicit <see cref="ICommand"/> run member.
     /// </summary>
     /// <param name="applicationHost">The application host.</param>
     /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>

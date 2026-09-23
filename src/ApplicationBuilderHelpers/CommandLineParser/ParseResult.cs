@@ -16,17 +16,16 @@ internal class ParseResult
     public Dictionary<SubCommandArgumentInfo, List<string>> ArgumentValues { get; set; } = [];
 
     /// <summary>
-    /// Side-channel occurrence ledger (#470): canonical keys of valued scalars
+    /// Bare-occurrence tracking: canonical keys of valued scalars
     /// seen bare (no value token). Separate from the value lists so a bare
-    /// occurrence stays visible after a satisfied value; single bare keeps the
-    /// #449 sentinel path (env fallback, <c>MissingRequired</c>, omitted).
+    /// occurrence stays visible after a satisfied value.
     /// </summary>
     internal HashSet<string> BareOptionOccurrences { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Adds an option value to the parse result. Collections accumulate;
     /// scalars overwrite with the last value (industry last-wins). A later
-    /// real value heals a prior bare mark via the same eviction.
+    /// real value removes the prior bare mark for the same key.
     /// </summary>
     internal void AddOptionValue(SubCommandOptionInfo option, string? value)
     {
@@ -78,15 +77,15 @@ internal class ParseResult
 
     /// <summary>
     /// Sole identity reader for one logical (canonical-key) option group.
-    /// P1: the first <see cref="TargetCommand.AllOptions"/> node in walk order
+    /// First: the first <see cref="TargetCommand.AllOptions"/> node in walk order
     /// whose canonical key matches (the target command's own copy, which sorts
-    /// before inherited globals). P2: encounter-order fallback — the first
+    /// before inherited globals). Second: encounter-order fallback, the first
     /// <see cref="OptionValues"/> key in insertion order whose canonical key
     /// matches, preserving GroupBy/SelectMany behavior. Returns an existing
     /// node; never synthesizes one. <c>OwnerCommand</c>/<c>BindTarget</c> are
     /// carried read-only, not consulted here.
     /// Ordering contract: merged value lists preserve encounter order;
-    /// scalars resolve last-wins via <see cref="AddOptionValue"/> eviction
+    /// scalars resolve last-wins by <see cref="AddOptionValue"/> eviction
     /// (unchanged); no re-sort.
     /// </summary>
     internal bool TryGetCanonicalIdentityOption(string canonicalKey, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SubCommandOptionInfo option)

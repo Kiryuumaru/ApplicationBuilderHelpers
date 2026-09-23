@@ -8,8 +8,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// In-process allowed-value message tests for the CLI parser.
 /// Options and positional arguments share one message template so callers can
 /// rely on a single shape regardless of which parameter rejected the value.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class AllowedValueMessageTests

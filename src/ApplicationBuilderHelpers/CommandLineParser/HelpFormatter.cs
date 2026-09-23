@@ -4,10 +4,10 @@ using System.Collections.Generic;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Thin facade orchestrating help output: <see cref="HelpContentProvider"/>
+/// Formats help output: <see cref="HelpContentProvider"/>
 /// emits a typed <see cref="HelpModel"/>, <see cref="HelpLayoutRenderer"/>
-/// lays it out. Owns no content and no layout itself — only the
-/// Theme/HelpWidth flow and the provider-to-renderer handoff.
+/// lays it out. This class holds no content and no layout itself, only the
+/// Theme/HelpWidth values passed from the builder to the renderer.
 /// </summary>
 internal class HelpFormatter(
     ICommandBuilder commandBuilder,
@@ -37,8 +37,6 @@ internal class HelpFormatter(
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? 120;
 
-        // Help-first-at-root: root help renders the global model (COMMANDS
-        // section) so a leading --help never surfaces a command-scoped view.
         var model = commandInfo.IsRoot
             ? _contentProvider.BuildGlobalModel()
             : _contentProvider.BuildCommandModel(commandInfo);

@@ -8,7 +8,6 @@ internal class VersionTypeParser : CommandTypeParser<Version>
 {
     public override Version? ParseValue(string? value, out string? validateError)
     {
-        // No provider overload exists; the dotted-numeric Version grammar has no culture-sensitive elements.
         if (Version.TryParse(value, out var result))
         {
             validateError = null;

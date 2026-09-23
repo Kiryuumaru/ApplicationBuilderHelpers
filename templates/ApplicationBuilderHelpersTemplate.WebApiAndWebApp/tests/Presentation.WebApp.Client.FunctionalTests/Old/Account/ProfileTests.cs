@@ -15,11 +15,11 @@ public class ProfileTests : WebAppTestBase
     [Fact]
     public async Task Profile_RequiresAuthentication()
     {
-        // Act - Try to access profile without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login
+        // Assert
         var currentUrl = Page.Url;
         var redirectedToLogin = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
         Assert.True(redirectedToLogin, "Should redirect to login when accessing profile unauthenticated");
@@ -28,18 +28,18 @@ public class ProfileTests : WebAppTestBase
     [Fact]
     public async Task Profile_Authenticated_ShowsUserInfo()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"profile_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to profile
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
-        // Assert - Should show profile page with user info
+        // Assert
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"Profile page content length: {pageContent.Length}");
 
@@ -54,18 +54,18 @@ public class ProfileTests : WebAppTestBase
     [Fact]
     public async Task Profile_ShowsUserInitial()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"initials_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to profile
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
-        // Assert - Should show user initial in avatar
+        // Assert
         var avatarElement = await Page.QuerySelectorAsync(".rounded-full, [class*='avatar']");
         Assert.NotNull(avatarElement);
     }
@@ -73,14 +73,14 @@ public class ProfileTests : WebAppTestBase
     [Fact]
     public async Task Profile_DisplaysUserInfo()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"display_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to profile
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
         
@@ -88,7 +88,7 @@ public class ProfileTests : WebAppTestBase
         await Page.WaitForSelectorAsync("text=Username", new() { Timeout = 10000 });
         await Task.Delay(500); // Allow for any remaining state updates
 
-        // Assert - Should display user profile information (read-only)
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasUsernameLabel = pageContent.Contains("Username", StringComparison.OrdinalIgnoreCase);
         var hasEmailLabel = pageContent.Contains("Email", StringComparison.OrdinalIgnoreCase);
@@ -105,19 +105,19 @@ public class ProfileTests : WebAppTestBase
     [Fact]
     public async Task Profile_HasEditableFields()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"editable_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to profile
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
         await Task.Delay(500); // Wait for profile data to load
 
-        // Assert - Profile page uses inline editing pattern with Edit buttons
+        // Assert
         // that expand into input fields when clicked
         var editButtons = await Page.QuerySelectorAllAsync("button:has-text('Edit')");
         var pageContent = await Page.ContentAsync();
@@ -139,18 +139,18 @@ public class ProfileTests : WebAppTestBase
     [Fact]
     public async Task Profile_HasSecuritySection()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"security_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to profile
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
-        // Assert - Should have security section
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasSecuritySection = pageContent.Contains("security", StringComparison.OrdinalIgnoreCase) ||
                                  pageContent.Contains("password", StringComparison.OrdinalIgnoreCase) ||
@@ -162,21 +162,21 @@ public class ProfileTests : WebAppTestBase
     [Fact(Skip = "Profile page navigation requires further investigation")]
     public async Task Profile_HasChangePasswordLink()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"pwdlink_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to profile
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
         // Wait for profile to load (Security section appears after profile loads)
         await Page.WaitForSelectorAsync("text=Security", new() { Timeout = 5000 });
 
-        // Assert - Should have change password link
+        // Assert
         var changePasswordLink = await Page.QuerySelectorAsync("a[href*='change-password'], a[href*='password']");
         Assert.NotNull(changePasswordLink);
     }
@@ -184,7 +184,7 @@ public class ProfileTests : WebAppTestBase
     [Fact]
     public async Task Profile_ClickChangePassword_NavigatesToChangePasswordPage()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"changepwd_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -194,7 +194,7 @@ public class ProfileTests : WebAppTestBase
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
-        // Act - Click change password link
+        // Act
         var changePasswordLink = await Page.QuerySelectorAsync("a[href*='change-password' i]");
         if (changePasswordLink != null)
         {

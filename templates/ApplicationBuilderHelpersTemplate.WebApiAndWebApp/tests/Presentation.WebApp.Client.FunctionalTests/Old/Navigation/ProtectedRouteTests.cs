@@ -19,7 +19,7 @@ public class ProtectedRouteTests : WebAppTestBase
     [InlineData("/admin/users")]
     public async Task ProtectedRoute_Unauthenticated_RedirectsToLogin(string protectedPath)
     {
-        // Act - Try to access protected route without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}{protectedPath}");
         await WaitForBlazorAsync();
         
@@ -27,7 +27,7 @@ public class ProtectedRouteTests : WebAppTestBase
         await Task.Delay(500);
         await WaitForBlazorAsync();
 
-        // Assert - Should be redirected to login
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"Protected route {protectedPath} -> {currentUrl}");
@@ -48,18 +48,18 @@ public class ProtectedRouteTests : WebAppTestBase
     [Fact]
     public async Task AccountProfile_Authenticated_CanAccess()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"protected_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Access profile page
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/profile");
         await WaitForBlazorAsync();
 
-        // Assert - Should not be redirected to login
+        // Assert
         var currentUrl = Page.Url;
         Output.WriteLine($"Profile page URL after login: {currentUrl}");
 
@@ -74,7 +74,7 @@ public class ProtectedRouteTests : WebAppTestBase
     [Fact(Skip = "Logout redirect behavior not yet implemented - page stays on current route")]
     public async Task ProtectedRoute_AfterLogout_RedirectsToLogin()
     {
-        // Arrange - Register, login, and access protected page
+        // Arrange
         var username = $"logout_redirect_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -87,7 +87,7 @@ public class ProtectedRouteTests : WebAppTestBase
         var beforeLogout = Page.Url;
         Output.WriteLine($"Before logout: {beforeLogout}");
 
-        // Act - Logout
+        // Act
         await LogoutAsync();
 
         // Try to access protected page again
@@ -98,7 +98,7 @@ public class ProtectedRouteTests : WebAppTestBase
         await Task.Delay(500);
         await WaitForBlazorAsync();
 
-        // Assert - Should be redirected to login
+        // Assert
         var afterLogout = Page.Url;
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"After logout: {afterLogout}");
@@ -117,18 +117,18 @@ public class ProtectedRouteTests : WebAppTestBase
     [Fact]
     public async Task LoginPage_AfterLogin_RedirectsAway()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"redirect_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Try to access login page while authenticated
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/auth/login");
         await WaitForBlazorAsync();
 
-        // Assert - Should be redirected away from login
+        // Assert
         var currentUrl = Page.Url;
         Output.WriteLine($"Login page URL while authenticated: {currentUrl}");
 
@@ -136,7 +136,7 @@ public class ProtectedRouteTests : WebAppTestBase
         // Most apps redirect authenticated users away from login
         var notOnLogin = !currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
 
-        // This test documents behavior - either outcome is acceptable depending on design choice
+        // Either outcome is acceptable depending on design choice.
         Output.WriteLine($"Redirected away from login: {notOnLogin}");
     }
 }

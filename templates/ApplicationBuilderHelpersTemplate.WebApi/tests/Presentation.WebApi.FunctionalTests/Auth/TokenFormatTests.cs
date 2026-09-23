@@ -16,8 +16,6 @@ public sealed class TokenFormatTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task AccessToken_UsesShortClaimTypeNames()
     {
-        Output.WriteLine("[TEST] AccessToken_UsesShortClaimTypeNames");
-
         var authResult = await RegisterAnonymousUserLocalAsync();
         Assert.NotNull(authResult?.AccessToken);
 
@@ -45,8 +43,6 @@ public sealed class TokenFormatTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task AccessToken_RoleClaimHasInlineParameters()
     {
-        Output.WriteLine("[TEST] AccessToken_RoleClaimHasInlineParameters");
-
         var authResult = await RegisterAnonymousUserLocalAsync();
         Assert.NotNull(authResult?.AccessToken);
         Assert.NotNull(authResult?.User?.Id);
@@ -68,8 +64,6 @@ public sealed class TokenFormatTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task AccessToken_DoesNotContainRoleDerivedScopes()
     {
-        Output.WriteLine("[TEST] AccessToken_DoesNotContainRoleDerivedScopes");
-
         var authResult = await RegisterAnonymousUserLocalAsync();
         Assert.NotNull(authResult?.AccessToken);
 
@@ -94,8 +88,6 @@ public sealed class TokenFormatTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task RefreshToken_OnlyHasRefreshPermission()
     {
-        Output.WriteLine("[TEST] RefreshToken_OnlyHasRefreshPermission");
-
         var authResult = await RegisterAnonymousUserLocalAsync();
         Assert.NotNull(authResult?.RefreshToken);
 
@@ -126,8 +118,6 @@ public sealed class TokenFormatTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task AuthResponse_RolesHaveInlineFormat()
     {
-        Output.WriteLine("[TEST] AuthResponse_RolesHaveInlineFormat");
-
         var authResult = await RegisterAnonymousUserLocalAsync();
         Assert.NotNull(authResult?.User?.Roles);
         Assert.NotNull(authResult?.User?.Id);
@@ -147,8 +137,6 @@ public sealed class TokenFormatTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task AuthResponse_PermissionsIncludeRoleDerivedScopes()
     {
-        Output.WriteLine("[TEST] AuthResponse_PermissionsIncludeRoleDerivedScopes");
-
         var authResult = await RegisterAnonymousUserLocalAsync();
         Assert.NotNull(authResult?.User?.Permissions);
         Assert.NotNull(authResult?.User?.Id);
@@ -173,8 +161,6 @@ public sealed class TokenFormatTests(ITestOutputHelper output) : WebApiTestBase(
     [Fact]
     public async Task AccessToken_HasRbacVersion2()
     {
-        Output.WriteLine("[TEST] AccessToken_HasRbacVersion2");
-
         var authResult = await RegisterAnonymousUserLocalAsync();
         Assert.NotNull(authResult?.AccessToken);
 

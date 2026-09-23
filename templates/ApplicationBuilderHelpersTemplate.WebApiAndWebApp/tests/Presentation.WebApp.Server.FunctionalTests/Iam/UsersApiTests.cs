@@ -25,8 +25,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task ListUsers_AsAdmin_ReturnsAllUsers()
     {
-        Output.WriteLine("[TEST] ListUsers_AsAdmin_ReturnsAllUsers");
-
         // Register admin user (has _write permission)
         var adminAuth = await RegisterAndGetTokenAsync(_adminUsername);
         Assert.NotNull(adminAuth);
@@ -40,8 +38,8 @@ public class UsersApiTests : WebAppTestBase
 
         // Regular users don't have _read permission at root level
         // So this should return 403 unless they're admin
-        // Since we can't easily make admin users in tests without seeding, we'll adjust expectations
-        // The test verifies the endpoint exists and responds appropriately
+        // Admin users cannot be created in tests without seeding; the endpoint
+        // is expected to return OK or Forbidden
         Assert.True(
             response.StatusCode == HttpStatusCode.OK ||
             response.StatusCode == HttpStatusCode.Forbidden,
@@ -66,8 +64,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task ListUsers_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] ListUsers_AsRegularUser_Returns403");
-
         // Register regular user
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
@@ -91,8 +87,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetUser_WithValidId_ReturnsUser()
     {
-        Output.WriteLine("[TEST] GetUser_WithValidId_ReturnsUser");
-
         // Register user and get their ID
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
@@ -121,8 +115,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetUser_WithInvalidId_Returns404()
     {
-        Output.WriteLine("[TEST] GetUser_WithInvalidId_Returns404");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
 
@@ -150,8 +142,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task UpdateUser_AsSelf_UpdatesOwnProfile()
     {
-        Output.WriteLine("[TEST] UpdateUser_AsSelf_UpdatesOwnProfile");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -181,8 +171,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task UpdateUser_AsOtherUser_Returns403()
     {
-        Output.WriteLine("[TEST] UpdateUser_AsOtherUser_Returns403");
-
         // Create first user
         var user1Auth = await RegisterAndGetTokenAsync($"user1_{Guid.NewGuid():N}");
         Assert.NotNull(user1Auth);
@@ -213,8 +201,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task DeleteUser_AsSelf_Returns403()
     {
-        Output.WriteLine("[TEST] DeleteUser_AsSelf_Returns403");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -238,8 +224,6 @@ public class UsersApiTests : WebAppTestBase
     [TimedFact]
     public async Task GetPermissions_ReturnsExpandedPermissions()
     {
-        Output.WriteLine("[TEST] GetPermissions_ReturnsExpandedPermissions");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -286,7 +270,7 @@ public class UsersApiTests : WebAppTestBase
         
         if (registerResponse.StatusCode == HttpStatusCode.Conflict)
         {
-            // User already exists, just login
+            // User already exists, login
             var loginReq = new { Username = username, Password = TestPassword };
             registerResponse = await HttpClient.PostAsJsonAsync("/api/v1/auth/login", loginReq);
         }
@@ -354,10 +338,5 @@ public class UsersApiTests : WebAppTestBase
 
     #endregion
 }
-
-
-
-
-
 
 

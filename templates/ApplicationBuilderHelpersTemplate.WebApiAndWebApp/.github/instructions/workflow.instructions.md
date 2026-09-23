@@ -35,7 +35,7 @@ dotnet publish src/Presentation.WebApp.Server -o publish
 
 ### Running Published Application
 
-Use single combined command with absolute path. The published binary name follows `AssemblyName` (defaults to `sampleapp`; renames automatically with it — substitute `<YourApp>` with your actual name):
+Use single combined command with absolute path. The published binary name follows `AssemblyName` (defaults to `sampleapp`; renames automatically with it: substitute `<YourApp>` with your actual name):
 
 ```powershell
 Push-Location "C:\path\to\publish"; & "C:\path\to\publish\<YourApp>.exe" --urls "http://0.0.0.0:5000"
@@ -59,7 +59,7 @@ Get-Process <YourApp> -ErrorAction SilentlyContinue | Stop-Process -Force
 
 ### Environment Configuration
 
-Environments configured in `src/Domain/AppEnvironment/Constants/AppEnvironments.cs`:
+Environments live in `src/Domain/AppEnvironment/Constants/AppEnvironments.cs`:
 
 | Environment | Tag | Short |
 |-------------|-----|-------|
@@ -70,7 +70,7 @@ Environments configured in `src/Domain/AppEnvironment/Constants/AppEnvironments.
 
 ## Pre-Commit Verification
 
-Before every commit:
+Verify before every commit:
 
 | Check | Command | Required Result |
 |-------|---------|-----------------|

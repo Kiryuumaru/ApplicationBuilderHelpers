@@ -8,18 +8,17 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Pre-parse completion gateway intercepting <c>complete</c> and
-/// <c>completions script|install|uninstall</c> directly off the raw args before any
-/// help/parse/registered-command dispatch, so user-registered commands
+/// Pre-parse completion handler reading <c>complete</c> and
+/// <c>completions script|install|uninstall</c> directly from the raw args before any
+/// help/parse/registered-command handling, so user-registered commands
 /// with those names never run.
-/// Moved verbatim from CommandLineParser (mechanical split, no behavior change).
 /// </summary>
 internal sealed class CompletionGateway(
     ICommandBuilder commandBuilder,
     ConsoleOutput consoleOutput)
 {
     /// <summary>
-    /// Pre-parse completion gateway. Returns true when handled (exit via <paramref name="exitCode"/>).
+    /// Pre-parse completion check. Returns true when handled (exit with <paramref name="exitCode"/>).
     /// </summary>
     internal bool TryHandle(SubCommandInfo? rootCommand, string[] args, out int exitCode)
     {
@@ -100,7 +99,6 @@ internal sealed class CompletionGateway(
         }
         catch
         {
-            // Tolerant probe: malformed input yields no candidates, still exit 0.
         }
     }
 
@@ -243,7 +241,6 @@ internal sealed class CompletionGateway(
         if (tokens.Count == 0)
             return ([], string.Empty);
 
-        // First token is the executable name; the engine probes the rest.
         var withoutExe = tokens.Skip(1).ToArray();
         if (withoutExe.Length == 0)
             return ([], string.Empty);

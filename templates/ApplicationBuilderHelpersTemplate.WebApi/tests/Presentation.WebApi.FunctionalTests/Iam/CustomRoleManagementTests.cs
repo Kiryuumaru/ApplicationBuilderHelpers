@@ -20,8 +20,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task CreateRole_AsAdmin_Succeeds()
     {
-        Output.WriteLine("[TEST] CreateRole_AsAdmin_Succeeds");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -65,8 +63,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task CreateRole_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] CreateRole_AsRegularUser_Returns403");
-
         var userAuth = await RegisterAndGetTokenAsync();
         Assert.NotNull(userAuth);
 
@@ -92,8 +88,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task CreateRole_DuplicateCode_Returns409()
     {
-        Output.WriteLine("[TEST] CreateRole_DuplicateCode_Returns409");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -137,8 +131,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task CreateRole_ReservedCode_Returns409()
     {
-        Output.WriteLine("[TEST] CreateRole_ReservedCode_Returns409");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -164,8 +156,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task GetRole_ExistingRole_ReturnsRole()
     {
-        Output.WriteLine("[TEST] GetRole_ExistingRole_ReturnsRole");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -211,8 +201,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task GetRole_NonExistentRole_Returns404()
     {
-        Output.WriteLine("[TEST] GetRole_NonExistentRole_Returns404");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -232,8 +220,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task UpdateRole_AsAdmin_Succeeds()
     {
-        Output.WriteLine("[TEST] UpdateRole_AsAdmin_Succeeds");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -285,8 +271,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task UpdateRole_SystemRole_Returns400()
     {
-        Output.WriteLine("[TEST] UpdateRole_SystemRole_Returns400");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -313,8 +297,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task DeleteRole_AsAdmin_Succeeds()
     {
-        Output.WriteLine("[TEST] DeleteRole_AsAdmin_Succeeds");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -359,8 +341,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task DeleteRole_SystemRole_Returns400()
     {
-        Output.WriteLine("[TEST] DeleteRole_SystemRole_Returns400");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -381,8 +361,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task ListRoles_AsAdmin_ReturnsAllRoles()
     {
-        Output.WriteLine("[TEST] ListRoles_AsAdmin_ReturnsAllRoles");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -414,8 +392,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task CustomRole_GrantsCorrectPermissions()
     {
-        Output.WriteLine("[TEST] CustomRole_GrantsCorrectPermissions");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -491,8 +467,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task CustomRole_WithParameters_GrantsScopedPermissions()
     {
-        Output.WriteLine("[TEST] CustomRole_WithParameters_GrantsScopedPermissions");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -575,8 +549,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task RemoveRole_RevokesPermissions()
     {
-        Output.WriteLine("[TEST] RemoveRole_RevokesPermissions");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -657,8 +629,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task RemoveRole_DoesNotAffectExistingTokenUntilReLogin()
     {
-        Output.WriteLine("[TEST] RemoveRole_DoesNotAffectExistingTokenUntilReLogin");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -755,13 +725,12 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task ModifyRole_TakesEffectWithoutReLogin()
     {
-        Output.WriteLine("[TEST] ModifyRole_TakesEffectWithoutReLogin");
-        Output.WriteLine("This test verifies the core RBAC principle: token contains role code, permissions resolved at runtime");
+        Output.WriteLine("Core RBAC principle: token contains role code, permissions resolved at runtime");
 
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
-        // Step 1: Create a custom role initially WITHOUT api:iam:users:read permission
+        // Create a custom role initially WITHOUT api:iam:users:read permission
         var roleCode = $"DYNAMIC_{Guid.NewGuid():N}"[..30];
         var createRoleRequest = new
         {
@@ -782,7 +751,7 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
             await createRoleResp.Content.ReadAsStringAsync(), JsonOptions);
         Assert.NotNull(createdRole);
 
-        // Step 2: Create users and assign the empty role
+        // Create users and assign the empty role
         var regularUser = await RegisterAndGetTokenAsync();
         Assert.NotNull(regularUser);
         var regularUserId = regularUser!.User!.Id;
@@ -799,13 +768,13 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
         var assignResp = await HttpClient.SendAsync(assignReq);
         Assert.Equal(HttpStatusCode.NoContent, assignResp.StatusCode);
 
-        // Step 3: Login and get token (this token contains the role code)
+        // Login and get token (this token contains the role code)
         Output.WriteLine("[STEP] Logging in to get token with role code...");
         var userAuth = await LoginAsync(regularUser.User!.Username!, TestPassword);
         Assert.NotNull(userAuth);
         var originalToken = userAuth!.AccessToken;
 
-        // Step 4: Verify access is DENIED (role has no permissions yet)
+        // Verify access is DENIED (role has no permissions yet)
         Output.WriteLine("[STEP] Verifying access is DENIED with empty role...");
         using var accessReq1 = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/iam/users/{targetUserId}");
         accessReq1.Headers.Authorization = new AuthenticationHeaderValue("Bearer", originalToken);
@@ -813,7 +782,7 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
         Output.WriteLine($"[RECEIVED] Before role modification: {(int)accessResp1.StatusCode}");
         Assert.Equal(HttpStatusCode.Forbidden, accessResp1.StatusCode);
 
-        // Step 5: Modify the role to ADD api:iam:users:read permission
+        // Modify the role to ADD api:iam:users:read permission
         Output.WriteLine("[STEP] Modifying role to add api:iam:users:read permission...");
         var updateRoleRequest = new
         {
@@ -831,7 +800,7 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
         Output.WriteLine($"[RECEIVED] Update role: {(int)updateResp.StatusCode}");
         Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
 
-        // Step 6: Using the SAME TOKEN (no re-login), verify access is now GRANTED
+        // Using the SAME TOKEN (no re-login), verify access is now GRANTED
         Output.WriteLine("[STEP] Verifying access is GRANTED using the SAME token (no re-login)...");
         using var accessReq2 = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/iam/users/{targetUserId}");
         accessReq2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", originalToken);
@@ -839,7 +808,7 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
         Output.WriteLine($"[RECEIVED] After role modification (same token): {(int)accessResp2.StatusCode}");
         Assert.Equal(HttpStatusCode.OK, accessResp2.StatusCode);
 
-        // Step 7: Modify the role again to REMOVE the permission
+        // Modify the role again to REMOVE the permission
         Output.WriteLine("[STEP] Modifying role to remove permission...");
         var removePermissionRequest = new
         {
@@ -853,7 +822,7 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
         var removePermResp = await HttpClient.SendAsync(removePermReq);
         Assert.Equal(HttpStatusCode.OK, removePermResp.StatusCode);
 
-        // Step 8: Using the SAME TOKEN, verify access is now DENIED again
+        // Using the SAME TOKEN, verify access is now DENIED again
         Output.WriteLine("[STEP] Verifying access is DENIED using the SAME token after permission removal...");
         using var accessReq3 = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/iam/users/{targetUserId}");
         accessReq3.Headers.Authorization = new AuthenticationHeaderValue("Bearer", originalToken);
@@ -872,8 +841,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task AssignRole_NonExistentRole_Returns404()
     {
-        Output.WriteLine("[TEST] AssignRole_NonExistentRole_Returns404");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -902,8 +869,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task AssignRole_NonExistentUser_Returns404()
     {
-        Output.WriteLine("[TEST] AssignRole_NonExistentUser_Returns404");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -929,8 +894,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task CreateRole_InvalidScopeTemplateType_Returns400()
     {
-        Output.WriteLine("[TEST] CreateRole_InvalidScopeTemplateType_Returns400");
-
         var adminAuth = await CreateAdminUserAsync();
         Assert.NotNull(adminAuth);
 
@@ -963,8 +926,6 @@ public sealed class CustomRoleManagementTests(ITestOutputHelper output) : WebApi
     [Fact]
     public async Task RoleEndpoints_Unauthenticated_Returns401()
     {
-        Output.WriteLine("[TEST] RoleEndpoints_Unauthenticated_Returns401");
-
         var endpoints = new[]
         {
             ("GET", "/api/v1/iam/roles"),

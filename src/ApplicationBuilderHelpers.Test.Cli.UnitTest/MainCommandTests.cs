@@ -265,7 +265,6 @@ public class MainCommandTests : CliTestBase
     [Fact]
     public async Task MainCommand_Does_Not_Interfere_With_Subcommands()
     {
-        // Ensure MainCommand doesn't break existing subcommand functionality
         var result = await Runner.RunAsync("build", "project.csproj");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Building project: project.csproj");
@@ -292,7 +291,7 @@ public class MainCommandTests : CliTestBase
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "[SUM] PARSED OPTIONS SUMMARY:");
         CliTestAssertions.AssertOutputContains(result, "verbose=true");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "timeout=30"); // Default value should not be shown
+        CliTestAssertions.AssertOutputDoesNotContain(result, "timeout=30");
     }
 
     [Fact]
@@ -309,8 +308,6 @@ public class MainCommandTests : CliTestBase
     public async Task MainCommand_Options_Summary_Shows_Default_Message_When_No_Changes()
     {
         var result = await Runner.RunAsync();
-        // Note: Without --verbose, we won't see the options summary
-        // This test verifies the basic execution works without verbose mode
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "ApplicationBuilderHelpers Test CLI - Default Command");
         CliTestAssertions.AssertOutputDoesNotContain(result, "[SUM] PARSED OPTIONS SUMMARY:");
@@ -318,7 +315,7 @@ public class MainCommandTests : CliTestBase
 
     #endregion
 
-    #region Performance and Regression Tests
+    #region Performance Tests
 
     [Fact]
     public async Task MainCommand_Executes_Quickly()

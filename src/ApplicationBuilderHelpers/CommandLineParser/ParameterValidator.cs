@@ -9,18 +9,18 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal sealed class ParameterValidator
 {
     /// <summary>
-    /// Collects every missing-required error without throwing (#496 aggregation).
+    /// Collects every missing-required error without throwing.
     /// Validates that all required parameters are provided.
-    /// A satisfied-then-bare repeat (#470) also fails: each bare valued
-    /// occurrence is a missing value on its own merits, regardless of env.
-    /// An unsatisfied bare optional valued option (#503) fails the same way
+    /// A satisfied-then-bare repeat also fails: each bare valued
+    /// occurrence is a missing value by itself, regardless of env.
+    /// An unsatisfied bare optional valued option fails the same way
     /// even with env set (env rescues only omitted options); a satisfied-then-bare
     /// optional repeat keeps the first value and succeeds.
-    /// Help always wins over missing required (#509): when
+    /// Help always wins over missing required: when
     /// <see cref="ParseResult.ShowHelp"/> is set, the required-option and
-    /// required-argument passes are skipped so help-with-values renders at
-    /// Step 7b; the binding probe still runs, so invalid values beat
-    /// help-with-values (#483 x #509).
+    /// required-argument passes are skipped so help-with-values renders;
+    /// the binding probe still runs, so invalid values beat
+    /// help-with-values.
     /// The caller (<see cref="CommandLineParser"/>) joins these with the
     /// binding errors so one failure no longer masks another; missing errors
     /// order before binding errors in the final message. Options are visited
@@ -30,12 +30,8 @@ internal sealed class ParameterValidator
     public List<string> CollectRequiredErrors(ParseResult result)
     {
         var errors = new List<string>();
-        // #509 (vitruvius): help always wins over missing required. Gate only
-        // the required-option and required-argument passes on !ShowHelp; the
-        // optional-bare gate below stays as-is.
         if (!result.ShowHelp)
         {
-            // Check required options
             var seenOptionKeys = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (var option in result.TargetCommand.AllOptions.Where(o => o.IsRequired))
             {
@@ -44,8 +40,6 @@ internal sealed class ParameterValidator
 
                 if (!result.TryGetMergedOptionValues(option, out _))
                 {
-                    // Explicit bare claims ownership: env rescues only omitted
-                    // (never-typed) options, never a typed bare occurrence.
                     if (!result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option))
                         && EnvVarFallback.Apply(result, option, requiredOnly: true))
                         continue;
@@ -63,15 +57,6 @@ internal sealed class ParameterValidator
             }
         }
 
-        // Check unsatisfied bare optional valued options (#503): a bare
-        // occurrence with no merged value is a missing value on its own
-        // merits and fails exit 2 like the required path, even with env set.
-        // A satisfied-then-bare optional
-        // repeat keeps its value and stays omitted-success.
-        // Help/version precedence (#509): a bare optional never masks an
-        // explicit help or version request (optional-bare gate below stays
-        // as-is; the required passes above and below are skipped entirely
-        // when ShowHelp is set, so help-with-values renders at Step 7b).
         if (!result.ShowHelp && !result.ShowVersion)
         {
             var seenOptionalBareKeys = new HashSet<string>(System.StringComparer.Ordinal);
@@ -87,14 +72,10 @@ internal sealed class ParameterValidator
                 if (result.TryGetMergedOptionValues(option, out _))
                     continue;
 
-                // Explicit bare claims ownership: env fallback applies only
-                // to omitted (never-typed) options, never to a typed bare.
                 errors.Add($"Missing value for option: {option.GetDisplayName()}");
             }
         }
 
-        // Check required arguments (#509: skipped when ShowHelp, like the
-        // required-option pass above, so help-with-values renders at Step 7b).
         if (!result.ShowHelp)
         {
             var seenArgumentNames = new HashSet<string>(System.StringComparer.Ordinal);

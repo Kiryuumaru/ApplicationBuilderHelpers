@@ -1,6 +1,6 @@
 # Convert Existing C# Project to ApplicationBuilderHelpers
 
-You are converting an existing C# project to use the **ApplicationBuilderHelpers** framework — a dependency injection and application lifecycle framework built on clean architecture principles. It provides `ApplicationDependency` lifecycle management, command hierarchy with CLI option parsing, multi-source configuration with `@ref:` chains, build-time encrypted embedded config, source-generated build constants, structured logging, and a middleware pipeline.
+You are converting an existing C# project to use the **ApplicationBuilderHelpers** framework, a dependency injection and application lifecycle framework built on clean architecture principles. It provides `ApplicationDependency` lifecycle management, command hierarchy with CLI option parsing, multi-source configuration with `@ref:` chains, build-time encrypted embedded config, source-generated build constants, structured logging, and a middleware pipeline.
 
 Refer to the [ApplicationBuilderHelpers](https://github.com/nicenemo/ApplicationBuilderHelpers) repository for the NuGet package and core documentation. Use [ApplicationBuilderHelpersTemplate](https://github.com/Kiryuumaru/ApplicationBuilderHelpersTemplate) as the reference implementation.
 
@@ -35,14 +35,14 @@ cp /tmp/abht_source/AGENTS.md .
 
 Read every file in `.github/instructions/` before refactoring any code. Treat them as MUST/NEVER constraints, not suggestions:
 
-- `project-context.instructions.md` — terminology, project status (this project is unreleased; refactor freely), breaking-change policy
-- `rule-style.instructions.md` — how rules are written
-- `architecture.instructions.md` — layering, folder structure, DI lifetimes, ports/adapters, ApplicationDependency, ServiceCollectionExtensions, ConfigurationExtensions, commands, workers, naming, prohibited patterns
-- `code-quality.instructions.md` — nullable handling, commenting, constructors, fix hygiene
-- `documentation.instructions.md` — when to update docs
-- `workflow.instructions.md` — build/test commands, pre-commit checks
-- `agent-terminal.instructions.md` — terminal usage rules (no `&&`, `|`, `;`, redirections)
-- `ui-test-practices.instructions.md` — test conventions, assertions, no `Task.Delay`
+- `project-context.instructions.md`: terminology, project status (this project is unreleased; refactor freely), breaking-change policy
+- `rule-style.instructions.md`: how rules are written
+- `architecture.instructions.md`: layering, folder structure, DI lifetimes, ports/adapters, ApplicationDependency, ServiceCollectionExtensions, ConfigurationExtensions, commands, workers, naming, prohibited patterns
+- `code-quality.instructions.md`: nullable handling, commenting, constructors, fix hygiene
+- `documentation.instructions.md`: when to update docs
+- `workflow.instructions.md`: build/test commands, pre-commit checks
+- `agent-terminal.instructions.md`: terminal usage rules (no `&&`, `|`, `;`, redirections)
+- `ui-test-practices.instructions.md`: test conventions, assertions, no `Task.Delay`
 
 ---
 
@@ -50,7 +50,7 @@ Read every file in `.github/instructions/` before refactoring any code. Treat th
 
 Map the existing code to the rules from Step 2. Produce an audit before changing anything:
 
-1. **Identify the entry point** — This becomes the composition root in `Presentation.Cli/Program.cs`. Look for `Main()` methods, top-level statements, `Program.cs`, or the application startup logic.
+1. **Identify the entry point**: This becomes the composition root in `Presentation.Cli/Program.cs`. Look for `Main()` methods, top-level statements, `Program.cs`, or the application startup logic.
 
 2. **Identify each existing type** and classify it per the `architecture.instructions.md` File Placement table:
 
@@ -74,11 +74,11 @@ Map the existing code to the rules from Step 2. Produce an audit before changing
    - Whether an interface exists (if not, one MUST be created per the interface placement rules)
    - Required lifetime per "Dependency Injection Lifetime Rules" (Singleton/Scoped/Transient)
 
-4. **Identify configuration sources** (hardcoded strings, appsettings.json, env vars, custom parsers) — all consolidate through `IConfiguration` with ConfigurationExtensions per the rules.
+4. **Identify configuration sources** (hardcoded strings, appsettings.json, env vars, custom parsers): all consolidate through `IConfiguration` with ConfigurationExtensions per the rules.
 
-5. **Identify background tasks, timers, and polling loops** — these become `BackgroundService` workers in `Application/{Feature}/Workers/`.
+5. **Identify background tasks, timers, and polling loops**: these become `BackgroundService` workers in `Application/{Feature}/Workers/`.
 
-6. **Identify logging** (`Console.WriteLine`, `ILogger<T>` scattered across layers) — all consolidate through `ILogger<T>` injected via constructor.
+6. **Identify logging** (`Console.WriteLine`, `ILogger<T>` scattered across layers): all consolidate through `ILogger<T>` injected via constructor.
 
 ---
 
@@ -238,7 +238,7 @@ Interface rules:
 Update each implementation to:
 - Implement its interface
 - Accept dependencies via constructor injection (use primary constructors when only storing)
-- Drop manual instantiation of dependencies — the DI container resolves them
+- Drop manual instantiation of dependencies: the DI container resolves them
 - Be `internal` (resolved via DI, not constructed directly)
 
 ```csharp
@@ -249,13 +249,13 @@ public class EmailService
     public void Send(string to, string body) { ... }
 }
 
-// After — interface in Application/{Feature}/Interfaces/Outbound/
+// After: interface in Application/{Feature}/Interfaces/Outbound/
 public interface IEmailSender
 {
     Task SendAsync(string to, string body, CancellationToken cancellationToken);
 }
 
-// After — implementation in Infrastructure.Email/
+// After: implementation in Infrastructure.Email/
 internal sealed class SmtpEmailSender(IEmailConfiguration config) : IEmailSender
 {
     public async Task SendAsync(string to, string body, CancellationToken cancellationToken)
@@ -442,7 +442,7 @@ Replace `Console.WriteLine()`, direct `ILoggerFactory` usage, and static loggers
 // Before
 Console.WriteLine($"Processing order {orderId}");
 
-// After — inject ILogger<OrderService>
+// After: inject ILogger<OrderService>
 internal sealed class OrderService(ILogger<OrderService> logger) : IOrderService
 {
     public async Task ProcessAsync(Guid orderId, CancellationToken cancellationToken)
@@ -588,14 +588,14 @@ If the project uses the old `.sln` format, convert to `.slnx`:
 dotnet sln migrate
 ```
 
-Or create the `.slnx` manually with clean XML structure. The `.slnx` format eliminates GUIDs and configuration platform boilerplate.
+Or create the `.slnx` manually with clean XML structure. The `.slnx` format eliminates GUIDs and configuration platform setup.
 
 ---
 
 ## Step 16: Verify the Conversion
 
 1. Every layer has an `ApplicationDependency` class at its root
-2. All dependencies are injected via constructor — no manual instantiation remains
+2. All dependencies are injected via constructor: no manual instantiation remains
 3. All cross-layer dependencies use interfaces in the correct `Interfaces/Inbound/` or `Interfaces/Outbound/` folders
 4. All background tasks use `BackgroundService` (zero `while(true)` outside Workers)
 5. All configuration access goes through `IConfiguration` with ConfigurationExtensions

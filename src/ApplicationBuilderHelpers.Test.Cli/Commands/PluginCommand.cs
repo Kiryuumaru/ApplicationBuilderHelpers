@@ -47,10 +47,8 @@ internal class PluginCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-        // Print debug info if requested
         PrintDebugInfo();
 
-        // Handle different actions with specific outputs
         switch (Action.ToLowerInvariant())
         {
             case "list":

@@ -9,11 +9,11 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Executes the target command.
-/// Thin sequencer over collaborators (mechanical split, no behavior change):
+/// Calls:
 /// <see cref="CommandShutdownScope"/> (linked CTS + Ctrl+C subscribe/dispose),
-/// <see cref="CommandRunOrchestrator"/> (joint command/host run + Exiting fan-out,
+/// <see cref="CommandRunOrchestrator"/> (command task and host task + Exiting callbacks run exactly once,
 /// returning a <see cref="CommandRunOutcome"/>), <see cref="CommandExitMapper"/>
-/// (single cancel-wins classification point), and <see cref="ServiceInjectionGate"/>
+/// (single classification point where cancellation takes precedence), and <see cref="ServiceInjectionGate"/>
 /// (per-command service injection).
 /// </summary>
 internal sealed class CommandExecutor
@@ -93,14 +93,11 @@ internal sealed class CommandExecutor
             }
             finally
             {
-                // Ensure we clean up the lifetime service on both 0 and 130 paths.
-                // Null-guarded: service may not exist on early-abort paths.
                 await (lifetimeGlobalService?.InvokeApplicationExitedCallbacksAsync() ?? Task.CompletedTask).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException ex) when (ex is not ExternalCancellationException && scope.IsExternalAbortRequested)
         {
-            // Cancellation was requested via the passed token or Ctrl+C.
             throw new ExternalCancellationException();
         }
     }

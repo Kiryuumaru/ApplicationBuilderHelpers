@@ -11,8 +11,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Content provider for help output: signatures, descriptions, categorization,
-/// hierarchy policy, and default-value resolution. Moved verbatim from
-/// <see cref="HelpFormatter"/> (mechanical split, no behavior change).
+/// hierarchy policy, and default-value resolution.
 /// Has no Console, no ConsoleOutput, no width math, and no theme knowledge.
 /// </summary>
 internal sealed class HelpContentProvider(
@@ -27,15 +26,12 @@ internal sealed class HelpContentProvider(
 
     internal HelpModel BuildGlobalModel()
     {
-        // Title with version - use auto-detection for null values
         var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
         var executableTitle = _commandBuilder.ExecutableTitle ?? AssemblyHelpers.GetAutoDetectedExecutableTitle();
         var executableVersion = _commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
 
-        // Description section - use auto-detection for null values
         var executableDescription = _commandBuilder.ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription();
 
-        // Separate options into categories
         var rootCommandOptions = new List<SubCommandOptionInfo>();
         var baseCommandOptions = new List<SubCommandOptionInfo>();
         var globalOptions = new List<SubCommandOptionInfo>();
@@ -121,7 +117,6 @@ internal sealed class HelpContentProvider(
 
     internal HelpModel BuildCommandModel(SubCommandInfo commandInfo)
     {
-        // Use the same header format as global help - use auto-detection for null values
         var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
         var executableTitle = _commandBuilder.ExecutableTitle ?? AssemblyHelpers.GetAutoDetectedExecutableTitle();
         var executableVersion = _commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
@@ -149,7 +144,6 @@ internal sealed class HelpContentProvider(
 
         if (commandSpecificOptions.Count > 0)
         {
-            // Use "OPTIONS (command):" for simple commands, "OPTIONS:" for subcommands
             var isSubCommand = commandInfo.CommandParts.Length > 1;
             var sectionName = isSubCommand ? "OPTIONS:" : "OPTIONS (command):";
             var entries = new List<HelpEntry>();
@@ -168,9 +162,7 @@ internal sealed class HelpContentProvider(
         {
             var parentCommandName = GetParentCommandName(commandInfo);
 
-            // For immediate parent options (like ConfigCommand options for config),
-            // use "command" instead of the specific parent name
-            var isImmediateParent = commandInfo.CommandParts.Length == 1; // Single-level command like "config"
+            var isImmediateParent = commandInfo.CommandParts.Length == 1;
             var sectionName = isImmediateParent
                 ? "OPTIONS (command):"
                 : (!string.IsNullOrEmpty(parentCommandName) ? $"OPTIONS ({parentCommandName}):" : "INHERITED OPTIONS:");
@@ -202,9 +194,6 @@ internal sealed class HelpContentProvider(
             sections.Add(new HelpSection { Header = "ARGUMENTS:", Entries = entries });
         }
 
-        // Merge base options and global options into a single GLOBAL OPTIONS section.
-        // -V, --version is listed unconditionally: it is handled by the gateway,
-        // never declared as a command option, so every help screen shows it.
         var allGlobalOptions = new List<SubCommandOptionInfo>(baseOptions);
         allGlobalOptions.AddRange(globalOptions);
 
@@ -271,7 +260,6 @@ internal sealed class HelpContentProvider(
             foreach (var rootOption in _rootCommand.Options)
             {
                 var signature = rootOption.GetDisplayName();
-                // CA1868: Remove Contains check, just use Add and check result
                 if (rootOption.IsGlobal && rootOption.LongName == "help" && seenOptions.Add(signature))
                 {
                     global.Add(rootOption);
@@ -317,13 +305,11 @@ internal sealed class HelpContentProvider(
                 parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, option.IsSecret)}");
         }
 
-        // Use proper line breaks between different description parts for better readability
         return string.Join("\n", parts);
     }
 
     private static string BuildArgumentSignature(SubCommandArgumentInfo argument)
     {
-        // Use lowercase format like <key> instead of <KEY>
         var name = argument.DisplayName;
 
         if (argument.IsCollection)
@@ -348,12 +334,8 @@ internal sealed class HelpContentProvider(
             parts.Add($"Possible values: {values}");
         }
 
-        // Use proper line breaks between different description parts for better readability
         return string.Join("\n", parts);
     }
-
-    // NOTE: option placeholder logic lives in HelpTypeDisplay (#454);
-    // this provider only calls HelpTypeDisplay.GetParameterPlaceholder.
 
     private static string? GetParentCommandName(SubCommandInfo commandInfo)
     {
@@ -381,12 +363,6 @@ internal sealed class HelpContentProvider(
             return false;
         }
 
-        // Structural: the declaring type must sit inside the framework command
-        // lineage — walk the abstract BaseType chain and terminate at the
-        // framework Command root (generic or non-generic, the ICommand owner).
-        // Never compare simple type names and never reference a sample command
-        // type. The framework roots themselves are not hierarchy-specific
-        // (their options are global or command-local, as before).
         if (IsFrameworkCommandRoot(declaringType))
         {
             return false;
@@ -413,17 +389,6 @@ internal sealed class HelpContentProvider(
     {
         try
         {
-            // #453 Step 1: OwnerCommand is the definition site, BindTarget is the
-            // scope holding this copy. Definition-site first (coincides with
-            // the legacy first-scan-hit for identical globals: no behavior
-            // change), then the copy-holding scope, then the declaring-type
-            // holder fallback (#487: snapshot-first, live only when
-            // !IsInstanceRegistration), then the type-parser fallback.
-            // For caller-supplied instance registrations the live
-            // definition-site instance may already carry a prior run's bound
-            // value, so consult the registration-time snapshot first (same
-            // seam the promotion gate uses). Snapshot-miss falls back to the
-            // existing live reads to preserve behavior.
             if (option.OwnerCommand?.Command != null)
             {
                 var holder = FindHolder(option.OwnerCommand.Command.GetType());
@@ -458,7 +423,6 @@ internal sealed class HelpContentProvider(
                 }
             }
 
-            // Use type parsers to get default values in an AOT-compatible way
             if (option.PropertyType.IsValueType)
             {
                 return GetDefaultValueFromTypeParser(option.PropertyType);
@@ -475,13 +439,12 @@ internal sealed class HelpContentProvider(
     /// <summary>
     /// Finds the registration holder for a command type. Multiple registrations
     /// of one type are rejected elsewhere (duplicate-command validation), so
-    /// first match is the definition site. Deliberate divergence from the
-    /// promotion-gate lookup (<c>CommandHierarchyBuilder.FindHolder</c>): the
-    /// gate keys by the option property's declaring type and fails closed on
-    /// ambiguity because it compares initializers across definition sites,
+    /// first match is the definition. Deliberate divergence from the
+    /// promotion lookup (<c>CommandHierarchyBuilder.FindHolder</c>): the
+    /// lookup keys by the option property's declaring type and stay local on
+    /// ambiguity because it compares initializers across definitions,
     /// while this lookup keys by the holding scope's concrete command type
-    /// because it reads one scope's default. Shared idiom: both consult the
-    /// holder's registration-time snapshot before any live instance read.
+    /// because it reads one scope's default.
     /// </summary>
     private TypedCommandHolder? FindHolder(Type commandType)
     {
@@ -495,11 +458,10 @@ internal sealed class HelpContentProvider(
     }
 
     /// <summary>
-    /// Gets the default value for a type using the registered type parsers, fallback to AOT-compatible defaults
+    /// Gets the default value for a type using the registered type parsers, fallback to trim-safe defaults
     /// </summary>
     private object? GetDefaultValueFromTypeParser(Type type)
     {
-        // First try to get the default value from a registered type parser
         if (_typeParserCollection.TypeParsers.TryGetValue(type, out var parser))
         {
             try
@@ -508,28 +470,22 @@ internal sealed class HelpContentProvider(
             }
             catch
             {
-                // If the type parser fails, fall back to manual defaults
             }
         }
 
-        // Handle nullable types by getting the underlying type
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
         {
-            return null; // Nullable types default to null
-        }
-
-        // Handle enums with AOT-compatible approach
-        if (type.IsEnum)
-        {
-            // For enums, return null as we can't determine default safely in AOT
             return null;
         }
 
-        // For arrays, return null
+        if (type.IsEnum)
+        {
+            return null;
+        }
+
         if (type.IsArray)
             return null;
 
-        // For unknown types, return null
         return null;
     }
 

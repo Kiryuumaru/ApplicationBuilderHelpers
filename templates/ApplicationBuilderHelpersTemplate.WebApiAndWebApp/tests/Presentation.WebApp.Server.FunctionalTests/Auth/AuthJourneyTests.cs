@@ -21,8 +21,6 @@ public class AuthJourneyTests : WebAppTestBase
     [TimedFact]
     public async Task Journey_FullAuthLifecycle_SignupLoginLogoutChangePasswordVerifyOldFails()
     {
-        Output.WriteLine("[TEST] Journey_FullAuthLifecycle_SignupLoginLogoutChangePasswordVerifyOldFails");
-
         var username = $"jf_{Guid.NewGuid():N}";
 
         // Step 1: Signup
@@ -34,8 +32,8 @@ public class AuthJourneyTests : WebAppTestBase
 
         // Step 2: Logout (simulate by clearing tokens - in real app this would call logout endpoint)
         Output.WriteLine("[STEP 2] Logout (clear session)");
-        // Note: We don't have a server-side logout that invalidates tokens in this implementation
-        // The client just discards tokens. For this test, we simulate by not using the token.
+        // There is no server-side logout that invalidates tokens in this implementation.
+        // The client discards tokens; the session is simulated as cleared by not using the token.
         Output.WriteLine("[PASS] Session cleared");
 
         // Step 3: Login again with original password
@@ -77,8 +75,6 @@ public class AuthJourneyTests : WebAppTestBase
     [TimedFact]
     public async Task Journey_MultiplePasswordChanges_OnlyLatestWorks()
     {
-        Output.WriteLine("[TEST] Journey_MultiplePasswordChanges_OnlyLatestWorks");
-
         var username = $"jmp_{Guid.NewGuid():N}";
         const string password1 = "FirstPassword123!";
         const string password2 = "SecondPassword456!";
@@ -135,8 +131,6 @@ public class AuthJourneyTests : WebAppTestBase
     [TimedFact]
     public async Task Journey_ConcurrentSessionsAfterPasswordChange()
     {
-        Output.WriteLine("[TEST] Journey_ConcurrentSessionsAfterPasswordChange");
-
         var username = $"jcc_{Guid.NewGuid():N}";
 
         // Register
@@ -181,8 +175,6 @@ public class AuthJourneyTests : WebAppTestBase
     [TimedFact]
     public async Task Journey_RegisterLoginCheckIdentityLogout()
     {
-        Output.WriteLine("[TEST] Journey_RegisterLoginCheckIdentityLogout");
-
         var username = $"ji_{Guid.NewGuid():N}";
         var email = $"{username}@example.com";
 

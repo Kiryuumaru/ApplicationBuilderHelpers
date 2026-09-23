@@ -32,11 +32,11 @@ public sealed partial class Role
             }
         }
 
-        // Format: "CODE;param1=value1;param2=value2" or just "CODE"
+        // Format: "CODE;param1=value1;param2=value2" or "CODE"
         var semicolonIndex = trimmed.IndexOf(';');
         if (semicolonIndex < 0)
         {
-            // No parameters - just the code
+            // No parameters - the code
             var code = NormalizeCode(trimmed);
             return new ParsedRoleClaim(claim, code, EmptyCollections.StringStringDictionary);
         }

@@ -53,7 +53,6 @@ public class ComplexScenariosTests : CliTestBase
     [Fact]
     public async Task Global_Options_With_Commands()
     {
-        // Global options alone now execute MainCommand successfully
         var result = await Runner.RunAsync("--log-level=debug");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "ApplicationBuilderHelpers Test CLI - Default Command");
@@ -72,7 +71,6 @@ public class ComplexScenariosTests : CliTestBase
     {
         var args = new List<string> { "test", "target" };
         
-        // Add many options
         for (int i = 0; i < 10; i++)
         {
             args.Add("--tags");
@@ -84,7 +82,6 @@ public class ComplexScenariosTests : CliTestBase
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertExecutionTime(result, TimeSpan.FromSeconds(5));
         
-        // Verify all tags are included
         var expectedTags = string.Join(", ", Enumerable.Range(0, 10).Select(i => $"tag{i}"));
         CliTestAssertions.AssertOutputContains(result, $"Tags: {expectedTags}");
     }
@@ -101,17 +98,14 @@ public class ComplexScenariosTests : CliTestBase
 
         var results = new List<CliTestResult>();
         
-        // Execute commands individually to ensure proper isolation
         foreach (var commandArgs in commands)
         {
             var result = await Runner.RunAsync(commandArgs);
             results.Add(result);
             
-            // Each command should succeed
             CliTestAssertions.AssertSuccess(result);
         }
         
-        // Check specific outputs
         CliTestAssertions.AssertOutputMatches(results[0], @"\d+\.\d+\.\d+");
         CliTestAssertions.AssertOutputContains(results[1], "USAGE:");
         CliTestAssertions.AssertOutputContains(results[2], "Run various test operations");
@@ -133,7 +127,6 @@ public class ComplexScenariosTests : CliTestBase
     [Fact]
     public async Task Mixed_Option_And_Argument_Order()
     {
-        // Options before and after the target argument
         var result = await Runner.RunAsync("test", "--timeout=45", "mytarget", "--parallel", "-v");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Running test on target: mytarget");

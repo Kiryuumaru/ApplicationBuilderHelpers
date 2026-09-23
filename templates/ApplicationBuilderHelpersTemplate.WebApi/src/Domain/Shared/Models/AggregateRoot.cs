@@ -3,7 +3,7 @@ using Domain.Shared.Interfaces;
 namespace Domain.Shared.Models;
 
 /// <summary>
-/// Entity that can raise domain events and serves as aggregate boundary.
+/// Entity that can raise domain events and is the aggregate boundary.
 /// </summary>
 public abstract class AggregateRoot : AuditableEntity, IAggregateRoot
 {

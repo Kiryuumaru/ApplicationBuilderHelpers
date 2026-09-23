@@ -7,11 +7,11 @@ applyTo: '**'
 
 ### Fix Procedure
 
-1. **Find and analyze the problem** — MUST understand what is actually broken before touching code
-2. **Use proper diagnostic tools** — MUST use available tools (tracing, structured logs, debuggers, profilers, network tools, build diagnostics) to produce evidence of the root cause. MUST NOT guess based on reading code alone
-3. **Fix one thing at a time** — MUST make ONE focused change per attempt
-4. **Verify** — MUST confirm the fix works (build, test, or runtime check). If confirmed working, proceed to next issue
-5. **Undo on failure** — If the fix does NOT work, MUST undo the specific code changes from that attempt. MUST NOT use blanket `git revert` or `git checkout` that could destroy ongoing uncommitted work. MUST restore files to their pre-attempt state before trying a different approach
+1. **Find and analyze the problem**: MUST understand what is broken before touching code
+2. **Use proper diagnostic tools**: MUST use available tools (tracing, structured logs, debuggers, profilers, network tools, build diagnostics) to produce evidence of the root cause. MUST NOT guess based on reading code alone
+3. **Fix one thing at a time**: MUST make ONE focused change per attempt
+4. **Verify**: MUST confirm the fix works (build, test, or runtime check). If confirmed working, proceed to next issue
+5. **Undo on failure**: If the fix does NOT work, MUST undo the specific code changes from that attempt. MUST NOT use blanket `git revert` or `git checkout` that could destroy ongoing uncommitted work. MUST restore files to their pre-attempt state before trying a different approach
 
 ### Prohibited
 

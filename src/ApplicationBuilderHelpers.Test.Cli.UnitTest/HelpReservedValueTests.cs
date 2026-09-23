@@ -9,7 +9,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Bare <c>--help</c>/<c>-h</c> still show help, <c>=</c>-less clusters,
 /// post-separator tokens, space-separated words, and lookalike names keep
 /// their existing meaning, and long-only options (e.g. <c>serve --host</c>)
-/// never reclaim <c>-h=</c>-forms — those stay usage errors (exit 2) since
+/// never reclaim <c>-h=</c>-forms. Those stay usage errors (exit 2) since
 /// short <c>'h'</c> is reserved for help.
 /// </summary>
 public class HelpReservedValueTests : CliTestBase

@@ -5,7 +5,7 @@ namespace Presentation.WebApp.Client.FunctionalTests.Old;
 /// <summary>
 /// Feature coverage tests that verify which WebApi features have corresponding 
 /// frontend implementations in the WebApp.
-/// This serves as both documentation and validation of feature parity.
+/// This is both documentation and validation of feature parity.
 /// </summary>
 public class FeatureCoverageTests : WebAppTestBase
 {

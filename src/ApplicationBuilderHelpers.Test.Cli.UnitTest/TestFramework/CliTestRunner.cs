@@ -91,19 +91,16 @@ public class CliTestRunner
             process.StartInfo.ArgumentList.Add(_executablePath);
         }
 
-        // Add arguments to the process
         foreach (var arg in args)
         {
             process.StartInfo.ArgumentList.Add(arg);
         }
 
-        // Add environment variables from the runner instance first
         foreach (var (name, value) in _environmentVariables)
         {
             process.StartInfo.EnvironmentVariables[name] = value;
         }
 
-        // Add environment variables from the parameter (these override instance variables)
         if (environmentVariables != null)
         {
             foreach (var (name, value) in environmentVariables)
@@ -151,7 +148,6 @@ public class CliTestRunner
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            // Wait for process to complete with timeout
             using var cts = new CancellationTokenSource(timeout);
             
             try
@@ -160,13 +156,12 @@ public class CliTestRunner
             }
             catch (OperationCanceledException)
             {
-                // Process timed out, kill it
                 try 
                 { 
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
-                        await process.WaitForExitAsync(); // Wait for graceful shutdown
+                        await process.WaitForExitAsync();
                     }
                 } 
                 catch { /* Ignore errors during cleanup */ }
@@ -174,7 +169,6 @@ public class CliTestRunner
                 throw new TimeoutException($"CLI process timed out after {timeout.TotalSeconds} seconds");
             }
 
-            // Wait for output streams to complete
             await Task.WhenAll(outputCompleted.Task, errorCompleted.Task);
         }
         finally
@@ -182,7 +176,6 @@ public class CliTestRunner
             stopwatch.Stop();
         }
 
-        // Combine all environment variables for the result
         var allEnvironmentVariables = new Dictionary<string, string>(_environmentVariables);
         if (environmentVariables != null)
         {
@@ -245,7 +238,6 @@ public class CliTestRunner
             var result = await RunAsync(_defaultTimeout, environmentVariables, args);
             results.Add(result);
             
-            // If any command fails, stop the sequence
             if (!result.IsSuccess)
             {
                 break;

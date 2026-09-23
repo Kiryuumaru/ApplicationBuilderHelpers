@@ -87,7 +87,6 @@ internal class TestCommand : BaseCommand
 
         Console.WriteLine($"Running test on target: {Target ?? "default"}");
         
-        // Always show timeout if it's not the default value
         if (Timeout != 30)
         {
             Console.WriteLine($"Timeout: {Timeout}s");
@@ -100,7 +99,6 @@ internal class TestCommand : BaseCommand
             Console.WriteLine("===============================================");
             Console.WriteLine();
 
-            // Core Configuration
             Console.WriteLine("[CORE] Core Configuration:");
             Console.WriteLine($"   Config: {ConfigPath ?? "default"}");
             Console.WriteLine($"   Timeout: {Timeout}s");
@@ -108,7 +106,6 @@ internal class TestCommand : BaseCommand
             Console.WriteLine($"   Diagnostic Mode: {DiagnosticMode}");
             Console.WriteLine();
 
-            // Output Configuration
             Console.WriteLine("[OUT] Output Configuration:");
             Console.WriteLine($"   Output Format: {OutputFormat}");
             if (!string.IsNullOrEmpty(ResultsDirectory))
@@ -121,13 +118,11 @@ internal class TestCommand : BaseCommand
             }
             Console.WriteLine();
 
-            // Coverage Configuration
             Console.WriteLine("[COV] Coverage Configuration:");
             Console.WriteLine($"   Coverage Enabled: {EnableCoverage}");
             Console.WriteLine($"   Coverage Threshold: {CoverageThreshold}%");
             Console.WriteLine();
 
-            // Reliability Configuration
             Console.WriteLine("[REL] Reliability Configuration:");
             Console.WriteLine($"   Retry Count: {RetryCount}");
             Console.WriteLine($"   Blame Mode: {BlameMode}");
@@ -136,7 +131,6 @@ internal class TestCommand : BaseCommand
             Console.WriteLine($"   Blame Hang Timeout: {BlameHangTimeout} minutes");
             Console.WriteLine();
 
-            // Runtime Configuration
             if (!string.IsNullOrEmpty(Framework) || !string.IsNullOrEmpty(Runtime) || MaxCpuCount.HasValue)
             {
                 Console.WriteLine("[RUN] Runtime Configuration:");
@@ -155,7 +149,6 @@ internal class TestCommand : BaseCommand
                 Console.WriteLine();
             }
 
-            // Test Selection
             if (Tags.Length > 0 || ExcludePatterns.Length > 0 || !string.IsNullOrEmpty(Filter) || Seed.HasValue)
             {
                 Console.WriteLine("[SEL] Test Selection:");
@@ -178,7 +171,6 @@ internal class TestCommand : BaseCommand
                 Console.WriteLine();
             }
 
-            // Data Collection
             if (DataCollectors.Length > 0)
             {
                 Console.WriteLine("[DAT] Data Collection:");
@@ -186,7 +178,6 @@ internal class TestCommand : BaseCommand
                 Console.WriteLine();
             }
 
-            // Additional Settings
             if (!string.IsNullOrEmpty(SettingsFile))
             {
                 Console.WriteLine("[SET] Additional Settings:");
@@ -194,7 +185,6 @@ internal class TestCommand : BaseCommand
                 Console.WriteLine();
             }
 
-            // Global Options from Base
             Console.WriteLine("[GLB] Global Options:");
             Console.WriteLine($"   Log Level: {LogLevel}");
             Console.WriteLine($"   Quiet Mode: {Quiet}");
@@ -207,7 +197,6 @@ internal class TestCommand : BaseCommand
             Console.WriteLine("===============================================");
         }
 
-        // Print summary of all non-default values
         Console.WriteLine();
         Console.WriteLine("[SUM] PARSED OPTIONS SUMMARY:");
         Console.WriteLine("-----------------------------------------------");
@@ -220,7 +209,6 @@ internal class TestCommand : BaseCommand
     {
         var nonDefaultOptions = new List<string>();
 
-        // Check all properties for non-default values
         if (Verbose) nonDefaultOptions.Add("verbose=true");
         if (!string.IsNullOrEmpty(ConfigPath)) nonDefaultOptions.Add($"config=\"{ConfigPath}\"");
         if (Timeout != 30) nonDefaultOptions.Add($"timeout={Timeout}");
@@ -247,7 +235,6 @@ internal class TestCommand : BaseCommand
         if (!string.IsNullOrEmpty(SettingsFile)) nonDefaultOptions.Add($"settings=\"{SettingsFile}\"");
         if (!string.IsNullOrEmpty(Target)) nonDefaultOptions.Add($"target=\"{Target}\"");
 
-        // Base class options
         if (LogLevel != "information") nonDefaultOptions.Add($"log-level={LogLevel}");
         if (Quiet) nonDefaultOptions.Add("quiet=true");
         if (EnvironmentVariables.Length > 0) nonDefaultOptions.Add($"env=[{string.Join(", ", EnvironmentVariables)}]");

@@ -10,8 +10,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// gate cannot resolve a single registration holder when two leaves derive from it
 /// and keeps the option local. An option whose getter cannot be read likewise keeps
 /// the option local instead of faulting.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class InheritedInitializerGateTests

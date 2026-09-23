@@ -5,9 +5,8 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Production <see cref="IConsoleCancelSignal"/> over <see cref="ConsoleOutput"/>,
-/// which stays the adapter-only forwarder to <see cref="Console.CancelKeyPress"/>.
-/// Moved verbatim from the executor's subscribe/unsubscribe block (mechanical
-/// split, no behavior change): the two fallback notes are preserved exactly.
+/// which is the adapter-only forwarder to <see cref="Console.CancelKeyPress"/>.
+/// Contains the executor's subscribe/unsubscribe block including its two fallback notes.
 /// </summary>
 internal sealed class ConsoleCancelSignal(ConsoleOutput consoleOutput) : IConsoleCancelSignal
 {

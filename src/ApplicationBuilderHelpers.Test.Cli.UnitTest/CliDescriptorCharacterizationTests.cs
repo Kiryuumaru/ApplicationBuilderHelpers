@@ -6,14 +6,10 @@ using System.Reflection;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
-// Characterization tests intentionally exercise the four [Obsolete] descriptor
-// shims (FromCommandType/FromDeclaredType parity) plus the internal walks.
-// Precedent: CancellationExitCodeTests.cs disables CS0809/CS0618 + restores
-// around its intentional legacy-path probes.
 #pragma warning disable CS0618
 
 /// <summary>
-/// Characterization (golden-master) tests for the CLI descriptor duplication surface:
+/// Descriptor duplication tests for the CLI descriptor set:
 /// required-keyword detection, display-name mapping, <c>FromCommandType</c> vs
 /// <c>FromDeclaredType</c> scoping, and nullable-unwrap/enum-candidate snapshots across
 /// <c>SubCommandOptionInfo</c>, <c>SubCommandArgumentInfo</c> and
@@ -21,7 +17,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// extraction can prove zero drift. Parser-suppression parity and the
 /// global-promotion signature are pinned in-memory only (no console use);
 /// help rendering, owner-bound inheritance scope and per-run copy identity
-/// are intentionally out of scope.
+/// are out of scope.
 /// Pure in-memory descriptor tests: no console use, no collection gate needed.
 /// </summary>
 public sealed class CliDescriptorCharacterizationTests
@@ -371,7 +367,6 @@ public sealed class CliDescriptorCharacterizationTests
         Assert.True(options.Single(o => o.LongName == "code").IsRequired);
     }
 
-    // #454: friendly help tokens (HelpTypeDisplay) — no raw CLR names (TIMESPAN/GUID/URI/NULLABLE`1).
     [Theory]
     [InlineData(nameof(DisplayTypeHolder.Text), "STRING")]
     [InlineData(nameof(DisplayTypeHolder.Number), "NUMBER")]
@@ -908,11 +903,6 @@ public sealed class CliDescriptorCharacterizationTests
     [Fact]
     public void Options_NoDefaultValueMetadata_AllPathsOmitDefault()
     {
-        // No DefaultValue snapshot exists on the node type (removed per
-        // ADR-0004): defaults render at help time from live instances, never
-        // from descriptors. Construction-path parity is pinned field-by-field
-        // by the FromProperty/FromDescriptor tests below, so no per-path
-        // loop belongs here (a self-comparison loop would always pass).
         Assert.Null(typeof(SubCommandOptionInfo).GetProperty("DefaultValue"));
     }
 
@@ -1009,11 +999,6 @@ public sealed class CliDescriptorCharacterizationTests
     [Fact]
     public void Arguments_NoDefaultValueMetadata_AllPathsOmitDefault()
     {
-        // No DefaultValue snapshot exists on the node type (removed per
-        // ADR-0004): defaults render at help time from live instances, never
-        // from descriptors. Construction-path parity is pinned field-by-field
-        // by the FromProperty/FromDescriptor tests below, so no per-path
-        // loop belongs here (a self-comparison loop would always pass).
         Assert.Null(typeof(SubCommandArgumentInfo).GetProperty("DefaultValue"));
     }
 

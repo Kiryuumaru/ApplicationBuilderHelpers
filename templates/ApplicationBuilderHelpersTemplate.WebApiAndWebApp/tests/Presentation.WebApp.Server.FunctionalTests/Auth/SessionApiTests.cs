@@ -20,8 +20,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task ListSessions_AfterRegister_ReturnsOneSession()
     {
-        Output.WriteLine("[TEST] ListSessions_AfterRegister_ReturnsOneSession");
-
         // Register a new user
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
@@ -50,8 +48,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task ListSessions_WithoutToken_Returns401()
     {
-        Output.WriteLine("[TEST] ListSessions_WithoutToken_Returns401");
-
         // Use a random userId - should still return 401 without token
         var randomUserId = Guid.NewGuid();
         Output.WriteLine($"[STEP] GET /api/v1/auth/users/{randomUserId}/sessions without token...");
@@ -66,8 +62,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task ListSessions_AfterMultipleLogins_ReturnsMultipleSessions()
     {
-        Output.WriteLine("[TEST] ListSessions_AfterMultipleLogins_ReturnsMultipleSessions");
-
         var username = $"multisession_{Guid.NewGuid():N}";
 
         // Register user
@@ -106,8 +100,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task RevokeSession_CurrentSession_ReturnsNoContent()
     {
-        Output.WriteLine("[TEST] RevokeSession_CurrentSession_ReturnsNoContent");
-
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
 
@@ -135,8 +127,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task RevokeSession_OtherSession_ReturnsNoContent()
     {
-        Output.WriteLine("[TEST] RevokeSession_OtherSession_ReturnsNoContent");
-
         var username = $"revokesession_{Guid.NewGuid():N}";
 
         // Register and then login again to create two sessions
@@ -179,8 +169,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task RevokeSession_NonExistentId_Returns404()
     {
-        Output.WriteLine("[TEST] RevokeSession_NonExistentId_Returns404");
-
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
 
@@ -205,8 +193,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task RevokeAllSessions_WithMultipleSessions_RevokesAll()
     {
-        Output.WriteLine("[TEST] RevokeAllSessions_WithMultipleSessions_RevokesAll");
-
         var username = $"revokeall_{Guid.NewGuid():N}";
 
         // Create multiple sessions
@@ -258,8 +244,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task RefreshToken_RotatesToken_OldTokenInvalid()
     {
-        Output.WriteLine("[TEST] RefreshToken_RotatesToken_OldTokenInvalid");
-
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
 
@@ -295,8 +279,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task RefreshToken_WithNewToken_Succeeds()
     {
-        Output.WriteLine("[TEST] RefreshToken_WithNewToken_Succeeds");
-
         var authResult = await RegisterUniqueUserAsync();
         Assert.NotNull(authResult);
 
@@ -330,8 +312,6 @@ public class SessionApiTests : WebAppTestBase
     [TimedFact]
     public async Task Logout_RevokesCurrentSession()
     {
-        Output.WriteLine("[TEST] Logout_RevokesCurrentSession");
-
         var username = $"logouttest_{Guid.NewGuid():N}";
 
         // Create two sessions
@@ -440,7 +420,5 @@ public class SessionApiTests : WebAppTestBase
 
     #endregion
 }
-
-
 
 

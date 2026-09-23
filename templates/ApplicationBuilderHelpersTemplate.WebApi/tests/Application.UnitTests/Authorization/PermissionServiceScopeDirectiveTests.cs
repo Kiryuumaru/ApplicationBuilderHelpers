@@ -101,7 +101,7 @@ public sealed class PermissionServiceScopeDirectiveTests
     [Fact]
     public void DirectiveExtraction_ExtractsScopeCorrectly()
     {
-        // This test verifies the claims are being set up correctly
+        // The claims are set up correctly
         var (service, principal) = CreateServiceWithPrincipal(
             "user-abc",
             PermissionIds.Api.Iam.Users.Read.WithUserId("user-abc").Allow()

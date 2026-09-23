@@ -3,8 +3,8 @@ using System;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Applies environment-variable fallback for options, preserving the exact
-/// single-read semantics of the original CommandLineParser:
+/// Applies environment-variable fallback for options, with exact
+/// single-read semantics:
 /// a single lookup whose value is both guarded on null-or-whitespace and used.
 /// </summary>
 internal static class EnvVarFallback
@@ -29,7 +29,6 @@ internal static class EnvVarFallback
         if (result.TryGetMergedOptionValues(option, out _))
             return false;
 
-        // Single read: guard and use the same value, matching the original single-lookup.
         var envValue = Environment.GetEnvironmentVariable(option.EnvironmentVariable);
         if (string.IsNullOrWhiteSpace(envValue))
             return false;

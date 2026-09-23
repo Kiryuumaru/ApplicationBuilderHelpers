@@ -5,20 +5,16 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process completion gateway contract tests for the pre-parse gateway in
-/// <c>CompletionGateway.TryHandle</c> (CompletionGateway.cs:24), invoked from the
-/// pre-parse slot (CommandLineParser.cs:68-70).
-/// Exercises the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
-/// entry point via the <see cref="Console.SetOut(System.IO.TextWriter)"/> /
-/// <see cref="Console.SetError(System.IO.TextWriter)"/> + <see cref="StringWriter"/> pattern
-/// (same seam as <c>CompletionProbeTests</c>): pins precedence
+/// Completion gateway contract tests for the pre-parse gateway
+/// (<c>CompletionGateway.TryHandle</c>), exercised through the public
+/// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
+/// entry point: pins precedence
 /// (completion &gt; help &gt; parse &gt; version), the three fall-through edges that return
 /// false to the parse path, the bare-<c>complete</c> handled vs bare-<c>completions</c>
 /// fall-through asymmetry, and gateway shadowing of same-named registered commands.
 /// Unknown-shell <c>completions script tcsh</c> pins the installer-style
 /// <c>Unknown shell</c> error (exit 2), never the <c>No command found</c> parse path.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class CompletionGatewayTests

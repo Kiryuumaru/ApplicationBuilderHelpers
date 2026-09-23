@@ -47,7 +47,6 @@ public class HelpSystemTests : CliTestBase
         var result = await Runner.RunAsync("config", "--help");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Configuration values");
-        // The config command shows OPTIONS instead of COMMANDS
         CliTestAssertions.AssertOutputContains(result, "OPTIONS:");
         CliTestAssertions.AssertOutputContains(result, "--format");
     }
@@ -79,7 +78,7 @@ public class HelpSystemTests : CliTestBase
         var result = await Runner.RunAsync("test", "--help");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Default:");
-        CliTestAssertions.AssertOutputContains(result, "False"); // For boolean options
+        CliTestAssertions.AssertOutputContains(result, "False");
     }
 
     [Fact]
@@ -141,7 +140,6 @@ public class HelpSystemTests : CliTestBase
     [Fact]
     public async Task Help_For_Unknown_Subcommand()
     {
-        // Unknown subcommands just show the parent command help, so this should succeed
         var result = await Runner.RunAsync("config", "unknown", "--help");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Configuration values");
@@ -159,7 +157,6 @@ public class HelpSystemTests : CliTestBase
     [Fact]
     public async Task Help_Option_Priority()
     {
-        // Help should be shown even with other options
         var result = await Runner.RunAsync("test", "target", "--verbose", "--help");
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Run various test operations");

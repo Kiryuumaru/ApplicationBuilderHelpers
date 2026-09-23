@@ -34,25 +34,18 @@ internal sealed class CommandHierarchyBuilder(
         RootCommand = new SubCommandInfo
         {
             CommandParts = [],
-            // Use auto-detection for null ExecutableDescription
             Description = commandBuilder.ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription()
         };
         _allCommands.Clear();
 
-        // Process all commands and build hierarchy. Each Build resolves a
-        // per-run instance so type-registered commands cannot leak bound values
-        // across repeated RunAsync calls on one builder; caller-supplied
-        // instance registrations keep identity.
         foreach (var typedCommandHolder in commandBuilder.Commands)
         {
             _ = typedCommandHolder.CommandType.GetCustomAttribute<CommandAttribute>();
             var runCommand = typedCommandHolder.CreateRunInstance();
             var typeDescriptor = reflectionCache.GetOrAdd(typedCommandHolder.CommandType);
 
-            // Create SubCommandInfo for this command
             var subCommandInfo = SubCommandInfo.FromCommand(typedCommandHolder.CommandType, runCommand);
 
-            // Extract fresh per-run options and arguments from cached descriptors
             subCommandInfo.Options = typeDescriptor.Options
                 .Select(descriptor => SubCommandOptionInfo.FromDescriptor(
                     descriptor,
@@ -66,11 +59,9 @@ internal sealed class CommandHierarchyBuilder(
                     SubCommandArgumentInfo.ResolveValidValues(descriptor, typeParserCollection)))
                 .ToList();
 
-            // Insert into hierarchy
             InsertCommandIntoHierarchy(subCommandInfo);
         }
 
-        // After building hierarchy, determine global options
         DetermineGlobalOptions();
     }
 
@@ -89,19 +80,16 @@ internal sealed class CommandHierarchyBuilder(
 
         if (commandInfo.CommandParts.Length == 0)
         {
-            // Root command - add ALL options from the root command
             if (RootCommand!.HasImplementation)
                 throw new InvalidOperationException("Cannot have more than one root command");
 
             RootCommand.Command = commandInfo.Command;
 
-            // Add ALL options from the root command (both BaseCommand and MainCommand options)
             RootCommand.Options.AddRange(commandInfo.Options);
             RootCommand.Arguments.AddRange(commandInfo.Arguments);
             return;
         }
 
-        // Navigate to the correct parent and create intermediate commands if needed
         var current = RootCommand!;
 
         for (int i = 0; i < commandInfo.CommandParts.Length; i++)
@@ -110,13 +98,11 @@ internal sealed class CommandHierarchyBuilder(
 
             if (i == commandInfo.CommandParts.Length - 1)
             {
-                // This is the final part - add the actual command
                 current.AddChild(commandInfo);
                 _allCommands[commandInfo.FullCommandName] = commandInfo;
             }
             else
             {
-                // Intermediate part - create parent command if it doesn't exist
                 var child = current.FindChild(part);
                 if (child == null)
                 {
@@ -135,14 +121,12 @@ internal sealed class CommandHierarchyBuilder(
     /// </summary>
     private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
-        // Look for abstract base class that matches this intermediate command path
         var leafDescriptor = reflectionCache.GetOrAdd(leafCommandType);
         var intermediateCommandInfo = FindAbstractBaseCommandInfo(commandParts, leafCommandType, leafDescriptor);
 
         SubCommandInfo result;
         if (intermediateCommandInfo != null)
         {
-            // Use information from the abstract base class
             result = new SubCommandInfo
             {
                 CommandParts = commandParts,
@@ -153,7 +137,6 @@ internal sealed class CommandHierarchyBuilder(
         }
         else
         {
-            // Fallback to generic description
             result = new SubCommandInfo
             {
                 CommandParts = commandParts,
@@ -161,12 +144,10 @@ internal sealed class CommandHierarchyBuilder(
             };
         }
 
-        // Ensure intermediate commands inherit global options from root
         if (RootCommand != null)
         {
             foreach (var globalOption in RootCommand.Options.Where(o => o.IsGlobal))
             {
-                // Only add if not already present
                 if (!result.Options.Any(o => o.GetDisplayName() == globalOption.GetDisplayName()))
                 {
                     result.Options.Add(globalOption);
@@ -206,16 +187,12 @@ internal sealed class CommandHierarchyBuilder(
                 currentType.IsAbstract &&
                 normalizedBaseTerm == targetCommandName)
             {
-                // Found matching abstract base class
                 var baseCommandInfo = new SubCommandInfo
                 {
                     CommandParts = commandParts,
                     Description = commandAttr.Description
                 };
 
-                // Materialize only the members declared directly on the matched
-                // abstract base: filter the leaf descriptor by DeclaringType
-                // instead of re-walking properties via reflection.
                 var matchedBaseType = currentType;
                 baseCommandInfo.Options = leafDescriptor.Options
                     .Where(d => d.DeclaringType == matchedBaseType)
@@ -245,13 +222,11 @@ internal sealed class CommandHierarchyBuilder(
     /// </summary>
     private void DetermineGlobalOptions()
     {
-        // Get all concrete commands (those with implementations)
         var concreteCommands = _allCommands.Values.Where(c => c.HasImplementation).ToList();
 
         if (concreteCommands.Count == 0)
             return;
 
-        // Find options that appear in ALL commands with the same signature
         var optionsBySignature = new Dictionary<string, List<(SubCommandOptionInfo option, SubCommandInfo command)>>();
 
         foreach (var command in concreteCommands)
@@ -265,13 +240,10 @@ internal sealed class CommandHierarchyBuilder(
             }
         }
 
-        // Mark options as global ONLY if they appear in ALL commands and are identical
         foreach (var (signature, optionInfos) in optionsBySignature)
         {
-            // Must appear in ALL concrete commands to be considered global
             if (optionInfos.Count == concreteCommands.Count)
             {
-                // Check if all options have identical signatures (name, term, short term, type)
                 var firstOption = optionInfos[0].option;
                 var allIdentical = optionInfos.All(oi =>
                     oi.option.PropertyType == firstOption.PropertyType &&
@@ -287,21 +259,15 @@ internal sealed class CommandHierarchyBuilder(
 
                 if (allIdentical)
                 {
-                    // These options appear in ALL commands with identical signatures
                     foreach (var (option, _) in optionInfos)
                     {
                         option.IsGlobal = true;
                         option.IsInherited = true;
                     }
 
-                    // Add one instance to root command
                     if (!RootCommand!.Options.Any(o => o.GetDisplayName() == signature))
                     {
                         var globalOption = CreateGlobalOptionCopy(firstOption);
-                        // OwnerCommand stays at the definition site (firstOption's
-                        // owning command) so default-value reads resolve the
-                        // declaring command instance; BindTarget records the
-                        // scope holding this copy (root). Step 1: no behavior change.
                         globalOption.BindTarget = RootCommand;
                         RootCommand.Options.Add(globalOption);
                     }
@@ -309,22 +275,21 @@ internal sealed class CommandHierarchyBuilder(
             }
         }
 
-        // Add built-in global options (help only - version is not global)
         AddBuiltInGlobalOptions();
     }
 
     /// <summary>
-    /// Compares initializer defaults across definition sites. No
-    /// <c>DefaultValue</c> snapshot exists on the option node (removed per
-    /// ADR-0004), so divergence is read from the registration holders keyed by
-    /// the option property's declaring type (#487 Phase 2a), mirroring
-    /// <c>HelpContentProvider.GetOptionDefaultValue</c>. For type registrations the
+    /// Compares initializer defaults across definitions. No
+    /// <c>DefaultValue</c> snapshot exists on the option node, so divergence
+    /// is read from the registration holders keyed by the option property's
+    /// declaring type (see
+    /// <c>HelpContentProvider.GetOptionDefaultValue</c>). For type registrations the
     /// holder's registration instance is pristine (binding mutates per-run
     /// copies, never the registration). For caller-supplied instance
     /// registrations the registration instance is the shared mutable
     /// registration: a prior run's binding may already have replaced the
     /// initializer, so the comparison uses the holder's registration-time
-    /// snapshot (captured on the first gate read, before binding can mutate
+    /// snapshot (captured on the first read, before binding can mutate
     /// the instance). Any unknown or ambiguous holder, or any read failure,
     /// blocks promotion (stays local) rather than risking a wrong global merge.
     /// </summary>
@@ -358,11 +323,11 @@ internal sealed class CommandHierarchyBuilder(
     }
 
     /// <summary>
-    /// Reads one option's initializer default for the promotion gate off the
-    /// registration holder keyed by the option property's declaring type (#487
-    /// Phase 2a): the holder's registration-time snapshot for caller-supplied
+    /// Reads one option's initializer default for the promotion lookup off the
+    /// registration holder keyed by the option property's declaring type:
+    /// the holder's registration-time snapshot for caller-supplied
     /// instance registrations, otherwise the holder's registration instance
-    /// value. Fail-closed (sentinel) when the holder is unknown, ambiguous
+    /// value. Returns the sentinel when the holder is unknown, ambiguous
     /// (more than one holder for the declaring type), missing, or unreadable.
     /// </summary>
     private object? ReadInitializerValue(SubCommandOptionInfo option)
@@ -407,8 +372,8 @@ internal sealed class CommandHierarchyBuilder(
     /// declaring type's initializer default: a holder whose
     /// <c>CommandType</c> equals the declaring type, or whose type derives from
     /// it (inherited option reports the base declaring type). Returns null when
-    /// no holder matches or more than one matches (ambiguous) — both
-    /// fail-closed at the gate. Multiple same-type registrations are rejected
+    /// no holder matches or more than one matches (ambiguous), both are
+    /// rejected. Multiple same-type registrations are rejected
     /// elsewhere (duplicate-command validation), so a single exact-type match
     /// remains the common definition-site case.
     /// </summary>
@@ -449,10 +414,8 @@ internal sealed class CommandHierarchyBuilder(
     /// </summary>
     private void AddBuiltInGlobalOptions()
     {
-        // Create a dummy property to satisfy the Property requirement
         var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.Property))!;
 
-        // Add help option as a true global option (appears in all commands)
         var helpOption = new SubCommandOptionInfo
         {
             ShortName = 'h',
@@ -463,7 +426,6 @@ internal sealed class CommandHierarchyBuilder(
             OwnerCommand = RootCommand,
             BindTarget = RootCommand,
             Property = dummyProperty,
-            // Set PropertyType directly to avoid AOT warnings
             PropertyType = typeof(bool)
         };
 
@@ -472,7 +434,6 @@ internal sealed class CommandHierarchyBuilder(
             RootCommand.Options.Add(helpOption);
         }
 
-        // Mark help as global in all commands
         foreach (var command in _allCommands.Values)
         {
             var existingHelpOption = command.Options.FirstOrDefault(o => o.LongName == "help");
@@ -497,7 +458,6 @@ internal sealed class CommandHierarchyBuilder(
     {
         RootCommand?.Validate();
 
-        // Additional validation: ensure all commands have either implementation or children
         foreach (var command in _allCommands.Values)
         {
             if (!command.HasImplementation && command.IsLeaf)
@@ -511,14 +471,14 @@ internal sealed class CommandHierarchyBuilder(
     }
 
     /// <summary>
-    /// Rejects registration-time shadowing of the help/version gateway shorts:
+    /// Rejects registration-time shadowing of the reserved help/version shorts:
     /// <c>-h</c> (help) and <c>-V</c> (version) win inside combined short
     /// clusters even mid-cluster (<c>ArgumentParser</c>), so a declared option
     /// reusing either short (e.g. <c>-h/--host</c> on <c>serve</c>) would never
-    /// bind — <c>serve -hw</c> routes to help instead of <c>Host=w</c>. Only the
+    /// bind, <c>serve -hw</c> routes to help instead of <c>Host=w</c>. Only the
     /// built-in <c>--help</c> owner may hold <c>-h</c>; <c>-V</c> is forbidden
     /// for all local options because no built-in version node exists (version
-    /// is gateway-only), so any local <c>-V</c> would silently never bind.
+    /// is handled in pre-parse), so any local <c>-V</c> would silently never bind.
     /// </summary>
     private void ValidateReservedShortNames()
     {
@@ -549,11 +509,9 @@ internal sealed class CommandHierarchyBuilder(
     }
 
     /// <summary>
-    /// Creates a copy of an option for global use. Step 1: the copy is a
-    /// frozen snapshot — OwnerCommand stays at the definition site (copied
-    /// from the original), ValidValues is defensively copied so later
-    /// mutation cannot flow between scopes, and the caller sets BindTarget
-    /// to the scope holding the copy. No behavior change.
+    /// Creates an independent copy of an option for global use.
+    /// <c>OwnerCommand</c> keeps the definition site, <c>ValidValues</c> is
+    /// copied, and the caller assigns <c>BindTarget</c>.
     /// </summary>
     internal static SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
     {

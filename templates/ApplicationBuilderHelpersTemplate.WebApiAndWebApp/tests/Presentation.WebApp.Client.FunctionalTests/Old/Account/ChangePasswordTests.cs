@@ -17,11 +17,11 @@ public class ChangePasswordTests : WebAppTestBase
     [Fact]
     public async Task ChangePassword_RequiresAuthentication()
     {
-        // Act - Try to access change password without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login
+        // Assert
         var currentUrl = Page.Url;
         var redirectedToLogin = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
         Assert.True(redirectedToLogin, "Should redirect to login when accessing change password unauthenticated");
@@ -30,18 +30,18 @@ public class ChangePasswordTests : WebAppTestBase
     [Fact]
     public async Task ChangePassword_Authenticated_ShowsForm()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"chgpwd_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should show change password form
+        // Assert
         var currentPasswordInput = await Page.QuerySelectorAsync("input#currentPassword, input[name*='current' i]");
         var newPasswordInput = await Page.QuerySelectorAsync("input#newPassword, input[name*='new' i]");
         var confirmPasswordInput = await Page.QuerySelectorAsync("input#confirmPassword, input[name*='confirm' i]");
@@ -58,18 +58,18 @@ public class ChangePasswordTests : WebAppTestBase
     [Fact]
     public async Task ChangePassword_HasBreadcrumb()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"bread_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should have breadcrumb navigation
+        // Assert
         var breadcrumb = await Page.QuerySelectorAsync("nav[aria-label='Breadcrumb'], .breadcrumb, ol");
         var profileLink = await Page.QuerySelectorAsync("a[href*='profile' i]");
 
@@ -79,18 +79,18 @@ public class ChangePasswordTests : WebAppTestBase
     [Fact]
     public async Task ChangePassword_HasSubmitAndCancelButtons()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"buttons_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to change password
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Assert - Should have submit and cancel buttons
+        // Assert
         var submitButton = await Page.QuerySelectorAsync("button[type='submit'], button:has-text('Update'), button:has-text('Change')");
         var cancelButton = await Page.QuerySelectorAsync("button:has-text('Cancel'), a:has-text('Cancel')");
 
@@ -101,7 +101,7 @@ public class ChangePasswordTests : WebAppTestBase
     [Fact(Skip = "Client-side validation timing needs investigation")]
     public async Task ChangePassword_PasswordMismatch_ShowsError()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"mismatch_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -111,7 +111,7 @@ public class ChangePasswordTests : WebAppTestBase
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Act - Fill with mismatched passwords
+        // Act
         var passwordFields = await Page.QuerySelectorAllAsync("input[type='password']");
         if (passwordFields.Count >= 3)
         {
@@ -123,7 +123,7 @@ public class ChangePasswordTests : WebAppTestBase
         await Page.ClickAsync("button[type='submit']");
         await Task.Delay(500);
 
-        // Assert - Should show error or validation message
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasError = pageContent.Contains("match", StringComparison.OrdinalIgnoreCase) ||
                       pageContent.Contains("error", StringComparison.OrdinalIgnoreCase) ||
@@ -135,7 +135,7 @@ public class ChangePasswordTests : WebAppTestBase
     [Fact]
     public async Task ChangePassword_EmptyFields_ShowsValidation()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"empty_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
@@ -145,11 +145,11 @@ public class ChangePasswordTests : WebAppTestBase
         await Page.GotoAsync($"{WebAppUrl}/account/change-password");
         await WaitForBlazorAsync();
 
-        // Act - Submit without filling anything
+        // Act
         await Page.ClickAsync("button[type='submit']");
         await Task.Delay(500);
 
-        // Assert - Should show validation errors
+        // Assert
         var validationErrors = await Page.QuerySelectorAllAsync(".validation-message, .field-validation-error, .text-red-500, [class*='error']");
         Output.WriteLine($"Validation errors found: {validationErrors.Count}");
 

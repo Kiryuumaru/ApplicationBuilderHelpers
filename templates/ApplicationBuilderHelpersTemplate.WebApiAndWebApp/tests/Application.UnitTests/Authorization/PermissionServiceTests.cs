@@ -138,7 +138,6 @@ public class PermissionServiceTests
     public async Task HasPermission_WriteScopeAllowsWriteOperations()
     {
         var service = CreateService(new RecordingTokenProvider());
-        // Use new directive format with _write scope
         var principal = BuildPrincipalWithScopes("allow;api:_write;userId=user-123");
 
         var result = await service.HasPermissionAsync(principal, SessionsRevokePermission, CancellationToken.None);

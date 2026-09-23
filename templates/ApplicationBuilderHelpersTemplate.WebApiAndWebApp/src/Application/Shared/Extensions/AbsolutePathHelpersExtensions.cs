@@ -59,7 +59,7 @@ public static class AbsolutePathHelpersExtensions
         catch (Exception)
         {
             // If we can't read the file for any reason (permissions, corruption, etc.)
-            // just return "Unknown" instead of throwing
+            // return "Unknown" instead of throwing
             return "Unknown";
         }
     }

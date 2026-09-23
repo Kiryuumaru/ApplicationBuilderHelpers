@@ -15,7 +15,6 @@ public sealed class AppBootstrapTests : WebApiTestBase
     [Fact]
     public async Task WebApi_StartsSuccessfully()
     {
-        Output.WriteLine("[TEST] WebApi_StartsSuccessfully");
         Output.WriteLine("[STEP] GET / (root endpoint)...");
 
         var response = await HttpClient.GetAsync("/");
@@ -35,8 +34,6 @@ public sealed class AppBootstrapTests : WebApiTestBase
     [Fact]
     public async Task Swagger_ReturnsOpenApiDocument()
     {
-        Output.WriteLine("[TEST] Swagger_ReturnsOpenApiDocument");
-
         Output.WriteLine("[STEP] GET /swagger/v1/swagger.json...");
         var response = await HttpClient.GetAsync("/swagger/v1/swagger.json");
 
@@ -59,8 +56,6 @@ public sealed class AppBootstrapTests : WebApiTestBase
     [Fact]
     public async Task Scalar_UI_Available()
     {
-        Output.WriteLine("[TEST] Scalar_UI_Available");
-
         Output.WriteLine("[STEP] GET /scalar/v1...");
         var response = await HttpClient.GetAsync("/scalar/v1");
 

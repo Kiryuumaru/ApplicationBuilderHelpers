@@ -9,7 +9,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <summary>
 /// Direct in-process unit tests for the public <see cref="ConfigurationExtensions"/>
 /// reference-value helpers plus <see cref="NoConfigValueException"/>.
-/// These are pure utilities with public surface, so they are exercised directly
+/// These are pure utilities with a public API, so they are exercised directly
 /// against a minimal in-memory <see cref="IConfiguration"/> (only the indexer
 /// is used by the implementation) instead of through the CLI entry point.
 /// </summary>

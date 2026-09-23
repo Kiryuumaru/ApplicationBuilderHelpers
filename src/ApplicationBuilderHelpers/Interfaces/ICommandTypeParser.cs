@@ -33,19 +33,19 @@ public interface ICommandTypeParser
     /// <summary>
     /// Gets the default value for the type, which can be used when no value is provided.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The default value for the type.</returns>
     object? GetDefaultValue();
 
     /// <summary>
-    /// Creates a typed array for AOT compatibility
+    /// Creates a typed array for AOT compatibility.
     /// </summary>
-    /// <param name="length"></param>
-    /// <returns></returns>
+    /// <param name="length">The length of the array to create.</param>
+    /// <returns>A new array of the parser element type with the specified length.</returns>
     Array CreateTypedArray(int length);
 
     /// <summary>
     /// Creates a typed list for AOT compatibility.
-    /// Mirrors <see cref="CreateTypedArray(int)"/>: the generic
+    /// Matches <see cref="CreateTypedArray(int)"/>: the generic
     /// <c>CommandTypeParser&lt;T&gt;</c> factory is <c>new List&lt;T&gt;(capacity)</c>.
     /// </summary>
     /// <param name="capacity">The capacity hint for the list to create.</param>

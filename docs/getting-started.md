@@ -21,7 +21,7 @@ return await ApplicationBuilder.Create()
     .RunAsync(args);
 ```
 
-`RunAsync` parses command-line arguments and returns `Task<int>` — `0` on success.
+`RunAsync` parses command-line arguments and returns `Task<int>` — `0` on success (also `--help` / `--version`), `2` on usage errors, `1` (or a custom code) on faults, `130` on cancellation. See the [API Reference](api-reference.md#commandexception) exit contract.
 
 ## Your First Command
 

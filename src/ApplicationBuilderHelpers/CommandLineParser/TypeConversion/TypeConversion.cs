@@ -7,7 +7,7 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 
 /// <summary>
-/// Single scalar conversion pipeline shared by options and arguments:
+/// Single scalar conversion shared by options and arguments:
 /// raw CLI text in, converted value out, with convert-then-compare
 /// <c>FromAmong</c> validation applied after conversion.
 /// </summary>
@@ -18,7 +18,7 @@ internal static class TypeConversion
     /// converted value against <paramref name="fromAmong"/> when provided.
     /// Order: null passthrough, exact registry match, nullable unwrap, string,
     /// enum, then <see cref="System.Convert.ChangeType(object?, Type)"/> for
-    /// unknown types only. Failures throw via <see cref="ConversionErrors"/>.
+    /// unknown types only. Failures throw through <see cref="ConversionErrors"/>.
     /// </summary>
     /// <param name="raw">The raw CLI text, or null when no value was supplied.</param>
     /// <param name="targetType">The type to convert to.</param>
@@ -49,11 +49,6 @@ internal static class TypeConversion
         }
         catch (CommandException)
         {
-            // NotAmong fallback: when conversion itself fails and the raw text
-            // matches no allowed display string, report the allowed list
-            // (Must be one of) instead of a bare invalid-value error, so
-            // unparseable enum input such as --color=Purple still lists the
-            // allowed values. Secrets stay redacted via NotAmong's isSecret path.
             if (raw is not null && fromAmong is not null && fromAmong.Length > 0 && !RawMatchesAllowed(raw, isCaseSensitive, fromAmong))
             {
                 throw ConversionErrors.NotAmong(raw, displayName, string.Join(", ", fromAmong.Select(entry => entry?.ToString())), isSecret, isArgument);
@@ -216,20 +211,6 @@ internal static class TypeConversion
         }
         else
         {
-            // Non-string candidates are normalized into the effective target
-            // type before strict Equals (boxed Equals is type-strict, so an
-            // int entry never equals an enum value). Mirrors ConvertCore
-            // ordering: registry-owned targets stay Equals-only (only the
-            // parser knows their semantics), enums normalize integrals via
-            // Enum.ToObject (ChangeType cannot target enums), and remaining
-            // types normalize via invariant ChangeType. Fail-closed:
-            // unconvertible, overflow, undefined-enum, and inexact-fractional
-            // candidates skip and fall through to NotAmong, never throw here.
-            // Only custom-parser enum targets stay Equals-only: enums have no
-            // built-in parser, so a registered enum parser is user code whose
-            // semantics ChangeType/ToObject cannot reproduce. Built-in scalar
-            // parsers (int, long, ...) perform standard conversions, so
-            // cross-type numeric entries still normalize via ChangeType.
             bool parserOwnsEnumTarget = effectiveType.IsEnum
                 && (typeParsers.TypeParsers.ContainsKey(targetType)
                     || typeParsers.TypeParsers.ContainsKey(effectiveType));

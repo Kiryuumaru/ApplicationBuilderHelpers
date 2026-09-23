@@ -29,7 +29,6 @@ internal class RemoteAddCommand : BaseCommand
 
     protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-        // Print debug info if requested
         PrintDebugInfo();
 
         Console.WriteLine("Adding remote repository");

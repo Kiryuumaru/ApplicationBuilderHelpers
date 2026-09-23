@@ -15,11 +15,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// synchronous and deferred cancellation, joint command/host runs, exception to
 /// exit-code mapping, cancellation propagation, builder dependency propagation,
 /// and application lifetime callbacks.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
-/// Note: the two <c>Console.CancelKeyPress</c> subscription failure branches
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
+/// The two <c>Console.CancelKeyPress</c> subscription failure branches
 /// (<c>PlatformNotSupportedException</c> / <c>IOException</c>) are platform-specific
-/// and unreachable in-process on Linux, so they are intentionally not covered here.
+/// and not covered here.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class CommandExecutionTests

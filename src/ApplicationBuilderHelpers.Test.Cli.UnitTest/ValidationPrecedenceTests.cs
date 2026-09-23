@@ -12,8 +12,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// whitespace-only environment values count as missing, and environment-supplied
 /// values stay subject to allowed-value and type-conversion validation.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because both the
-/// console streams and the process environment are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ValidationPrecedenceTests

@@ -97,7 +97,7 @@ public static class StringCaseExtensions
                 // Start a new word if:
                 // 1. Current word is not empty
                 // 2. Next char is lowercase (e.g., "XMLParser" -> "XML" "Parser")
-                // 3. Or this is just a normal case boundary
+                // 3. Or this is a normal case boundary
                 if (currentWord.Length > 0)
                 {
                     // Check if this is an acronym followed by a word (e.g., "XMLParser")

@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace ApplicationBuilderHelpers.Interfaces;
 
 /// <summary>
-/// Represents a command that can be executed within the application.
+/// Represents a builder for configuring executable metadata, help output, commands, dependencies, and type parsers.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDependencyCollection

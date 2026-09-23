@@ -21,8 +21,6 @@ public sealed class PermissionsApiTests : WebApiTestBase
     [Fact]
     public async Task GrantPermission_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] GrantPermission_AsRegularUser_Returns403");
-
         var userAuth = await RegisterUserAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -45,8 +43,6 @@ public sealed class PermissionsApiTests : WebApiTestBase
     [Fact]
     public async Task RevokePermission_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] RevokePermission_AsRegularUser_Returns403");
-
         var userAuth = await RegisterUserAsync();
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;

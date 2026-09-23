@@ -4,7 +4,7 @@
 // Blazor discovers JS initializers by the fixed pattern "<AssemblyName>.lib.module.js"
 // in wwwroot, so renaming <AssemblyName> without renaming this file silently skips
 // beforeWebStart. Rename this file to wwwroot/<AssemblyName>.lib.module.js when
-// renaming <AssemblyName> — otherwise beforeWebStart is silently skipped.
+// renaming <AssemblyName>, otherwise beforeWebStart is silently skipped.
 // There is no auto-copy; the rename is manual.
 //
 // This workaround uses the Cache API since .NET 10's built-in HTTP cache 

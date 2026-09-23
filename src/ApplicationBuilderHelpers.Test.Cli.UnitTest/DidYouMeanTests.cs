@@ -5,11 +5,10 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Tests for issue #371 did-you-mean suggestions at CLI dead-ends.
+/// Tests for did-you-mean suggestions at CLI dead-ends.
 /// Exit-code contract: every scenario below fails with exit code 2
 /// (usage error per the structured CommandErrorKind contract).
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class DidYouMeanTests

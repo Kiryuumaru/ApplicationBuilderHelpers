@@ -5,11 +5,10 @@ using System.Diagnostics.CodeAnalysis;
 namespace ApplicationBuilderHelpers.Extensions;
 
 /// <summary>
-/// Provides extension methods for <see cref="ICommandBuilder"/> implementations to enable fluent configuration of command builders.
+/// Provides extension methods for <see cref="ICommandBuilder"/> implementations to configuration of command builders.
 /// </summary>
 /// <remarks>
-/// This static class contains extension methods that allow for method chaining when configuring command builders.
-/// These methods provide a fluent API for setting executable properties, help formatting options, themes, and adding commands.
+/// Extension methods for configuring command builders.
 /// </remarks>
 public static class ICommandBuilderExtensions
 {
@@ -19,7 +18,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="executableName">The name of the executable.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> or <paramref name="executableName"/> is null.</exception>
     public static TICommandBuilder SetExecutableName<TICommandBuilder>(this TICommandBuilder commandBuilder, string executableName)
         where TICommandBuilder : ICommandBuilder
@@ -37,7 +36,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="executableTitle">The title of the executable.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> or <paramref name="executableTitle"/> is null.</exception>
     public static TICommandBuilder SetExecutableTitle<TICommandBuilder>(this TICommandBuilder commandBuilder, string executableTitle)
         where TICommandBuilder : ICommandBuilder
@@ -55,7 +54,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="executableDescription">The description of the executable.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> or <paramref name="executableDescription"/> is null.</exception>
     public static TICommandBuilder SetExecutableDescription<TICommandBuilder>(this TICommandBuilder commandBuilder, string executableDescription)
         where TICommandBuilder : ICommandBuilder
@@ -73,7 +72,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="executableVersion">The version of the executable.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> or <paramref name="executableVersion"/> is null.</exception>
     public static TICommandBuilder SetExecutableVersion<TICommandBuilder>(this TICommandBuilder commandBuilder, string executableVersion)
         where TICommandBuilder : ICommandBuilder
@@ -91,7 +90,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="helpWidth">The width for help output formatting. Must be positive.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="helpWidth"/> is not positive.</exception>
     public static TICommandBuilder SetHelpWidth<TICommandBuilder>(this TICommandBuilder commandBuilder, int helpWidth)
@@ -111,7 +110,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="helpBorderWidth">The border width for help output formatting. Must be non-negative.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="helpBorderWidth"/> is negative.</exception>
     public static TICommandBuilder SetHelpBorderWidth<TICommandBuilder>(this TICommandBuilder commandBuilder, int helpBorderWidth)
@@ -131,7 +130,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="theme">The console theme instance to use for CLI help output.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> or <paramref name="theme"/> is null.</exception>
     public static TICommandBuilder SetTheme<TICommandBuilder>(this TICommandBuilder commandBuilder, IConsoleTheme theme)
         where TICommandBuilder : ICommandBuilder
@@ -149,7 +148,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TConsoleTheme">The type of console theme that implements <see cref="IConsoleTheme"/>.</typeparam>
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
     public static TICommandBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TConsoleTheme, TICommandBuilder>(this TICommandBuilder commandBuilder)
         where TConsoleTheme : IConsoleTheme
@@ -169,7 +168,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="command">The command instance to add.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> or <paramref name="command"/> is null.</exception>
     public static TICommandBuilder AddCommand<TICommandBuilder>(this TICommandBuilder commandBuilder, ICommand command)
         where TICommandBuilder : ICommandBuilder
@@ -186,7 +185,7 @@ public static class ICommandBuilderExtensions
     /// <typeparam name="TCommand">The type of command that implements <see cref="ICommand"/>.</typeparam>
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
-    /// <returns>The command builder instance for method chaining.</returns>
+    /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
     public static TICommandBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TCommand, TICommandBuilder>(this TICommandBuilder commandBuilder)
         where TCommand : ICommand

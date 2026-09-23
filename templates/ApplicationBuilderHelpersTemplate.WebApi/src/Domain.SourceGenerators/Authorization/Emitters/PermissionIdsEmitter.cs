@@ -617,7 +617,7 @@ internal static class PermissionIdsEmitter
         builder.AppendLine();
 
         builder.Append(memberIndent);
-        builder.AppendLine("/// <summary>Implicit conversion to string for seamless use with HasPermission methods.</summary>");
+        builder.AppendLine("/// <summary>Implicit conversion to string for use with HasPermission methods.</summary>");
         builder.Append(memberIndent);
         builder.AppendLine("public static implicit operator string(PermissionRequestBuilder builder) => builder.ToString();");
 

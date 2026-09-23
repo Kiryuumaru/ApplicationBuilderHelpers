@@ -5,11 +5,11 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Per-execution shutdown scope: a linked CTS joining the outer token with the
-/// console cancel signal (Ctrl+C via <see cref="IConsoleCancelSignal"/>), plus
+/// console cancel signal (Ctrl+C with <see cref="IConsoleCancelSignal"/>), plus
 /// subscribe/dispose ownership for one <c>ExecuteCommand</c> run.
 /// Host-side <c>ApplicationStopping</c> stays host-owned (joined downstream by the
-/// host run itself) and is observed via the host-task outcome: linking it here would
-/// cancel the command token on graceful host stop and break the host-wins drain
+/// host run itself) and is observed with the host-task outcome: linking it here would
+/// cancel the command token on host stop and break the host-wins drain
 /// contract, so the scope joins outer + Ctrl+C only.
 /// </summary>
 internal sealed class CommandShutdownScope : IDisposable
@@ -26,7 +26,6 @@ internal sealed class CommandShutdownScope : IDisposable
         _signal = signal ?? throw new ArgumentNullException(nameof(signal));
         _shutdownCts = CancellationTokenSource.CreateLinkedTokenSource(outerToken);
 
-        // Ctrl+C requests cancellation alongside the passed token.
         _handler = (sender, e) =>
         {
             CtrlCCanceled = true;
@@ -46,7 +45,7 @@ internal sealed class CommandShutdownScope : IDisposable
     }
 
     /// <summary>
-    /// The joined shutdown token for the joint command/host run.
+    /// The combined shutdown token for the command task and host task run together.
     /// </summary>
     internal CancellationToken Token => _shutdownCts.Token;
 
@@ -61,15 +60,15 @@ internal sealed class CommandShutdownScope : IDisposable
     internal bool CtrlCCanceled { get; private set; }
 
     /// <summary>
-    /// Single cancel-wins decision point: shutdown was requested via the
-    /// outer token or Ctrl+C.
+    /// Single classification where cancellation takes precedence: shutdown was requested
+    /// with the outer token or Ctrl+C.
     /// </summary>
     internal bool IsExternalAbortRequested =>
         CommandExitMapper.IsExternalAbort(_shutdownCts.Token, OuterToken, CtrlCCanceled);
 
     /// <summary>
     /// Throws <see cref="CommandExecutor.ExternalCancellationException"/> when
-    /// cancellation was requested via the passed token or Ctrl+C.
+    /// cancellation was requested with the passed token or Ctrl+C.
     /// </summary>
     internal void ThrowIfExternalAbort() =>
         CommandExitMapper.ThrowIfExternalAbort(_shutdownCts.Token, OuterToken, CtrlCCanceled);

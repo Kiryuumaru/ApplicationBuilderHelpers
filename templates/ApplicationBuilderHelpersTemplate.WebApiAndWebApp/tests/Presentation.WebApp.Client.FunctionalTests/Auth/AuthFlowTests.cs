@@ -47,23 +47,19 @@ public class AuthFlowTests : WebAppTestBase
         
         // Wait for the profile heading (page structure loaded)
         await WaitForAsync("h2:has-text('Profile Information')");
-        Output.WriteLine("[TEST] Profile heading found");
 
         // Wait for the username label (proves API data loaded successfully)
         await WaitForAsync("label:has-text('Username')");
-        Output.WriteLine("[TEST] Username label found - profile data loaded");
 
         // Assert: Username value matches what we registered
         var usernameValue = await WaitForAsync("label:has-text('Username') + div p, label:has-text('Username') ~ p");
         var displayedUsername = await usernameValue.First.TextContentAsync();
-        Output.WriteLine($"[TEST] Displayed username: '{displayedUsername}'");
         Assert.False(string.IsNullOrWhiteSpace(displayedUsername), "Username value should not be empty");
         Assert.Contains(username, displayedUsername!, StringComparison.OrdinalIgnoreCase);
 
         // Assert: Email value matches what we registered
         var emailValue = await WaitForAsync("label:has-text('Email') + div p, label:has-text('Email') ~ p");
         var displayedEmail = await emailValue.First.TextContentAsync();
-        Output.WriteLine($"[TEST] Displayed email: '{displayedEmail}'");
         Assert.False(string.IsNullOrWhiteSpace(displayedEmail), "Email value should not be empty");
         Assert.Contains(email, displayedEmail!, StringComparison.OrdinalIgnoreCase);
 

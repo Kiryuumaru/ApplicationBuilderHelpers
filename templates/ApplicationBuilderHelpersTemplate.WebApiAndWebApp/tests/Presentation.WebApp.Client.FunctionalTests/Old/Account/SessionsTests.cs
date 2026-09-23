@@ -16,11 +16,11 @@ public class SessionsTests : WebAppTestBase
     [Fact]
     public async Task Sessions_RequiresAuthentication()
     {
-        // Act - Try to access sessions without authentication
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should redirect to login or show unauthorized
+        // Assert
         var currentUrl = Page.Url;
         var pageContent = await Page.ContentAsync();
         var redirectedToLogin = currentUrl.Contains("/auth/login", StringComparison.OrdinalIgnoreCase);
@@ -33,18 +33,18 @@ public class SessionsTests : WebAppTestBase
     [Fact]
     public async Task Sessions_Authenticated_ShowsSessionsList()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"sessions_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should show sessions page
+        // Assert
         var pageContent = await Page.ContentAsync();
         Output.WriteLine($"Sessions page content length: {pageContent.Length}");
 
@@ -58,18 +58,18 @@ public class SessionsTests : WebAppTestBase
     [Fact]
     public async Task Sessions_ShowsCurrentSession()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"current_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should show current session indicator
+        // Assert
         var pageContent = await Page.ContentAsync();
         var hasCurrentIndicator = pageContent.Contains("current", StringComparison.OrdinalIgnoreCase) ||
                                   pageContent.Contains("this session", StringComparison.OrdinalIgnoreCase) ||
@@ -82,18 +82,18 @@ public class SessionsTests : WebAppTestBase
     [Fact]
     public async Task Sessions_ShowsSessionDetails()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"details_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should show session details
+        // Assert
         var pageContent = await Page.ContentAsync();
         
         // Check for common session details
@@ -116,18 +116,18 @@ public class SessionsTests : WebAppTestBase
     [Fact]
     public async Task Sessions_HasRevokeButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"revoke_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should have revoke button (for non-current sessions)
+        // Assert
         var revokeButton = await Page.QuerySelectorAsync("button:has-text('Revoke'), button:has-text('Terminate'), button:has-text('End')");
         var pageContent = await Page.ContentAsync();
         var hasRevokeOption = revokeButton != null || 
@@ -140,18 +140,18 @@ public class SessionsTests : WebAppTestBase
     [Fact]
     public async Task Sessions_HasRevokeAllOtherSessionsButton()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"revokeall_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate to sessions
+        // Act
         await Page.GotoAsync($"{WebAppUrl}/account/sessions");
         await WaitForBlazorAsync();
 
-        // Assert - Should have revoke all button
+        // Assert
         var revokeAllButton = await Page.QuerySelectorAsync("button:has-text('Revoke All'), button:has-text('Sign out all'), button:has-text('End All')");
         var pageContent = await Page.ContentAsync();
         var hasRevokeAllOption = revokeAllButton != null || 
@@ -165,14 +165,14 @@ public class SessionsTests : WebAppTestBase
     [Fact]
     public async Task Sessions_NavigationFromSidebar()
     {
-        // Arrange - Register and login
+        // Arrange
         var username = $"nav_{Guid.NewGuid():N}".Substring(0, 20);
         var email = $"{username}@test.example.com";
 
         await RegisterUserAsync(username, email, TestPassword);
         await LoginAsync(email, TestPassword);
 
-        // Act - Navigate via sidebar
+        // Act
         await GoToHomeAsync();
         var sessionsLink = await Page.QuerySelectorAsync("a[href*='sessions' i]");
 
@@ -181,7 +181,7 @@ public class SessionsTests : WebAppTestBase
             await sessionsLink.ClickAsync();
             await WaitForBlazorAsync();
 
-            // Assert - Should be on sessions page
+            // Assert
             AssertUrlContains("/account/sessions");
             Output.WriteLine("✅ Sessions page accessible via navigation");
         }

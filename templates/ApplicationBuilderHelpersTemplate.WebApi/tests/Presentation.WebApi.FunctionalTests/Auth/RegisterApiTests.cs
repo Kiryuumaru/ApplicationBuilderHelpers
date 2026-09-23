@@ -234,8 +234,7 @@ public sealed class RegisterApiTests(ITestOutputHelper output) : WebApiTestBase(
         };
         var response = await HttpClient.PostAsJsonAsync("/api/v1/auth/register", registerRequest);
 
-        // Should return 400 (bad request) or succeed (if special chars allowed)
-        // Note: Some special characters in username may cause validation errors
+        // Special characters in username are either rejected (400) or accepted (201)
         Assert.True(
             response.StatusCode == HttpStatusCode.BadRequest ||
             response.StatusCode == HttpStatusCode.Created ||

@@ -105,7 +105,7 @@ public class PermissionServiceScopeDirectiveTests
     [Fact]
     public void DirectiveExtraction_ExtractsScopeCorrectly()
     {
-        // This test verifies the claims are being set up correctly
+        // The claims are set up correctly
         var (service, principal) = CreateServiceWithPrincipal(
             "user-abc",
             PermissionIds.Api.Iam.Users.Read.WithUserId("user-abc").Allow()
@@ -630,8 +630,7 @@ public class PermissionServiceScopeDirectiveTests
     }
 
     /// <summary>
-    /// Creates a ClaimsPrincipal directly with scope claims in the new directive format.
-    /// This bypasses token generation validation to test HasPermission behavior.
+    /// Builds a principal carrying scope claims for HasPermission evaluation.
     /// </summary>
     private static (IPermissionService Service, ClaimsPrincipal Principal) CreateServiceWithPrincipal(
         string userId,
@@ -643,7 +642,7 @@ public class PermissionServiceScopeDirectiveTests
         {
             new Claim(TokenClaimTypes.Subject, userId),
             new Claim(TokenClaimTypes.Name, $"{userId}@example.com"),
-            new Claim("rbac_version", "2") // Use new RBAC version to enable directive-based evaluation
+            new Claim("rbac_version", "2")
         };
 
         foreach (var scope in scopes)

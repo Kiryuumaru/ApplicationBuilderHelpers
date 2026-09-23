@@ -5,14 +5,13 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// In-process regression tests for the global-option initializer gate with
+/// In-process tests for the global-option initializer gate with
 /// caller-supplied instance registrations.
 /// <see cref="ApplicationBuilder.AddCommand(ICommand)"/>-style registrations keep
 /// identity across runs, so value binding mutates the shared instance. The
 /// promotion gate must compare registration-time initializer defaults, not the
 /// live (possibly already-bound) property values, on every run.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class InstanceInitializerGateTests
@@ -78,23 +77,16 @@ public sealed class InstanceInitializerGateTests
         builder.AddCommand(new InstanceSharedAlphaCommand());
         builder.AddCommand(new InstanceSharedBetaCommand());
 
-        // Baseline: before any binding, registration defaults diverge, so the
-        // option must stay local.
         var baseline = await RunCapturedAsync(builder, ["--help"]);
 
         Assert.Equal(0, baseline.ExitCode);
         Assert.DoesNotContain("--shared", baseline.Output);
 
-        // Bind an explicit value through a real run: this mutates the shared
-        // alpha instance to beta's default, so a live-value comparison on the
-        // next run would wrongly see identical initializers.
         var mutate = await RunCapturedAsync(builder, ["instshared", "alpha", "--shared=beta-default"]);
 
         Assert.Equal(0, mutate.ExitCode);
         Assert.Contains("instshared alpha:beta-default", mutate.Output);
 
-        // Registration defaults still diverge (alpha-default vs beta-default),
-        // so the option must stay local instead of promoting to global.
         var (exitCode, output, error) = await RunCapturedAsync(builder, ["--help"]);
 
         Assert.Equal(0, exitCode);
@@ -110,16 +102,11 @@ public sealed class InstanceInitializerGateTests
         builder.AddCommand(new InstanceSharedAlphaCommand());
         builder.AddCommand(new InstanceSharedBetaCommand());
 
-        // Bind an explicit value through a real run: this mutates the shared
-        // alpha instance to beta's default, so a live-value help read on the
-        // next run would report the bound value as the default.
         var mutate = await RunCapturedAsync(builder, ["instshared", "alpha", "--shared=beta-default"]);
 
         Assert.Equal(0, mutate.ExitCode);
         Assert.Contains("instshared alpha:beta-default", mutate.Output);
 
-        // Registration defaults diverge (alpha-default vs beta-default), so
-        // each leaf help must still report its own registration default.
         var (alphaCode, alphaOutput, alphaError) = await RunCapturedAsync(builder, ["instshared", "alpha", "--help"]);
 
         Assert.Equal(0, alphaCode);
@@ -144,17 +131,11 @@ public sealed class InstanceInitializerGateTests
         builder.AddCommand(new InstanceIdenticalAlphaCommand());
         builder.AddCommand(new InstanceIdenticalBetaCommand());
 
-        // Bind an explicit value through a real run: this mutates the shared
-        // alpha instance away from the registration default, so a live-value
-        // help read on the next run would report the bound value as the
-        // promoted global default.
         var mutate = await RunCapturedAsync(builder, ["instident", "alpha", "--shared=mutated"]);
 
         Assert.Equal(0, mutate.ExitCode);
         Assert.Contains("instident alpha:mutated", mutate.Output);
 
-        // Registration defaults still match (same-default), so the option
-        // stays promoted and root help reports the registration default.
         var (exitCode, output, error) = await RunCapturedAsync(builder, ["--help"]);
 
         Assert.Equal(0, exitCode);

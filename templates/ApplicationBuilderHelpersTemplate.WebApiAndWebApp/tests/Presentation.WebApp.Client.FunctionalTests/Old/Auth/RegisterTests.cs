@@ -32,7 +32,7 @@ public class RegisterTests : WebAppTestBase
         // Act
         await GoToRegisterAsync();
 
-        // Assert - Verify form elements exist (using IDs from Register.razor)
+        // Assert
         var usernameInput = await Page.QuerySelectorAsync("input#username");
         var emailInput = await Page.QuerySelectorAsync("input#email");
         var passwordInput = await Page.QuerySelectorAsync("input#password");
@@ -50,7 +50,7 @@ public class RegisterTests : WebAppTestBase
         // Act
         await GoToRegisterAsync();
 
-        // Assert - Should have a link to login page
+        // Assert
         var loginLink = await Page.QuerySelectorAsync("a[href*='login' i]");
         Assert.NotNull(loginLink);
     }
@@ -62,7 +62,7 @@ public class RegisterTests : WebAppTestBase
         await GoToRegisterAsync();
         var username = $"reg_{Guid.NewGuid():N}".Substring(0, 20);
 
-        // Act - Use a weak password (using IDs from Register.razor)
+        // Act
         await Page.FillAsync("input#username", username);
         await Page.FillAsync("input#email", $"{username}@test.example.com");
         await Page.FillAsync("input#password", "weak");
@@ -71,8 +71,8 @@ public class RegisterTests : WebAppTestBase
         await Page.ClickAsync("button[type='submit']");
         await Task.Delay(1000);
 
-        // Assert - Should still be on register page (validation failed)
-        // Note: Depending on implementation, could also show validation message
+        // Assert
+        // The page can also show a validation message depending on implementation
         var currentUrl = Page.Url;
         Output.WriteLine($"URL after weak password: {currentUrl}");
 

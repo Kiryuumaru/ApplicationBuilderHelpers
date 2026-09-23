@@ -14,8 +14,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// entry point to cover the <c>ConsoleOutput</c> routing paths: standard output for
 /// help/version, standard error for failures with help footers, command failure
 /// messages, and plain (non-colored) rendering while redirected.
-/// Joins the non-parallel <c>ConsoleDecoupling</c> collection because the
-/// console streams are process-global mutable state.
+/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
 public sealed class ConsoleOutputTests

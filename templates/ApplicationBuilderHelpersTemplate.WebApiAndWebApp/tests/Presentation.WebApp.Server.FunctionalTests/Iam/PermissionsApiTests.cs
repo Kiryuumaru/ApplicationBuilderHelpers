@@ -24,8 +24,6 @@ public class PermissionsApiTests : WebAppTestBase
     [TimedFact]
     public async Task GrantPermission_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] GrantPermission_AsRegularUser_Returns403");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -48,8 +46,6 @@ public class PermissionsApiTests : WebAppTestBase
     [TimedFact]
     public async Task RevokePermission_AsRegularUser_Returns403()
     {
-        Output.WriteLine("[TEST] RevokePermission_AsRegularUser_Returns403");
-
         var userAuth = await RegisterAndGetTokenAsync(_testUsername);
         Assert.NotNull(userAuth);
         var userId = userAuth!.User!.Id;
@@ -89,7 +85,7 @@ public class PermissionsApiTests : WebAppTestBase
         
         if (registerResponse.StatusCode == HttpStatusCode.Conflict)
         {
-            // User already exists, just login
+            // User already exists, login
             var loginReq = new { Username = username, Password = TestPassword };
             registerResponse = await HttpClient.PostAsJsonAsync("/api/v1/auth/login", loginReq);
         }
@@ -129,10 +125,5 @@ public class PermissionsApiTests : WebAppTestBase
 
     #endregion
 }
-
-
-
-
-
 
 
