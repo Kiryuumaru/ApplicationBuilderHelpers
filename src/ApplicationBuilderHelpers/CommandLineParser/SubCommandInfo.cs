@@ -24,7 +24,7 @@ internal class SubCommandInfo
     public string FullCommandName => string.Join(" ", CommandParts);
 
     /// <summary>
-    /// Display name for error messages: "<root>" for the root command,
+    /// Display name for error messages: <c>&lt;root&gt;</c> for the root command,
     /// otherwise the full command name. The structured
     /// <c>CommandException.CommandName</c> stays empty for root so the
     /// error footer remains global.
