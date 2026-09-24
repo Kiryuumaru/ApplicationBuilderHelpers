@@ -37,11 +37,17 @@ internal sealed class ArgumentParser
 
         if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-'))
         {
-            var zeroMatchSuggestion = DidYouMean.FindBestMatch(
-                args[0],
-                DidYouMean.SubCommandCandidates(rootCommand.Children.Keys));
-            throw new CommandException(
-                DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
+            var rootAcceptsPositional = result.TargetCommand.IsRoot
+                && result.TargetCommand.HasImplementation
+                && result.TargetCommand.AllArguments.Any(a => a.CanAcceptValueAtPosition(0));
+            if (!rootAcceptsPositional)
+            {
+                var zeroMatchSuggestion = DidYouMean.FindBestMatch(
+                    args[0],
+                    DidYouMean.SubCommandCandidates(rootCommand.Children.Keys));
+                throw new CommandException(
+                    DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
+            }
         }
 
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))

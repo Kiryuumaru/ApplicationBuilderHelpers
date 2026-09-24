@@ -86,6 +86,21 @@ internal sealed class HelpContentProvider(
             sections.Add(new HelpSection { Header = "COMMANDS:", Entries = entries });
         }
 
+        var rootArguments = _rootCommand?.Arguments.OrderBy(a => a.Position).ToList() ?? [];
+        if (rootArguments.Count > 0)
+        {
+            var entries = new List<HelpEntry>();
+            foreach (var arg in rootArguments)
+            {
+                entries.Add(new HelpEntry
+                {
+                    Left = BuildArgumentSignature(arg),
+                    Right = BuildArgumentDescription(arg),
+                });
+            }
+            sections.Add(new HelpSection { Header = "ARGUMENTS:", Entries = entries });
+        }
+
         var allGlobalOptions = new List<SubCommandOptionInfo>(baseCommandOptions);
         allGlobalOptions.AddRange(globalOptions);
 
@@ -108,11 +123,23 @@ internal sealed class HelpContentProvider(
         return new HelpModel
         {
             TitleLine = $"{executableName} v{executableVersion} - {executableTitle}",
-            UsageText = $"    {executableName} [OPTIONS] <COMMAND> [ARGS...]",
+            UsageText = BuildGlobalUsage(executableName, rootArguments, topLevelCommands.Count > 0),
             DescriptionText = !string.IsNullOrEmpty(executableDescription) ? $"    {executableDescription}" : null,
             Sections = sections,
             FooterText = $"Run '{executableName} <command> --help' for more information on specific commands.",
         };
+    }
+
+    private static string BuildGlobalUsage(string executableName, List<SubCommandArgumentInfo> rootArguments, bool hasCommands)
+    {
+        var usage = new StringBuilder($"    {executableName} [OPTIONS]");
+        foreach (var arg in rootArguments)
+        {
+            usage.Append($" {arg.GetSignature()}");
+        }
+        if (hasCommands)
+            usage.Append(" <COMMAND> [ARGS...]");
+        return usage.ToString();
     }
 
     internal HelpModel BuildCommandModel(SubCommandInfo commandInfo)

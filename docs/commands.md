@@ -37,7 +37,7 @@ The `Term` property is the command name. Use space-separated names for sub-comma
 
 ### Term Validation Contract
 
-`Term` is validated at build time — violations throw `InvalidOperationException` (build fault, exit `1`), never a usage error (exit `2`). Two guards enforce the same rules so both call sites agree (`SubCommandInfo.FromCommand` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:140-159`; hierarchy build at `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204`):
+`Term` is validated at build time — violations throw `InvalidOperationException` (build fault, exit `1`), never a usage error (exit `2`). Two guards enforce the same rules so both call sites agree (`SubCommandInfo.FromCommand` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:138-157`; hierarchy build at `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204`):
 
 | `Term` | Result |
 |---|---|
@@ -152,7 +152,7 @@ A positional argument is present when its token is supplied — even as `""` —
 
 **Breaking change:** code that relied on `""` arriving as `null` (e.g. `== null` sentinels) must migrate to `string.IsNullOrEmpty` — an explicitly supplied `""` now binds as `""`, never `null`.
 
-Positional arguments are per-command (leaf-local) by default and never inherit by name: a root positional (even a common name like `target`) is invisible to leaf scopes, so a surplus leaf token fails as a usage error (`Unexpected argument '<value>'`, exit 2 — `src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:261-280`) rather than binding the root value. See ADR-0008 (`docs/adr/0008-positional-no-inherit.md`); scope pinned by `DetermineInheritanceScope` (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandArgumentInfo.cs:219-230`).
+Positional arguments are per-command (leaf-local) by default and never inherit by name: a root positional (even a common name like `target`) is invisible to leaf scopes, so a surplus leaf token fails as a usage error (`Unexpected argument '<value>'`, exit 2 — `src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:205-227`) rather than binding the root value. The reverse holds at the root: a bare root positional (e.g. `myapp Alice`) binds position 0 at the root when the root command declares it — the zero-match guard is skipped only when the target is the root with an implementation plus position-0 capacity (`ArgumentParser.cs:38-51`); child names still route first, so a token matching a child runs the leaf while any other token falls back to the root positional. Root positionals also render in the global help model (`ARGUMENTS:` section plus usage signatures, `HelpContentProvider.cs:BuildGlobalModel`). See ADR-0008 (`docs/adr/0008-positional-no-inherit.md`); scope pinned by `DetermineInheritanceScope` (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandArgumentInfo.cs:219-230`).
 
 ## Shell Completion
 
@@ -187,7 +187,7 @@ Exit matrix (`CompletionGateway.cs:24-57,106-204`):
 | `completions install` / `uninstall` unknown option, unknown shell, or invalid exe name | `2` | stderr (`:127-128,:169-170,:218-230`) |
 | `completions script <unknown shell>` | `2` | Handled (`true`): `Unknown shell '<shell>'. Expected bash, zsh, pwsh, or fish.` on stderr via shared `TryCanonicalizeShell` (`:196-202`); never the parse path |
 | `completions install` / `uninstall` IO failure (incl. lock timeout) | `1` | stderr (`:141-150,:183-192`); fish foreign-file refusal surfaces here |
-| Bare `completions`, `completions script` (no shell), `completions <unknown>` | falls through to parse | Returns `false`; parse reports `No command found`, exit `2` (`:36-37,:41-42,:56`) |
+| Bare `completions`, `completions script` (no shell), `completions <unknown>` | falls through to parse | Returns `false`; parse reports `No command found`, exit `2` (`:36-37,:41-42,:56`) — unless the root itself has an implementation plus a position-0 argument, in which case the token binds as the root positional (`ArgumentParser.cs:38-51`) |
 
 ## Accessing Services
 
@@ -340,7 +340,7 @@ Single classification point: `CommandExitMapper` (`src/ApplicationBuilderHelpers
 
 Return normally on success. Throw `CommandException` for errors:
 
-Help/footer contract (see [Advanced Topics](advanced.md#error-footers) and [Advanced Topics](advanced.md#help-system)): every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:105-110,220-225`); usage-error footers hint at both `--help` and `--version` (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`), except when the failing invocation already contained `--help`/`-h`, when only the `--version` hint survives (#509); while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer (`CommandErrorFooter.cs:56-57`). Precedence is unchanged: completion > help > parse > version.
+Help/footer contract (see [Advanced Topics](advanced.md#error-footers) and [Advanced Topics](advanced.md#help-system)): every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:116-120,236-240`); usage-error footers hint at both `--help` and `--version` (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`), except when the failing invocation already contained `--help`/`-h`, when only the `--version` hint survives (#509); while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer (`CommandErrorFooter.cs:56-57`). Precedence is unchanged: completion > help > parse > version.
 
 ```csharp
 throw new CommandException("Operation failed", exitCode: 1);
