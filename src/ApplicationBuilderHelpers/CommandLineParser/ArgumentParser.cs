@@ -63,6 +63,7 @@ internal sealed class ArgumentParser
                 throw HelpMisuseError(abstractHelpMisuse, result.TargetCommand.FullCommandName);
             ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnBarePreSentinelOption(result.TargetCommand, args, argIndex);
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = result.TargetCommand.IsRoot ? "" : result.TargetCommand.FullCommandName;
             var baseMessage = $"'{result.TargetCommand.DisplayName}' requires a subcommand. Available subcommands: {availableSubcommands}";
@@ -463,6 +464,48 @@ internal sealed class ArgumentParser
             throw new CommandException(
                 DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
         }
+    }
+
+    /// <summary>
+    /// Scan the pre-<c>--</c> leftovers on an abstract command for
+    /// typed-bare valued options (e.g. <c>--data</c>, <c>-d</c>,
+    /// <c>-vd</c> cluster tail). Runs the existing
+    /// <see cref="ParseOptionsAndArguments"/> tokenizer into a scratch
+    /// <see cref="ParseResult"/> plus <see cref="ParameterValidator"/>
+    /// over the pre-sentinel slice, then reports <c>MissingRequired</c>
+    /// (exit 2) when bare-related missing errors exist. Surplus positionals
+    /// (<c>UnknownCommand</c>) stay silent so near-miss <c>RequiresSubcommand</c>
+    /// + DidYouMean is preserved; <c>ShowHelp</c>/<c>ShowVersion</c> in the
+    /// scratch stays clean so help/version-first carve-outs win; valid valued
+    /// forms (bound values, no bare mark) fall through to
+    /// <c>RequiresSubcommand</c>. Post-separator tokens never reach here.
+    /// </summary>
+    private static void ThrowOnBarePreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        if (argIndex >= end)
+            return;
+        var preSentinel = args.Take(end).ToArray();
+        var scratch = new ParseResult { TargetCommand = target };
+        try
+        {
+            ParseOptionsAndArguments(preSentinel, argIndex, scratch);
+        }
+        catch (CommandException ex) when (ex.Kind == CommandErrorKind.UnknownCommand)
+        {
+            return;
+        }
+        if (scratch.ShowHelp || scratch.ShowVersion)
+            return;
+        if (scratch.BareOptionOccurrences.Count == 0)
+            return;
+        var missingErrors = new ParameterValidator().CollectRequiredErrors(scratch);
+        if (missingErrors.Count == 0)
+            return;
+        var commandName = target.IsRoot ? "" : target.FullCommandName;
+        throw new CommandException(
+            string.Join(Environment.NewLine, missingErrors), 2, CommandErrorKind.MissingRequired, commandName);
     }
 
     /// <summary>

@@ -48,8 +48,11 @@ When only leaf subcommands are registered (no root implementation), the root is 
 | `["--verbose=banana"]` | `2` | `Invalid Boolean value 'banana' for option '--verbose'. Expected ...` (`InvalidValue` — #542 beats `RequiresSubcommand` when the base is a root-visible flag) |
 | `["--verbose=true"]` | `2` | `'<root>' requires a subcommand` (valid literal falls through to `RequiresSubcommand`) |
 | `["--", "--verbose=banana"]` | `2` | `'<root>' requires a subcommand` (the `--` sentinel blocks the #542 gate) |
+| `["--data"]` | `2` | `Missing value for option: -d, --data` (`MissingRequired` — #549 beats `RequiresSubcommand` when a root-visible valued option is typed bare, even with env set) |
+| `["--data=x"]` | `2` | `'<root>' requires a subcommand` (valid valued form falls through — no option error exists) |
+| `["-vd"]` | `2` | `Missing value for option: -d, --data` (cluster valued-short bare tail, same #549 gate) |
 
-Pinned by `AbstractRootRequiresSubcommandTests.cs` (13 tests) + `AbstractRootFlagLiteralTests.cs` (17 tests: invalid/empty/short-form literals, valid-literal fall-through, secret redaction, valued/bare/cluster fall-through, sentinel silence, `--no-` unchanged, leaf-only unknown, abstract-prefix command name).
+Pinned by `AbstractRootRequiresSubcommandTests.cs` (13 tests) + `AbstractRootFlagLiteralTests.cs` (17 tests: invalid/empty/short-form literals, valid-literal fall-through, secret redaction, valued/bare/cluster fall-through, sentinel silence, `--no-` unchanged, leaf-only unknown, abstract-prefix command name) + `AbstractRootBareOptionTests.cs` (#549: bare-long/short/cluster-tail/env-bare beat `RequiresSubcommand`; valid-valued/surplus/sentinel/help/version fall through).
 
 ## Multiple Host Types
 
