@@ -48,8 +48,7 @@ internal sealed class ParameterValidator
                     continue;
                 }
 
-                if (!option.IsCollection
-                    && !option.IsFlag
+                if (!option.IsFlag
                     && result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
                 {
                     errors.Add($"Missing required option: {option.GetDisplayName()}");
@@ -60,7 +59,7 @@ internal sealed class ParameterValidator
         if (!result.ShowHelp && !result.ShowVersion)
         {
             var seenOptionalBareKeys = new HashSet<string>(System.StringComparer.Ordinal);
-            foreach (var option in result.TargetCommand.AllOptions.Where(o => !o.IsRequired && !o.IsFlag && !o.IsCollection))
+            foreach (var option in result.TargetCommand.AllOptions.Where(o => !o.IsRequired && !o.IsFlag))
             {
                 var key = ParseResult.GetCanonicalOptionKey(option);
                 if (!seenOptionalBareKeys.Add(key))

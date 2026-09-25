@@ -16,7 +16,7 @@ internal class ParseResult
     public Dictionary<SubCommandArgumentInfo, List<string>> ArgumentValues { get; set; } = [];
 
     /// <summary>
-    /// Bare-occurrence tracking: canonical keys of valued scalars
+    /// Bare-occurrence tracking: canonical keys of valued options
     /// seen bare (no value token). Separate from the value lists so a bare
     /// occurrence stays visible after a satisfied value.
     /// </summary>
@@ -29,15 +29,19 @@ internal class ParseResult
     /// </summary>
     internal void AddOptionValue(SubCommandOptionInfo option, string? value)
     {
-        if (!option.IsCollection && value != null)
+        if (value != null)
         {
             var key = GetCanonicalOptionKey(option);
-            foreach (var storedOption in OptionValues.Keys
-                .Where(o => string.Equals(GetCanonicalOptionKey(o), key, StringComparison.Ordinal))
-                .ToList())
+            if (!option.IsCollection)
             {
-                OptionValues.Remove(storedOption);
+                foreach (var storedOption in OptionValues.Keys
+                    .Where(o => string.Equals(GetCanonicalOptionKey(o), key, StringComparison.Ordinal))
+                    .ToList())
+                {
+                    OptionValues.Remove(storedOption);
+                }
             }
+
             BareOptionOccurrences.Remove(key);
         }
 
@@ -46,7 +50,7 @@ internal class ParseResult
 
         if (value != null)
             OptionValues[option].Add(value);
-        else if (!option.IsCollection && !option.IsFlag)
+        else if (!option.IsFlag)
             BareOptionOccurrences.Add(GetCanonicalOptionKey(option));
     }
 
