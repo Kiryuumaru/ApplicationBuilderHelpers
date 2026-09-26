@@ -289,6 +289,52 @@ public sealed class CommandHierarchyTests
         }
     }
 
+    public abstract class CfgOwnRootBase : Command
+    {
+        [CommandOption("root-inh", Description = "Root inherited value.")]
+        public string RootInh { get; set; } = "root";
+    }
+
+    [Command(description: "Own-hub root command.")]
+    public sealed class CfgOwnRootCommand : CfgOwnRootBase
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"cfgown root:{RootInh}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("cfgown", "Own hub with an inherited option.")]
+    public abstract class CfgOwnHub : CfgOwnRootBase
+    {
+        [CommandOption("hub-opt", Description = "Hub value.")]
+        public string HubOpt { get; set; } = "hub";
+    }
+
+    [Command("cfgown get", "Gets an own-hub value.")]
+    public sealed class CfgOwnGetCommand : CfgOwnHub
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"cfgown get:{HubOpt}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("cfgown set", "Sets an own-hub value.")]
+    public sealed class CfgOwnSetCommand : CfgOwnHub
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"cfgown set:{HubOpt}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Command("choiceone alpha", "First identical choice leaf.")]
     public sealed class ChoiceIdenticalAlphaCommand : Command
     {
@@ -839,6 +885,27 @@ public sealed class CommandHierarchyTests
         Assert.True(globalSection is null ||
             globalSection.Entries.All(entry => !entry.Left.Contains("--trap", StringComparison.Ordinal)),
             "--trap must not be promoted to GLOBAL OPTIONS:");
+    }
+
+    [Fact]
+    public void HubWithOwnAndInheritedOptions_EmitsSingleMergedCommandSection()
+    {
+        var builder = CreateBuilder()
+            .AddCommand<CfgOwnGetCommand>()
+            .AddCommand<CfgOwnSetCommand>()
+            .AddCommand<CfgOwnRootCommand>()
+            .AddCommand<HubLeafCommand>();
+
+        var model = BuildCommandModel(builder, "cfgown");
+
+        Assert.Equal(
+            model.Sections.Select(section => section.Header).Distinct(StringComparer.Ordinal).Count(),
+            model.Sections.Count);
+
+        var merged = FindSection(model, "hub-opt");
+        Assert.NotNull(merged);
+        Assert.Equal("OPTIONS (command):", merged.Header);
+        Assert.Contains(merged.Entries, entry => entry.Left.Contains("--root-inh", StringComparison.Ordinal));
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(

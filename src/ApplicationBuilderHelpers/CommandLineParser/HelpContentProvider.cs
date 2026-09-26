@@ -164,10 +164,29 @@ internal sealed class HelpContentProvider(
 
         var sections = new List<HelpSection>();
 
+        string? commandSectionName = null;
+        string? hierarchySectionName = null;
+
         if (commandSpecificOptions.Count > 0)
         {
             var isSubCommand = commandInfo.CommandParts.Length > 1;
-            var sectionName = isSubCommand ? "OPTIONS:" : "OPTIONS (command):";
+            commandSectionName = isSubCommand ? "OPTIONS:" : "OPTIONS (command):";
+        }
+
+        if (hierarchySpecificOptions.Count > 0)
+        {
+            var parentCommandName = GetParentCommandName(commandInfo);
+
+            var isImmediateParent = commandInfo.CommandParts.Length == 1;
+            hierarchySectionName = isImmediateParent
+                ? "OPTIONS (command):"
+                : (!string.IsNullOrEmpty(parentCommandName) ? $"OPTIONS ({parentCommandName}):" : "INHERITED OPTIONS:");
+        }
+
+        if (commandSectionName is not null
+            && hierarchySectionName is not null
+            && string.Equals(commandSectionName, hierarchySectionName, StringComparison.Ordinal))
+        {
             var entries = new List<HelpEntry>();
             foreach (var opt in commandSpecificOptions)
             {
@@ -177,19 +196,6 @@ internal sealed class HelpContentProvider(
                     Right = BuildOptionDescription(opt),
                 });
             }
-            sections.Add(new HelpSection { Header = sectionName, Entries = entries });
-        }
-
-        if (hierarchySpecificOptions.Count > 0)
-        {
-            var parentCommandName = GetParentCommandName(commandInfo);
-
-            var isImmediateParent = commandInfo.CommandParts.Length == 1;
-            var sectionName = isImmediateParent
-                ? "OPTIONS (command):"
-                : (!string.IsNullOrEmpty(parentCommandName) ? $"OPTIONS ({parentCommandName}):" : "INHERITED OPTIONS:");
-
-            var entries = new List<HelpEntry>();
             foreach (var opt in hierarchySpecificOptions)
             {
                 entries.Add(new HelpEntry
@@ -198,7 +204,37 @@ internal sealed class HelpContentProvider(
                     Right = BuildOptionDescription(opt),
                 });
             }
-            sections.Add(new HelpSection { Header = sectionName, Entries = entries });
+            sections.Add(new HelpSection { Header = commandSectionName, Entries = entries });
+        }
+        else
+        {
+            if (commandSpecificOptions.Count > 0)
+            {
+                var entries = new List<HelpEntry>();
+                foreach (var opt in commandSpecificOptions)
+                {
+                    entries.Add(new HelpEntry
+                    {
+                        Left = BuildOptionSignature(opt),
+                        Right = BuildOptionDescription(opt),
+                    });
+                }
+                sections.Add(new HelpSection { Header = commandSectionName!, Entries = entries });
+            }
+
+            if (hierarchySpecificOptions.Count > 0)
+            {
+                var entries = new List<HelpEntry>();
+                foreach (var opt in hierarchySpecificOptions)
+                {
+                    entries.Add(new HelpEntry
+                    {
+                        Left = BuildOptionSignature(opt),
+                        Right = BuildOptionDescription(opt),
+                    });
+                }
+                sections.Add(new HelpSection { Header = hierarchySectionName!, Entries = entries });
+            }
         }
 
         if (commandInfo.Arguments.Count > 0)
@@ -253,7 +289,7 @@ internal sealed class HelpContentProvider(
     {
         var seenOptions = new HashSet<string>();
 
-        foreach (var option in commandInfo.Options)
+        foreach (var option in commandInfo.AllOptions)
         {
             var signature = option.GetDisplayName();
             if (seenOptions.Add(signature))
@@ -366,7 +402,7 @@ internal sealed class HelpContentProvider(
             return commandInfo.CommandParts[^2];
         }
 
-        var hierarchyOption = commandInfo.Options.FirstOrDefault(IsHierarchySpecificOption);
+        var hierarchyOption = commandInfo.AllOptions.FirstOrDefault(IsHierarchySpecificOption);
         return hierarchyOption?.OwnerCommand?.Name
             ?? hierarchyOption?.BindTarget?.Name
             ?? commandInfo.Parent?.Name;
