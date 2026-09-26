@@ -87,7 +87,8 @@ internal sealed class ArgumentParser
                     DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
                 if (string.Equals(subcommandSuggestion, args[argIndex], StringComparison.Ordinal))
                     subcommandSuggestion = null;
-                if (subcommandSuggestion != null)
+                if (subcommandSuggestion != null
+                    && !args.Skip(argIndex).Any(HelpVersionGateway.IsHelpToken))
                     throw new CommandException(
                         DidYouMean.WithSuggestion($"Unknown subcommand '{args[argIndex]}'", subcommandSuggestion), 2, CommandErrorKind.UnknownCommand, result.TargetCommand.FullCommandName);
             }
