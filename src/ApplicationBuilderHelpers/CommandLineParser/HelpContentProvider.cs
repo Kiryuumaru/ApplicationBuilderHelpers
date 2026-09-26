@@ -479,6 +479,10 @@ internal sealed class HelpContentProvider(
                         return option.Property.GetValue(fallbackHolder.Command);
                     }
                 }
+                else
+                {
+                    return GetUnanimousDerivedDefault(option);
+                }
             }
 
             if (option.PropertyType.IsValueType)
@@ -514,6 +518,93 @@ internal sealed class HelpContentProvider(
 
         return null;
     }
+
+    /// <summary>
+    /// Reads the declaring type's initializer default off derived registration
+    /// holders when no holder matches the declaring type itself (abstract base
+    /// options on a synthesized parent scope). Returns the value only when at
+    /// least one derived holder reads and every readable value agrees;
+    /// otherwise null, so disagreement stays silent instead of picking one.
+    /// </summary>
+    private object? GetUnanimousDerivedDefault(SubCommandOptionInfo option)
+    {
+        var declaringType = option.Property.DeclaringType;
+        if (declaringType is null)
+            return null;
+
+        var seen = false;
+        object? agreed = null;
+        foreach (var holder in _commandBuilder.Commands)
+        {
+            if (!declaringType.IsAssignableFrom(holder.CommandType))
+                continue;
+
+            var holderProperty = ResolveHolderProperty(holder, option.Property);
+            if (holderProperty is null)
+                return null;
+
+            object? candidate;
+            if (holder.TryGetInitializerDefault(holderProperty, out var snapshot))
+            {
+                candidate = snapshot;
+            }
+            else if (holder.IsInstanceRegistration)
+            {
+                return null;
+            }
+            else
+            {
+                try
+                {
+                    candidate = holderProperty.GetValue(holder.Command);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            if (!seen)
+            {
+                agreed = InitializerValueEquality.CloneIfArray(candidate);
+                seen = true;
+                continue;
+            }
+
+            if (!InitializerValuesEqual(agreed, candidate))
+                return null;
+        }
+
+        return seen ? agreed : null;
+    }
+
+    private static System.Reflection.PropertyInfo? ResolveHolderProperty(Models.TypedCommandHolder holder, System.Reflection.PropertyInfo optionProperty)
+    {
+        if (holder.CommandType == optionProperty.DeclaringType)
+            return optionProperty;
+
+        var resolved = holder.CommandType.GetProperty(
+            optionProperty.Name,
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (resolved is null)
+            return null;
+
+        if (!optionProperty.PropertyType.IsAssignableFrom(resolved.PropertyType) && !resolved.PropertyType.IsAssignableFrom(optionProperty.PropertyType))
+            return null;
+
+        if (!resolved.IsDefined(typeof(ApplicationBuilderHelpers.Attributes.CommandOptionAttribute), inherit: true))
+        {
+            var originalDeclaringType = optionProperty.DeclaringType;
+            var resolvedDeclaringType = resolved.DeclaringType;
+            if (originalDeclaringType is null || resolvedDeclaringType is null || !originalDeclaringType.IsAssignableFrom(resolvedDeclaringType))
+                return null;
+        }
+
+        return resolved;
+    }
+
+    private static bool InitializerValuesEqual(object? first, object? second) =>
+        InitializerValueEquality.ValuesEqual(first, second);
 
     /// <summary>
     /// Gets the default value for a type using the registered type parsers, fallback to trim-safe defaults
