@@ -81,6 +81,7 @@ internal sealed class ArgumentParser
                 throw HelpMisuseError(abstractHelpMisuse, result.TargetCommand.FullCommandName);
             ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnBareValuedPreSentinelOption(result.TargetCommand, args, argIndex);
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = result.TargetCommand.IsRoot ? "" : result.TargetCommand.FullCommandName;
             var baseMessage = $"'{result.TargetCommand.DisplayName}' requires a subcommand. Available subcommands: {availableSubcommands}";
@@ -487,6 +488,134 @@ internal sealed class ArgumentParser
             throw new CommandException(
                 DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
         }
+    }
+
+    /// <summary>
+    /// Scan the pre-<c>--</c> leftovers on an abstract command for
+    /// a valued option in bare form whose neighbor cannot supply
+    /// its value. A bare token (exact <c>--long</c>/<c>-s</c> match, no
+    /// <c>=</c>, no attached short remainder) matched by
+    /// <see cref="SubCommandOptionInfo.MatchesArgument"/> with an
+    /// unconsumable neighbor — end of pre-sentinel input or a
+    /// flag-looking next token under <see cref="IsFlagLookingToken"/>
+    /// (the same consumability rule as
+    /// <see cref="ParseOptionsAndArguments"/>) — would extract a null
+    /// value in normal parsing, and <see cref="ParameterValidator"/>
+    /// reports each bare valued occurrence as missing by itself,
+    /// regardless of env. Throw
+    /// <see cref="CommandErrorKind.MissingRequired"/> naming the option,
+    /// mirroring the validator message (<c>Missing required option</c>
+    /// for required, <c>Missing value for option</c> for optional),
+    /// instead of letting the
+    /// <c>RequiresSubcommand</c> fallback mask it. Runs after the
+    /// invalid-literal and unknown scans so <c>InvalidValue</c> and
+    /// <c>UnknownOption</c> keep precedence (unknown-first); equals-forms,
+    /// attached remainders, flags, numerics, help/version tokens, cluster
+    /// tokens, and post-separator tokens stay silent for
+    /// <c>RequiresSubcommand</c>. A bare repeat of an already-satisfied
+    /// optional valued option stays silent too (record-then-filter over the
+    /// pre-sentinel range, canonical key, so either order converges with
+    /// <see cref="ParameterValidator"/>); required repeats still throw.
+    /// Peek only: consumes nothing.
+    /// </summary>
+    private static void ThrowOnBareValuedPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var allOptions = target.AllOptions;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var satisfiedKeys = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = argIndex; i < end; i++)
+        {
+            var token = args[i];
+            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
+                continue;
+            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                continue;
+            if (token.Contains('='))
+            {
+                var equalsMatched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+                if (equalsMatched != null && !equalsMatched.IsFlag)
+                    satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(equalsMatched));
+                continue;
+            }
+            if (IsClusterToken(allOptions, token))
+            {
+                var clusterNext = i + 1 < end ? args[i + 1] : null;
+                RecordClusterSatisfaction(allOptions, token, clusterNext, satisfiedKeys);
+                continue;
+            }
+            var seen = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+            if (seen == null || seen.IsFlag)
+                continue;
+            if (!IsBareValuedToken(seen, token))
+            {
+                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(seen));
+                continue;
+            }
+            var seenNext = i + 1 < end ? args[i + 1] : null;
+            if (seenNext != null && !IsFlagLookingToken(seenNext))
+                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(seen));
+        }
+        for (var i = argIndex; i < end; i++)
+        {
+            var token = args[i];
+            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
+                continue;
+            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                continue;
+            if (token.Contains('='))
+                continue;
+            if (IsClusterToken(allOptions, token))
+                continue;
+            var matched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+            if (matched == null || matched.IsFlag)
+                continue;
+            if (!IsBareValuedToken(matched, token))
+                continue;
+            var next = i + 1 < end ? args[i + 1] : null;
+            if (next != null && !IsFlagLookingToken(next))
+                continue;
+            if (!matched.IsRequired && satisfiedKeys.Contains(ParseResult.GetCanonicalOptionKey(matched)))
+                continue;
+            var message = matched.IsRequired
+                ? $"Missing required option: {matched.GetDisplayName()}"
+                : $"Missing value for option: {matched.GetDisplayName()}";
+            throw new CommandException(message, 2, CommandErrorKind.MissingRequired, target.FullCommandName);
+        }
+    }
+
+    private static void RecordClusterSatisfaction(List<SubCommandOptionInfo> allOptions, string token, string? next, HashSet<string> satisfiedKeys)
+    {
+        var byShort = new Dictionary<char, SubCommandOptionInfo>();
+        foreach (var option in allOptions)
+        {
+            if (option.ShortName.HasValue && !byShort.ContainsKey(option.ShortName.Value))
+                byShort.Add(option.ShortName.Value, option);
+        }
+        var letters = token[1..];
+        for (var k = 0; k < letters.Length; k++)
+        {
+            var letter = letters[k];
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (!byShort.TryGetValue(letter, out var member) || member.IsFlag)
+                continue;
+            var remainder = token[(2 + k)..];
+            if (remainder.Length > 0)
+                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(member));
+            else if (next != null && !IsFlagLookingToken(next))
+                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(member));
+            return;
+        }
+    }
+
+    private static bool IsBareValuedToken(SubCommandOptionInfo option, string token)
+    {
+        if (option.LongName != null && token == $"--{option.LongName}")
+            return true;
+        if (option.ShortName.HasValue && token == $"-{option.ShortName}")
+            return true;
+        return false;
     }
 
     /// <summary>
