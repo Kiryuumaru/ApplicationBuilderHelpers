@@ -15,7 +15,7 @@ internal class ConfigGetCommand : ConfigCommand
     [CommandOption('g', "global", Description = "Show global configuration only")]
     public bool GlobalOnly { get; set; }
 
-    [CommandOption('l', "local", Description = "Show local configuration only")]
+    [CommandOption("local", Description = "Show local configuration only")]
     public bool LocalOnly { get; set; }
 
     [CommandOption('s', "section", Description = "Filter by configuration section")]

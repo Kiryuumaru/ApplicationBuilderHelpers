@@ -201,6 +201,10 @@ public class CommandOptionAttribute : Attribute
 
 `ShortTerm` values `'h'` / `'V'` are reserved for help/version — declaring either throws `InvalidOperationException` at registration (fail-closed, `CommandHierarchyBuilder.cs:471-497`), unless `LongName` is `help` for `-h`; `-V` always throws (no version node, gateway-only); use the long `Term` form instead.
 
+Duplicate short names across distinct logical options in the same effective scope fail the build with analyzer error `ABH001` (severity `Error`). The analyzer mirrors the runtime `ValidateDuplicateShortNames` guard (`src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:532-549`; group by short, distinct by canonical key: `Term`, then `ShortTerm`, then property name per `src/ApplicationBuilderHelpers/CommandLineParser/ParseResult.cs:58-59`) over static attribute syntax plus the base-class walk; same-key copies and a long-only option beside a short option stay legal. Scope differs by layer: the analyzer sees base-class options only, while the runtime guard checks each command's effective `AllOptions` scope (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:72-95`) including promoted/inherited globals. Conservative approximation — per-run registration, global-promotion state, and initializer-default state (which can block promotion, `CommandHierarchyBuilder.cs:296-323`) are invisible to the analyzer, so the runtime guard (fault exit `1`) remains the truth.
+
+`-l` rule: when a tree shares `-l, --log-level` from a common base, identical copies promote to global — a shared-base plus promotion pattern, not a library-owned global (the built-in global is help-only). Leaf options must not reuse `-l`; use the long-only form instead. See [Commands](commands.md#compile-time-duplicate-short-check-abh001).
+
 ### CommandArgumentAttribute
 
 ```csharp

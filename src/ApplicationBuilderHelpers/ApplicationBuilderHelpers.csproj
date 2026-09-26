@@ -48,4 +48,30 @@
 		<InternalsVisibleTo Include="ApplicationBuilderHelpers.Test.Cli.UnitTest" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\ApplicationBuilderHelpers.Analyzers\ApplicationBuilderHelpers.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<!-- Ship the analyzer under analyzers/dotnet/cs so consumers fail the
+	     build on ABH001 without a runtime dependency. The analyzer DLL path
+	     is resolved from the analyzer project itself in the packing
+	     configuration (no literal bin\$(Configuration) path), so pack can
+	     never silently ship without the ABH001 gate (fail-open). The
+	     ProjectReference above provides the compile-time build edge. -->
+	<PropertyGroup>
+		<TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_ResolveAnalyzerForPack</TargetsForTfmSpecificContentInPackage>
+	</PropertyGroup>
+	<!-- TfmSpecificPackageFile dedupes by file name across inner builds,
+	     so the same analyzer resolved once per TFM logs NU5118 dupes and is
+	     emitted only once. Resolve once (first TFM) to keep pack hermetic
+	     without duplicate-file warnings. -->
+	<Target Name="_ResolveAnalyzerForPack" Returns="@(TfmSpecificPackageFile)" Condition="'$(TargetFramework)' == 'net6.0'">
+		<MSBuild Projects="..\ApplicationBuilderHelpers.Analyzers\ApplicationBuilderHelpers.Analyzers.csproj" Targets="GetTargetPathWithTargetPlatformMoniker" Properties="Configuration=$(Configuration)" RemoveProperties="TargetFramework;TargetFrameworks" SkipNonexistentTargets="false">
+			<Output TaskParameter="TargetOutputs" ItemName="_AnalyzerToPack" />
+		</MSBuild>
+		<ItemGroup>
+			<TfmSpecificPackageFile Include="@(_AnalyzerToPack)" PackagePath="analyzers/dotnet/cs" BuildAction="None" />
+		</ItemGroup>
+	</Target>
+
 </Project>

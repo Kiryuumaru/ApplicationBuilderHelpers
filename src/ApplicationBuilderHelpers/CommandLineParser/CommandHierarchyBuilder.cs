@@ -468,6 +468,8 @@ internal sealed class CommandHierarchyBuilder(
         }
 
         ValidateReservedShortNames();
+
+        ValidateDuplicateShortNames();
     }
 
     /// <summary>
@@ -504,6 +506,44 @@ internal sealed class CommandHierarchyBuilder(
             {
                 throw new InvalidOperationException(
                     $"Reserved short name conflict: '-V' on option '{option.GetDisplayName()}' in command '{commandName}' is reserved for version. Rename or remove the short name.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rejects per-command short-name shadowing across distinct logical options:
+    /// each command's effective scope (<see cref="SubCommandInfo.AllOptions"/>,
+    /// own options plus inherited globals) must not hold two options with the
+    /// same short but different canonical keys (<see
+    /// cref="ParseResult.GetCanonicalOptionKey"/>) — e.g. <c>-l/--log-level</c>
+    /// (promoted global) next to <c>-l/--local</c> on <c>config get</c>, where
+    /// the parser would otherwise first-win silently. Same-key copies (one
+    /// logical option under several copy identities) stay legal.
+    /// </summary>
+    private void ValidateDuplicateShortNames()
+    {
+        if (RootCommand != null)
+            ValidateDuplicateShortNames(RootCommand);
+
+        foreach (var command in _allCommands.Values)
+            ValidateDuplicateShortNames(command);
+    }
+
+    private static void ValidateDuplicateShortNames(SubCommandInfo command)
+    {
+        var commandName = string.IsNullOrEmpty(command.FullCommandName) ? "<root>" : command.FullCommandName;
+        foreach (var group in command.AllOptions.Where(o => o.ShortName.HasValue).GroupBy(o => o.ShortName!.Value))
+        {
+            var distinct = group
+                .GroupBy(ParseResult.GetCanonicalOptionKey, StringComparer.Ordinal)
+                .Select(g => g.First())
+                .OrderBy(o => o.GetDisplayName(), StringComparer.Ordinal)
+                .ToList();
+            if (distinct.Count >= 2)
+            {
+                var names = string.Join("' and '", distinct.Select(o => o.GetDisplayName()));
+                throw new InvalidOperationException(
+                    $"Duplicate short name conflict: '-{group.Key}' on options '{names}' in command '{commandName}'. Rename or remove one of the short names.");
             }
         }
     }
