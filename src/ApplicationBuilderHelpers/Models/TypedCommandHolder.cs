@@ -67,8 +67,7 @@ internal class TypedCommandHolder([DynamicallyAccessedMembers(DynamicallyAccesse
             try
             {
                 defaultValue = property.GetValue(Command);
-                if (defaultValue is Array array)
-                    defaultValue = (Array)array.Clone();
+                defaultValue = InitializerValueEquality.CloneIfArray(defaultValue);
             }
             catch
             {
