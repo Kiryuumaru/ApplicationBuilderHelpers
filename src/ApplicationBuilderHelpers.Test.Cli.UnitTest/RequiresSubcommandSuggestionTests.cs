@@ -5,14 +5,16 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Tests for did-you-mean suggestions on the abstract <c>RequiresSubcommand</c> path.
-/// The <c>config</c> hub below is abstract (no <c>Run</c> body), so bare or
-/// near-miss invocations stay on the abstract branch of
-/// <c>ArgumentParser</c>: exit 2 with the subcommand list, plus a
-/// <c>Did you mean '...'? </c> hint only for near-miss first surplus tokens.
+/// Tests for did-you-mean suggestions around the abstract <c>config</c> hub.
+/// The <c>config</c> hub below is abstract (no <c>Run</c> body), so bare,
+/// far-miss, and post-separator invocations stay on the abstract branch of
+/// <c>ArgumentParser</c>: exit 2 with the subcommand list (kind
+/// <c>RequiresSubcommand</c>). A near-miss first surplus token instead
+/// reports <c>Unknown subcommand '...'</c> with a <c>Did you mean '...'? </c>
+/// hint (kind <c>UnknownCommand</c>, leaf-identical, exit 2 unchanged).
 /// Exit-code contract: every error scenario below fails with exit code 2
-/// (usage error per the structured CommandErrorKind contract); the
-/// <c>RequiresSubcommand</c> kind is pinned via its distinct help footer.
+/// (usage error per the structured CommandErrorKind contract); each kind is
+/// pinned via its distinct help footer.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -61,10 +63,11 @@ public sealed class RequiresSubcommandSuggestionTests
     {
         var (exitCode, _, error) = await RunCapturedAsync(["config", "gett"]);
         Assert.Equal(2, exitCode);
-        Assert.Contains("'config' requires a subcommand", error);
-        Assert.Contains("Available subcommands: get, set", error);
+        Assert.Contains("Unknown subcommand 'gett'", error);
         Assert.Contains("Did you mean 'get'?", error);
-        Assert.Contains("Run 'didyoumean-abstract-test config --help' to see available subcommands and options.", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.DoesNotContain("Available subcommands", error);
+        Assert.Contains("Run 'didyoumean-abstract-test config --help' for more information on specific command options.", error);
     }
 
     [Fact]
@@ -72,10 +75,11 @@ public sealed class RequiresSubcommandSuggestionTests
     {
         var (exitCode, _, error) = await RunCapturedAsync(["config", "Gett"]);
         Assert.Equal(2, exitCode);
-        Assert.Contains("'config' requires a subcommand", error);
-        Assert.Contains("Available subcommands: get, set", error);
+        Assert.Contains("Unknown subcommand 'Gett'", error);
         Assert.Contains("Did you mean 'get'?", error);
-        Assert.Contains("Run 'didyoumean-abstract-test config --help' to see available subcommands and options.", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.DoesNotContain("Available subcommands", error);
+        Assert.Contains("Run 'didyoumean-abstract-test config --help' for more information on specific command options.", error);
     }
 
     [Fact]
@@ -126,10 +130,11 @@ public sealed class RequiresSubcommandSuggestionTests
     {
         var (exitCode, _, error) = await RunCapturedAsync(["config", "gett", "extra"]);
         Assert.Equal(2, exitCode);
-        Assert.Contains("'config' requires a subcommand", error);
-        Assert.Contains("Available subcommands: get, set", error);
+        Assert.Contains("Unknown subcommand 'gett'", error);
         Assert.Contains("Did you mean 'get'?", error);
-        Assert.Contains("Run 'didyoumean-abstract-test config --help' to see available subcommands and options.", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.DoesNotContain("Available subcommands", error);
+        Assert.Contains("Run 'didyoumean-abstract-test config --help' for more information on specific command options.", error);
     }
 
     [Fact]
