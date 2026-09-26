@@ -7,7 +7,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.Commands;
 [Command("enum-limited", "Test command with limited enum choices")]
 internal class EnumLimitedCommand : Command
 {
-    [CommandOption('l', "limited-level", Description = "LogLevel with limited FromAmong choices.", FromAmong = ["Trace", "Debug", "Information"])]
+    [CommandOption("limited-level", Description = "LogLevel with limited FromAmong choices.", FromAmong = ["Trace", "Debug", "Information"])]
     public LogLevel LimitedLevel { get; set; } = LogLevel.Information;
 
     [CommandOption('v', "verbose", Description = "Enable verbose output")]

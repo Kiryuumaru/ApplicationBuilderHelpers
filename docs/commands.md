@@ -78,6 +78,25 @@ public int Timeout { get; set; } = 30;
 [CommandOption("long-name")]         // Long only
 ```
 
+### Compile-Time Duplicate Short Check (ABH001)
+
+Two options in the same effective command scope must not share a short name under different canonical keys (long name, then short name, then property name — `ParseResult.GetCanonicalOptionKey` at `src/ApplicationBuilderHelpers/CommandLineParser/ParseResult.cs:58-59`) — the parser would otherwise first-win silently. Violations fail the build with error `ABH001` (severity `Error`, `src/ApplicationBuilderHelpers.Analyzers/DuplicateShortNameAnalyzer.cs:13-21`):
+
+```csharp
+public class BadCommand : Command
+{
+    [CommandOption('l', "level")]
+    public string Level { get; set; } = "information";
+
+    [CommandOption('l', "local")]   // ABH001: '-l' already used by '-l, --level'
+    public bool LocalOnly { get; set; }
+}
+```
+
+Same-key copies (one logical option seen through several identities) stay legal, as does a long-only option beside a short option. Scope differs by layer: the analyzer walks the command's own options plus inherited base-class options (static attribute syntax only); the runtime guard checks each command's effective `AllOptions` scope (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:72-95`) — own options plus inherited/promoted globals (`DetermineGlobalOptions` at `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:223-279`) — grouped by short and split by canonical key (`:532-549`). The analyzer is a conservative approximation: per-run registration, global-promotion state, and initializer-default state (which can block promotion via `InitializerValuesEqual` at `CommandHierarchyBuilder.cs:296-323`) are invisible to it. The runtime guard (`CommandHierarchyBuilder.ValidateDuplicateShortNames`, fault exit `1`) remains the truth and still catches collisions the analyzer cannot see.
+
+`-l` rule: when a tree shares `-l, --log-level` from a common base (e.g. `BaseCommand` at `src/ApplicationBuilderHelpers.Test.Cli/Commands/BaseCommand.cs:9`), identical copies promote to global — this is a shared-base plus promotion pattern, not a library-owned global (the built-in global is help-only). Leaf options must therefore not reuse `-l`; use the long-only form instead (e.g. `--local` at `src/ApplicationBuilderHelpers.Test.Cli/Commands/ConfigGetCommand.cs:18`, `--limited-level` at `src/ApplicationBuilderHelpers.Test.Cli/Commands/EnumLimitedCommand.cs:10`).
+
 ### Option Properties
 
 | Property | Type | Description |
