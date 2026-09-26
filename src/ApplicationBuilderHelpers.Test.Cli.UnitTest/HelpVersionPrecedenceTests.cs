@@ -119,11 +119,44 @@ public class HelpVersionPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Version_Takes_Precedence_Over_Help()
+    public async Task Help_Takes_Precedence_Over_Version()
     {
         var result = await Runner.RunAsync("--version", "--help");
         CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        Assert.DoesNotMatch(@"^\d+\.\d+\.\d+", result.StandardOutput.TrimStart());
+    }
+
+    [Fact]
+    public async Task Command_Help_Takes_Precedence_Over_Version()
+    {
+        var result = await Runner.RunAsync("test", "mytarget", "--version", "--help");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Command_Help_Before_Version_Shows_Help()
+    {
+        var result = await Runner.RunAsync("test", "mytarget", "--help", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Command_Help_Version_Cluster_Shows_Help()
+    {
+        var result = await Runner.RunAsync("test", "mytarget", "-hV");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 }

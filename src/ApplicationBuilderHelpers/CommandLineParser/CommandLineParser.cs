@@ -75,7 +75,7 @@ internal class CommandLineParser
 
             var parseResult = ParseCommandLine(args);
 
-            if (parseResult.ShowVersion)
+            if (parseResult.ShowVersion && !parseResult.ShowHelp)
             {
                 ShowVersion();
                 return 0;
