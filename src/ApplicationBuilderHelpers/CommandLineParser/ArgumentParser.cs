@@ -46,7 +46,16 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            if ((result.TargetCommand.IsRoot || argIndex > 0) && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
+            // Path-before-help (#558; docs/advanced.md help-precedence): a non-dash
+            // surplus token pre-"--" matching no child is a path error, not a help
+            // request — skip ShowHelp and fall through to RequiresSubcommand below.
+            // Mirrors the root zero-match guard above, which errors before help.
+            var surplusSentinelIndex = Array.IndexOf(args, "--");
+            var hasSurplusPathToken = argIndex < args.Length
+                && !args[argIndex].StartsWith('-')
+                && (surplusSentinelIndex < 0 || argIndex < surplusSentinelIndex)
+                && result.TargetCommand.FindChild(args[argIndex]) == null;
+            if ((result.TargetCommand.IsRoot || argIndex > 0) && !hasSurplusPathToken && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
             {
                 result.ShowHelp = true;
                 return result;
