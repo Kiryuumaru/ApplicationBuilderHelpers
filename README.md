@@ -106,12 +106,12 @@ public class DeployProductionCommand : Command { /* ... */ }
 
 | Outcome | Exit code |
 |---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` (conversion failure beats help-with-values; invalid+version still `0` via the pre-validation version guard at `CommandLineParser.cs:83-87`) |
+| `Run` returns normally (also `--help` / `--version`) | `0` (conversion failure beats help-with-values; invalid+version still `0` via the pre-validation version guard at `CommandLineParser.cs:78-82`; leading `--help`/`-h` on a concrete root renders global help, exit `0`, before trailing validation — `IsConcreteRootLeadingHelp` at `ArgumentParser.cs:530-537`, pinned by `RootRoutingDivergenceTests.cs`) |
 | Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
-Bare root (no root implementation, only leaf subcommands): `myapp` with zero args exits `2` with `'<root>' requires a subcommand. Available subcommands: ...` plus the two-sentence global usage footer (`SubCommandInfo.cs:32`; `ArgumentParser.cs:71-83`; `CommandErrorFooter.cs:20-23`). Help-first (`myapp --help greet`) renders global help, exit `0` (`ArgumentParser.cs:64-70`; `HelpFormatter.cs:42-44`) — see [Advanced Topics](docs/advanced.md#bare-root-and-help-first).
+Bare root (no root implementation, only leaf subcommands): `myapp` with zero args exits `2` with `'<root>' requires a subcommand. Available subcommands: ...` plus the two-sentence global usage footer (`SubCommandInfo.cs:32`; `ArgumentParser.cs:76-96`; `CommandErrorFooter.cs:21-58`). Help-first (`myapp --help greet`) renders global help, exit `0` (`ArgumentParser.cs:47-62`; `HelpFormatter.cs:40-42`) — and on a concrete root (a description-only `[Command]` merged at root, `HasImplementation` true) a leading bare `--help`/`-h` renders global help before trailing validation, exit `0` (`IsConcreteRootLeadingHelp` at `ArgumentParser.cs:530-537`; version still beats help) — see [Advanced Topics](docs/advanced.md#bare-root-and-help-first).
 
 Return normally on success. Throw `CommandException` for errors to return a non-zero exit code from `RunAsync`:
 

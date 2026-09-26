@@ -44,19 +44,37 @@ internal sealed class ArgumentParser
                 DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
         }
 
+        if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // #558; see docs/advanced.md help-precedence: a mistyped subcommand plus
+            // --help is still an error (exit 2), not a help request — same as a mistyped
+            // top-level command. Skip ShowHelp and fall through to RequiresSubcommand below.
+            var surplusSentinelIndex = Array.IndexOf(args, "--");
+            var hasSurplusPathToken = argIndex < args.Length
+                && !args[argIndex].StartsWith('-')
+                && (surplusSentinelIndex < 0 || argIndex < surplusSentinelIndex)
+                && result.TargetCommand.FindChild(args[argIndex]) == null;
+            if ((result.TargetCommand.IsRoot || argIndex > 0) && !hasSurplusPathToken && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
+            {
+                result.ShowHelp = true;
+                return result;
+            }
+        }
+
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
         {
             result.ShowVersion = true;
             return result;
         }
 
+        if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
+        {
+            result.ShowHelp = true;
+            return result;
+        }
+
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            if ((result.TargetCommand.IsRoot || argIndex > 0) && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
-            {
-                result.ShowHelp = true;
-                return result;
-            }
             var abstractHelpMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (abstractHelpMisuse != null)
@@ -73,6 +91,12 @@ internal sealed class ArgumentParser
                 subcommandSuggestion = DidYouMean.FindBestMatch(
                     args[argIndex],
                     DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
+                if (string.Equals(subcommandSuggestion, args[argIndex], StringComparison.Ordinal))
+                    subcommandSuggestion = null;
+                if (subcommandSuggestion != null
+                    && !args.Skip(argIndex).Any(HelpVersionGateway.IsHelpToken))
+                    throw new CommandException(
+                        DidYouMean.WithSuggestion($"Unknown subcommand '{args[argIndex]}'", subcommandSuggestion), 2, CommandErrorKind.UnknownCommand, result.TargetCommand.FullCommandName);
             }
             throw new CommandException(DidYouMean.WithSuggestion(baseMessage, subcommandSuggestion), 2, CommandErrorKind.RequiresSubcommand, commandName);
         }
@@ -495,6 +519,27 @@ internal sealed class ArgumentParser
                 return true;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Concrete-root help-first probe: the root command merged with a
+    /// <c>MainCommand</c> implementation (<see cref="SubCommandInfo.HasImplementation"/>)
+    /// skips the abstract help-first branch, so a leading bare help token would
+    /// fall into <see cref="ParseOptionsAndArguments"/> and lose to trailing
+    /// tokens (surplus arguments, unknown options) before help renders. Fires
+    /// only for a leading bare help token (<see cref="HelpVersionGateway.IsHelpToken"/>)
+    /// at the root scope: <c>=</c>-forms, negations, post-separator tokens,
+    /// and non-leading help stay on the normal parse path. Yields to a
+    /// pre-separator version token, mirroring the abstract branch where the
+    /// version check runs before the help check (version beats help).
+    /// </summary>
+    private static bool IsConcreteRootLeadingHelp(SubCommandInfo target, string[] args, int argIndex)
+    {
+        return target.IsRoot
+            && argIndex == 0
+            && argIndex < args.Length
+            && HelpVersionGateway.IsHelpToken(args[argIndex])
+            && !args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken);
     }
 
     /// <summary>

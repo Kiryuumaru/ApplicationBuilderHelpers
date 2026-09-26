@@ -141,8 +141,81 @@ public class HelpSystemTests : CliTestBase
     public async Task Help_For_Unknown_Subcommand()
     {
         var result = await Runner.RunAsync("config", "unknown", "--help");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Configuration values");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'config' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: get, set");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --version' to show version information.");
+    }
+
+    [Fact]
+    public async Task Near_Miss_Database_With_Help_Errors_Requires_Subcommand()
+    {
+        var result = await Runner.RunAsync("database", "migrat", "--help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'database' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: migrate");
+        CliTestAssertions.AssertErrorContains(result, "Did you mean 'migrate'?");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test database --version' to show version information.");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        Assert.DoesNotContain("Run 'test database --help'", result.StandardError);
+    }
+
+    [Fact]
+    public async Task Near_Miss_Remote_With_Help_Errors_Requires_Subcommand()
+    {
+        var result = await Runner.RunAsync("remote", "ad", "--help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'remote' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: add");
+        CliTestAssertions.AssertErrorContains(result, "Did you mean 'add'?");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test remote --version' to show version information.");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        Assert.DoesNotContain("Run 'test remote --help'", result.StandardError);
+    }
+
+    [Fact]
+    public async Task Near_Miss_With_Short_Help_Errors_Requires_Subcommand()
+    {
+        var result = await Runner.RunAsync("config", "sett", "-h");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'config' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: get, set");
+        CliTestAssertions.AssertErrorContains(result, "Did you mean 'set'?");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --version' to show version information.");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        Assert.DoesNotContain("Run 'test config --help'", result.StandardError);
+    }
+
+    [Fact]
+    public async Task Separator_Before_Surplus_With_Help_Keeps_Requires_Subcommand()
+    {
+        var result = await Runner.RunAsync("config", "--", "gett", "--help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'config' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: get, set");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --help' to see available subcommands and options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --version' to show version information.");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        Assert.DoesNotContain("Did you mean", result.StandardError);
+    }
+
+    [Fact]
+    public async Task Surplus_Before_Separator_With_Help_Keeps_Requires_Subcommand()
+    {
+        var result = await Runner.RunAsync("config", "gett", "--", "--help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'config' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: get, set");
+        CliTestAssertions.AssertErrorContains(result, "Did you mean 'get'?");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --help' to see available subcommands and options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --version' to show version information.");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
     }
 
     [Fact]
