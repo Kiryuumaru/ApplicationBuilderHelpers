@@ -659,13 +659,13 @@ public sealed class ValueBindingTests
     }
 
     [Fact]
-    public async Task Array_BareOptionWithoutValue_LeavesDefault()
+    public async Task Array_BareOptionWithoutValue_ReportsMissing()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--tags"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Tags: null", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing value for option: --tags", error);
     }
 
     [Fact]

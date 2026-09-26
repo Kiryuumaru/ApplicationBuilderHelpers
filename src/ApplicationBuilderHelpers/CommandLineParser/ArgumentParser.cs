@@ -44,6 +44,23 @@ internal sealed class ArgumentParser
                 DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
         }
 
+        if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // #558; see docs/advanced.md help-precedence: a mistyped subcommand plus
+            // --help is still an error (exit 2), not a help request — same as a mistyped
+            // top-level command. Skip ShowHelp and fall through to RequiresSubcommand below.
+            var surplusSentinelIndex = Array.IndexOf(args, "--");
+            var hasSurplusPathToken = argIndex < args.Length
+                && !args[argIndex].StartsWith('-')
+                && (surplusSentinelIndex < 0 || argIndex < surplusSentinelIndex)
+                && result.TargetCommand.FindChild(args[argIndex]) == null;
+            if ((result.TargetCommand.IsRoot || argIndex > 0) && !hasSurplusPathToken && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
+            {
+                result.ShowHelp = true;
+                return result;
+            }
+        }
+
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
         {
             result.ShowVersion = true;
@@ -52,11 +69,6 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            if ((result.TargetCommand.IsRoot || argIndex > 0) && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
-            {
-                result.ShowHelp = true;
-                return result;
-            }
             var abstractHelpMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (abstractHelpMisuse != null)

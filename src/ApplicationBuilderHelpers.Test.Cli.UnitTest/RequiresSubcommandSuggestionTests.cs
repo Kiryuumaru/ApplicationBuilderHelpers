@@ -138,12 +138,16 @@ public sealed class RequiresSubcommandSuggestionTests
     }
 
     [Fact]
-    public async Task Near_Miss_With_Help_Shows_Parent_Help()
+    public async Task Near_Miss_With_Help_Errors_Requires_Subcommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["config", "gett", "--help"]);
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Abstract config hub.", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("'config' requires a subcommand", error);
+        Assert.Contains("Available subcommands: get, set", error);
+        Assert.Contains("Did you mean 'get'?", error);
+        Assert.Contains("Run 'didyoumean-abstract-test config --version' to show version information.", error);
+        Assert.DoesNotContain("Run 'didyoumean-abstract-test config --help'", error);
     }
 
     [Fact]

@@ -127,6 +127,86 @@ public sealed class DidYouMeanTests
     }
 
     [Fact]
+    public void Overlapping_Multiple_Edits_Score_Two()
+    {
+        Assert.Equal(2, CommandLineParser.DidYouMean.DamerauLevenshtein("ca", "abc"));
+        Assert.Equal(2, CommandLineParser.DidYouMean.DamerauLevenshtein("abc", "ca"));
+    }
+
+    [Fact]
+    public void Adjacent_Single_Transposition_Controls()
+    {
+        Assert.Equal(1, CommandLineParser.DidYouMean.DamerauLevenshtein("abcd", "acbd"));
+        Assert.Equal(0, CommandLineParser.DidYouMean.DamerauLevenshtein("verbose", "verbose"));
+        Assert.Equal(0, CommandLineParser.DidYouMean.DamerauLevenshtein(string.Empty, string.Empty));
+        Assert.Equal(1, CommandLineParser.DidYouMean.DamerauLevenshtein("verbose", "verbosex"));
+    }
+
+    [Theory]
+    [InlineData("rvbose", "--verbose")]
+    [InlineData("ezvrbose", "--verbose")]
+    [InlineData("ogcnfig", "--config")]
+    [InlineData("iutmeout", "--timeout")]
+    [InlineData("aeprallel", "--parallel")]
+    [InlineData("astgs", "--tags")]
+    public void Close_Typo_Suggests_Canonical_Option(string typo, string expected)
+    {
+        var candidates = new List<(string Key, string Display)>
+        {
+            ("verbose", "--verbose"),
+            ("config", "--config"),
+            ("timeout", "--timeout"),
+            ("parallel", "--parallel"),
+            ("tags", "--tags"),
+        };
+
+        Assert.Equal(expected, CommandLineParser.DidYouMean.FindBestMatch(typo, candidates));
+    }
+
+    [Fact]
+    public void Distant_Input_Suggests_Nothing()
+    {
+        var candidates = new List<(string Key, string Display)>
+        {
+            ("verbose", "--verbose"),
+            ("config", "--config"),
+            ("timeout", "--timeout"),
+            ("parallel", "--parallel"),
+            ("tags", "--tags"),
+        };
+
+        Assert.Null(CommandLineParser.DidYouMean.FindBestMatch("zzzzqqqq", candidates));
+        Assert.Null(CommandLineParser.DidYouMean.FindBestMatch("abc", new List<(string Key, string Display)> { ("def", "--def") }));
+    }
+
+    [Fact]
+    public void Distance_Limit_Is_Inclusive_At_Boundary()
+    {
+        var pair = new List<(string Key, string Display)> { ("ab", "--ab") };
+
+        Assert.Equal("--ab", CommandLineParser.DidYouMean.FindBestMatch("abc", pair));
+        Assert.Equal("--ab", CommandLineParser.DidYouMean.FindBestMatch("abcdef", pair));
+        Assert.Null(CommandLineParser.DidYouMean.FindBestMatch("abcdefg", pair));
+    }
+
+    [Fact]
+    public void Distance_And_Suggestion_Are_Deterministic()
+    {
+        var candidates = new List<(string Key, string Display)>
+        {
+            ("verbose", "--verbose"),
+            ("config", "--config"),
+        };
+
+        Assert.Equal(
+            CommandLineParser.DidYouMean.DamerauLevenshtein("ca", "abc"),
+            CommandLineParser.DidYouMean.DamerauLevenshtein("ca", "abc"));
+        Assert.Equal(
+            CommandLineParser.DidYouMean.FindBestMatch("rvbose", candidates),
+            CommandLineParser.DidYouMean.FindBestMatch("rvbose", candidates));
+    }
+
+    [Fact]
     public async Task Zero_Match_Command_Typo_Suggests()
     {
         var (exitCode, _, error) = await RunCapturedAsync(["deply"]);

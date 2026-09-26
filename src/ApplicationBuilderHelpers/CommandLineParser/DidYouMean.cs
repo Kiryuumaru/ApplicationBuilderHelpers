@@ -5,7 +5,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// "Did you mean" suggestions for unmatched option or command names.
-/// Damerau-Levenshtein (optimal string alignment), case-insensitive,
+/// True Damerau-Levenshtein, case-insensitive,
 /// dash-stripped, single best match, null when nothing is close.
 /// </summary>
 internal static class DidYouMean
@@ -118,8 +118,9 @@ internal static class DidYouMean
 
     /// <summary>
     /// True Damerau-Levenshtein distance with adjacent transposition: a pure
-    /// adjacent transposition costs exactly 1. Uses the full matrix so the
-    /// transposition term reads d[i-2][j-2] + 1 (no cost substitution).
+    /// adjacent transposition costs exactly 1. Lowrance-Rader algorithm with
+    /// a last-row dictionary so multiple edits on overlapping substrings
+    /// (e.g. "CA" vs "ABC") score correctly.
     /// Inputs must already be normalized.
     /// </summary>
     internal static int DamerauLevenshtein(string source, string target)
@@ -129,27 +130,42 @@ internal static class DidYouMean
         if (target.Length == 0)
             return source.Length;
 
-        var d = new int[source.Length + 1, target.Length + 1];
+        var len1 = source.Length;
+        var len2 = target.Length;
+        var inf = len1 + len2;
+        var d = new int[len1 + 2, len2 + 2];
 
-        for (var i = 0; i <= source.Length; i++)
-            d[i, 0] = i;
-        for (var j = 0; j <= target.Length; j++)
-            d[0, j] = j;
-
-        for (var i = 1; i <= source.Length; i++)
+        d[0, 0] = inf;
+        for (var i = 0; i <= len1; i++)
         {
-            for (var j = 1; j <= target.Length; j++)
-            {
-                var cost = source[i - 1] == target[j - 1] ? 0 : 1;
-                d[i, j] = Math.Min(
-                    Math.Min(d[i, j - 1] + 1, d[i - 1, j] + 1),
-                    d[i - 1, j - 1] + cost);
-
-                if (i > 1 && j > 1 && source[i - 1] == target[j - 2] && source[i - 2] == target[j - 1])
-                    d[i, j] = Math.Min(d[i, j], d[i - 2, j - 2] + 1);
-            }
+            d[i + 1, 0] = inf;
+            d[i + 1, 1] = i;
+        }
+        for (var j = 0; j <= len2; j++)
+        {
+            d[0, j + 1] = inf;
+            d[1, j + 1] = j;
         }
 
-        return d[source.Length, target.Length];
+        var da = new Dictionary<char, int>();
+        for (var i = 1; i <= len1; i++)
+        {
+            var db = 0;
+            for (var j = 1; j <= len2; j++)
+            {
+                var i1 = da.TryGetValue(target[j - 1], out var lastRow) ? lastRow : 0;
+                var j1 = db;
+                var cost = source[i - 1] == target[j - 1] ? 0 : 1;
+                if (cost == 0)
+                    db = j;
+
+                d[i + 1, j + 1] = Math.Min(
+                    Math.Min(d[i, j + 1] + 1, d[i + 1, j] + 1),
+                    Math.Min(d[i, j] + cost, d[i1, j1] + (i - i1 - 1) + 1 + (j - j1 - 1)));
+            }
+            da[source[i - 1]] = i;
+        }
+
+        return d[len1 + 1, len2 + 1];
     }
 }
