@@ -89,6 +89,21 @@ internal sealed class HelpContentProvider(
         var allGlobalOptions = new List<SubCommandOptionInfo>(baseCommandOptions);
         allGlobalOptions.AddRange(globalOptions);
 
+        var rootArguments = _rootCommand?.Arguments.OrderBy(a => a.Position).ToList() ?? [];
+        if (rootArguments.Count > 0)
+        {
+            var entries = new List<HelpEntry>();
+            foreach (var arg in rootArguments)
+            {
+                entries.Add(new HelpEntry
+                {
+                    Left = BuildArgumentSignature(arg),
+                    Right = BuildArgumentDescription(arg),
+                });
+            }
+            sections.Add(new HelpSection { Header = "ARGUMENTS:", Entries = entries });
+        }
+
         var globalEntries = new List<HelpEntry>();
         foreach (var opt in allGlobalOptions)
         {
@@ -105,10 +120,17 @@ internal sealed class HelpContentProvider(
         });
         sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = globalEntries });
 
+        var globalUsage = new StringBuilder($"    {executableName} [OPTIONS]");
+        if (topLevelCommands.Count > 0)
+            globalUsage.Append(" <COMMAND> [ARGS...]");
+        if (_rootCommand != null)
+            foreach (var arg in _rootCommand.Arguments.OrderBy(a => a.Position))
+                globalUsage.Append($" {arg.GetSignature()}");
+
         return new HelpModel
         {
             TitleLine = $"{executableName} v{executableVersion} - {executableTitle}",
-            UsageText = $"    {executableName} [OPTIONS] <COMMAND> [ARGS...]",
+            UsageText = globalUsage.ToString(),
             DescriptionText = !string.IsNullOrEmpty(executableDescription) ? $"    {executableDescription}" : null,
             Sections = sections,
             FooterText = $"Run '{executableName} <command> --help' for more information on specific commands.",
