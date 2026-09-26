@@ -46,10 +46,9 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // Path-before-help (#558; docs/advanced.md help-precedence): a non-dash
-            // surplus token pre-"--" matching no child is a path error, not a help
-            // request — skip ShowHelp and fall through to RequiresSubcommand below.
-            // Mirrors the root zero-match guard above, which errors before help.
+            // #558; see docs/advanced.md help-precedence: a mistyped subcommand plus
+            // --help is still an error (exit 2), not a help request — same as a mistyped
+            // top-level command. Skip ShowHelp and fall through to RequiresSubcommand below.
             var surplusSentinelIndex = Array.IndexOf(args, "--");
             var hasSurplusPathToken = argIndex < args.Length
                 && !args[argIndex].StartsWith('-')
