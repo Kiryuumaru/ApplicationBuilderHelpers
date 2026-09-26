@@ -81,10 +81,13 @@ internal class SubCommandInfo
                     allOptions.Add(option);
             }
             var current = Parent;
+            var leafType = Command?.GetType();
             while (current != null)
             {
                 foreach (var option in current.Options.Where(o => o.IsGlobal || o.IsInherited))
                 {
+                    if (!option.IsGlobal && !IsBindableTo(option, leafType))
+                        continue;
                     if (seen.Add(option))
                         allOptions.Add(option);
                 }
@@ -92,6 +95,16 @@ internal class SubCommandInfo
             }
             return allOptions;
         }
+    }
+
+    private static bool IsBindableTo(SubCommandOptionInfo option, Type? leafType)
+    {
+        if (leafType == null)
+            return true;
+        var declaringType = option.Property.DeclaringType;
+        if (declaringType == null)
+            return true;
+        return declaringType.IsAssignableFrom(leafType);
     }
 
     /// <summary>
