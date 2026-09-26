@@ -301,20 +301,8 @@ internal sealed class CommandHierarchyBuilder(
             var first = ReadInitializerValue(firstOption);
             if (current is InitializerValuesUnreadable || first is InitializerValuesUnreadable)
                 return false;
-            if (current is Array currentArray && first is Array firstArray)
-            {
-                if (currentArray.Length != firstArray.Length)
-                    return false;
-                for (var i = 0; i < currentArray.Length; i++)
-                {
-                    if (!Equals(currentArray.GetValue(i), firstArray.GetValue(i)))
-                        return false;
-                }
 
-                return true;
-            }
-
-            return Equals(current, first);
+            return Models.InitializerValueEquality.ValuesEqual(current, first);
         }
         catch
         {
