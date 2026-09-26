@@ -67,6 +67,12 @@ internal sealed class ArgumentParser
             return result;
         }
 
+        if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
+        {
+            result.ShowHelp = true;
+            return result;
+        }
+
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
             var abstractHelpMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
@@ -507,6 +513,27 @@ internal sealed class ArgumentParser
                 return true;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Concrete-root help-first probe: the root command merged with a
+    /// <c>MainCommand</c> implementation (<see cref="SubCommandInfo.HasImplementation"/>)
+    /// skips the abstract help-first branch, so a leading bare help token would
+    /// fall into <see cref="ParseOptionsAndArguments"/> and lose to trailing
+    /// tokens (surplus arguments, unknown options) before help renders. Fires
+    /// only for a leading bare help token (<see cref="HelpVersionGateway.IsHelpToken"/>)
+    /// at the root scope: <c>=</c>-forms, negations, post-separator tokens,
+    /// and non-leading help stay on the normal parse path. Yields to a
+    /// pre-separator version token, mirroring the abstract branch where the
+    /// version check runs before the help check (version beats help).
+    /// </summary>
+    private static bool IsConcreteRootLeadingHelp(SubCommandInfo target, string[] args, int argIndex)
+    {
+        return target.IsRoot
+            && argIndex == 0
+            && argIndex < args.Length
+            && HelpVersionGateway.IsHelpToken(args[argIndex])
+            && !args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken);
     }
 
     /// <summary>
