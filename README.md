@@ -55,6 +55,8 @@ $ myapp Alice
 Hello, Alice!
 ```
 
+A near-miss of a subcommand name still exits `2`. Use `--` to force positional binding (`myapp -- Alice`).
+
 ## Core Concepts
 
 ### Commands

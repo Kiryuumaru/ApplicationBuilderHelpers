@@ -54,6 +54,8 @@ dotnet run --
 # Hello, World!
 ```
 
+A near-miss of a subcommand name still exits `2`. Use `--` to force positional binding (`dotnet run -- -- Alice`).
+
 ## Adding Services
 
 Commands can register their own services:
