@@ -264,7 +264,9 @@ internal sealed class ArgumentParser
     /// <c>true</c>; the last short takes the attached remainder as its value
     /// (<c>-abdvalue</c> binds <c>Data=value</c>). A <c>-h</c>/<c>-V</c> char wins
     /// as help/version even mid-cluster. An unknown char rejects the whole
-    /// cluster token as <see cref="CommandErrorKind.UnknownOption"/> (exit 2).
+    /// cluster token as <see cref="CommandErrorKind.UnknownOption"/> (exit 2),
+    /// truncated to the prefix through the unknown char when a trailing
+    /// remainder exists and the scope owns a secret option (#564).
     /// Returns false when the token is not a splittable cluster.
     /// </summary>
     private static bool TryHandleCombinedShortCluster(string arg, string? nextArg, List<SubCommandOptionInfo> allOptions, ParseResult result, out bool consumedNext)
@@ -291,7 +293,14 @@ internal sealed class ArgumentParser
                 continue;
 
             if (!byShort.TryGetValue(letter, out var member))
-                throw new CommandException($"Unknown option: {arg}", 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
+            {
+                // #564: the unknown char aborts the cluster, so a trailing
+                // remainder is uninterpretable and may carry an attached secret.
+                var report = arg;
+                if (letters[(k + 1)..].Length > 0 && allOptions.Any(o => o.IsSecret))
+                    report = $"-{letters[..(k + 1)]}";
+                throw new CommandException($"Unknown option: {report}", 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
+            }
 
             if (!member.IsFlag)
                 break;

@@ -304,6 +304,23 @@ public sealed class SecretRedactionTests
         }
     }
 
+    [Command("secclust", "Probes secret-valued short-cluster unknown handling.")]
+    public sealed class SecretClusterProbeCommand : Command
+    {
+        [CommandOption('a', "alpha", Description = "Alpha flag.")]
+        public bool Alpha { get; set; }
+
+        [CommandOption('s', "secret-token", Description = "Secret token.", Secret = true)]
+        public string? SecretToken { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"secclust:{Alpha}:{SecretToken ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     /// <summary>
     /// Custom <see cref="int"/> parser whose array factory echoes the last
     /// parsed raw value in its failure, so the collection materialization
@@ -670,6 +687,29 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
+    public async Task SecretValuedShortCluster_UnknownChar_OmitsAttachedValue()
+    {
+        const string secretPayload = "s3cr3t-leak-Q7x9";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secclust", $"-axs{secretPayload}"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -ax", error);
+        Assert.DoesNotContain(secretPayload, error);
+        Assert.DoesNotContain($"-axs{secretPayload}", error);
+    }
+
+    [Fact]
+    public async Task ShortCluster_UnknownChar_ValueAbsent_PreservesNameOnlyReport()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secclust", "-ax"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -ax", error);
+    }
+
+    [Fact]
     public async Task UnknownNearMiss_WithSecretValue_SuggestsNameOnly()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--secret-toke=s3cr3t-leak"]);
@@ -894,7 +934,8 @@ public sealed class SecretRedactionTests
             .AddCommand<SecretEnumArgumentCommand>()
             .AddCommand<SecretFlagCommand>()
             .AddCommand<NoValueProbeCommand>()
-            .AddCommand<ClusterProbeCommand>();
+            .AddCommand<ClusterProbeCommand>()
+            .AddCommand<SecretClusterProbeCommand>();
     }
 
     private static ApplicationBuilder CreateVaultBuilder()
