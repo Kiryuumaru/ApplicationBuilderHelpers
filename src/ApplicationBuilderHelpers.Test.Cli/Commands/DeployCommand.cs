@@ -30,8 +30,8 @@ internal class DeployCommand : BaseCommand
     [CommandOption('s', "services", Description = "Specific services to deploy")]
     public string[] Services { get; set; } = [];
 
-    [CommandOption('e', "env-vars", Description = "Environment variables to set")]
-    public new string[] EnvironmentVariables { get; set; } = [];
+    [CommandOption('e', "env-vars", Description = "Additional deployment-specific environment variables to set")]
+    public string[] DeployEnvVars { get; set; } = [];
 
     [CommandOption("health-check-url", Description = "URL for health checks", EnvironmentVariable = "HEALTH_CHECK_URL")]
     public string? HealthCheckUrl { get; set; }
@@ -59,9 +59,10 @@ internal class DeployCommand : BaseCommand
             Console.WriteLine($"Services: {string.Join(", ", Services)}");
         }
 
-        if (EnvironmentVariables.Length > 0)
+        var allEnvironmentVariables = EnvironmentVariables.Concat(DeployEnvVars).ToArray();
+        if (allEnvironmentVariables.Length > 0)
         {
-            Console.WriteLine($"Environment Variables: {string.Join(", ", EnvironmentVariables)}");
+            Console.WriteLine($"Environment Variables: {string.Join(", ", allEnvironmentVariables)}");
         }
 
         if (!string.IsNullOrEmpty(HealthCheckUrl))
