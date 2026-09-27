@@ -66,15 +66,17 @@ internal sealed class CompletionGateway(
             for (var i = 0; i < rest.Length; i++)
             {
                 var token = rest[i];
-                if (string.Equals(token, "--position", StringComparison.Ordinal) && i + 1 < rest.Length)
+                if (string.Equals(token, "--position", StringComparison.Ordinal))
                 {
-                    if (int.TryParse(rest[i + 1], out var parsed))
-                        position = parsed;
+                    if (i + 1 >= rest.Length || !int.TryParse(rest[i + 1], out var parsed))
+                        return;
+                    position = parsed;
                     i++;
                 }
-                else if (token.StartsWith("--position=", StringComparison.Ordinal)
-                    && int.TryParse(token["--position=".Length..], out var inline))
+                else if (token.StartsWith("--position=", StringComparison.Ordinal))
                 {
+                    if (!int.TryParse(token["--position=".Length..], out var inline))
+                        return;
                     position = inline;
                 }
                 else if (commandline == null)
