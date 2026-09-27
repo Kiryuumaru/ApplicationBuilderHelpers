@@ -139,6 +139,14 @@ internal static class SecretRedaction
     }
 
     /// <summary>
+    /// Error message for an unknown char in a combined short cluster.
+    /// Names the failing char only (<c>-X</c>), never the whole-token
+    /// remainder, which may carry an attached secret value.
+    /// </summary>
+    public static string UnknownClusterCharMessage(string token, int failingIndex) =>
+        $"Unknown option: -{token[failingIndex]}";
+
+    /// <summary>
     /// Redacts the provided value out of a type-parser error string when secret.
     /// Non-secret errors pass through unchanged.
     /// </summary>

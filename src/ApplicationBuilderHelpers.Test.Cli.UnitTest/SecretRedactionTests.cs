@@ -321,6 +321,71 @@ public sealed class SecretRedactionTests
         }
     }
 
+    [Command("seccluster", "Probes secret short-cluster unknown handling.")]
+    public sealed class SecretClusterCommand : Command
+    {
+        [CommandOption('s', "secret", Description = "Secret value.", Secret = true)]
+        public string? Secret { get; set; }
+
+        [CommandOption('c', "count", Description = "Secret count.", Secret = true)]
+        public int Count { get; set; }
+
+        [CommandOption('x', Description = "Short-only secret.", Secret = true)]
+        public int ShortOnly { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"seccluster:{Secret ?? "null"}:{Count}:{ShortOnly}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("sechub", "Abstract secret hub.")]
+    public abstract class SecretHubBase : Command
+    {
+    }
+
+    [Command("sechub alpha", "First secret hub leaf.")]
+    public sealed class SecretHubAlphaCommand : SecretHubBase
+    {
+        [CommandOption('s', "secret", Description = "Secret value.", Secret = true)]
+        public string? Secret { get; set; }
+
+        [CommandOption('c', "count", Description = "Secret count.", Secret = true)]
+        public int Count { get; set; }
+
+        [CommandOption('x', Description = "Short-only secret.", Secret = true)]
+        public int ShortOnly { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"sechub alpha:{Secret ?? "null"}:{Count}:{ShortOnly}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("sechub beta", "Second secret hub leaf.")]
+    public sealed class SecretHubBetaCommand : SecretHubBase
+    {
+        [CommandOption('s', "secret", Description = "Secret value.", Secret = true)]
+        public string? Secret { get; set; }
+
+        [CommandOption('c', "count", Description = "Secret count.", Secret = true)]
+        public int Count { get; set; }
+
+        [CommandOption('x', Description = "Short-only secret.", Secret = true)]
+        public int ShortOnly { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"sechub beta:{Secret ?? "null"}:{Count}:{ShortOnly}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     /// <summary>
     /// Custom <see cref="int"/> parser whose array factory echoes the last
     /// parsed raw value in its failure, so the collection materialization
@@ -677,13 +742,94 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
-    public async Task UnknownClusterChar_NamesWholeToken()
+    public async Task UnknownClusterChar_NamesFailingCharOnly()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["clust", "-abx"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: -abx", error);
+        Assert.Contains("Unknown option: -x", error);
+        Assert.DoesNotContain("-abx", error);
+    }
+
+    [Fact]
+    public async Task SecretClusterUnknownChar_WithSecretStringRemainder_OmitsRemainder()
+    {
+        const string secret = "Sup3rS3cretZQ";
+        var token = $"-Zs{secret}";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["seccluster", token]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -Z", error);
+        Assert.DoesNotContain(secret, error);
+        Assert.DoesNotContain(token, error);
+    }
+
+    [Fact]
+    public async Task SecretClusterUnknownChar_WithSecretIntRemainder_OmitsRemainder()
+    {
+        const string digits = "424242";
+        var token = $"-Zc{digits}";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["seccluster", token]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -Z", error);
+        Assert.DoesNotContain(digits, error);
+        Assert.DoesNotContain(token, error);
+    }
+
+    [Fact]
+    public async Task SecretClusterUnknownChar_WithShortOnlyRemainder_OmitsRemainder()
+    {
+        const string digits = "987654";
+        var token = $"-Zx{digits}";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["seccluster", token]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -Z", error);
+        Assert.DoesNotContain(digits, error);
+        Assert.DoesNotContain(token, error);
+    }
+
+    [Fact]
+    public async Task KnownFlagClusterUnknownChar_WithSecretRemainder_OmitsRemainder()
+    {
+        const string secret = "Sup3rS3cretZQ";
+        var token = $"-aZs{secret}";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["clust", token]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -Z", error);
+        Assert.DoesNotContain(secret, error);
+        Assert.DoesNotContain(token, error);
+    }
+
+    [Fact]
+    public async Task SecretValuedShort_AttachedRemainder_BindsSuccessfully()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["seccluster", "-sSECRETZ"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("seccluster:SECRETZ:0:0", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task SecretHubUnknownChar_WithSecretRemainder_OmitsRemainder()
+    {
+        const string secret = "Sup3rS3cretZQ";
+        var token = $"-Zs{secret}";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateSecretHubBuilder, ["sechub", token]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -Z", error);
+        Assert.DoesNotContain(secret, error);
+        Assert.DoesNotContain(token, error);
     }
 
     [Fact]
@@ -694,7 +840,7 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: -ax", error);
+        Assert.Contains("Unknown option: -x", error);
         Assert.DoesNotContain(secretPayload, error);
         Assert.DoesNotContain($"-axs{secretPayload}", error);
     }
@@ -706,7 +852,7 @@ public sealed class SecretRedactionTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: -ax", error);
+        Assert.Contains("Unknown option: -x", error);
     }
 
     [Fact]
@@ -935,7 +1081,8 @@ public sealed class SecretRedactionTests
             .AddCommand<SecretFlagCommand>()
             .AddCommand<NoValueProbeCommand>()
             .AddCommand<ClusterProbeCommand>()
-            .AddCommand<SecretClusterProbeCommand>();
+            .AddCommand<SecretClusterProbeCommand>()
+            .AddCommand<SecretClusterCommand>();
     }
 
     private static ApplicationBuilder CreateVaultBuilder()
@@ -947,6 +1094,17 @@ public sealed class SecretRedactionTests
             .SetExecutableVersion("9.9.9")
             .AddCommand<VaultAlphaCommand>()
             .AddCommand<VaultBetaCommand>();
+    }
+
+    private static ApplicationBuilder CreateSecretHubBuilder()
+    {
+        return ApplicationBuilder.Create()
+            .SetExecutableName("secret-test")
+            .SetExecutableTitle("Secret Test")
+            .SetExecutableDescription("Secret redaction verification CLI.")
+            .SetExecutableVersion("9.9.9")
+            .AddCommand<SecretHubAlphaCommand>()
+            .AddCommand<SecretHubBetaCommand>();
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(
