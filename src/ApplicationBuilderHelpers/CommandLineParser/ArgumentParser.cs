@@ -208,13 +208,13 @@ internal sealed class ArgumentParser
                     continue;
                 }
 
-                var optionSuggestion = DidYouMean.FindBestMatch(
-                    arg,
-                    DidYouMean.OptionCandidates(allOptions));
                 var unknownName = arg;
                 var unknownEquals = unknownName.IndexOf('=');
                 if (unknownEquals >= 0)
                     unknownName = unknownName[..unknownEquals];
+                var optionSuggestion = DidYouMean.FindBestMatch(
+                    unknownName,
+                    DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {unknownName}", optionSuggestion), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
             }
@@ -263,10 +263,8 @@ internal sealed class ArgumentParser
     /// Expands a combined short cluster (<c>-abc</c>): each leading flag binds
     /// <c>true</c>; the last short takes the attached remainder as its value
     /// (<c>-abdvalue</c> binds <c>Data=value</c>). A <c>-h</c>/<c>-V</c> char wins
-    /// as help/version even mid-cluster. An unknown char rejects the whole
-    /// cluster token as <see cref="CommandErrorKind.UnknownOption"/> (exit 2),
-    /// truncated to the prefix through the unknown char when a trailing
-    /// remainder exists and the scope owns a secret option (#564).
+    /// as help/version even mid-cluster. An unknown char reports only the
+    /// failing char as <see cref="CommandErrorKind.UnknownOption"/> (exit 2).
     /// Returns false when the token is not a splittable cluster.
     /// </summary>
     private static bool TryHandleCombinedShortCluster(string arg, string? nextArg, List<SubCommandOptionInfo> allOptions, ParseResult result, out bool consumedNext)
@@ -293,14 +291,7 @@ internal sealed class ArgumentParser
                 continue;
 
             if (!byShort.TryGetValue(letter, out var member))
-            {
-                // #564: the unknown char aborts the cluster, so a trailing
-                // remainder is uninterpretable and may carry an attached secret.
-                var report = arg;
-                if (letters[(k + 1)..].Length > 0 && allOptions.Any(o => o.IsSecret))
-                    report = $"-{letters[..(k + 1)]}";
-                throw new CommandException($"Unknown option: {report}", 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
-            }
+                throw new CommandException(SecretRedaction.UnknownClusterCharMessage(arg, 1 + k), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
 
             if (!member.IsFlag)
                 break;
@@ -492,11 +483,19 @@ internal sealed class ArgumentParser
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
             }
-            var suggestion = DidYouMean.FindBestMatch(token, DidYouMean.OptionCandidates(allOptions));
+            var clusterFailing = FindUnknownClusterCharIndex(allOptions, token);
+            if (clusterFailing >= 0)
+            {
+                var clusterFragment = $"-{token[clusterFailing]}";
+                var clusterSuggestion = DidYouMean.FindBestMatch(clusterFragment, DidYouMean.OptionCandidates(allOptions));
+                throw new CommandException(
+                    DidYouMean.WithSuggestion(SecretRedaction.UnknownClusterCharMessage(token, clusterFailing), clusterSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+            }
             var unknownName = token;
             var equals = unknownName.IndexOf('=');
             if (equals >= 0)
                 unknownName = unknownName[..equals];
+            var suggestion = DidYouMean.FindBestMatch(unknownName, DidYouMean.OptionCandidates(allOptions));
             throw new CommandException(
                 DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
         }
@@ -660,6 +659,32 @@ internal sealed class ArgumentParser
                 return true;
         }
         return true;
+    }
+
+    private static int FindUnknownClusterCharIndex(List<SubCommandOptionInfo> allOptions, string token)
+    {
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
+            return -1;
+        if (!allOptions.Any(o => o.ShortName.HasValue))
+            return -1;
+        var byShort = new HashSet<char>();
+        foreach (var option in allOptions)
+        {
+            if (option.ShortName.HasValue)
+                byShort.Add(option.ShortName.Value);
+        }
+        for (var i = 1; i < token.Length; i++)
+        {
+            var letter = token[i];
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (!byShort.Contains(letter))
+                return i;
+            var member = allOptions.First(o => o.ShortName == letter);
+            if (!member.IsFlag)
+                return -1;
+        }
+        return -1;
     }
 
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
