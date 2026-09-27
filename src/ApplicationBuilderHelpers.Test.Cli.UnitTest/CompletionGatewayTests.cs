@@ -270,6 +270,67 @@ public sealed class CompletionGatewayTests
     }
 
     [Fact]
+    public async Task Complete_MalformedSeparatePosition_PrintsNothing()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete", "--position", "abc", "gw-test gwd"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Complete_MalformedSeparatePositionTrailingSpace_PrintsNothing()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete", "--position", "abc", "gw-test "]);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Complete_MalformedInlinePosition_PrintsNothing()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete", "--position=abc", "gw-test gwd"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Complete_TrailingPositionWithNoValue_PrintsNothing()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete", "--position"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Complete_MalformedSeparatePositionWithoutCommandLine_PrintsNothing()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete", "--position", "abc"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Complete_NegativePosition_ClampsToEnd()
+    {
+        var line = "gw-test gwd";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete", "--position", "-1", line]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("gwdeploy", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task BareComplete_IsHandledWithExitZero()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete"]);
