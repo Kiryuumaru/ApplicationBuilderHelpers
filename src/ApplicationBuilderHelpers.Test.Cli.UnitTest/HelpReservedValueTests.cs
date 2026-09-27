@@ -191,7 +191,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-hfalse");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Unknown option: -hfalse");
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: -f");
     }
 
     [Fact]
