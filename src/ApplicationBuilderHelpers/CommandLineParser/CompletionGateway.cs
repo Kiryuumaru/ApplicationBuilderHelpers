@@ -113,8 +113,14 @@ internal sealed class CompletionGateway(
             {
                 dryRun = true;
             }
-            else if (string.Equals(token, "--shell", StringComparison.Ordinal) && i + 1 < rest.Length)
+            else if (string.Equals(token, "--shell", StringComparison.Ordinal))
             {
+                if (i + 1 >= rest.Length)
+                {
+                    consoleOutput.WriteLineError("Missing value for '--shell'. Expected bash, zsh, pwsh, or fish.");
+                    return 2;
+                }
+
                 shellOption = rest[++i];
             }
             else if (token.StartsWith("--shell=", StringComparison.Ordinal))
@@ -155,8 +161,14 @@ internal sealed class CompletionGateway(
         for (var i = 0; i < rest.Length; i++)
         {
             var token = rest[i];
-            if (string.Equals(token, "--shell", StringComparison.Ordinal) && i + 1 < rest.Length)
+            if (string.Equals(token, "--shell", StringComparison.Ordinal))
             {
+                if (i + 1 >= rest.Length)
+                {
+                    consoleOutput.WriteLineError("Missing value for '--shell'. Expected bash, zsh, pwsh, or fish.");
+                    return 2;
+                }
+
                 shellOption = rest[++i];
             }
             else if (token.StartsWith("--shell=", StringComparison.Ordinal))
