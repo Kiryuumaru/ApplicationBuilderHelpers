@@ -120,6 +120,88 @@ public sealed class CompletionGatewayTests
     }
 
     [Fact]
+    public async Task CompletionsInstall_BareShell_RequiresValue()
+    {
+        var home = Path.Combine(Path.GetTempPath(), "gw-bare-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(home);
+        var previousHome = CommandLineParser.CompletionInstaller.HomeProvider;
+        var previousEnv = CommandLineParser.CompletionInstaller.EnvironmentProvider;
+        CommandLineParser.CompletionInstaller.HomeProvider = () => home;
+        CommandLineParser.CompletionInstaller.EnvironmentProvider = static _ => null;
+        try
+        {
+            var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions", "install", "--shell"]);
+
+            Assert.Equal(2, exitCode);
+            Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+            Assert.DoesNotContain("Unknown option", error);
+            Assert.Contains("Missing value", error);
+            Assert.Contains("--shell", error);
+            Assert.DoesNotContain("USAGE", error);
+            Assert.False(File.Exists(Path.Combine(home, ".bashrc")));
+            Assert.False(File.Exists(Path.Combine(home, ".bashrc.lock")));
+        }
+        finally
+        {
+            CommandLineParser.CompletionInstaller.HomeProvider = previousHome;
+            CommandLineParser.CompletionInstaller.EnvironmentProvider = previousEnv;
+            try { Directory.Delete(home, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task CompletionsUninstall_BareShell_RequiresValue()
+    {
+        var home = Path.Combine(Path.GetTempPath(), "gw-bare-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(home);
+        var previousHome = CommandLineParser.CompletionInstaller.HomeProvider;
+        var previousEnv = CommandLineParser.CompletionInstaller.EnvironmentProvider;
+        CommandLineParser.CompletionInstaller.HomeProvider = () => home;
+        CommandLineParser.CompletionInstaller.EnvironmentProvider = static _ => null;
+        try
+        {
+            var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions", "uninstall", "--shell"]);
+
+            Assert.Equal(2, exitCode);
+            Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+            Assert.DoesNotContain("Unknown option", error);
+            Assert.Contains("Missing value", error);
+            Assert.Contains("--shell", error);
+            Assert.DoesNotContain("USAGE", error);
+            Assert.False(File.Exists(Path.Combine(home, ".bashrc")));
+            Assert.False(File.Exists(Path.Combine(home, ".bashrc.lock")));
+        }
+        finally
+        {
+            CommandLineParser.CompletionInstaller.HomeProvider = previousHome;
+            CommandLineParser.CompletionInstaller.EnvironmentProvider = previousEnv;
+            try { Directory.Delete(home, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task CompletionsInstall_UnknownFlag_StaysUnknownOption()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions", "install", "--bogus"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option '--bogus'", error);
+        Assert.DoesNotContain("USAGE", error);
+    }
+
+    [Fact]
+    public async Task CompletionsUninstall_UnknownFlag_StaysUnknownOption()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions", "uninstall", "--bogus"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option '--bogus'", error);
+        Assert.DoesNotContain("USAGE", error);
+    }
+
+    [Fact]
     public async Task BareCompletions_FallsThroughToParse()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["completions"]);
