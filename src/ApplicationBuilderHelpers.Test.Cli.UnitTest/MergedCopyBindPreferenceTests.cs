@@ -9,8 +9,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Merged-copy bind-preference guards.
 /// D1: merged groups bind under the target command's own copy identity with
 /// encounter-order values (secret values never echo under a non-secret copy).
-/// D2: bare-ledger fidelity (optional bare fails, satisfied-then-bare optional
-/// ignored, satisfied-then-bare required fails). D3: CLI wins over env.
+/// D2: bare-ledger fidelity (any bare valued occurrence fails, including a
+/// satisfied-then-bare optional repeat per #593). D3: CLI wins over env.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -207,15 +207,14 @@ public sealed class MergedCopyBindPreferenceTests
     }
 
     [Fact]
-    public async Task D2_SatisfiedThenBareOptional_KeepsFirstValue()
+    public async Task D2_SatisfiedThenBareOptional_ReportsMissing()
     {
-        var (exitCode, output, error) = await RunCapturedAsync(
+        var (exitCode, _, error) = await RunCapturedAsync(
             () => CreateBuilder().AddCommand<BareProbeCommand>(),
             ["bareprobe", "--config", "a.json", "--config"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("config=a.json", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Missing value for option: -c, --config", error);
     }
 
     [Fact]

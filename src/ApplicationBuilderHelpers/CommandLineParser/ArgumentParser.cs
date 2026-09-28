@@ -298,7 +298,7 @@ internal sealed class ArgumentParser
     /// </summary>
     private static void AddParsedOptionValue(ParseResult result, SubCommandOptionInfo matchedOption, string? value, string arg, string? nextArg)
     {
-        result.AddOptionValue(matchedOption, value);
+        result.AddCliOptionValue(matchedOption, value);
     }
 
     /// <summary>
@@ -565,10 +565,10 @@ internal sealed class ArgumentParser
     /// <c>UnknownOption</c> keep precedence (unknown-first); equals-forms,
     /// attached remainders, flags, numerics, help/version tokens, cluster
     /// tokens, and post-separator tokens stay silent for
-    /// <c>RequiresSubcommand</c>. A bare repeat of an already-satisfied
-    /// optional valued option stays silent too (record-then-filter over the
-    /// pre-sentinel range, canonical key, so either order converges with
-    /// <see cref="ParameterValidator"/>); required repeats still throw.
+    /// <c>RequiresSubcommand</c>. Any bare valued occurrence throws
+    /// (#593 bare flip, converging with <see cref="ParameterValidator"/>):
+    /// satisfied-then-bare, required or optional alike, never falls
+    /// through. Kind is MissingRequired, never DuplicateOption, per ADR-0005.
     /// Peek only: consumes nothing.
     /// </summary>
     private static void ThrowOnBareValuedPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
@@ -576,39 +576,6 @@ internal sealed class ArgumentParser
         var allOptions = target.AllOptions;
         var sentinelIndex = Array.IndexOf(args, "--");
         var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
-        var satisfiedKeys = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = argIndex; i < end; i++)
-        {
-            var token = args[i];
-            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
-                continue;
-            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
-                continue;
-            if (token.Contains('='))
-            {
-                var equalsMatched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
-                if (equalsMatched != null && !equalsMatched.IsFlag)
-                    satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(equalsMatched));
-                continue;
-            }
-            if (IsClusterToken(allOptions, token))
-            {
-                var clusterNext = i + 1 < end ? args[i + 1] : null;
-                RecordClusterSatisfaction(allOptions, token, clusterNext, satisfiedKeys);
-                continue;
-            }
-            var seen = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
-            if (seen == null || seen.IsFlag)
-                continue;
-            if (!IsBareValuedToken(seen, token))
-            {
-                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(seen));
-                continue;
-            }
-            var seenNext = i + 1 < end ? args[i + 1] : null;
-            if (seenNext != null && !IsFlagLookingToken(seenNext))
-                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(seen));
-        }
         for (var i = argIndex; i < end; i++)
         {
             var token = args[i];
@@ -628,37 +595,10 @@ internal sealed class ArgumentParser
             var next = i + 1 < end ? args[i + 1] : null;
             if (next != null && !IsFlagLookingToken(next))
                 continue;
-            if (!matched.IsRequired && satisfiedKeys.Contains(ParseResult.GetCanonicalOptionKey(matched)))
-                continue;
             var message = matched.IsRequired
                 ? $"Missing required option: {matched.GetDisplayName()}"
                 : $"Missing value for option: {matched.GetDisplayName()}";
             throw new CommandException(message, 2, CommandErrorKind.MissingRequired, target.FullCommandName);
-        }
-    }
-
-    private static void RecordClusterSatisfaction(List<SubCommandOptionInfo> allOptions, string token, string? next, HashSet<string> satisfiedKeys)
-    {
-        var byShort = new Dictionary<char, SubCommandOptionInfo>();
-        foreach (var option in allOptions)
-        {
-            if (option.ShortName.HasValue && !byShort.ContainsKey(option.ShortName.Value))
-                byShort.Add(option.ShortName.Value, option);
-        }
-        var letters = token[1..];
-        for (var k = 0; k < letters.Length; k++)
-        {
-            var letter = letters[k];
-            if (letter == 'h' || letter == 'V')
-                continue;
-            if (!byShort.TryGetValue(letter, out var member) || member.IsFlag)
-                continue;
-            var remainder = token[(2 + k)..];
-            if (remainder.Length > 0)
-                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(member));
-            else if (next != null && !IsFlagLookingToken(next))
-                satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(member));
-            return;
         }
     }
 

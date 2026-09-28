@@ -163,6 +163,24 @@ public static class ICommandBuilderExtensions
     }
 
     /// <summary>
+    /// Opts into duplicate-option rejection (#593): valued non-collection
+    /// scalar repeats fail <c>DuplicateOption</c> (exit 2) instead of last-wins.
+    /// </summary>
+    /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>
+    /// <param name="commandBuilder">The command builder instance.</param>
+    /// <param name="reject">True to reject valued repeats; false restores last-wins (default).</param>
+    /// <returns>The command builder instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
+    public static TICommandBuilder SetRejectDuplicateOptions<TICommandBuilder>(this TICommandBuilder commandBuilder, bool reject = true)
+        where TICommandBuilder : ICommandBuilder
+    {
+        ArgumentNullException.ThrowIfNull(commandBuilder);
+
+        commandBuilder.RejectDuplicateOptions = reject;
+        return commandBuilder;
+    }
+
+    /// <summary>
     /// Adds a command instance to the command builder.
     /// </summary>
     /// <typeparam name="TICommandBuilder">The type of command builder that implements <see cref="ICommandBuilder"/>.</typeparam>

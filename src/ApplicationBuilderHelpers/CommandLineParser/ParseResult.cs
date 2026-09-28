@@ -23,6 +23,30 @@ internal class ParseResult
     internal HashSet<string> BareOptionOccurrences { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Valued-occurrence facts for #593 strict mode: canonical key to count
+    /// of explicit CLI valued occurrences. Env fallback never records here,
+    /// so env+CLI is not a duplicate. Flags and collections never record:
+    /// flags stay idempotent, collections accumulate.
+    /// </summary>
+    internal Dictionary<string, int> ValuedOccurrenceCounts { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Records one explicit CLI occurrence. Valued non-collection scalar
+    /// occurrences bump the strict-mode count; delegates storage to
+    /// <see cref="AddOptionValue"/>.
+    /// </summary>
+    internal void AddCliOptionValue(SubCommandOptionInfo option, string? value)
+    {
+        if (value != null && !option.IsFlag && !option.IsCollection)
+        {
+            var countKey = GetCanonicalOptionKey(option);
+            ValuedOccurrenceCounts[countKey] = ValuedOccurrenceCounts.TryGetValue(countKey, out var count) ? count + 1 : 1;
+        }
+
+        AddOptionValue(option, value);
+    }
+
+    /// <summary>
     /// Adds an option value to the parse result. Collections accumulate;
     /// scalars overwrite with the last value (industry last-wins). A later
     /// real value removes the prior bare mark for the same key.

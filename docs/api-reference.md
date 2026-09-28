@@ -232,7 +232,7 @@ Exit contract for `RunAsync`:
 | Outcome | Exit code |
 |---|---|
 | `Run` returns normally (also `--help` / `--version`) | `0` |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption` — opt-in strict-mode valued-repeat rejection via `SetRejectDuplicateOptions`, #593, default off keeping industry last-wins) | `2` |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
@@ -247,7 +247,7 @@ public enum CommandErrorKind
     RequiresSubcommand,
     InvalidValue,
     UnknownCommand,
-    DuplicateOption, // Reserved for compatibility; never thrown — valued repeats resolve last-wins.
+    DuplicateOption, // Opt-in strict mode (#593): valued non-collection scalar repeated with values under SetRejectDuplicateOptions; bare never reports this kind (MissingRequired, per ADR-0005).
     NoImplementation,
 }
 

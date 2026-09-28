@@ -6,8 +6,13 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// In-process duplicate-option tests for the CLI parser.
-/// Scalar and valued-flag repeats resolve last-wins (industry standard);
+/// Default (strict off): scalar and valued-flag repeats resolve last-wins
+/// (industry standard: argparse, pflag/Cobra, commander, Click, POSIX);
 /// array options stay repeatable and bare boolean flags stay idempotent.
+/// Strict opt-in (<c>SetRejectDuplicateOptions</c>, #593): a valued
+/// non-collection scalar repeated with values fails <c>DuplicateOption</c>
+/// (exit 2), naming the second occurrence; collections, flags, and
+/// env+CLI stay out of scope.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -50,6 +55,22 @@ public sealed class DuplicateOptionTests
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
         {
             Console.WriteLine($"Verbose: {Verbose}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("dupenv", "Probes strict env+CLI non-duplication.")]
+    public sealed class DuplicateEnvCommand : Command
+    {
+        [CommandOption("text", Description = "Text value.", EnvironmentVariable = "DUPSTRICT_TEXT")]
+        public string? Text { get; set; }
+
+        [CommandOption("count", Description = "Count value.")]
+        public int Count { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"Text: {Text ?? "null"} Count: {Count}");
             return ValueTask.CompletedTask;
         }
     }
@@ -117,6 +138,124 @@ public sealed class DuplicateOptionTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
+    [Fact]
+    public async Task Strict_ScalarRepeat_ReportsDuplicate()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupscalar", "--text=a", "--text=b"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Duplicate option: --text", error);
+    }
+
+    [Fact]
+    public async Task Strict_AliasedRepeatAcrossForms_ReportsDuplicate()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupalias", "--text=a", "-t", "b"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Duplicate option: -t, --text", error);
+    }
+
+    [Fact]
+    public async Task Strict_SingleOccurrence_Succeeds()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupscalar", "--text=a"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Text: a", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Strict_ArrayRepeat_StillAccumulates()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["duparray", "--tags=a", "--tags=b"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Tags: a,b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Strict_FlagRepeat_StillIdempotent()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupflag", "--verbose", "--verbose"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Strict_ValuedFlagRepeat_StillLastWins()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupflag", "--verbose=true", "--verbose=false"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.DoesNotContain("Duplicate option", error);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Strict_BareRepeat_ReportsMissingNeverDuplicate()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupscalar", "--text=a", "--text"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing value for option: --text", error);
+        Assert.DoesNotContain("Duplicate option", error);
+    }
+
+    [Fact]
+    public async Task Strict_EnvPlusCli_IsNotDuplicate()
+    {
+        var prior = Environment.GetEnvironmentVariable("DUPSTRICT_TEXT");
+        Environment.SetEnvironmentVariable("DUPSTRICT_TEXT", "env-value");
+        try
+        {
+            var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupenv", "--text=cli-value"]);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Text: cli-value", output);
+            Assert.DoesNotContain("env-value", output);
+            Assert.DoesNotContain("Duplicate option", error);
+            Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DUPSTRICT_TEXT", prior);
+        }
+    }
+
+    [Fact]
+    public async Task Strict_DuplicatePlusInvalid_InvalidBeatsDuplicate()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupenv", "--text=a", "--text=b", "--count=banana"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Duplicate option: --text", error);
+        Assert.Contains("Invalid value", error);
+    }
+
+    [Fact]
+    public async Task Strict_DuplicatePlusUnknown_UnknownWinsAlone()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateStrictBuilder(), ["dupscalar", "--text=a", "--text=b", "--bogus"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --bogus", error);
+        Assert.DoesNotContain("Duplicate option", error);
+    }
+
+    private static ApplicationBuilder CreateStrictBuilder() =>
+        CreateBuilder().SetRejectDuplicateOptions();
+
     private static ApplicationBuilder CreateBuilder()
     {
         return ApplicationBuilder.Create()
@@ -127,7 +266,8 @@ public sealed class DuplicateOptionTests
             .AddCommand<DuplicateScalarCommand>()
             .AddCommand<DuplicateArrayCommand>()
             .AddCommand<DuplicateFlagCommand>()
-            .AddCommand<DuplicateAliasedCommand>();
+            .AddCommand<DuplicateAliasedCommand>()
+            .AddCommand<DuplicateEnvCommand>();
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(string[] args)

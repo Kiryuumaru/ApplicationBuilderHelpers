@@ -2,7 +2,7 @@
 
 **Status**: Accepted — scope extended by #503 (see Addenda below; original decision text preserved).
 
-**Superseded in scope by #503 with explicit-bare hard-fail**: the required-only scope below now covers unsatisfied bare optional valued options too (fail `MissingRequired` exit 2 even with env set). Satisfied-optional repeat stays ignored. Env fallback rescues only omitted (never-typed) options, never a typed bare.
+**Superseded in scope by #503 with explicit-bare hard-fail, then by #593 (see Addenda below)**: the required-only scope below now covers any explicit bare valued occurrence — unsatisfied or satisfied-then-bare, required or optional alike (fail `MissingRequired` exit 2 even with env set). Env fallback rescues only omitted (never-typed) options, never a typed bare.
 
 ## Context
 
@@ -30,6 +30,12 @@ Unsatisfied bare optional valued options (`--config` at end-of-line or before a 
 
 Unchanged: satisfied-optional repeat stays ignored (merged-values gate at `ParameterValidator.cs:62-63`); `--help`/`--version` neighbors keep their carve-out (optional-bare pass skipped when `ShowHelp`/`ShowVersion`); unknown neighbors still error first in the parser before validation runs; error kind stays `MissingRequired`, never `DuplicateOption`.
 
-## Addendum — #503 follow-up: Explicit Bare Always Fails Even With Env Set
+## Addendum — #593: Satisfied-Optional Bare Repeat Fails; Strict Duplicate Opt-In
 
-Typing the option claims ownership: any explicit bare valued occurrence (end-of-line or before-flag, optional or required, single or repeat) now fails `MissingRequired` (exit 2) even with env set. Env fallback rescues only omitted (never-typed) options — via the required rescue gated on no bare mark (`ParameterValidator.cs:29-31`) and the binder omitted path (`ValueBinder.cs:27`, unreachable once validation throws on bare). The optional-bare pass (`ParameterValidator.cs:52-71`) carries no rescue call. The required single-bare rescue and the optional single-bare rescue are both removed; satisfied-optional repeat stays ignored (merged-values gate at `ParameterValidator.cs:64-65`); `--help`/`--version` carve-out, unknown-first precedence, and `MissingRequired` kind are unchanged. Migration: remove the flag to use the env value — `--config --verbose` with `TEST_CONFIG` set now fails instead of binding env.
+Any explicit bare valued occurrence — unsatisfied or satisfied-then-bare, required or optional alike — fails `MissingRequired` (exit 2): optional scope reports `Missing value for option: <display-name>`, required scope reports `Missing required option: <display-name>`, regardless of env or a prior satisfied value. The satisfied-optional merged-values gate is removed (`ParameterValidator.cs` optional-bare pass; abstract-root pre-sentinel satisfied-key filter in `ArgumentParser.cs` removed so both branches converge). Bare-then-valued still heals via eviction; collections accumulate; bare boolean flags stay idempotent.
+
+Separately, opt-in strict mode (`ICommandBuilder.RejectDuplicateOptions` + `SetRejectDuplicateOptions`, default off): a valued non-collection scalar with two or more explicit CLI valued occurrences fails `DuplicateOption` (exit 2), naming the second occurrence (canonical key via `ParseResult.GetCanonicalOptionKey`, counts in `ParseResult.ValuedOccurrenceCounts`, checked in `ParameterValidator.CollectDuplicateErrors`). Collections accumulate, flags stay idempotent, env+CLI is not a duplicate (env never records a count), alias forms share one canonical key, and bare occurrences never count. Precedence in `ValidateAndBindParameters` is invalid > duplicate > missing. Error kind for bare stays `MissingRequired`, never `DuplicateOption`.
+
+## Addendum — #503 follow-up (historical): Explicit Bare Always Fails Even With Env Set
+
+Typing the option claims ownership: any explicit bare valued occurrence (end-of-line or before-flag, optional or required, single or repeat) now fails `MissingRequired` (exit 2) even with env set. Env fallback rescues only omitted (never-typed) options — via the required rescue gated on no bare mark and the binder omitted path (unreachable once validation throws on bare). The optional-bare pass carries no rescue call. At that time satisfied-optional repeat stayed ignored (since flipped by #593 above); `--help`/`--version` carve-out, unknown-first precedence, and `MissingRequired` kind are unchanged. Migration: remove the flag to use the env value — `--config --verbose` with `TEST_CONFIG` set now fails instead of binding env.

@@ -148,10 +148,12 @@ internal class CommandLineParser
     private void ValidateAndBindParameters(ParseResult result)
     {
         var missingErrors = _validator.CollectRequiredErrors(result);
+        var duplicateErrors = _validator.CollectDuplicateErrors(result, CommandBuilder.RejectDuplicateOptions);
         var bindingErrors = _binder.CollectBindingErrors(result, skipBareWhenHelpRequested: true);
 
-        var allErrors = new List<string>(missingErrors.Count + bindingErrors.Count);
+        var allErrors = new List<string>(missingErrors.Count + duplicateErrors.Count + bindingErrors.Count);
         allErrors.AddRange(missingErrors);
+        allErrors.AddRange(duplicateErrors);
         allErrors.AddRange(bindingErrors);
         if (allErrors.Count == 0)
             return;
@@ -159,7 +161,7 @@ internal class CommandLineParser
         throw new CommandException(
             string.Join(Environment.NewLine, allErrors),
             2,
-            bindingErrors.Count == 0 ? CommandErrorKind.MissingRequired : CommandErrorKind.InvalidValue,
+            bindingErrors.Count != 0 ? CommandErrorKind.InvalidValue : duplicateErrors.Count != 0 ? CommandErrorKind.DuplicateOption : CommandErrorKind.MissingRequired,
             result.TargetCommand.FullCommandName);
     }
 

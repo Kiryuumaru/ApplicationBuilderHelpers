@@ -26,4 +26,12 @@ public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDep
     internal int? HelpBorderWidth { get; set; }
 
     internal IConsoleTheme? Theme { get; set; }
+
+    /// <summary>
+    /// Opt-in duplicate rejection (#593): when true, a valued non-collection
+    /// scalar repeated with values fails <c>DuplicateOption</c> (exit 2).
+    /// Default false keeps industry last-wins (argparse, pflag/Cobra,
+    /// commander, Click, POSIX). Per-option granularity rejected as YAGNI.
+    /// </summary>
+    internal bool RejectDuplicateOptions { get; set; }
 }

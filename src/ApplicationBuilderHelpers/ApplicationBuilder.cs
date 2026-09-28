@@ -23,6 +23,7 @@ public class ApplicationBuilder : ICommandBuilder
     int? ICommandBuilder.HelpWidth { get; set; } = null;
     int? ICommandBuilder.HelpBorderWidth { get; set; } = null;
     IConsoleTheme? ICommandBuilder.Theme { get; set; } = DefaultConsoleTheme.Instance;
+    bool ICommandBuilder.RejectDuplicateOptions { get; set; } = false;
     List<TypedCommandHolder> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];

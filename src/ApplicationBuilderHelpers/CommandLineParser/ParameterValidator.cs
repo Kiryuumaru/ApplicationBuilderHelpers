@@ -11,11 +11,14 @@ internal sealed class ParameterValidator
     /// <summary>
     /// Collects every missing-required error without throwing.
     /// Validates that all required parameters are provided.
-    /// A satisfied-then-bare repeat also fails: each bare valued
-    /// occurrence is a missing value by itself, regardless of env.
-    /// An unsatisfied bare optional valued option fails the same way
-    /// even with env set (env rescues only omitted options); a satisfied-then-bare
-    /// optional repeat keeps the first value and succeeds.
+    /// Any explicit bare valued occurrence is a missing value by itself
+    /// (#593 bare flip, unanimous survey: zero keep-prior adopters —
+    /// argparse, pflag/Cobra, commander, Click, POSIX all error on a
+    /// missing value): required scope reports <c>Missing required
+    /// option</c>, optional scope reports <c>Missing value for
+    /// option</c>, regardless of env or a prior satisfied value.
+    /// Env fallback rescues only omitted (never-typed) options.
+    /// Duplicate rejection is separate: see <see cref="CollectDuplicateErrors"/>.
     /// Help always wins over missing required: when
     /// <see cref="ParseResult.ShowHelp"/> is set, the required-option and
     /// required-argument passes are skipped so help-with-values renders;
@@ -68,9 +71,6 @@ internal sealed class ParameterValidator
                 if (!result.BareOptionOccurrences.Contains(key))
                     continue;
 
-                if (result.TryGetMergedOptionValues(option, out _))
-                    continue;
-
                 errors.Add($"Missing value for option: {option.GetDisplayName()}");
             }
         }
@@ -88,6 +88,36 @@ internal sealed class ParameterValidator
                     errors.Add($"Missing required argument: {argument.DisplayName}");
                 }
             }
+        }
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Collects opt-in duplicate errors (#593 strict mode, default off):
+    /// a valued non-collection scalar with two or more explicit CLI valued
+    /// occurrences fails <c>DuplicateOption</c> (exit 2), naming the second
+    /// occurrence. Collections accumulate, flags stay idempotent, env+CLI
+    /// is not a duplicate (env never records a count), alias forms share
+    /// one canonical key, and bare occurrences never count (bare fails
+    /// <c>MissingRequired</c>, never <c>DuplicateOption</c>, per ADR-0005).
+    /// </summary>
+    public List<string> CollectDuplicateErrors(ParseResult result, bool rejectDuplicates)
+    {
+        var errors = new List<string>();
+        if (!rejectDuplicates || result.ShowHelp)
+            return errors;
+
+        var seenKeys = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (var option in result.TargetCommand.AllOptions)
+        {
+            var key = ParseResult.GetCanonicalOptionKey(option);
+            if (!seenKeys.Add(key))
+                continue;
+            if (option.IsFlag || option.IsCollection)
+                continue;
+            if (result.ValuedOccurrenceCounts.TryGetValue(key, out var count) && count >= 2)
+                errors.Add($"Duplicate option: {option.GetDisplayName()}");
         }
 
         return errors;

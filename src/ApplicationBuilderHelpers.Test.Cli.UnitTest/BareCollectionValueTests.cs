@@ -148,13 +148,13 @@ public sealed class BareCollectionValueTests
     }
 
     [Fact]
-    public async Task Optional_SatisfiedThenBare_KeepsValues()
+    public async Task Optional_SatisfiedThenBare_ReportsMissing()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["colopt", "--groups=a", "--groups"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Groups: a", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing value for option: -g, --groups", error);
     }
 
     [Fact]

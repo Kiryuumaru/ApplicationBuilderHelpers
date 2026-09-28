@@ -109,7 +109,7 @@ public class DeployProductionCommand : Command { /* ... */ }
 | Outcome | Exit code |
 |---|---|
 | `Run` returns normally (also `--help` / `--version`) | `0` (conversion failure beats help-with-values; invalid+version still `0` via the pre-validation version guard at `CommandLineParser.cs:78-82`; leading `--help`/`-h` on a concrete root renders global help, exit `0`, before trailing validation — `IsConcreteRootLeadingHelp` at `ArgumentParser.cs:530-537`, pinned by `RootRoutingDivergenceTests.cs`) |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` |
+| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`, `DuplicateOption` — opt-in strict-mode valued-repeat rejection via `SetRejectDuplicateOptions`, #593, default off keeping industry last-wins) | `2` |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
 
