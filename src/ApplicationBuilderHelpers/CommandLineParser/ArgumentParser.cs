@@ -72,6 +72,14 @@ internal sealed class ArgumentParser
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
             // #586: an unknown option or invalid flag literal plus --version is still an error (exit 2), not a version request.
+            // #594: reserved version-misuse plus --version is still an error (exit 2), never a version request.
+            // First misuse token wins, matching the concrete per-token loop below.
+            var abstractEarlyMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
+                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
+            if (abstractEarlyMisuse != null)
+                throw IsHelpEqualsOrNegatedToken(abstractEarlyMisuse, result.TargetCommand.AllOptions)
+                    ? HelpMisuseError(abstractEarlyMisuse, result.TargetCommand.FullCommandName)
+                    : VersionMisuseError(abstractEarlyMisuse, result.TargetCommand.FullCommandName);
             ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
         }
@@ -95,10 +103,13 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            var abstractHelpMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
-                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
-            if (abstractHelpMisuse != null)
-                throw HelpMisuseError(abstractHelpMisuse, result.TargetCommand.FullCommandName);
+            // First misuse token wins, matching the concrete per-token loop below.
+            var abstractMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
+                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
+            if (abstractMisuse != null)
+                throw IsHelpEqualsOrNegatedToken(abstractMisuse, result.TargetCommand.AllOptions)
+                    ? HelpMisuseError(abstractMisuse, result.TargetCommand.FullCommandName)
+                    : VersionMisuseError(abstractMisuse, result.TargetCommand.FullCommandName);
             ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnBareValuedPreSentinelOption(result.TargetCommand, args, argIndex);
@@ -141,7 +152,8 @@ internal sealed class ArgumentParser
     /// the offending token is skipped with <c>ShowVersion</c> set so the
     /// post-parse version gate still fires (exit 0), mirroring deferred
     /// values that validate after the gate. Unknown options/commands still
-    /// throw (exit 2).
+    /// throw (exit 2). Misuse forms (<c>--help=x</c>, <c>--version=x</c>) throw
+    /// (exit 2), never version-tolerant.
     /// </summary>
     private static void ParseOptionsAndArguments(string[] args, int startIndex, ParseResult result)
     {
@@ -191,6 +203,17 @@ internal sealed class ArgumentParser
             {
                 result.ShowVersion = true;
                 continue;
+            }
+
+            if (IsVersionEqualsOrNegatedToken(arg, allOptions))
+            {
+                if (versionWins)
+                {
+                    result.ShowVersion = true;
+                    continue;
+                }
+
+                throw VersionMisuseError(arg, result.TargetCommand.FullCommandName);
             }
 
             var valuedNotLastProbe = FindValuedNotLastToken(allOptions, arg);
@@ -1028,5 +1051,67 @@ internal sealed class ArgumentParser
         }
 
         return new CommandException("Option '--no-help' is not valid. Use '--help' to show help.", 2, CommandErrorKind.InvalidValue, commandName);
+    }
+
+    /// <summary>
+    /// Reserved version-word gate: <c>--version=&lt;anything&gt;</c> (including
+    /// empty), <c>-V=&lt;anything&gt;</c> (including empty), bare
+    /// <c>--no-version</c>, and <c>--no-version=&lt;anything&gt;</c>. Ordinal and
+    /// anchored on <c>=</c>/exact: bare <c>--version</c>/<c>-V</c> stay real version
+    /// (handled by <see cref="HelpVersionGateway.IsVersionToken"/>), lookalikes
+    /// (<c>--versioned</c>, <c>--VERSION=x</c>) never match, clusters without
+    /// <c>=</c> (e.g. <c>-Vfalse</c>) never match, and post-separator tokens
+    /// never reach this gate. Short <c>'V'</c> is reserved for version, so no
+    /// local owner survives hierarchy validation; the guard still yields
+    /// <c>-V=</c>-forms to such an owner, parallel to the <c>-h</c> owner
+    /// check above.
+    /// </summary>
+    private static bool IsVersionEqualsOrNegatedToken(string token, List<SubCommandOptionInfo> allOptions)
+    {
+        if (token.StartsWith("--version=", StringComparison.Ordinal))
+            return true;
+
+        if (token.StartsWith("-V=", StringComparison.Ordinal))
+        {
+            var hasRealShortVOwner = allOptions.Any(o => o.ShortName == 'V');
+            return !hasRealShortVOwner;
+        }
+
+        if (string.Equals(token, "--no-version", StringComparison.Ordinal)
+            || token.StartsWith("--no-version=", StringComparison.Ordinal))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Usage error for reserved version-word misuse: exit 2
+    /// <see cref="CommandErrorKind.InvalidValue"/> with the per-command name
+    /// attached (as in the <c>ExtractValue</c> rethrow above).
+    /// <c>=</c>-forms reuse the secret-aware helpers with
+    /// <c>isSecret:false</c>; bare <c>--no-version</c> uses a dedicated message
+    /// (never <c>NoValueAcceptedMessage</c> with an empty value).
+    /// </summary>
+    private static CommandException VersionMisuseError(string token, string commandName)
+    {
+        if (token.StartsWith("--version=", StringComparison.Ordinal))
+        {
+            var literal = token["--version=".Length..];
+            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "--version", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("-V=", StringComparison.Ordinal))
+        {
+            var literal = token["-V=".Length..];
+            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-V", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("--no-version=", StringComparison.Ordinal))
+        {
+            var rejected = token["--no-version=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-version", rejected, isSecret: false, isFlag: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        return new CommandException("Option '--no-version' is not valid. Use '--version' to show version.", 2, CommandErrorKind.InvalidValue, commandName);
     }
 }
