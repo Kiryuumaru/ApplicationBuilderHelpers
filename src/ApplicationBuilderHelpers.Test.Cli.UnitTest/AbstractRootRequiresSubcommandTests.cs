@@ -10,9 +10,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// only leaf subcommands has no root implementation, so bare or help-first
 /// invocations stay on the abstract-root branch of <c>ArgumentParser</c>.
 /// Bare invocations fail with exit 2 naming <c>'&lt;root&gt;'</c> plus a global
-/// footer; leading <c>--help</c> renders the global model (COMMANDS section),
-/// never a command-scoped view; unknown and post-separator tokens keep their
-/// error kinds. Term validation (<c>SubCommandInfo.FromCommand</c> plus the
+/// footer; leading <c>--help</c> with no trailing name (or a trailing flag)
+/// renders the global model (COMMANDS section), while a valid trailing
+/// subcommand name routes to that target's help; unknown and post-separator
+/// tokens keep their error kinds. Term validation (<c>SubCommandInfo.FromCommand</c> plus the
 /// hierarchy build) pins the empty/whitespace/dash-led guard and the
 /// whitespace-split normalization shared by both call sites.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
@@ -107,17 +108,37 @@ public sealed class AbstractRootRequiresSubcommandTests
     }
 
     [Fact]
-    public async Task Help_First_With_Command_Name_Shows_Global_Help()
+    public async Task Help_First_With_Command_Name_Shows_Target_Help()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--help", "greet"]);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("USAGE:", output);
-        Assert.Contains("<COMMAND>", output);
-        Assert.Contains("COMMANDS:", output);
-        Assert.Contains("GLOBAL OPTIONS:", output);
-        Assert.Contains("Run 'abstract-root-test <command> --help' for more information on specific commands.", output);
-        Assert.DoesNotContain("abstract-root-test greet", output);
+        Assert.Contains("abstract-root-test greet", output);
+        Assert.Contains("Greets the specified name.", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Help_First_With_Unknown_Name_Requires_Subcommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--help", "bogus"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+    }
+
+    [Fact]
+    public async Task Short_Help_With_Command_Name_Shows_Target_Help()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["-h", "greet"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("USAGE:", output);
+        Assert.Contains("abstract-root-test greet", output);
+        Assert.Contains("Greets the specified name.", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
