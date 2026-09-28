@@ -59,8 +59,13 @@ internal sealed class ArgumentParser
                 && result.TargetCommand.FindChild(args[argIndex]) == null;
             if ((result.TargetCommand.IsRoot || argIndex > 0) && !hasSurplusPathToken && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
             {
-                result.ShowHelp = true;
-                return result;
+                var helpTarget = ResolveHelpTargetCommand(result.TargetCommand, args, argIndex);
+                if (helpTarget != null)
+                {
+                    result.TargetCommand = helpTarget;
+                    result.ShowHelp = true;
+                    return result;
+                }
             }
         }
 
@@ -79,8 +84,13 @@ internal sealed class ArgumentParser
 
         if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
         {
-            result.ShowHelp = true;
-            return result;
+            var helpTarget = ResolveHelpTargetCommand(result.TargetCommand, args, argIndex);
+            if (helpTarget != null)
+            {
+                result.TargetCommand = helpTarget;
+                result.ShowHelp = true;
+                return result;
+            }
         }
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
@@ -909,6 +919,31 @@ internal sealed class ArgumentParser
         return DidYouMean.FindBestMatch(
             token,
             DidYouMean.SubCommandCandidates(rootCommand.Children.Keys)) == null;
+    }
+
+    private static SubCommandInfo? ResolveHelpTargetCommand(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        if (i >= end)
+            return target;
+        if (args[i].StartsWith('-'))
+            return target;
+        var current = target;
+        var resolved = false;
+        while (i < end && !args[i].StartsWith('-'))
+        {
+            var child = current.FindChild(args[i]);
+            if (child == null)
+                break;
+            current = child;
+            resolved = true;
+            i++;
+        }
+        return resolved ? current : null;
     }
 
     /// <summary>
