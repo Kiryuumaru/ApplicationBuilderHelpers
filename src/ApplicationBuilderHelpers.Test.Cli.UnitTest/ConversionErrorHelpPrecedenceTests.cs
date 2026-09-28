@@ -170,8 +170,155 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", "--timeout=notanumber", "--version");
         CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
         CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
         CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Deferred_Invalid_Value_With_Leading_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--version", "--timeout=notanumber");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Flag_Equals_Invalid_Literal_With_VersionCluster_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--verbose=maybe", "-vV");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Flag_Equals_Invalid_Literal_With_Trailing_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--verbose=maybe", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Flag_Equals_Invalid_Literal_With_Leading_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--version", "--verbose=maybe");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Flag_Equals_Invalid_Literal_Before_Separator_With_Version_After_Stays_Error()
+    {
+        var result = await Runner.RunAsync("test", "target", "--verbose=maybe", "--", "--version");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'maybe'");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Flag_Equals_Invalid_Literal_Without_Version_Reports_Invalid_Value()
+    {
+        var result = await Runner.RunAsync("test", "target", "--verbose=maybe");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'maybe'");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Flag_Equals_Invalid_Literal_With_Version_And_Help_Stays_Error()
+    {
+        var result = await Runner.RunAsync("test", "target", "--verbose=maybe", "--version", "--help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'maybe'");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task No_Value_Rejected_With_Trailing_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--no-verbose=x", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task No_Value_Rejected_With_Leading_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--version", "--no-verbose=x");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task No_Value_Rejected_Without_Version_Reports_Invalid_Value()
+    {
+        var result = await Runner.RunAsync("test", "target", "--no-verbose=x");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Unknown_Option_With_Version_Stays_Error()
+    {
+        var result = await Runner.RunAsync("test", "target", "--bogus", "--version");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: --bogus");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Version_With_Trailing_Unknown_Option_Stays_Error()
+    {
+        var result = await Runner.RunAsync("test", "target", "--version", "--bogus");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: --bogus");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Version_With_Space_Separated_Unknown_Word_Stays_Error()
+    {
+        var result = await Runner.RunAsync("test", "target", "--version", "bogus");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Unknown_Command_With_Version_Stays_Error()
+    {
+        var result = await Runner.RunAsync("bogus", "--version");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "No command found");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
     }
 
     [Fact]
