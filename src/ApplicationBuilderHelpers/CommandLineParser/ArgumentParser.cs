@@ -64,6 +64,13 @@ internal sealed class ArgumentParser
             }
         }
 
+        if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // #586: an unknown option or invalid flag literal plus --version is still an error (exit 2), not a version request.
+            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
+        }
+
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
         {
             result.ShowVersion = true;
