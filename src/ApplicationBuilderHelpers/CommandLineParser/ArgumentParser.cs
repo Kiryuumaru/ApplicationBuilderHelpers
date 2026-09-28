@@ -123,7 +123,15 @@ internal sealed class ArgumentParser
     }
 
     /// <summary>
-    /// Parses options and arguments from the command line
+    /// Parses options and arguments from the command line.
+    /// A pre-<c>--</c> version request (<see cref="HelpVersionGateway.RequestedVersion"/>,
+    /// bare token or <c>V</c>-cluster, with no pre-<c>--</c> help token, per
+    /// <see cref="HelpVersionGateway.RequestedHelp"/>) makes eager
+    /// <see cref="CommandErrorKind.InvalidValue"/> throws version-tolerant:
+    /// the offending token is skipped with <c>ShowVersion</c> set so the
+    /// post-parse version gate still fires (exit 0), mirroring deferred
+    /// values that validate after the gate. Unknown options/commands still
+    /// throw (exit 2).
     /// </summary>
     private static void ParseOptionsAndArguments(string[] args, int startIndex, ParseResult result)
     {
@@ -132,6 +140,9 @@ internal sealed class ArgumentParser
         var argumentValues = new List<string>();
         var argumentIndex = 0;
         var separatorSeen = false;
+        var tail = args[startIndex..];
+        var versionWins = HelpVersionGateway.RequestedVersion(tail)
+            && !HelpVersionGateway.RequestedHelp(tail);
 
         for (int i = startIndex; i < args.Length; i++)
         {
@@ -156,7 +167,15 @@ internal sealed class ArgumentParser
             }
 
             if (IsHelpEqualsOrNegatedToken(arg, allOptions))
+            {
+                if (versionWins)
+                {
+                    result.ShowVersion = true;
+                    continue;
+                }
+
                 throw HelpMisuseError(arg, result.TargetCommand.FullCommandName);
+            }
 
             if (HelpVersionGateway.IsVersionToken(arg))
             {
@@ -176,6 +195,11 @@ internal sealed class ArgumentParser
                 {
                     value = matchedOption.ExtractValue(arg, consumableNext);
                 }
+                catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && versionWins)
+                {
+                    result.ShowVersion = true;
+                    continue;
+                }
                 catch (CommandException ex) when (ex.CommandName is null)
                 {
                     throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
@@ -192,6 +216,17 @@ internal sealed class ArgumentParser
             {
                 if (arg.StartsWith("--no-", StringComparison.Ordinal) && arg.Contains('='))
                 {
+                    if (versionWins)
+                    {
+                        var probeName = arg[..arg.IndexOf('=')];
+                        var probeBase = probeName["--no-".Length..];
+                        if (SubCommandOptionInfo.FindNoValueBase(allOptions, probeBase) != null || probeBase.Length == 0)
+                        {
+                            result.ShowVersion = true;
+                            continue;
+                        }
+                    }
+
                     var name = arg[..arg.IndexOf('=')];
                     var rejected = arg[(arg.IndexOf('=') + 1)..];
                     var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);

@@ -56,6 +56,36 @@ internal sealed class HelpVersionGateway(
         return false;
     }
 
+    /// <summary>
+    /// Mirrors <see cref="RequestedHelp"/> for the version surface:
+    /// <see cref="IsVersionToken"/> per-token plus a <c>V</c> char inside a
+    /// dash-led cluster, scanning only up to the first bare <c>--</c>.
+    /// </summary>
+    internal static bool RequestedVersion(string[] args)
+    {
+        foreach (var token in args)
+        {
+            if (token == "--")
+                return false;
+            if (IsVersionToken(token))
+                return true;
+            if (IsVersionCluster(token))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsVersionCluster(string token)
+    {
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('='))
+            return false;
+        if (char.IsDigit(token[1]) || token[1] == '.')
+            return false;
+
+        return token[1..].Contains('V');
+    }
+
     private static bool IsHelpCluster(string token)
     {
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('='))
