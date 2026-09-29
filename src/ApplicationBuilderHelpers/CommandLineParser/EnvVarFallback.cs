@@ -33,7 +33,7 @@ internal static class EnvVarFallback
         if (string.IsNullOrWhiteSpace(envValue))
             return false;
 
-        result.AddOptionValue(option, envValue);
+        result.AddOptionValue(option, envValue, isExplicit: false);
         return true;
     }
 }

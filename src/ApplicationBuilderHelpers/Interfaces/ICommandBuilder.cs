@@ -26,4 +26,6 @@ public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDep
     internal int? HelpBorderWidth { get; set; }
 
     internal IConsoleTheme? Theme { get; set; }
+
+    internal bool RejectDuplicateOptions { get; set; }
 }

@@ -157,11 +157,12 @@ public class ValuedOptionNeighborTests : CliTestBase
     }
 
     [Fact]
-    public async Task Satisfied_Optional_Option_With_Trailing_Bare_Repeat_Stays_Omitted()
+    public async Task Satisfied_Optional_Option_With_Trailing_Bare_Repeat_Reports_Missing()
     {
         var result = await Runner.RunAsync("test", "target", "--config", "a.json", "--config");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "config=\"a.json\"");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
     }
 
     [Fact]

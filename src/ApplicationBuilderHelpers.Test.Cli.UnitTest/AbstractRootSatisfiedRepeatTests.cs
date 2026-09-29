@@ -220,13 +220,13 @@ public sealed class AbstractRootSatisfiedRepeatTests
     }
 
     [Fact]
-    public async Task ConcreteRoot_SatisfiedThenBare_KeepsFirstValue()
+    public async Task ConcreteRoot_SatisfiedThenBare_ReportsMissing()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateConcreteBuilder, ["--output", "x", "--output", "--verbose"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Output: x", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing value for option: --output", error);
     }
 
     private static ApplicationBuilder CreateBuilder()

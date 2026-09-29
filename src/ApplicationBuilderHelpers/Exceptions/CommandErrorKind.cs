@@ -37,7 +37,7 @@ public enum CommandErrorKind
     UnknownCommand = 5,
 
     /// <summary>
-    /// Never thrown. Valued repeats resolve last-wins in the parser (<c>ParseResult.AddOptionValue</c>).
+    /// A scalar valued option repeated explicitly with <c>SetRejectDuplicateOptions(true)</c>. Usage error, exit 2.
     /// </summary>
     DuplicateOption = 6,
 

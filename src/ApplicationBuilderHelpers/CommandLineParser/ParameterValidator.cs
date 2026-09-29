@@ -13,9 +13,6 @@ internal sealed class ParameterValidator
     /// Validates that all required parameters are provided.
     /// A satisfied-then-bare repeat also fails: each bare valued
     /// occurrence is a missing value by itself, regardless of env.
-    /// An unsatisfied bare optional valued option fails the same way
-    /// even with env set (env rescues only omitted options); a satisfied-then-bare
-    /// optional repeat keeps the first value and succeeds.
     /// Help always wins over missing required: when
     /// <see cref="ParseResult.ShowHelp"/> is set, the required-option and
     /// required-argument passes are skipped so help-with-values renders;
@@ -27,6 +24,41 @@ internal sealed class ParameterValidator
     /// once per logical option (canonical key) so global-copy identities never
     /// report twice, and arguments once per display name.
     /// </summary>
+    /// <summary>
+    /// Collects scalar-only duplicate errors. Collections, flags, and
+    /// environment-supplied values are exempt.
+    /// </summary>
+    public List<string> CollectDuplicateErrors(ParseResult result)
+    {
+        var errors = new List<string>();
+        if (result.ShowHelp || result.ShowVersion)
+            return errors;
+
+        var seenOptionKeys = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (var option in result.TargetCommand.AllOptions)
+        {
+            var key = ParseResult.GetCanonicalOptionKey(option);
+            if (!seenOptionKeys.Add(key))
+                continue;
+
+            if (option.IsFlag || option.IsCollection)
+                continue;
+
+            if (!result.TryGetCanonicalIdentityOption(key, out var canonical))
+                continue;
+
+            if (canonical.IsFlag || canonical.IsCollection)
+                continue;
+
+            if (!result.ValuedOptionOccurrenceCounts.TryGetValue(key, out var count) || count < 2)
+                continue;
+
+            errors.Add($"Duplicate option: {canonical.GetDisplayName()}");
+        }
+
+        return errors;
+    }
+
     public List<string> CollectRequiredErrors(ParseResult result)
     {
         var errors = new List<string>();
@@ -48,8 +80,7 @@ internal sealed class ParameterValidator
                     continue;
                 }
 
-                if (!option.IsFlag
-                    && result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
+                if (result.BareOptionOccurrences.Contains(ParseResult.GetCanonicalOptionKey(option)))
                 {
                     errors.Add($"Missing required option: {option.GetDisplayName()}");
                 }
@@ -68,7 +99,7 @@ internal sealed class ParameterValidator
                 if (!result.BareOptionOccurrences.Contains(key))
                     continue;
 
-                if (result.TryGetMergedOptionValues(option, out _))
+                if (option.IsCollection && result.TryGetMergedOptionValues(option, out _))
                     continue;
 
                 errors.Add($"Missing value for option: {option.GetDisplayName()}");
