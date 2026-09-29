@@ -6,8 +6,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// In-process duplicate-option tests for the CLI parser.
-/// Scalar and valued-flag repeats resolve last-wins (industry standard);
-/// array options stay repeatable and bare boolean flags stay idempotent.
+/// Default keeps last-wins for scalar repeats; strict mode via
+/// <c>SetRejectDuplicateOptions(true)</c> rejects scalar repeats with
+/// <c>Duplicate option: &lt;display-name&gt;</c> (exit 2) while arrays,
+/// flags, and environment-supplied values stay exempt.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -67,6 +69,19 @@ public sealed class DuplicateOptionTests
         }
     }
 
+    [Command("dupenv", "Probes environment-supplied value with explicit repeat.")]
+    public sealed class DuplicateEnvCommand : Command
+    {
+        [CommandOption("text", Description = "Text value.", EnvironmentVariable = "PARKER_DUP_TEXT")]
+        public string? Text { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"Text: {Text ?? "null"}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Fact]
     public async Task ScalarOption_RepeatedValue_LastWins()
     {
@@ -117,6 +132,90 @@ public sealed class DuplicateOptionTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
+    [Fact]
+    public async Task Strict_ScalarOption_RepeatedValue_ReportsDuplicate()
+    {
+        var builder = CreateBuilder().SetRejectDuplicateOptions(true);
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["dupscalar", "--text=a", "--text=b"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Duplicate option: --text", error);
+    }
+
+    [Fact]
+    public async Task Strict_AliasedOption_RepeatedAcrossAliasForms_ReportsDuplicate()
+    {
+        var builder = CreateBuilder().SetRejectDuplicateOptions(true);
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["dupalias", "--text=a", "-t", "b"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Duplicate option: -t, --text", error);
+    }
+
+    [Fact]
+    public async Task Strict_ArrayOption_RepeatedValue_IsAllowed()
+    {
+        var builder = CreateBuilder().SetRejectDuplicateOptions(true);
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["duparray", "--tags=a", "--tags=b"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Tags: a,b", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Strict_FlagOption_BareRepeat_IsAllowed()
+    {
+        var builder = CreateBuilder().SetRejectDuplicateOptions(true);
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["dupflag", "--verbose", "--verbose"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Strict_FlagOption_RepeatedValue_IsAllowed()
+    {
+        var builder = CreateBuilder().SetRejectDuplicateOptions(true);
+        var (exitCode, output, error) = await RunCapturedAsync(builder, ["dupflag", "--verbose=true", "--verbose=false"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Strict_EnvironmentSuppliedValue_WithSingleExplicit_StaysAllowed()
+    {
+        var prior = Environment.GetEnvironmentVariable("PARKER_DUP_TEXT");
+        try
+        {
+            Environment.SetEnvironmentVariable("PARKER_DUP_TEXT", "env-value");
+            var builder = CreateBuilder().SetRejectDuplicateOptions(true);
+            var (exitCode, output, error) = await RunCapturedAsync(builder, ["dupenv", "--text=cli"]);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Text: cli", output);
+            Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PARKER_DUP_TEXT", prior);
+        }
+    }
+
+    [Fact]
+    public async Task SetRejectDuplicateOptions_ReturnsSameBuilder()
+    {
+        var builder = CreateBuilder();
+        var result = builder.SetRejectDuplicateOptions(true);
+
+        Assert.Same(builder, result);
+    }
+
     private static ApplicationBuilder CreateBuilder()
     {
         return ApplicationBuilder.Create()
@@ -127,7 +226,8 @@ public sealed class DuplicateOptionTests
             .AddCommand<DuplicateScalarCommand>()
             .AddCommand<DuplicateArrayCommand>()
             .AddCommand<DuplicateFlagCommand>()
-            .AddCommand<DuplicateAliasedCommand>();
+            .AddCommand<DuplicateAliasedCommand>()
+            .AddCommand<DuplicateEnvCommand>();
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(string[] args)

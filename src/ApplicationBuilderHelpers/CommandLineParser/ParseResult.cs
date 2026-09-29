@@ -23,15 +23,30 @@ internal class ParseResult
     internal HashSet<string> BareOptionOccurrences { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Explicit valued occurrence counts per canonical key. Each explicit
+    /// valued occurrence counts once; flags and environment fallback never
+    /// count; alias forms share the canonical key.
+    /// </summary>
+    internal Dictionary<string, int> ValuedOptionOccurrenceCounts { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Adds an option value to the parse result. Collections accumulate;
     /// scalars overwrite with the last value (industry last-wins). A later
     /// real value removes the prior bare mark for the same key.
     /// </summary>
-    internal void AddOptionValue(SubCommandOptionInfo option, string? value)
+    internal void AddOptionValue(SubCommandOptionInfo option, string? value, bool isExplicit = true)
     {
         if (value != null)
         {
             var key = GetCanonicalOptionKey(option);
+            if (isExplicit && !option.IsFlag && !option.IsCollection)
+            {
+                if (ValuedOptionOccurrenceCounts.TryGetValue(key, out var count))
+                    ValuedOptionOccurrenceCounts[key] = count + 1;
+                else
+                    ValuedOptionOccurrenceCounts[key] = 1;
+            }
+
             if (!option.IsCollection)
             {
                 foreach (var storedOption in OptionValues.Keys

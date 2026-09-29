@@ -147,19 +147,28 @@ internal class CommandLineParser
 
     private void ValidateAndBindParameters(ParseResult result)
     {
+        List<string> duplicateErrors = [];
+        if (CommandBuilder.RejectDuplicateOptions)
+            duplicateErrors = _validator.CollectDuplicateErrors(result);
         var missingErrors = _validator.CollectRequiredErrors(result);
         var bindingErrors = _binder.CollectBindingErrors(result, skipBareWhenHelpRequested: true);
 
-        var allErrors = new List<string>(missingErrors.Count + bindingErrors.Count);
+        var allErrors = new List<string>(duplicateErrors.Count + missingErrors.Count + bindingErrors.Count);
+        allErrors.AddRange(duplicateErrors);
         allErrors.AddRange(missingErrors);
         allErrors.AddRange(bindingErrors);
         if (allErrors.Count == 0)
             return;
 
+        var kind = bindingErrors.Count != 0
+            ? CommandErrorKind.InvalidValue
+            : duplicateErrors.Count != 0
+                ? CommandErrorKind.DuplicateOption
+                : CommandErrorKind.MissingRequired;
         throw new CommandException(
             string.Join(Environment.NewLine, allErrors),
             2,
-            bindingErrors.Count == 0 ? CommandErrorKind.MissingRequired : CommandErrorKind.InvalidValue,
+            kind,
             result.TargetCommand.FullCommandName);
     }
 
