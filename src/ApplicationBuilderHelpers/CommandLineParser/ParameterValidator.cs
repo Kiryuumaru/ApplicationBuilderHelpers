@@ -10,25 +10,7 @@ internal sealed class ParameterValidator
 {
     /// <summary>
     /// Collects every missing-required error without throwing.
-    /// Validates that all required parameters are provided.
-    /// Any explicit bare valued occurrence is a missing value by itself
-    /// (#593 bare flip, unanimous survey: zero keep-prior adopters —
-    /// argparse, pflag/Cobra, commander, Click, POSIX all error on a
-    /// missing value): required scope reports <c>Missing required
-    /// option</c>, optional scope reports <c>Missing value for
-    /// option</c>, regardless of env or a prior satisfied value.
-    /// Env fallback rescues only omitted (never-typed) options.
-    /// Duplicate rejection is separate: see <see cref="CollectDuplicateErrors"/>.
-    /// Help always wins over missing required: when
-    /// <see cref="ParseResult.ShowHelp"/> is set, the required-option and
-    /// required-argument passes are skipped so help-with-values renders;
-    /// the binding probe still runs, so invalid values beat
-    /// help-with-values.
-    /// The caller (<see cref="CommandLineParser"/>) joins these with the
-    /// binding errors so one failure no longer masks another; missing errors
-    /// order before binding errors in the final message. Options are visited
-    /// once per logical option (canonical key) so global-copy identities never
-    /// report twice, and arguments once per display name.
+    /// Bare valued occurrences always fail; env rescues only omitted options; help wins.
     /// </summary>
     public List<string> CollectRequiredErrors(ParseResult result)
     {

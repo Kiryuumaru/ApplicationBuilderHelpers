@@ -1,6 +1,6 @@
 # ADR-0005: Satisfied-Required Bare Repeat Fails MissingRequired (#470)
 
-**Status**: Accepted — scope extended by #503 (see Addenda below; original decision text preserved).
+**Status**: Accepted — scope extended by #503 then #593 (see Addenda below; original decision text preserved).
 
 **Superseded in scope by #503 with explicit-bare hard-fail, then by #593 (see Addenda below)**: the required-only scope below now covers any explicit bare valued occurrence — unsatisfied or satisfied-then-bare, required or optional alike (fail `MissingRequired` exit 2 even with env set). Env fallback rescues only omitted (never-typed) options, never a typed bare.
 
@@ -10,13 +10,13 @@ Valued repeats resolve last-wins (`DuplicateOptionTests.cs:71-119`; ADR-0004). T
 
 ## Decision
 
-Required-only scope, enforced in `ParameterValidator.cs:31-36` on the `ParseResult.cs:18-24` bare ledger (`AddOptionValue` at `:31-52`, canonical key at `:59-60`):
+Required-only scope (historical — see #593 addendum), enforced in `ParameterValidator.cs:18-42` on the `ParseResult.cs:23` bare ledger (`AddOptionValue` at `:45-70`, canonical key at `:77-78`):
 
-- A satisfied required valued scalar repeated bare fails `MissingRequired` (exit 2) regardless of env fallback (`ParameterValidator.cs:36-41`; `ValuedOptionNeighborTests.cs:147-156`).
-- A single trailing-bare fails even with env set (explicit bare claims ownership; reject-by-default sentinel, `ArgumentParser.cs:135-140`).
-- A satisfied optional repeated bare is ignored and the prior value stands (`ValuedOptionNeighborTests.cs:158-166`).
-- Bare-then-valued heals via the same eviction (`ParseResult.cs:33-43`); collections accumulate; bare boolean flags stay idempotent.
-- Error kind is `MissingRequired`, never `DuplicateOption` (defined at `Exceptions/CommandErrorKind.cs:42` with no throw sites).
+- A satisfied required valued scalar repeated bare fails `MissingRequired` (exit 2) regardless of env fallback (`ParameterValidator.cs:26-40`; `ValuedOptionNeighborTests.cs:147-156`).
+- A single trailing-bare fails even with env set (explicit bare claims ownership; reject-by-default sentinel, `ArgumentParser.cs:555-577`).
+- A satisfied optional repeated bare is ignored and the prior value stands (`ValuedOptionNeighborTests.cs:158-166`) — SUPERSEDED by #593 below (gate removed; satisfied-then-bare now fails).
+- Bare-then-valued heals via the same eviction (`ParseResult.cs:45-70`); collections accumulate; bare boolean flags stay idempotent.
+- Error kind is `MissingRequired`, never `DuplicateOption` (defined at `Exceptions/CommandErrorKind.cs:39-40`).
 
 ## Consequences
 
@@ -28,13 +28,13 @@ Required-only scope, enforced in `ParameterValidator.cs:31-36` on the `ParseResu
 
 Unsatisfied bare optional valued options (`--config` at end-of-line or before a flag-looking neighbor, no merged value anywhere) now fail `MissingRequired` (exit 2) as `Missing value for option: <display-name>` unless `EnvironmentVariable` fallback rescues them first (`ParameterValidator.cs:50-71`, env-first via `EnvVarFallback.Apply` with `requiredOnly: false`). An option with no declared `EnvironmentVariable` has no rescue and always fails.
 
-Unchanged: satisfied-optional repeat stays ignored (merged-values gate at `ParameterValidator.cs:62-63`); `--help`/`--version` neighbors keep their carve-out (optional-bare pass skipped when `ShowHelp`/`ShowVersion`); unknown neighbors still error first in the parser before validation runs; error kind stays `MissingRequired`, never `DuplicateOption`.
+Unchanged: satisfied-optional repeat stays ignored (merged-values gate at `ParameterValidator.cs:62-63`); `--help`/`--version` neighbors keep their carve-out (optional-bare pass skipped when `ShowHelp`/`ShowVersion`); unknown neighbors still error first in the parser before validation runs; error kind stays `MissingRequired`, never `DuplicateOption`. — SUPERSEDED by #593 below for the satisfied-optional clause only.
 
 ## Addendum — #593: Satisfied-Optional Bare Repeat Fails; Strict Duplicate Opt-In
 
 Any explicit bare valued occurrence — unsatisfied or satisfied-then-bare, required or optional alike — fails `MissingRequired` (exit 2): optional scope reports `Missing value for option: <display-name>`, required scope reports `Missing required option: <display-name>`, regardless of env or a prior satisfied value. The satisfied-optional merged-values gate is removed (`ParameterValidator.cs` optional-bare pass; abstract-root pre-sentinel satisfied-key filter in `ArgumentParser.cs` removed so both branches converge). Bare-then-valued still heals via eviction; collections accumulate; bare boolean flags stay idempotent.
 
-Separately, opt-in strict mode (`ICommandBuilder.RejectDuplicateOptions` + `SetRejectDuplicateOptions`, default off): a valued non-collection scalar with two or more explicit CLI valued occurrences fails `DuplicateOption` (exit 2), naming the second occurrence (canonical key via `ParseResult.GetCanonicalOptionKey`, counts in `ParseResult.ValuedOccurrenceCounts`, checked in `ParameterValidator.CollectDuplicateErrors`). Collections accumulate, flags stay idempotent, env+CLI is not a duplicate (env never records a count), alias forms share one canonical key, and bare occurrences never count. Precedence in `ValidateAndBindParameters` is invalid > duplicate > missing. Error kind for bare stays `MissingRequired`, never `DuplicateOption`.
+Separately, opt-in strict mode (`ICommandBuilder.RejectDuplicateOptions` + `SetRejectDuplicateOptions`, default off): a valued non-collection scalar with two or more explicit CLI valued occurrences fails `DuplicateOption` (exit 2), names the option (canonical key via `ParseResult.GetCanonicalOptionKey`, display via `GetDisplayName`, counts in `ParseResult.ValuedOccurrenceCounts`, checked in `ParameterValidator.CollectDuplicateErrors`). Collections accumulate, flags stay idempotent, env+CLI is not a duplicate (env never records a count), alias forms share one canonical key, and bare occurrences never count. Precedence in `ValidateAndBindParameters` is invalid > duplicate > missing. Error kind for bare stays `MissingRequired`, never `DuplicateOption`.
 
 ## Addendum — #503 follow-up (historical): Explicit Bare Always Fails Even With Env Set
 

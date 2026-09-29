@@ -56,11 +56,11 @@ Rules:
 
 ### Required Option Help Descriptions (#507)
 
-Required options render the verbatim lowercase `(required)` marker on the line immediately after the description, from `BuildOptionDescription` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:288-322`). Fixed ordinal: Description (`:292-295`) → `(required)` (`:297-300`) → `Possible values: ...` (`:302-306`) → `Environment variable: ...` (`:308-311`). No `Default:` line when `IsRequired` (`:313-318`).
+Required options render the verbatim lowercase `(required)` marker on the line immediately after the description, from `BuildOptionDescription` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:334-367`). Fixed ordinal: Description (`:338-341`) → `(required)` (`:343-346`) → `Possible values: ...` (`:348-352`) → `Environment variable: ...` (`:354-357`). No `Default:` line when `IsRequired` (`:359-364`).
 
 - A required `int` omits the phantom `Default: 0` (`src/ApplicationBuilderHelpers.Test.Cli.UnitTest/RequiredOptionHelpTests.cs:47-58`); a required `string` shows the marker with no `Default:` line (`:61-72`); an optional `int` with an explicit initializer keeps its `Default:` line (e.g. `Default: 3`, `:75-86`).
 - A required option with `FromAmong` plus `EnvironmentVariable` renders Description → `(required)` → `Possible values:` → `Environment variable:` (`:89-102`).
-- Secret interplay: suppression beats redaction — a required secret option never shows `Default: [REDACTED]`, because the `Default:` arm is skipped before `SecretRedaction.GetDefaultDisplay` (`HelpContentProvider.cs:313-317`; mask at `src/ApplicationBuilderHelpers/CommandLineParser/SecretRedaction.cs:40-46`).
+- Secret interplay: suppression beats redaction — a required secret option never shows `Default: [REDACTED]`, because the `Default:` arm is skipped before `SecretRedaction.GetDefaultDisplay` (`HelpContentProvider.cs:359-364`; mask at `src/ApplicationBuilderHelpers/CommandLineParser/SecretRedaction.cs:40-46`).
 - Signatures, usage `[OPTIONS]`, and layout are unchanged — only description lines change. Option-side contract (Required property, env/secret interplay): [Commands](commands.md#required-options-in-help).
 
 ## Console Themes

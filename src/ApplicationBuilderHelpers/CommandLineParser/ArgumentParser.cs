@@ -544,32 +544,7 @@ internal sealed class ArgumentParser
     }
 
     /// <summary>
-    /// Scan the pre-<c>--</c> leftovers on an abstract command for
-    /// a valued option in bare form whose neighbor cannot supply
-    /// its value. A bare token (exact <c>--long</c>/<c>-s</c> match, no
-    /// <c>=</c>, no attached short remainder) matched by
-    /// <see cref="SubCommandOptionInfo.MatchesArgument"/> with an
-    /// unconsumable neighbor — end of pre-sentinel input or a
-    /// flag-looking next token under <see cref="IsFlagLookingToken"/>
-    /// (the same consumability rule as
-    /// <see cref="ParseOptionsAndArguments"/>) — would extract a null
-    /// value in normal parsing, and <see cref="ParameterValidator"/>
-    /// reports each bare valued occurrence as missing by itself,
-    /// regardless of env. Throw
-    /// <see cref="CommandErrorKind.MissingRequired"/> naming the option,
-    /// mirroring the validator message (<c>Missing required option</c>
-    /// for required, <c>Missing value for option</c> for optional),
-    /// instead of letting the
-    /// <c>RequiresSubcommand</c> fallback mask it. Runs after the
-    /// invalid-literal and unknown scans so <c>InvalidValue</c> and
-    /// <c>UnknownOption</c> keep precedence (unknown-first); equals-forms,
-    /// attached remainders, flags, numerics, help/version tokens, cluster
-    /// tokens, and post-separator tokens stay silent for
-    /// <c>RequiresSubcommand</c>. Any bare valued occurrence throws
-    /// (#593 bare flip, converging with <see cref="ParameterValidator"/>):
-    /// satisfied-then-bare, required or optional alike, never falls
-    /// through. Kind is MissingRequired, never DuplicateOption, per ADR-0005.
-    /// Peek only: consumes nothing.
+    /// Bare valued pre-sentinel options throw <see cref="CommandErrorKind.MissingRequired"/> mirroring the validator; unknown/invalid keep precedence.
     /// </summary>
     private static void ThrowOnBareValuedPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {

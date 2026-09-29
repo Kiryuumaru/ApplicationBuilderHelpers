@@ -4,21 +4,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
-/// <summary>
-/// Tests for satisfied-then-bare repeats on the abstract-root path: a CLI
-/// that registers only leaf subcommands has no root implementation, so
-/// pre-separator tokens stay on the abstract branch of <c>ArgumentParser</c>.
-/// Any bare valued occurrence fails <c>MissingRequired</c> (#593 bare flip):
-/// an optional valued option that already consumed a value still reports
-/// <c>Missing value for option</c> on a later bare occurrence — matching the
-/// concrete-root validator — instead of falling through to
-/// <c>RequiresSubcommand</c>. A required valued option repeated bare after
-/// a value still reports <c>MissingRequired</c>.
-/// Single bare occurrences, unknown-first, help precedence, and the
-/// environment-variable behavior keep their existing paths.
-/// Error kinds are pinned via their distinct help footers.
-/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
-/// </summary>
+/// <summary>Satisfied-then-bare repeats on the abstract-root path fail <c>MissingRequired</c> (#593).</summary>
 [Collection("ConsoleDecoupling")]
 public sealed class AbstractRootSatisfiedRepeatTests
 {

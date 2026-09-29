@@ -49,7 +49,7 @@ The `h` / `V` `ShortTerm` values owned by the help/version gateway. `-h` / `-V` 
 A CLI value whose token was supplied on the command line or via a non-blank environment-variable fallback — including `""`, which counts as present.
 
 **Missing**:
-A value with no supplied token and no applicable fallback; fails with `MissingRequired` (exit 2). Covers a required value with nothing supplied and — per #593 — any explicit bare valued occurrence (unsatisfied or satisfied-then-bare, required or optional alike), which fails even with env set, reported as `Missing value for option: <display-name>` (optional scope) or `Missing required option: <display-name>` (required scope). Env fallback rescues only omitted (never-typed) options, never a typed bare.
+A value with no supplied token and no applicable fallback; fails with `MissingRequired` (exit 2). Covers a required value with nothing supplied and any explicit bare valued occurrence — see `Bare repeat` below. Env fallback rescues only omitted (never-typed) options, never a typed bare.
 
 **Bare repeat**:
 A trailing valueless occurrence of a valued scalar (`--config` at end-of-line, or satisfied-then-bare). Any explicit bare valued occurrence — unsatisfied or satisfied-then-bare, required or optional alike — fails with `MissingRequired` (exit 2): required scope (`Missing required option: <display-name>`), optional scope (`Missing value for option: <display-name>`), even with env set. Typing the option claims ownership; env fallback rescues only omitted (never-typed) options. Kind is never `DuplicateOption` (per ADR-0005). Bare-then-valued heals; collections accumulate; bare boolean flags stay idempotent.

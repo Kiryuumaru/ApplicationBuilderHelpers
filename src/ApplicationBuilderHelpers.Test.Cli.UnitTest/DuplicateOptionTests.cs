@@ -4,17 +4,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
-/// <summary>
-/// In-process duplicate-option tests for the CLI parser.
-/// Default (strict off): scalar and valued-flag repeats resolve last-wins
-/// (industry standard: argparse, pflag/Cobra, commander, Click, POSIX);
-/// array options stay repeatable and bare boolean flags stay idempotent.
-/// Strict opt-in (<c>SetRejectDuplicateOptions</c>, #593): a valued
-/// non-collection scalar repeated with values fails <c>DuplicateOption</c>
-/// (exit 2), naming the second occurrence; collections, flags, and
-/// env+CLI stay out of scope.
-/// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
-/// </summary>
+/// <summary>Duplicate-option tests, default last-wins and opt-in strict rejection (#593).</summary>
 [Collection("ConsoleDecoupling")]
 public sealed class DuplicateOptionTests
 {

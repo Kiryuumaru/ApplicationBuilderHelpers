@@ -36,13 +36,7 @@ public enum CommandErrorKind
     /// </summary>
     UnknownCommand = 5,
 
-    /// <summary>
-    /// A valued non-collection scalar repeated with values under opt-in
-    /// strict mode (<c>RejectDuplicateOptions</c>, #593). Usage error,
-    /// exit 2. Bare occurrences never report this kind (bare fails
-    /// <c>MissingRequired</c>, per ADR-0005); default-off keeps
-    /// industry last-wins (argparse, pflag/Cobra, commander, Click, POSIX).
-    /// </summary>
+    /// <summary>Valued non-collection scalar repeated with values under opt-in strict mode (#593). Usage error, exit 2.</summary>
     DuplicateOption = 6,
 
     /// <summary>
