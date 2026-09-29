@@ -59,8 +59,13 @@ internal sealed class ArgumentParser
                 && result.TargetCommand.FindChild(args[argIndex]) == null;
             if ((result.TargetCommand.IsRoot || argIndex > 0) && !hasSurplusPathToken && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
             {
-                result.ShowHelp = true;
-                return result;
+                var helpTarget = ResolveHelpTargetCommand(result.TargetCommand, args, argIndex);
+                if (helpTarget != null)
+                {
+                    result.TargetCommand = helpTarget;
+                    result.ShowHelp = true;
+                    return result;
+                }
             }
         }
 
@@ -79,8 +84,13 @@ internal sealed class ArgumentParser
 
         if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
         {
-            result.ShowHelp = true;
-            return result;
+            var helpTarget = ResolveHelpTargetCommand(result.TargetCommand, args, argIndex);
+            if (helpTarget != null)
+            {
+                result.TargetCommand = helpTarget;
+                result.ShowHelp = true;
+                return result;
+            }
         }
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
@@ -182,6 +192,12 @@ internal sealed class ArgumentParser
                 result.ShowVersion = true;
                 continue;
             }
+
+            var valuedNotLastProbe = FindValuedNotLastToken(allOptions, arg);
+            if (valuedNotLastProbe.HasValue)
+                throw new CommandException(
+                    $"Option '-{valuedNotLastProbe.Value}' requires a value and must be last in a combined short cluster; use '-{valuedNotLastProbe.Value} <value>', '-{valuedNotLastProbe.Value}=<value>', or place it last.",
+                    2, CommandErrorKind.InvalidValue, result.TargetCommand.FullCommandName);
 
             SubCommandOptionInfo? matchedOption = null;
             if (!IsNumericValue(arg))
@@ -306,7 +322,14 @@ internal sealed class ArgumentParser
     /// <c>true</c>; the last short takes the attached remainder as its value
     /// (<c>-abdvalue</c> binds <c>Data=value</c>). A <c>-h</c>/<c>-V</c> char wins
     /// as help/version even mid-cluster. An unknown char reports only the
-    /// failing char as <see cref="CommandErrorKind.UnknownOption"/> (exit 2).
+    /// failing char as <see cref="CommandErrorKind.UnknownOption"/> (exit 2),
+    /// unless the whole token closely matches a known option with no valued
+    /// short in it (single-dash-long near-miss, e.g. <c>-verbose</c>), which
+    /// reports the full token plus a suggestion. A valued short must be last:
+    /// a single-char remainder matching a known short (e.g. <c>-nl</c> with
+    /// valued <c>n</c>) fails as <see cref="CommandErrorKind.InvalidValue"/>
+    /// (exit 2) naming the cluster rule; longer remainders keep the compact
+    /// form (<c>-abdvalue</c>).
     /// Returns false when the token is not a splittable cluster.
     /// </summary>
     private static bool TryHandleCombinedShortCluster(string arg, string? nextArg, List<SubCommandOptionInfo> allOptions, ParseResult result, out bool consumedNext)
@@ -333,10 +356,34 @@ internal sealed class ArgumentParser
                 continue;
 
             if (!byShort.TryGetValue(letter, out var member))
+            {
+                if (!ClusterContainsValuedShort(letters, byShort))
+                {
+                    var nameOnly = arg;
+                    var equals = nameOnly.IndexOf('=');
+                    if (equals >= 0)
+                        nameOnly = nameOnly[..equals];
+                    var fullTokenSuggestion = DidYouMean.FindBestMatch(
+                        nameOnly,
+                        DidYouMean.OptionCandidates(allOptions));
+                    if (fullTokenSuggestion != null
+                        && string.Equals(DidYouMean.Normalize(fullTokenSuggestion), DidYouMean.Normalize(nameOnly), StringComparison.Ordinal))
+                        throw new CommandException(
+                            DidYouMean.WithSuggestion($"Unknown option: {nameOnly}", fullTokenSuggestion), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
+                }
+
                 throw new CommandException(SecretRedaction.UnknownClusterCharMessage(arg, 1 + k), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
+            }
 
             if (!member.IsFlag)
+            {
+                var violating = FindValuedNotLastLetter(letters, byShort);
+                if (violating.HasValue)
+                    throw new CommandException(
+                        $"Option '-{violating.Value}' requires a value and must be last in a combined short cluster; use '-{violating.Value} <value>', '-{violating.Value}=<value>', or place it last.",
+                        2, CommandErrorKind.InvalidValue, result.TargetCommand.FullCommandName);
                 break;
+            }
         }
 
         for (var k = 0; k < letters.Length; k++)
@@ -387,6 +434,52 @@ internal sealed class ArgumentParser
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether any known short in a cluster token owns a value (non-flag).
+    /// When true the tail may carry an attached (possibly secret) value, so
+    /// callers must keep the failing-char-only report and never echo the
+    /// full token.
+    /// </summary>
+    private static bool ClusterContainsValuedShort(string letters, Dictionary<char, SubCommandOptionInfo> byShort)
+    {
+        foreach (var letter in letters)
+        {
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (byShort.TryGetValue(letter, out var member) && !member.IsFlag)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// First valued short whose attached remainder is exactly one char matching
+    /// a known short (or reserved <c>h</c>/<c>V</c>), e.g. <c>n</c> in
+    /// <c>-nl</c>. Longer remainders keep the compact form. Null when no such
+    /// violation exists or an unknown char precedes the valued short.
+    /// </summary>
+    private static char? FindValuedNotLastLetter(string letters, Dictionary<char, SubCommandOptionInfo> byShort)
+    {
+        for (var k = 0; k < letters.Length; k++)
+        {
+            var letter = letters[k];
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (!byShort.TryGetValue(letter, out var member))
+                return null;
+            if (member.IsFlag)
+                continue;
+            var remainder = letters[(k + 1)..];
+            if (remainder.Length == 1
+                && (remainder[0] == 'h' || remainder[0] == 'V' || byShort.ContainsKey(remainder[0])))
+                return letter;
+            return null;
+        }
+
+        return null;
     }
 
     private static string? ExtractClusterValue(SubCommandOptionInfo member, string token, string? next, ParseResult result)
@@ -489,7 +582,11 @@ internal sealed class ArgumentParser
     /// returned above, so any remaining match here is an unmatched option:
     /// throw <see cref="CommandErrorKind.UnknownOption"/> with a name-only
     /// message (strip any <c>=value</c> suffix) and a did-you-mean
-    /// option hint. The bare <c>--</c> itself ends the scan;
+    /// option hint, except an exact single-dash-long near-miss (e.g.
+    /// <c>-verbose</c>) which reports the full token plus a suggestion, and
+    /// a valued-not-last cluster (e.g. <c>-nl</c>) which reports the
+    /// cluster rule as <see cref="CommandErrorKind.InvalidValue"/> first.
+    /// The bare <c>--</c> itself ends the scan;
     /// post-separator tokens stay silent for RequiresSubcommand.
     /// The reserved help-word scan runs before this method at the
     /// invocation point, so <c>--help=x</c>/<c>-h=x</c>/<c>--no-help</c> report
@@ -510,6 +607,11 @@ internal sealed class ArgumentParser
             if (allOptions.Any(o => o.MatchesArgument(token))
                 && !(token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('=')))
                 continue;
+            var valuedNotLast = FindValuedNotLastToken(allOptions, token);
+            if (valuedNotLast.HasValue)
+                throw new CommandException(
+                    $"Option '-{valuedNotLast.Value}' requires a value and must be last in a combined short cluster; use '-{valuedNotLast.Value} <value>', '-{valuedNotLast.Value}=<value>', or place it last.",
+                    2, CommandErrorKind.InvalidValue, target.FullCommandName);
             if (IsClusterToken(allOptions, token))
                 continue;
             if (token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('='))
@@ -528,6 +630,21 @@ internal sealed class ArgumentParser
             var clusterFailing = FindUnknownClusterCharIndex(allOptions, token);
             if (clusterFailing >= 0)
             {
+                if (!ClusterContainsValuedShortOption(allOptions, token))
+                {
+                    var fullNameOnly = token;
+                    var fullEquals = fullNameOnly.IndexOf('=');
+                    if (fullEquals >= 0)
+                        fullNameOnly = fullNameOnly[..fullEquals];
+                    var fullSuggestion = DidYouMean.FindBestMatch(
+                        fullNameOnly,
+                        DidYouMean.OptionCandidates(allOptions));
+                    if (fullSuggestion != null
+                        && string.Equals(DidYouMean.Normalize(fullSuggestion), DidYouMean.Normalize(fullNameOnly), StringComparison.Ordinal))
+                        throw new CommandException(
+                            DidYouMean.WithSuggestion($"Unknown option: {fullNameOnly}", fullSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+                }
+
                 var clusterFragment = $"-{token[clusterFailing]}";
                 var clusterSuggestion = DidYouMean.FindBestMatch(clusterFragment, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
@@ -644,6 +761,64 @@ internal sealed class ArgumentParser
         return -1;
     }
 
+    /// <summary>
+    /// Valued-not-last probe for the abstract pre-sentinel scan: mirrors the
+    /// <see cref="TryHandleCombinedShortCluster"/> rule as a peek (no binding)
+    /// so group paths report the cluster rule instead of
+    /// <c>RequiresSubcommand</c>. Name-only: returns the valued short letter,
+    /// never the remainder or neighbor.
+    /// </summary>
+    private static char? FindValuedNotLastToken(List<SubCommandOptionInfo> allOptions, string token)
+    {
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
+            return null;
+        if (!allOptions.Any(o => o.ShortName.HasValue))
+            return null;
+        var byShort = new Dictionary<char, SubCommandOptionInfo>();
+        foreach (var option in allOptions)
+        {
+            if (option.ShortName.HasValue && !byShort.ContainsKey(option.ShortName.Value))
+                byShort.Add(option.ShortName.Value, option);
+        }
+        var letters = token[1..];
+        return FindValuedNotLastLetter(letters, byShort);
+    }
+
+    /// <summary>
+    /// Valued-short probe for the abstract pre-sentinel full-token branch: when
+    /// true the tail may carry an attached (possibly secret) value, so the scan
+    /// keeps the failing-char-only report and never echoes the full token.
+    /// </summary>
+    private static bool ClusterContainsValuedShortOption(List<SubCommandOptionInfo> allOptions, string token)
+    {
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || IsNumericValue(token))
+            return false;
+        var nameOnly = token;
+        var equals = nameOnly.IndexOf('=');
+        if (equals >= 0)
+            nameOnly = nameOnly[..equals];
+        var letters = nameOnly[1..];
+        var byShort = new HashSet<char>();
+        var valued = new HashSet<char>();
+        foreach (var option in allOptions)
+        {
+            if (!option.ShortName.HasValue)
+                continue;
+            byShort.Add(option.ShortName.Value);
+            if (!option.IsFlag)
+                valued.Add(option.ShortName.Value);
+        }
+        foreach (var letter in letters)
+        {
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (valued.Contains(letter))
+                return true;
+        }
+
+        return false;
+    }
+
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
     {
         if (!rootCommand.IsRoot || !rootCommand.HasImplementation)
@@ -659,6 +834,31 @@ internal sealed class ArgumentParser
         return DidYouMean.FindBestMatch(
             token,
             DidYouMean.SubCommandCandidates(rootCommand.Children.Keys)) == null;
+    }
+
+    private static SubCommandInfo? ResolveHelpTargetCommand(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        if (i >= end)
+            return target;
+        if (args[i].StartsWith('-'))
+            return target;
+        var current = target;
+        var resolved = false;
+        while (i < end && !args[i].StartsWith('-'))
+        {
+            var child = current.FindChild(args[i]);
+            if (child == null)
+                break;
+            current = child;
+            resolved = true;
+            i++;
+        }
+        return resolved ? current : null;
     }
 
     /// <summary>
