@@ -5,17 +5,17 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Internal decoupling of console output for testability.
-/// Routes normal output (help/version) and informational notes
-/// (CancelKeyPress fallbacks) to <see cref="Out"/> and
-/// diagnostics (errors) to <see cref="Error"/>,
-/// defaulting to <see cref="Console.Out"/> / <see cref="Console.Error"/>.
-/// Color is only applied when writing to the real console and the
-/// corresponding stream is not redirected.
 /// </summary>
 internal sealed class ConsoleOutput
 {
+    /// <summary>
+    /// Sink for normal output (help/version).
+    /// </summary>
     public TextWriter Out { get; }
 
+    /// <summary>
+    /// Sink for diagnostics.
+    /// </summary>
     public TextWriter Error { get; }
 
     public ConsoleOutput()
@@ -35,31 +35,49 @@ internal sealed class ConsoleOutput
         remove => Console.CancelKeyPress -= value;
     }
 
+    /// <summary>
+    /// Writes <paramref name="value"/> to <see cref="Out"/>.
+    /// </summary>
     internal void Write(string? value, ConsoleColor? color = null)
     {
         WriteInternal(Out, value, color, isError: false, newLine: false);
     }
 
+    /// <summary>
+    /// Writes a blank line to <see cref="Out"/>.
+    /// </summary>
     internal void WriteLine()
     {
         Out.WriteLine();
     }
 
+    /// <summary>
+    /// Writes <paramref name="value"/> plus newline to <see cref="Out"/>.
+    /// </summary>
     internal void WriteLine(string? value, ConsoleColor? color = null)
     {
         WriteInternal(Out, value, color, isError: false, newLine: true);
     }
 
+    /// <summary>
+    /// Writes <paramref name="value"/> to <see cref="Error"/>.
+    /// </summary>
     internal void WriteError(string? value, ConsoleColor? color = null)
     {
         WriteInternal(Error, value, color, isError: true, newLine: false);
     }
 
+    /// <summary>
+    /// Writes a blank line to <see cref="Error"/>.
+    /// </summary>
     internal void WriteLineError()
     {
         Error.WriteLine();
     }
 
+    /// <summary>
+    /// Writes <paramref name="value"/> plus newline to <see cref="Error"/>.
+    /// </summary>
     internal void WriteLineError(string? value, ConsoleColor? color = null)
     {
         WriteInternal(Error, value, color, isError: true, newLine: true);
@@ -97,12 +115,15 @@ internal sealed class ConsoleOutput
             }
             catch (IOException)
             {
+                // Color set/restore is best-effort; the value is still written plain below.
             }
             catch (PlatformNotSupportedException)
             {
+                // Color set/restore is best-effort; the value is still written plain below.
             }
             catch (UnauthorizedAccessException)
             {
+                // Color set/restore is best-effort; the value is still written plain below.
             }
             finally
             {
@@ -112,12 +133,15 @@ internal sealed class ConsoleOutput
                 }
                 catch (IOException)
                 {
+                    // Color set/restore is best-effort; the value was already written.
                 }
                 catch (PlatformNotSupportedException)
                 {
+                    // Color set/restore is best-effort; the value was already written.
                 }
                 catch (UnauthorizedAccessException)
                 {
+                    // Color set/restore is best-effort; the value was already written.
                 }
             }
 

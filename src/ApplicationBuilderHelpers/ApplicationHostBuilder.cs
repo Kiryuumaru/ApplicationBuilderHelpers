@@ -12,7 +12,7 @@ using System.Reflection;
 namespace ApplicationBuilderHelpers;
 
 /// <summary>
-/// Represents a builder for managing application dependencies.
+/// Enumerable host-builder wrapper exposing the underlying builder, services, configuration, and dependency list.
 /// </summary>
 public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : 
     IEnumerable<IApplicationDependency>
@@ -20,27 +20,29 @@ public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder
     internal List<IApplicationDependency> ApplicationDependencies { get; set; } = applicationDependencies ?? [];
 
     /// <summary>
-    /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
+    /// Gets the wrapped host builder receiving configuration and services.
     /// </summary>
     public IHostApplicationBuilder Builder { get; } = builder;
 
     /// <summary>
-    /// Gets the <see cref="IServiceCollection"/> associated with the <see cref="Builder"/>.
+    /// Gets the service collection of <see cref="Builder"/>.
     /// </summary>
     public IServiceCollection Services => Builder.Services;
 
     /// <summary>
-    /// Gets the <see cref="IConfiguration"/> associated with the <see cref="Builder"/>.
+    /// Gets the configuration of <see cref="Builder"/>.
     /// </summary>
     public IConfiguration Configuration => Builder.Configuration;
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Enumerates the registered dependencies in registration order.
+    /// </summary>
+    /// <returns>An enumerator over the registered dependencies.</returns>
     public IEnumerator<IApplicationDependency> GetEnumerator()
     {
         return ApplicationDependencies.GetEnumerator();
     }
 
-    /// <inheritdoc/>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
@@ -48,7 +50,7 @@ public abstract class ApplicationHostBuilderBase(IHostApplicationBuilder builder
 }
 
 /// <summary>
-/// Represents a builder for managing application dependencies.
+/// Build-stage wrapper that prepares dependencies then builds the host.
 /// </summary>
 public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, List<IApplicationDependency>? applicationDependencies = null) : 
     ApplicationHostBuilderBase(builder, applicationDependencies)
@@ -75,22 +77,22 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
 }
 
 /// <summary>
-/// Represents a builder for managing application dependencies for a specific host application builder type.
+/// Typed build-stage wrapper that constructs the host via the builder <c>Build</c> method.
 /// </summary>
-/// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
+/// <typeparam name="THostApplicationBuilder">The host-builder type this wrapper constructs.</typeparam>
 public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder) : ApplicationHostBuilder(builder)
     where THostApplicationBuilder : IHostApplicationBuilder
 {
     /// <summary>
-    /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
+    /// Gets the underlying builder cast to <typeparamref name="THostApplicationBuilder"/>.
     /// </summary>
     public new THostApplicationBuilder Builder => (THostApplicationBuilder)base.Builder;
 
     /// <summary>
-    /// Adds an <see cref="ApplicationDependency"/> to the builder.
+    /// Appends a dependency instance to the pipeline and returns this builder.
     /// </summary>
-    /// <param name="applicationDependency">The application dependency to add.</param>
-    /// <returns>The instance of the builder.</returns>
+    /// <param name="applicationDependency">The dependency instance to append.</param>
+    /// <returns>This builder.</returns>
     public ApplicationHostBuilder<THostApplicationBuilder> AddApplication(IApplicationDependency applicationDependency)
     {
         ApplicationDependencies.Add(applicationDependency);
@@ -98,10 +100,10 @@ public class ApplicationHostBuilder<[DynamicallyAccessedMembers(DynamicallyAcces
     }
 
     /// <summary>
-    /// Adds an <see cref="ApplicationDependency"/> of type <typeparamref name="TApplicationDependency"/>.
+    /// Constructs a dependency of the given type, appends it, and returns this builder.
     /// </summary>
-    /// <typeparam name="TApplicationDependency">The type of <see cref="IApplicationDependency"/> to add.</typeparam>
-    /// <returns>The instance of the builder.</returns>
+    /// <typeparam name="TApplicationDependency">The dependency type to construct.</typeparam>
+    /// <returns>This builder.</returns>
     public ApplicationHostBuilder<THostApplicationBuilder> AddApplication<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
         where TApplicationDependency : IApplicationDependency
     {

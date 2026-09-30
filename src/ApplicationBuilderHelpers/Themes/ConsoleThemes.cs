@@ -3,248 +3,152 @@ using System;
 
 namespace ApplicationBuilderHelpers.Themes;
 
-/// <summary>
-/// Default console color theme.
-/// </summary>
+/// <summary>Default theme for dark backgrounds.</summary>
 public class DefaultConsoleTheme : IConsoleTheme
 {
-    /// <summary>
-    /// Gets the singleton instance of the default console theme.
-    /// </summary>
+    /// <summary>Shared instance; themes are stateless.</summary>
     public static DefaultConsoleTheme Instance { get; } = new DefaultConsoleTheme();
 
-    /// <summary>
-    /// Gets the color used for headers in the console output.
-    /// </summary>
+    /// <summary>Section headers.</summary>
     public ConsoleColor HeaderColor => ConsoleColor.Yellow;
 
-    /// <summary>
-    /// Gets the color used for command flags in the console output.
-    /// </summary>
+    /// <summary>Command names and option flags.</summary>
     public ConsoleColor FlagColor => ConsoleColor.Green;
 
-    /// <summary>
-    /// Gets the color used for parameters in the console output.
-    /// </summary>
+    /// <summary>Value placeholders.</summary>
     public ConsoleColor ParameterColor => ConsoleColor.Cyan;
 
-    /// <summary>
-    /// Gets the color used for descriptions in the console output.
-    /// </summary>
+    /// <summary>Descriptions and main text.</summary>
     public ConsoleColor DescriptionColor => ConsoleColor.White;
 
-    /// <summary>
-    /// Gets the color used for secondary text in the console output.
-    /// </summary>
+    /// <summary>Default values and secondary info.</summary>
     public ConsoleColor SecondaryColor => ConsoleColor.Gray;
 
-    /// <summary>
-    /// Gets the color used for required fields in the console output.
-    /// </summary>
+    /// <summary>Required markers and warnings.</summary>
     public ConsoleColor RequiredColor => ConsoleColor.Red;
 }
 
-/// <summary>
-/// Monochrome console theme. It uses only grayscale colors.
-/// </summary>
+/// <summary>Grayscale-only theme for terminals without color.</summary>
 public class MonochromeConsoleTheme : IConsoleTheme
 {
-    /// <summary>
-    /// Gets the singleton instance of the monochrome console theme.
-    /// </summary>
+    /// <summary>Shared instance; themes are stateless.</summary>
     public static MonochromeConsoleTheme Instance { get; } = new MonochromeConsoleTheme();
 
-    /// <summary>
-    /// Gets the color used for headers in the console output.
-    /// </summary>
+    /// <summary>Section headers.</summary>
     public ConsoleColor HeaderColor => ConsoleColor.White;
 
-    /// <summary>
-    /// Gets the color used for command flags in the console output.
-    /// </summary>
+    /// <summary>Command names and option flags.</summary>
     public ConsoleColor FlagColor => ConsoleColor.Gray;
 
-    /// <summary>
-    /// Gets the color used for parameters in the console output.
-    /// </summary>
+    /// <summary>Value placeholders.</summary>
     public ConsoleColor ParameterColor => ConsoleColor.DarkGray;
 
-    /// <summary>
-    /// Gets the color used for descriptions in the console output.
-    /// </summary>
+    /// <summary>Descriptions and main text.</summary>
     public ConsoleColor DescriptionColor => ConsoleColor.White;
 
-    /// <summary>
-    /// Gets the color used for secondary text in the console output.
-    /// </summary>
+    /// <summary>Default values and secondary info.</summary>
     public ConsoleColor SecondaryColor => ConsoleColor.DarkGray;
 
-    /// <summary>
-    /// Gets the color used for required fields in the console output.
-    /// </summary>
+    /// <summary>Required markers and warnings.</summary>
     public ConsoleColor RequiredColor => ConsoleColor.White;
 }
 
-/// <summary>
-/// High contrast console theme. It uses bright colors.
-/// </summary>
+/// <summary>Saturated theme for maximum contrast.</summary>
 public class HighContrastConsoleTheme : IConsoleTheme
 {
-    /// <summary>
-    /// Gets the singleton instance of the high contrast console theme.
-    /// </summary>
+    /// <summary>Shared instance; themes are stateless.</summary>
     public static HighContrastConsoleTheme Instance { get; } = new HighContrastConsoleTheme();
 
-    /// <summary>
-    /// Gets the color used for headers in the console output.
-    /// </summary>
+    /// <summary>Section headers.</summary>
     public ConsoleColor HeaderColor => ConsoleColor.Yellow;
 
-    /// <summary>
-    /// Gets the color used for command flags in the console output.
-    /// </summary>
+    /// <summary>Command names and option flags.</summary>
     public ConsoleColor FlagColor => ConsoleColor.Cyan;
 
-    /// <summary>
-    /// Gets the color used for parameters in the console output.
-    /// </summary>
+    /// <summary>Value placeholders.</summary>
     public ConsoleColor ParameterColor => ConsoleColor.Magenta;
 
-    /// <summary>
-    /// Gets the color used for descriptions in the console output.
-    /// </summary>
+    /// <summary>Descriptions and main text.</summary>
     public ConsoleColor DescriptionColor => ConsoleColor.White;
 
-    /// <summary>
-    /// Gets the color used for secondary text in the console output.
-    /// </summary>
+    /// <summary>Default values and secondary info.</summary>
     public ConsoleColor SecondaryColor => ConsoleColor.Gray;
 
-    /// <summary>
-    /// Gets the color used for required fields in the console output.
-    /// </summary>
+    /// <summary>Required markers and warnings.</summary>
     public ConsoleColor RequiredColor => ConsoleColor.Red;
 }
 
-/// <summary>
-/// Minimal console theme. It uses muted colors.
-/// </summary>
+/// <summary>Muted theme that stays quiet beside command output.</summary>
 public class MinimalConsoleTheme : IConsoleTheme
 {
-    /// <summary>
-    /// Gets the singleton instance of the minimal console theme.
-    /// </summary>
+    /// <summary>Shared instance; themes are stateless.</summary>
     public static MinimalConsoleTheme Instance { get; } = new MinimalConsoleTheme();
 
-    /// <summary>
-    /// Gets the color used for headers in the console output.
-    /// </summary>
+    /// <summary>Section headers.</summary>
     public ConsoleColor HeaderColor => ConsoleColor.Blue;
 
-    /// <summary>
-    /// Gets the color used for command flags in the console output.
-    /// </summary>
+    /// <summary>Command names and option flags.</summary>
     public ConsoleColor FlagColor => ConsoleColor.DarkCyan;
 
-    /// <summary>
-    /// Gets the color used for parameters in the console output.
-    /// </summary>
+    /// <summary>Value placeholders.</summary>
     public ConsoleColor ParameterColor => ConsoleColor.DarkBlue;
 
-    /// <summary>
-    /// Gets the color used for descriptions in the console output.
-    /// </summary>
+    /// <summary>Descriptions and main text.</summary>
     public ConsoleColor DescriptionColor => ConsoleColor.Gray;
 
-    /// <summary>
-    /// Gets the color used for secondary text in the console output.
-    /// </summary>
+    /// <summary>Default values and secondary info.</summary>
     public ConsoleColor SecondaryColor => ConsoleColor.DarkGray;
 
-    /// <summary>
-    /// Gets the color used for required fields in the console output.
-    /// </summary>
+    /// <summary>Required markers and warnings.</summary>
     public ConsoleColor RequiredColor => ConsoleColor.DarkRed;
 }
 
-/// <summary>
-/// Dark console theme for dark terminal backgrounds.
-/// </summary>
+/// <summary>Bright-on-dark theme tuned for dark terminal backgrounds.</summary>
 public class DarkConsoleTheme : IConsoleTheme
 {
-    /// <summary>
-    /// Gets the singleton instance of the dark console theme.
-    /// </summary>
+    /// <summary>Shared instance; themes are stateless.</summary>
     public static DarkConsoleTheme Instance { get; } = new DarkConsoleTheme();
 
-    /// <summary>
-    /// Gets the color used for headers in the console output.
-    /// </summary>
+    /// <summary>Section headers.</summary>
     public ConsoleColor HeaderColor => ConsoleColor.Magenta;
 
-    /// <summary>
-    /// Gets the color used for command flags in the console output.
-    /// </summary>
+    /// <summary>Command names and option flags.</summary>
     public ConsoleColor FlagColor => ConsoleColor.Green;
 
-    /// <summary>
-    /// Gets the color used for parameters in the console output.
-    /// </summary>
+    /// <summary>Value placeholders.</summary>
     public ConsoleColor ParameterColor => ConsoleColor.Cyan;
 
-    /// <summary>
-    /// Gets the color used for descriptions in the console output.
-    /// </summary>
+    /// <summary>Descriptions and main text.</summary>
     public ConsoleColor DescriptionColor => ConsoleColor.White;
 
-    /// <summary>
-    /// Gets the color used for secondary text in the console output.
-    /// </summary>
+    /// <summary>Default values and secondary info.</summary>
     public ConsoleColor SecondaryColor => ConsoleColor.DarkGray;
 
-    /// <summary>
-    /// Gets the color used for required fields in the console output.
-    /// </summary>
+    /// <summary>Required markers and warnings.</summary>
     public ConsoleColor RequiredColor => ConsoleColor.Red;
 }
 
-/// <summary>
-/// Light console theme for light terminal backgrounds.
-/// </summary>
+/// <summary>Dark-on-light theme tuned for light terminal backgrounds.</summary>
 public class LightConsoleTheme : IConsoleTheme
 {
-    /// <summary>
-    /// Gets the singleton instance of the light console theme.
-    /// </summary>
+    /// <summary>Shared instance; themes are stateless.</summary>
     public static LightConsoleTheme Instance { get; } = new LightConsoleTheme();
 
-    /// <summary>
-    /// Gets the console color used for headers in the light theme.
-    /// </summary>
+    /// <summary>Section headers.</summary>
     public ConsoleColor HeaderColor => ConsoleColor.DarkBlue;
-    
-    /// <summary>
-    /// Gets the console color used for flags in the light theme.
-    /// </summary>
+
+    /// <summary>Command names and option flags.</summary>
     public ConsoleColor FlagColor => ConsoleColor.DarkGreen;
-    
-    /// <summary>
-    /// Gets the console color used for parameters in the light theme.
-    /// </summary>
+
+    /// <summary>Value placeholders.</summary>
     public ConsoleColor ParameterColor => ConsoleColor.DarkCyan;
-    
-    /// <summary>
-    /// Gets the console color used for descriptions in the light theme.
-    /// </summary>
+
+    /// <summary>Descriptions and main text.</summary>
     public ConsoleColor DescriptionColor => ConsoleColor.Black;
-    
-    /// <summary>
-    /// Gets the console color used for secondary text in the light theme.
-    /// </summary>
+
+    /// <summary>Default values and secondary info.</summary>
     public ConsoleColor SecondaryColor => ConsoleColor.DarkGray;
-    
-    /// <summary>
-    /// Gets the console color used for required indicators in the light theme.
-    /// </summary>
+
+    /// <summary>Required markers and warnings.</summary>
     public ConsoleColor RequiredColor => ConsoleColor.DarkRed;
 }

@@ -7,21 +7,14 @@ using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Executes the target command.
-/// Calls:
-/// <see cref="CommandShutdownScope"/> (linked CTS + Ctrl+C subscribe/dispose),
-/// <see cref="CommandRunOrchestrator"/> (command task and host task + Exiting callbacks run exactly once,
-/// returning a <see cref="CommandRunOutcome"/>), <see cref="CommandExitMapper"/>
-/// (single classification point where cancellation takes precedence), and <see cref="ServiceInjectionGate"/>
-/// (per-command service injection).
-/// </summary>
+/// <summary>Runs the bound target command under a shutdown scope.</summary>
 internal sealed class CommandExecutor
 {
     private readonly IApplicationDependencyCollection _applicationDependencyCollection;
     private readonly ConsoleOutput _consoleOutput;
     private readonly IConsoleCancelSignal _cancelSignal;
 
+    /// <summary>Wires the dependency collection, output, and cancel signal.</summary>
     internal CommandExecutor(
         IApplicationDependencyCollection applicationDependencyCollection,
         ConsoleOutput consoleOutput,
@@ -32,16 +25,10 @@ internal sealed class CommandExecutor
         _cancelSignal = cancelSignal ?? new ConsoleCancelSignal(consoleOutput);
     }
 
-    /// <summary>
-    /// Exit code returned when execution is canceled.
-    /// Follows the 128 + SIGINT convention.
-    /// </summary>
+    /// <summary>Exit code for cancellation (128 + SIGINT).</summary>
     internal const int CanceledExitCode = 130;
 
-    /// <summary>
-    /// Marker for a cancellation request.
-    /// Always maps to <see cref="CanceledExitCode"/> (130).
-    /// </summary>
+    /// <summary>Marks external abort so the catch chain can tell it from internal cancel.</summary>
     internal sealed class ExternalCancellationException : OperationCanceledException
     {
         public ExternalCancellationException()
@@ -50,11 +37,9 @@ internal sealed class CommandExecutor
         }
     }
 
-    /// <summary>
-    /// Executes the target command. A normal return means success:
-    /// the host is stopped after the command returns.
-    /// Cancellation token for cooperative cancellation.
-    /// </summary>
+    /// <summary>Executes the bound target command; normal return means success.</summary>
+    /// <param name="commandInfo">The resolved target command.</param>
+    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     public async Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken)
     {
         var command = commandInfo.Command!;
@@ -98,6 +83,7 @@ internal sealed class CommandExecutor
         }
         catch (OperationCanceledException ex) when (ex is not ExternalCancellationException && scope.IsExternalAbortRequested)
         {
+            // External abort maps to exit 130; caller observes ExternalCancellation, not OCE.
             throw new ExternalCancellationException();
         }
     }

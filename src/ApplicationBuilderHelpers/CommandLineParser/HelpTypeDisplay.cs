@@ -5,8 +5,12 @@ using System.IO;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
+/// <summary>
+/// Maps CLR types to help placeholder tokens.
+/// </summary>
 internal static class HelpTypeDisplay
 {
+    /// <summary>Maps a CLR type to its placeholder token.</summary>
     internal static string GetPlaceholderToken(Type type)
     {
         var unwrapped = Nullable.GetUnderlyingType(type) ?? type;
@@ -46,6 +50,7 @@ internal static class HelpTypeDisplay
         return "VALUE";
     }
 
+    /// <summary>Builds the value placeholder for an option.</summary>
     internal static string GetParameterPlaceholder(SubCommandOptionInfo option)
     {
         if (option.IsFlag)

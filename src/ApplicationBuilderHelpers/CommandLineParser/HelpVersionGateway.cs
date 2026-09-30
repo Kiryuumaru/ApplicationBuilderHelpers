@@ -7,12 +7,13 @@ using System.Collections.Generic;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Help/version pre-parse step that calls HelpFormatter and ConsoleOutput.
+/// Help/version pre-parse gate.
 /// </summary>
 internal sealed class HelpVersionGateway(
     ICommandBuilder commandBuilder,
     ConsoleOutput consoleOutput)
 {
+    /// <summary>Bare global-help request (exactly one help token).</summary>
     internal static bool ShouldShowGlobalHelp(string[] args)
     {
         if (args.Length == 1 && IsHelpToken(args[0]))
@@ -23,24 +24,19 @@ internal sealed class HelpVersionGateway(
         return false;
     }
 
+    /// <summary>Bare help token (<c>--help</c> or <c>-h</c> only).</summary>
     internal static bool IsHelpToken(string token)
     {
         return token == "--help" || token == "-h";
     }
 
+    /// <summary>Bare version token (<c>--version</c> or <c>-V</c> only).</summary>
     internal static bool IsVersionToken(string token)
     {
         return token == "--version" || token == "-V";
     }
 
-    /// <summary>
-    /// Matches the parser's help-detection surface (footer signal):
-    /// <see cref="IsHelpToken"/> per-token plus an <c>h</c> char inside a
-    /// dash-led cluster (the dash-led cluster rule), scanning only up to the first bare
-    /// <c>--</c> separator (tokens after it are positional per
-    /// the global-help rule and never set <c>ShowHelp</c>).
-    /// Footer-only: exit codes are unaffected.
-    /// </summary>
+    /// <summary>Help requested (bare token or <c>h</c>-cluster, pre-<c>--</c> only).</summary>
     internal static bool RequestedHelp(string[] args)
     {
         foreach (var token in args)
@@ -56,11 +52,7 @@ internal sealed class HelpVersionGateway(
         return false;
     }
 
-    /// <summary>
-    /// Mirrors <see cref="RequestedHelp"/> for the version surface:
-    /// <see cref="IsVersionToken"/> per-token plus a <c>V</c> char inside a
-    /// dash-led cluster, scanning only up to the first bare <c>--</c>.
-    /// </summary>
+    /// <summary>Version requested (bare token or <c>V</c>-cluster, pre-<c>--</c> only).</summary>
     internal static bool RequestedVersion(string[] args)
     {
         foreach (var token in args)
@@ -96,30 +88,28 @@ internal sealed class HelpVersionGateway(
         return token[1..].Contains('h');
     }
 
+    /// <summary>Renders global help for the whole application.</summary>
     internal void ShowGlobalHelp(SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
     {
         var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, allCommands, consoleOutput);
         helpFormatter.ShowGlobalHelp();
     }
 
+    /// <summary>Renders help for a single command.</summary>
     internal void ShowCommandHelp(SubCommandInfo commandInfo, SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
     {
         var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, allCommands, consoleOutput);
         helpFormatter.ShowCommandHelp(commandInfo);
     }
 
+    /// <summary>Prints the configured executable version to stdout.</summary>
     internal void ShowVersion()
     {
         var version = commandBuilder.ExecutableVersion ?? AssemblyHelpers.GetAutoDetectedVersion();
         consoleOutput.WriteLine(version);
     }
 
-    /// <summary>
-    /// Shows a styled error message with footer information.
-    /// Footer selection branches on <see cref="CommandErrorKind"/>, never on message text.
-    /// The circular <c>--help</c> hint is suppressed when the failing invocation
-    /// already requested help: only the <c>--version</c> hint survives.
-    /// </summary>
+    /// <summary>Shows a styled error message with footer information.</summary>
     internal void ShowErrorMessage(string message, CommandErrorKind kind = CommandErrorKind.Fault, string? commandName = null, bool showHelpRequested = false)
     {
         var theme = commandBuilder.Theme;

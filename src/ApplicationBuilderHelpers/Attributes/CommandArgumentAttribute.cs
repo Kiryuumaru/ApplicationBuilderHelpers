@@ -3,60 +3,59 @@
 namespace ApplicationBuilderHelpers.Attributes;
 
 /// <summary>
-/// Attribute to define a command argument for a property.
+/// Declares a positional argument binding for one command property.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]
 public class CommandArgumentAttribute : Attribute
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommandArgumentAttribute"/> class.
+    /// Declares an argument with a null name; the property name supplies the display name.
     /// </summary>
     public CommandArgumentAttribute()
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommandArgumentAttribute"/> class with a specified name.
+    /// Declares an argument with the given display/FromAmong name.
     /// </summary>
-    /// <param name="name">The name of the command argument.</param>
+    /// <param name="name">The argument display name.</param>
     public CommandArgumentAttribute(string name)
     {
         Name = name;
     }
 
     /// <summary>
-    /// Gets or sets the name of the command argument.
+    /// Gets or sets the argument display name; null (default) uses the property name.
     /// </summary>
     public string? Name { get; set; }
 
     /// <summary>
-    /// Gets or sets the description of the command argument.
+    /// Gets or sets the help text shown for the argument.
     /// </summary>
     public string? Description { get; set; }
 
     /// <summary>
-    /// Gets or sets the position of the command argument.
+    /// Gets or sets the zero-based binding position; default 0 binds first.
     /// </summary>
     public int Position { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether the command argument is required.
+    /// Gets or sets whether omission fails binding; true reports <c>MissingRequired</c> with exit 2.
     /// </summary>
     public bool Required { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets the allowed values for the command argument.
+    /// Gets or sets the allowed values; empty (default) accepts any convertible value.
     /// </summary>
     public object[] FromAmong { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets a value indicating whether the possible values for the command argument are case sensitive.
+    /// Gets or sets whether <c>FromAmong</c> matching is ordinal; true requires exact case.
     /// </summary>
     public bool CaseSensitive { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets a value indicating whether the command argument value is a secret.
-    /// Secret values omit the provided value in error messages.
+    /// Gets or sets whether the value is secret; true never echoes the value.
     /// </summary>
     public bool Secret { get; set; } = false;
 }

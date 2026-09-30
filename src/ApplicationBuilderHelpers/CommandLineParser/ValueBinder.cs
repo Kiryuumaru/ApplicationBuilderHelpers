@@ -6,21 +6,8 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Binds parsed values onto the command instance with the shared
-/// <see cref="TypeConversion.TypeConversion"/> scalar pipeline and <see cref="CollectionShape"/>
-/// collection materialization (per-element conversion for collections,
-/// scalar conversion otherwise).
-/// </summary>
 internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollection)
 {
-    /// <summary>
-    /// Validates every supplied value without binding. Applies
-    /// environment-variable fallback, converts each option/argument value in
-    /// canonical-key order, and skips bare-occurrence keys when help is
-    /// requested. Error messages join the missing errors in the caller; the
-    /// first message matches the single-error text.
-    /// </summary>
     public List<string> CollectBindingErrors(ParseResult result, bool skipBareWhenHelpRequested = false)
     {
         var errors = new List<string>();
@@ -54,9 +41,6 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         return errors;
     }
 
-    /// <summary>
-    /// Sets the parsed values on the command instance properties
-    /// </summary>
     public void SetCommandValues(ParseResult result)
     {
         var command = result.TargetCommand.Command!;
@@ -148,6 +132,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                 }
                 catch (Exceptions.CommandException ex)
                 {
+                    // Probe only: first element failure records one message and stops; anything else is a fault.
                     errors.Add(NormalizeBindingError(ex));
                     return;
                 }
@@ -159,6 +144,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             }
             catch (Exceptions.CommandException ex)
             {
+                // Probe only: first element failure records one message and stops; anything else is a fault.
                 errors.Add(NormalizeBindingError(ex));
             }
 
@@ -171,6 +157,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         }
         catch (Exceptions.CommandException ex)
         {
+            // Probe only: first element failure records one message and stops; anything else is a fault.
             errors.Add(NormalizeBindingError(ex));
         }
     }
@@ -193,6 +180,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                 }
                 catch (Exceptions.CommandException ex)
                 {
+                    // Probe only: first element failure records one message and stops; anything else is a fault.
                     errors.Add(NormalizeBindingError(ex));
                     return;
                 }
@@ -204,6 +192,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             }
             catch (Exceptions.CommandException ex)
             {
+                // Probe only: first element failure records one message and stops; anything else is a fault.
                 errors.Add(NormalizeBindingError(ex));
             }
 
@@ -216,6 +205,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         }
         catch (Exceptions.CommandException ex)
         {
+            // Probe only: first element failure records one message and stops; anything else is a fault.
             errors.Add(NormalizeBindingError(ex));
         }
     }

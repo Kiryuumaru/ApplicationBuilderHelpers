@@ -7,16 +7,7 @@ using ApplicationBuilderHelpers.Exceptions;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Installs and removes managed shell-completion blocks.
-/// Block format: start marker + managed line + script body + end marker.
-/// Bash/Zsh/Pwsh targets are rc/profile files (replace-in-place or append);
-/// fish target is a file-drop. Home/XDG/SHELL/OS lookups are injectable for tests.
-/// Executable names are validated here; shell function
-/// identifiers use the transliterated projection in <see cref="CompletionScriptWriter"/>.
-/// Mutating install/uninstall paths hold a per-target sibling lock file;
-/// dry-run paths are lock-free.
-/// </summary>
+/// <summary>Installs and removes managed shell-completion blocks.</summary>
 internal static class CompletionInstaller
 {
     internal static Func<string> HomeProvider = DefaultHomeDirectory;
@@ -25,13 +16,7 @@ internal static class CompletionInstaller
 
     internal const int MaxExeNameLength = 64;
 
-    /// <summary>
-    /// Location for executable-name policy: empty/whitespace falls back to
-    /// <c>myapp</c>; otherwise the trimmed name must be ASCII letters/digits plus
-    /// <c>.</c>, <c>_</c>, <c>-</c> (max 64 chars) and start with an ASCII letter
-    /// or <c>_</c> (leading <c>-</c>/<c>.</c>/digits break shell scripts).
-    /// Anything else is rejected with a usage error (exit 2) naming the allowed set.
-    /// </summary>
+    /// <summary>Validates an executable name; blank falls back to <c>myapp</c>, invalid throws exit 2.</summary>
     internal static string RequireValidExe(string? exe)
     {
         if (string.IsNullOrWhiteSpace(exe))
@@ -76,12 +61,16 @@ internal static class CompletionInstaller
         return new string(chars);
     }
 
+    /// <summary>Start marker delimiting the managed block in an rc file.</summary>
     internal static string StartMarker(string exe) => $"# >>> {RequireValidExe(exe)} completion >>>";
 
+    /// <summary>End marker delimiting the managed block in an rc file.</summary>
     internal static string EndMarker(string exe) => $"# <<< {RequireValidExe(exe)} completion <<<";
 
+    /// <summary>Do-not-edit line inside the managed block.</summary>
     internal static string ManagedLine(string exe) => $"# managed by {RequireValidExe(exe)} completions install; do not edit.";
 
+    /// <summary>Canonicalizes a shell name (<c>powershell</c> folds to <c>pwsh</c>).</summary>
     internal static bool TryCanonicalizeShell(string? shell, out string canonical)
     {
         canonical = string.Empty;
@@ -108,6 +97,7 @@ internal static class CompletionInstaller
         }
     }
 
+    /// <summary>Detects the shell from <c>$SHELL</c>; null when undetectable.</summary>
     internal static string? DetectShellFromEnvironment()
     {
         string? raw;
@@ -117,6 +107,7 @@ internal static class CompletionInstaller
         }
         catch
         {
+            // Env access must never fault install; fall back to explicit --shell.
             return null;
         }
 
@@ -133,6 +124,7 @@ internal static class CompletionInstaller
         return string.IsNullOrWhiteSpace(basename) ? null : basename;
     }
 
+    /// <summary>Renders the install script body for a canonical shell into a string.</summary>
     internal static string RenderScript(string canonicalShell, string exe)
     {
         using var writer = new StringWriter();
@@ -158,6 +150,7 @@ internal static class CompletionInstaller
         return writer.ToString();
     }
 
+    /// <summary>Builds the full managed block (markers plus script body).</summary>
     internal static string BuildBlock(string exe, string scriptBody)
     {
         var normalized = RequireValidExe(exe);
@@ -167,6 +160,7 @@ internal static class CompletionInstaller
         return $"{StartMarker(normalized)}\n{ManagedLine(normalized)}\n{body}{EndMarker(normalized)}\n";
     }
 
+    /// <summary>Resolves the install target path per shell; unknown shells throw.</summary>
     internal static string GetTargetPath(string canonicalShell, string exe)
     {
         var normalized = RequireValidExe(exe);
@@ -185,6 +179,7 @@ internal static class CompletionInstaller
         }
     }
 
+    /// <summary>Installs the managed block; dry-run previews without locking or writing.</summary>
     internal static InstallOutcome Install(string canonicalShell, string exe, bool dryRun, ConsoleOutput output)
     {
         var normalized = RequireValidExe(exe);
@@ -202,6 +197,7 @@ internal static class CompletionInstaller
                 }
                 catch (DirectoryNotFoundException)
                 {
+                    // Missing directory reads as absent; install creates it under lock.
                     existingBytes = [];
                 }
 
@@ -282,6 +278,7 @@ internal static class CompletionInstaller
         return existing.EndsWith('\n') ? existing + block : existing + "\n" + block;
     }
 
+    /// <summary>Uninstalls the managed block; missing block reports not-installed (exit 0).</summary>
     internal static InstallOutcome Uninstall(string canonicalShell, string exe, ConsoleOutput output)
     {
         var normalized = RequireValidExe(exe);
@@ -357,6 +354,7 @@ internal static class CompletionInstaller
         return new InstallOutcome(0, true);
     }
 
+    /// <summary>Replaces the managed block in rc content; false when markers are absent.</summary>
     internal static bool TryReplaceBlock(string content, string exe, string newBlock, out string updated)
     {
         updated = content;
@@ -379,6 +377,7 @@ internal static class CompletionInstaller
         return true;
     }
 
+    /// <summary>Excises the managed block from rc content; false when markers are absent.</summary>
     internal static bool TryExciseBlock(string content, string exe, out string remainder)
     {
         remainder = content;
@@ -401,8 +400,10 @@ internal static class CompletionInstaller
         return true;
     }
 
+    /// <summary>Sibling lock-file path for an install target.</summary>
     internal static string LockPathFor(string target) => target + ".lock";
 
+    /// <summary>Acquires the per-target sibling lock, waiting up to 10 seconds.</summary>
     internal static IDisposable AcquireTargetLock(string target)
     {
         var directory = Path.GetDirectoryName(target);
@@ -438,7 +439,7 @@ internal static class CompletionInstaller
         {
             if (IsLockStale(lockPath))
             {
-                try { File.Delete(lockPath); } catch { }
+                try { File.Delete(lockPath); } catch { /* Best-effort stale-lock removal; next attempt retries. */ }
             }
 
             return null;
@@ -458,6 +459,7 @@ internal static class CompletionInstaller
         }
         catch
         {
+            // Unreadable lock is treated as held, never stale.
             return false;
         }
 
@@ -485,6 +487,7 @@ internal static class CompletionInstaller
                 }
                 catch
                 {
+                    // Heartbeat is best-effort; a missed beat only risks stale-lock expiry.
                 }
             }, this, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
         }
@@ -494,13 +497,13 @@ internal static class CompletionInstaller
             if (_disposed)
                 return;
             _disposed = true;
-            try { _heartbeat.Dispose(); } catch { }
+            try { _heartbeat.Dispose(); } catch { /* Best-effort release; dispose never faults. */ }
             try
             {
                 if (LockTokenMatches(_lockPath, _token))
                     File.Delete(_lockPath);
             }
-            catch { }
+            catch { /* Best-effort lock release; a leftover expires via staleness. */ }
         }
     }
 
@@ -517,6 +520,7 @@ internal static class CompletionInstaller
         }
         catch
         {
+            // Unreadable lock never matches our token.
             return false;
         }
     }
@@ -565,12 +569,12 @@ internal static class CompletionInstaller
             }
             catch
             {
-                try { File.Delete(temp); } catch { }
+                try { File.Delete(temp); } catch { /* Best-effort temp cleanup before rethrow. */ }
                 throw;
             }
         }
 
-        try { File.Delete(temp); } catch { }
+        try { File.Delete(temp); } catch { /* Best-effort temp cleanup before reporting busy. */ }
         throw new IOException($"Could not replace '{target}' (destination busy).");
     }
 
@@ -588,6 +592,7 @@ internal static class CompletionInstaller
         }
         catch
         {
+            // Directory fsync is best-effort durability; write already succeeded.
         }
     }
 
@@ -608,6 +613,7 @@ internal static class CompletionInstaller
         }
         catch
         {
+            // Env access must never fault path resolution; fall back to home.
         }
 
         if (!string.IsNullOrWhiteSpace(xdg))
@@ -639,4 +645,5 @@ internal static class CompletionInstaller
     }
 }
 
+/// <summary>Install/uninstall outcome: exit code plus whether the verb was handled.</summary>
 internal sealed record InstallOutcome(int ExitCode, bool Handled);

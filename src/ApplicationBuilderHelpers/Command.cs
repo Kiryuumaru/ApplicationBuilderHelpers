@@ -8,27 +8,26 @@ using ApplicationBuilderHelpers.Interfaces;
 namespace ApplicationBuilderHelpers;
 
 /// <summary>
-/// Provides a base implementation for commands that can be executed within the application with a specific host application builder type.
+/// Base command bound to one host-builder type.
 /// </summary>
-/// <typeparam name="THostApplicationBuilder">The type of host application builder used by this command.</typeparam>
+/// <typeparam name="THostApplicationBuilder">The host-builder type this command constructs per run.</typeparam>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder> : ApplicationDependency, ICommand
     where THostApplicationBuilder : IHostApplicationBuilder
 {
     /// <summary>
-    /// Builds the application builder.
+    /// Builds the host application builder for this run.
     /// </summary>
-    /// <param name="stoppingToken">A token to cancel the operation.</param>
-    /// <returns>An instance of the host application builder type.</returns>
+    /// <param name="stoppingToken">Token observing host shutdown during the build.</param>
+    /// <returns>The host application builder this run executes against.</returns>
     protected abstract ValueTask<THostApplicationBuilder> ApplicationBuilder(CancellationToken stoppingToken);
 
     /// <summary>
-    /// Runs the application. A normal return signals success (exit code 0);
-    /// throw <see cref="Exceptions.CommandException"/> for a non-zero exit code.
+    /// Runs the command work; a normal return signals success (exit 0).
     /// </summary>
-    /// <param name="applicationHost">The application host.</param>
-    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <param name="applicationHost">The typed host carrying the built <c>IHost</c> and services.</param>
+    /// <param name="cancellationToken">Token observing cooperative cancellation (exit 130).</param>
+    /// <returns>A task completing when the command work finishes.</returns>
     protected virtual async ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
 #pragma warning disable CS0618 // Obsolete overload remains the dispatch target here.
@@ -38,44 +37,29 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     }
 
     /// <summary>
-    /// Runs the application. A normal return signals success (exit code 0);
-    /// throw <see cref="Exceptions.CommandException"/> for a non-zero exit code.
+    /// Forwards to the <see cref="CancellationToken"/> overload; override that overload instead.
     /// </summary>
-    /// <param name="applicationHost">The application host.</param>
-    /// <param name="cancellationTokenSource">A token source to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <param name="applicationHost">The typed host carrying the built <c>IHost</c> and services.</param>
+    /// <param name="cancellationTokenSource">Source linked to the run token.</param>
+    /// <returns>A task completing when the command work finishes.</returns>
+    /// <exception cref="NotImplementedException">Thrown by default; override the <see cref="CancellationToken"/> overload instead.</exception>
     [Obsolete("Override Run(ApplicationHost<THostApplicationBuilder>, CancellationToken) instead and return on success.")]
     protected virtual ValueTask Run(ApplicationHost<THostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
     {
         throw new NotImplementedException($"Override {nameof(Run)}({nameof(ApplicationHost<THostApplicationBuilder>)}, {nameof(CancellationToken)}) instead.");
     }
 
-    /// <summary>
-    /// Explicit <see cref="ICommand"/> preparation member.
-    /// </summary>
-    /// <param name="applicationBuilder">The application builder.</param>
     void ICommand.CommandPreparationInternal(ApplicationBuilder applicationBuilder)
     {
         CommandPreparation(applicationBuilder);
     }
 
-    /// <summary>
-    /// Explicit <see cref="ICommand"/> builder member.
-    /// </summary>
-    /// <param name="stoppingToken">A token to cancel the operation.</param>
-    /// <returns>An instance of <see cref="ApplicationHostBuilder"/>.</returns>
     async ValueTask<ApplicationHostBuilder> ICommand.ApplicationBuilderInternal(CancellationToken stoppingToken)
     {
         var hostApplicationBuilder = await ApplicationBuilder(stoppingToken);
         return new ApplicationHostBuilder<THostApplicationBuilder>(hostApplicationBuilder);
     }
 
-    /// <summary>
-    /// Explicit <see cref="ICommand"/> run member.
-    /// </summary>
-    /// <param name="applicationHost">The application host.</param>
-    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
     async ValueTask ICommand.RunInternal(ApplicationHost applicationHost, CancellationToken cancellationToken)
     {
         var typedHost = (applicationHost as ApplicationHost<THostApplicationBuilder>)!;
@@ -84,16 +68,16 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
 }
 
 /// <summary>
-/// Provides a base implementation for commands that can be executed within the application using the default <see cref="HostApplicationBuilder"/>.
+/// Default command bound to <c>HostApplicationBuilder</c>.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public abstract class Command : Command<HostApplicationBuilder>
 {
     /// <summary>
-    /// Builds the application builder.
+    /// Builds the default host builder via <c>Host.CreateApplicationBuilder</c>.
     /// </summary>
-    /// <param name="stoppingToken">A token to cancel the operation.</param>
-    /// <returns>An instance of <see cref="HostApplicationBuilder"/>.</returns>
+    /// <param name="stoppingToken">Token observing host shutdown during the build.</param>
+    /// <returns>The default host application builder.</returns>
     protected override ValueTask<HostApplicationBuilder> ApplicationBuilder(CancellationToken stoppingToken)
     {
         return new ValueTask<HostApplicationBuilder>(Host.CreateApplicationBuilder());

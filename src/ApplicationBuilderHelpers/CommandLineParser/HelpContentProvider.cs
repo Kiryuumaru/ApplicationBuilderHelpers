@@ -10,9 +10,7 @@ using System.Text;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Content provider for help output: signatures, descriptions, categorization,
-/// hierarchy policy, and default-value resolution.
-/// Has no Console, no ConsoleOutput, no width math, and no theme knowledge.
+/// Content provider for help output.
 /// </summary>
 internal sealed class HelpContentProvider(
     ICommandBuilder commandBuilder,
@@ -24,6 +22,7 @@ internal sealed class HelpContentProvider(
     private readonly Dictionary<string, SubCommandInfo> _allCommands = allCommands;
     private readonly ICommandTypeParserCollection _typeParserCollection = commandBuilder;
 
+    /// <summary>Builds the global model.</summary>
     internal HelpModel BuildGlobalModel()
     {
         var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
@@ -137,6 +136,7 @@ internal sealed class HelpContentProvider(
         };
     }
 
+    /// <summary>Builds the per-command model.</summary>
     internal HelpModel BuildCommandModel(SubCommandInfo commandInfo)
     {
         var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
@@ -498,16 +498,7 @@ internal sealed class HelpContentProvider(
         }
     }
 
-    /// <summary>
-    /// Finds the registration holder for a command type. Multiple registrations
-    /// of one type are rejected elsewhere (duplicate-command validation), so
-    /// first match is the definition. Deliberate divergence from the
-    /// promotion lookup (<c>CommandHierarchyBuilder.FindHolder</c>): the
-    /// lookup keys by the option property's declaring type and stay local on
-    /// ambiguity because it compares initializers across definitions,
-    /// while this lookup keys by the holding scope's concrete command type
-    /// because it reads one scope's default.
-    /// </summary>
+    /// <summary>Finds the registration holder for a command type.</summary>
     private TypedCommandHolder? FindHolder(Type commandType)
     {
         foreach (var holder in _commandBuilder.Commands)
@@ -519,13 +510,7 @@ internal sealed class HelpContentProvider(
         return null;
     }
 
-    /// <summary>
-    /// Reads the declaring type's initializer default off derived registration
-    /// holders when no holder matches the declaring type itself (abstract base
-    /// options on a synthesized parent scope). Returns the value only when at
-    /// least one derived holder reads and every readable value agrees;
-    /// otherwise null, so disagreement stays silent instead of picking one.
-    /// </summary>
+    /// <summary>Reads the unanimous declaring-type default across derived holders.</summary>
     private object? GetUnanimousDerivedDefault(SubCommandOptionInfo option)
     {
         var declaringType = option.Property.DeclaringType;
@@ -606,9 +591,7 @@ internal sealed class HelpContentProvider(
     private static bool InitializerValuesEqual(object? first, object? second) =>
         InitializerValueEquality.ValuesEqual(first, second);
 
-    /// <summary>
-    /// Gets the default value for a type using the registered type parsers, fallback to trim-safe defaults
-    /// </summary>
+    /// <summary>Gets the default value for a type using the registered type parsers.</summary>
     private object? GetDefaultValueFromTypeParser(Type type)
     {
         if (_typeParserCollection.TypeParsers.TryGetValue(type, out var parser))

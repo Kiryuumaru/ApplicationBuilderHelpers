@@ -8,46 +8,21 @@ using System.Reflection;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Injects per-command services into <see cref="SubCommandInfo.Command"/>
-/// properties marked with the framework service attributes.
-/// CLI-bound properties are never touched: any property carrying both a
-/// CLI marker (<see cref="CommandOptionAttribute"/> /
-/// <see cref="CommandArgumentAttribute"/>) and a service marker is a
-/// configuration error. Values resolve from the per-command scope so
-/// scoped lifetimes stay isolated to one command run.
-/// With a single <see cref="Inject"/> entry point; the single dual-marked
-/// validation is in the cached plan build and calls one
-/// throw helper with the exact message.
-/// <para>
-/// Reuse only: no new attribute types. Both markers bind by
-/// attribute simple name so this library gains no new package dependency:
-/// <c>FromServicesAttribute</c> (ASP.NET Core, property-targeted and
-/// directly usable) and <c>FromKeyedServicesAttribute</c> (already
-/// referenced by <c>Microsoft.Extensions.DependencyInjection.Abstractions</c>
-/// for the <c>Key</c> read and the keyed resolution call).
-/// </para>
-/// <para>
-/// Framework limitation: the upstream <c>FromKeyedServicesAttribute</c>
-/// declares <c>AttributeTargets.Parameter</c> only, so the C# compiler
-/// rejects direct property use (CS0592). The keyed path below still
-/// resolves any property attribute named <c>FromKeyedServicesAttribute</c>
-/// that exposes a <c>Key</c> property (same-named attribute, emitted metadata,
-/// or a future framework retargeting to properties).
-/// </para>
-/// </summary>
+/// <summary>Injects per-command services into properties marked with framework service attributes.</summary>
 internal static class ServiceInjectionGate
 {
     private sealed record ServiceInjectionTarget(PropertyInfo Property, object? Key, bool Keyed);
 
     private static readonly TypePlanCache<ServiceInjectionTarget[]> InjectionPlanCache = new();
 
+    /// <summary>Returns the cached injection plan for the command type.</summary>
     [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Method-group BuildInjectionPlan is statically referenced, never reflection-invoked by name; the All-annotated type flows through the annotated PlanFactory delegate.")]
     private static ServiceInjectionTarget[] GetInjectionPlan([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
         return InjectionPlanCache.GetOrAdd(commandType, BuildInjectionPlan);
     }
 
+    /// <summary>Builds the injection plan; dual-marked properties throw once at plan build.</summary>
     private static ServiceInjectionTarget[] BuildInjectionPlan([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType)
     {
         var walk = CommandReflectionCache.Walk(commandType);
@@ -96,6 +71,7 @@ internal static class ServiceInjectionGate
         return [.. targets];
     }
 
+    /// <summary>Injects cached-plan services into the per-command scope instance.</summary>
     internal static void Inject(SubCommandInfo commandInfo, IServiceProvider scopedProvider)
     {
         var command = commandInfo.Command!;
@@ -113,11 +89,7 @@ internal static class ServiceInjectionGate
         }
     }
 
-    /// <summary>
-    /// Single validation point for the disjoint-sets invariant: a property is
-    /// either CLI-bound or service-injected, never both. Uses the exact
-    /// message from both validation blocks.
-    /// </summary>
+    /// <summary>Throws for a property marked both CLI-bound and service-injected.</summary>
     private static void ThrowForDualMarkedProperty(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType,
         PropertyInfo property)
@@ -126,11 +98,7 @@ internal static class ServiceInjectionGate
             $"Property '{commandType.FullName}.{property.Name}' is marked with both a command-line attribute and a service attribute. A property is either CLI-bound or service-injected, never both.");
     }
 
-    /// <summary>
-    /// Reads the <c>Key</c> of a same-named <c>FromKeyedServicesAttribute</c>
-    /// from attribute metadata (constructor argument or named argument),
-    /// without reflecting over the attribute type itself (trim-safe).
-    /// </summary>
+    /// <summary>Reads the key of a same-named FromKeyedServices attribute from metadata.</summary>
     private static object? ReadKeyedServiceKey(PropertyInfo property, Type commandType)
     {
         foreach (var data in property.GetCustomAttributesData())

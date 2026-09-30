@@ -1,12 +1,12 @@
 # Configuration & Themes
 
-## Fluent Configuration
+Set your app name, shape your help output, pick a color theme, and reuse one setting inside another.
 
-`ApplicationBuilder` supports fluent configuration methods:
+Start with executable metadata, then help width, then a theme. Reach for `@ref:` only when one setting must reuse another.
 
-### Executable Metadata
+## Executable Metadata
 
-Override auto-detected assembly metadata:
+All four setters are optional. When you skip them, the library detects values from your entry assembly's attributes.
 
 ```csharp
 ApplicationBuilder.Create()
@@ -18,82 +18,100 @@ ApplicationBuilder.Create()
     .RunAsync(args);
 ```
 
-All four are optional. When not set, the library auto-detects from the entry assembly's attributes.
+| Setter | Controls |
+|---|---|
+| `SetExecutableName` | Name shown in help and error footers |
+| `SetExecutableTitle` | Title shown in help headers |
+| `SetExecutableDescription` | Description shown in help |
+| `SetExecutableVersion` | Version printed by `--version` |
 
-### Help Formatting
+## Help Width
 
 ```csharp
 ApplicationBuilder.Create()
-    .SetHelpWidth(120)       // Line width for help output (must be positive; 0 and negatives throw)
-    .SetHelpBorderWidth(2)   // Border indentation
-    // ...
+    .SetHelpWidth(120);
 ```
 
-`SetHelpWidth` requires a positive width — `0` and negatives throw `ArgumentOutOfRangeException`. When unset, help output defaults to `120` columns. The formatter floors the effective width at `60` columns (`20` minimum left column + `40` reserved for the right column) to keep two-column help readable at narrow widths. `80` is a common console-width convention you may pass explicitly; the code default when unset remains `120`.
+`SetHelpWidth` needs a positive number. `0` and negatives throw `ArgumentOutOfRangeException`.
 
-### Help Placeholder Tokens (#454)
+When you skip it, help renders at 120 columns. Narrow output never squeezes below 60 columns, so two-column help stays readable.
 
-Option value placeholders come from a single mapper
-(`src/ApplicationBuilderHelpers/CommandLineParser/HelpTypeDisplay.cs:8-47`).
-Help never prints raw CLR names (`TimeSpan`, `Guid`, `Uri`, `Nullable<T>`).
+## Help Placeholders
 
-| Token | Types |
+Help never prints raw type names. Each option shows a placeholder for the value it wants, like `--output <FILE>`.
+
+| Placeholder | Option types |
 |---|---|
 | `STRING` | `string` |
-| `NUMBER` | `byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` (scalar `decimal` renders `--opt <NUMBER>`) |
+| `NUMBER` | `byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` |
 | `DATE` | `DateTime`, `DateOnly`, `TimeOnly`, `DateTimeOffset` |
 | `FILE` | `FileInfo`, `AbsolutePath` |
 | `DIR` | `DirectoryInfo` |
-| `VALUE` | everything else, including enums, `TimeSpan`, `Guid`, `Uri`, `Version`, `char` |
+| `VALUE` | Everything else, including enums, `TimeSpan`, `Guid`, `Uri`, `Version`, `char` |
 
-Rules:
+Rules you will see in practice:
 
-- `Nullable<T>` unwraps to `T` before mapping (`HelpTypeDisplay.cs:12` for scalars, `:59` for collection elements); e.g. `int?` → `<NUMBER>`.
-- `bool` / `bool?` are flags (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandOptionInfo.cs:87`) and show no placeholder (`HelpTypeDisplay.cs:51-52,67-68`): `--verbose`, never `--verbose <BOOL>`.
-- Collections render `<TOKEN...>` from the element type (`HelpTypeDisplay.cs:55-65`): `List<string>` → `<STRING...>`, `List<decimal>` → `<NUMBER...>`.
-- Enums render generic `<VALUE>` plus a `Possible values: ...` line (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:416-420`).
-- Positional arguments show name-only (`src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:438-448`): `<name>` / `[name]`, no type token.
+- `int?` renders like `int`. Nullable types unwrap before mapping.
+- `bool` options are flags and show no placeholder: `--verbose`, never `--verbose <BOOL>`.
+- Repeatable options show the element type plus `...`: `List<string>` renders `<STRING...>`.
+- Enums render `<VALUE>` plus a `Possible values:` line.
+- Positional arguments show only the name: `<NAME>` or `[NAME]`.
 
-### Required Option Help Descriptions (#507)
+## Required Options in Help
 
-Required options render the verbatim lowercase `(required)` marker on the line immediately after the description, from `BuildOptionDescription` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:288-322`). Fixed ordinal: Description (`:292-295`) → `(required)` (`:297-300`) → `Possible values: ...` (`:302-306`) → `Environment variable: ...` (`:308-311`). No `Default:` line when `IsRequired` (`:313-318`).
+Required options print a lowercase `(required)` marker on the line after the description. The order is always description, then `(required)`, then `Possible values:`, then `Environment variable:`.
 
-- A required `int` omits the phantom `Default: 0` (`src/ApplicationBuilderHelpers.Test.Cli.UnitTest/RequiredOptionHelpTests.cs:47-58`); a required `string` shows the marker with no `Default:` line (`:61-72`); an optional `int` with an explicit initializer keeps its `Default:` line (e.g. `Default: 3`, `:75-86`).
-- A required option with `FromAmong` plus `EnvironmentVariable` renders Description → `(required)` → `Possible values:` → `Environment variable:` (`:89-102`).
-- Secret interplay: suppression beats redaction — a required secret option never shows `Default: [REDACTED]`, because the `Default:` arm is skipped before `SecretRedaction.GetDefaultDisplay` (`HelpContentProvider.cs:313-317`; mask at `src/ApplicationBuilderHelpers/CommandLineParser/SecretRedaction.cs:40-46`).
-- Signatures, usage `[OPTIONS]`, and layout are unchanged — only description lines change. Option-side contract (Required property, env/secret interplay): [Commands](commands.md#required-options-in-help).
+A required option never shows a `Default:` line. An optional option with a starting value keeps its `Default:` line, for example `Default: 3`. See [Commands](commands.md#options).
 
 ## Console Themes
 
-The library includes 5 built-in themes implementing `IConsoleTheme`:
+The library ships 6 built-in color themes. Start with `DefaultConsoleTheme` unless the terminal needs something else.
 
-| Theme | Header | Flag | Parameter | Description |
+| Theme | Header | Flag | Value | Text |
 |---|---|---|---|---|
 | `DefaultConsoleTheme` | Yellow | Green | Cyan | White |
 | `MonochromeConsoleTheme` | White | Gray | DarkGray | White |
+| `HighContrastConsoleTheme` | Yellow | Cyan | Magenta | White |
 | `MinimalConsoleTheme` | Blue | DarkCyan | DarkBlue | Gray |
 | `DarkConsoleTheme` | Magenta | Green | Cyan | White |
-| `HighContrastConsoleTheme` | White | Yellow | Cyan | White |
-
-Each theme exposes 6 color properties: `HeaderColor`, `FlagColor`, `ParameterColor`, `DescriptionColor`, `SecondaryColor`, `RequiredColor`.
+| `LightConsoleTheme` | DarkBlue | DarkGreen | DarkCyan | Black |
 
 ### Setting a Theme
 
 ```csharp
-// Built-in via static Instance
+// Use a built-in theme
 ApplicationBuilder.Create()
-    .SetTheme(DarkConsoleTheme.Instance)
-    // ...
+    .SetTheme(DarkConsoleTheme.Instance);
 
-// Or create a custom theme
+// Or pick a theme by type
 ApplicationBuilder.Create()
-    .SetTheme(new MyCustomTheme())
-    // ...
+    .SetTheme<DarkConsoleTheme>();
 ```
 
-## Configuration Reference System (`@ref:`)
+### Writing a Custom Theme
 
-Configuration values can reference other keys:
+Implement `IConsoleTheme` with 6 colors and pass an instance to `SetTheme`:
+
+```csharp
+public class MyCustomTheme : IConsoleTheme
+{
+    public ConsoleColor HeaderColor => ConsoleColor.Yellow;
+    public ConsoleColor FlagColor => ConsoleColor.Green;
+    public ConsoleColor ParameterColor => ConsoleColor.Cyan;
+    public ConsoleColor DescriptionColor => ConsoleColor.White;
+    public ConsoleColor SecondaryColor => ConsoleColor.Gray;
+    public ConsoleColor RequiredColor => ConsoleColor.Red;
+}
+
+ApplicationBuilder.Create()
+    .SetTheme(new MyCustomTheme());
+```
+
+`HeaderColor` paints section headers. `FlagColor` paints command and option names. `ParameterColor` paints value placeholders. `DescriptionColor` paints main text. `SecondaryColor` paints defaults and secondary info. `RequiredColor` paints required markers and errors.
+
+## Reusing One Setting Inside Another (`@ref:`)
+
+Point one setting at another key instead of copying the value:
 
 ```json
 {
@@ -104,27 +122,20 @@ Configuration values can reference other keys:
 }
 ```
 
-### API
+| Method | Use it to |
+|---|---|
+| `GetRefValue("ConnectionString")` | Follow the chain and return the final value. Throws `NoConfigValueException` when nothing resolves. |
+| `TryGetRefValue("ConnectionString", out var resolved)` | Follow the chain. Returns `true` and sets `resolved` on success. |
+| `ContainsRefValue("ConnectionString")` | Check whether the key resolves. |
+| `GetRefValueOrDefault("Missing", "fallback")` | Return the resolved value, or `"fallback"` when nothing resolves. |
 
 ```csharp
-// Resolve references (follows chains)
 string connStr = configuration.GetRefValue("ConnectionString");
 
-// Check if value exists
-bool exists = configuration.ContainsRefValue("ConnectionString");
-
-// Get with fallback
-string? value = configuration.GetRefValueOrDefault("Missing", "default-value");
-
-// Try pattern
 if (configuration.TryGetRefValue("ConnectionString", out var resolved))
 {
-    // resolved contains the final value
+    // resolved holds the final value
 }
 ```
 
-References can be chained: `"A": "@ref:B"` → `"B": "@ref:C"` → `"C": "actual-value"`.
-
-Resolution reads the key's direct value first: a plain value wins, while an `@ref:` value triggers one hop, repeating until a terminal (non-`@ref:`) value or the bound. Chains resolve at most 32 hops (case-insensitive); a cycle (revisiting a key) or overflow (exceeding the depth) fails to resolve.
-
-Throws `NoConfigValueException` if a reference can't be resolved.
+References can chain: `"A"` points at `"B"`, `"B"` points at `"C"`, `"C"` holds the real value. Matching ignores case. Chains resolve at most 32 hops. A cycle or a missing key fails to resolve instead of looping.

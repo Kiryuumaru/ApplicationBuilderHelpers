@@ -9,32 +9,32 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers.Abstracts;
 
 /// <summary>
-/// Provides a base implementation for command type parsers that handle specific types.
+/// Parser base binding one CLR type to CLI text.
 /// </summary>
-/// <typeparam name="T">The type that this parser handles.</typeparam>
+/// <typeparam name="T">The CLR type this parser converts to and from CLI text.</typeparam>
 public abstract class CommandTypeParser<T> : ICommandTypeParser
 {
     /// <summary>
-    /// Gets the type that this parser handles.
+    /// Gets the CLR type this parser converts.
     /// </summary>
     public Type Type { get; } = typeof(T);
 
     /// <summary>
-    /// Parses a string value into the target type.
+    /// Parses CLI text into the handled type.
     /// </summary>
-    /// <param name="value">The string value to parse.</param>
-    /// <param name="validateError">When this method returns, contains the validation error message if parsing failed; otherwise, null.</param>
-    /// <returns>The parsed object if successful; otherwise, null.</returns>
+    /// <param name="value">The CLI text to parse.</param>
+    /// <param name="validateError">On failure, the reason shown in the <c>InvalidValue</c> message (exit 2); otherwise null.</param>
+    /// <returns>The parsed value boxed, or null when parsing fails.</returns>
     public object? Parse(string? value, out string? validateError)
     {
         return ParseValue(value, out validateError);
     }
 
     /// <summary>
-    /// Converts an object to its string representation for command-line display.
+    /// Formats a boxed value for help defaults and completion.
     /// </summary>
-    /// <param name="value">The object to convert to a string.</param>
-    /// <returns>The string representation of the object, or null if the object is null.</returns>
+    /// <param name="value">The boxed value to format.</param>
+    /// <returns>The display text, or null when the value has no text form.</returns>
     public string? GetString(object? value)
     {
         if (value is null)
@@ -52,49 +52,49 @@ public abstract class CommandTypeParser<T> : ICommandTypeParser
     }
 
     /// <summary>
-    /// Gets the default value for the target type.
+    /// Gets the default of <typeparamref name="T"/> boxed for omitted values.
     /// </summary>
-    /// <returns>The default value for type T.</returns>
+    /// <returns>The boxed default of <typeparamref name="T"/>.</returns>
     public object? GetDefaultValue()
     {
         return default(T);
     }
 
     /// <summary>
-    /// Creates a typed array of the specified length for the target type.
+    /// Allocates an exactly-typed array used for AOT-safe collection binding.
     /// </summary>
-    /// <param name="length">The length of the array to create.</param>
-    /// <returns>A new array of type T with the specified length.</returns>
+    /// <param name="length">The array length.</param>
+    /// <returns>A <c>T[length]</c> array.</returns>
     public Array CreateTypedArray(int length)
     {
         return new T[length];
     }
 
     /// <summary>
-    /// Creates a typed list of the specified capacity for the target type.
+    /// Allocates a list with the given capacity used for AOT-safe collection binding.
     /// </summary>
-    /// <param name="capacity">The capacity hint for the list to create.</param>
-    /// <returns>A new list of type T with the specified capacity.</returns>
+    /// <param name="capacity">The capacity hint.</param>
+    /// <returns>A <c>List&lt;T&gt;</c> with the requested capacity.</returns>
     public virtual IList CreateTypedList(int capacity)
     {
         return new List<T>(capacity);
     }
 
     /// <summary>
-    /// Converts a typed value to its string representation.
+    /// Formats a typed value for help defaults and completion.
     /// </summary>
-    /// <param name="value">The typed value to convert to a string.</param>
-    /// <returns>The string representation of the typed value, or null if the value is null.</returns>
+    /// <param name="value">The typed value to format.</param>
+    /// <returns>The display text, or null when the value has no text form.</returns>
     public virtual string? GetStringValue(T? value)
     {
         return value?.ToString();
     }
 
     /// <summary>
-    /// Parses a string value into the target type T.
+    /// Parses CLI text into <typeparamref name="T"/>.
     /// </summary>
-    /// <param name="value">The string value to parse.</param>
-    /// <param name="validateError">When this method returns, contains the validation error message if parsing failed; otherwise, null.</param>
-    /// <returns>The parsed value of type T if successful; otherwise, the default value for T.</returns>
+    /// <param name="value">The CLI text to parse.</param>
+    /// <param name="validateError">On failure, the reason shown in the <c>InvalidValue</c> message (exit 2); otherwise null.</param>
+    /// <returns>The parsed value, or the default of <typeparamref name="T"/> when parsing fails.</returns>
     public abstract T? ParseValue(string? value, out string? validateError);
 }

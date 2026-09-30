@@ -11,29 +11,22 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers;
 
 /// <summary>
-/// Represents the built application host wrapping the configured <see cref="IHost"/>.
+/// Built host wrapper that runs dependency hooks then starts the <see cref="IHost"/>.
 /// </summary>
 public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost host) : ApplicationHostBuilderBase(builder)
 {
     /// <summary>
-    /// Gets the <see cref="IHost"/> created from the ApplicationHostBuilder Build method.
+    /// Gets the built <see cref="IHost"/> started by <c>Run</c>.
     /// </summary>
     public IHost Host { get; protected set; } = host;
 
     /// <summary>
-    /// Gets the <see cref="IServiceProvider"/> associated with the <see cref="Host"/>.
+    /// Gets the service provider of the built <see cref="Host"/>.
     /// </summary>
     public new IServiceProvider Services => Host.Services;
 
     internal ConsoleOutput ConsoleOutput { get; set; } = new ConsoleOutput();
 
-    /// <summary>
-    /// Runs the configured application by running <c>AddMiddlewares</c>,
-    /// <c>AddMappings</c>, <c>RunPreparation</c>, and
-    /// <c>RunPreparationAsync</c>.
-    /// </summary>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation. Returns 0 on success or the <see cref="Exceptions.CommandException"/> exit code when the host run reports a command error.</returns>
     internal async Task<int> Run(CancellationToken cancellationToken = default)
     {
         foreach (var applicationDependency in ApplicationDependencies)
@@ -66,11 +59,6 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
         return 0;
     }
 
-    /// <summary>
-    /// Shows an error message with footer information.
-    /// Uses the detected executable name. Footer selection depends on
-    /// <see cref="CommandErrorKind"/>.
-    /// </summary>
     private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName)
     {
         var executableName = AssemblyHelpers.GetAutoDetectedExecutableName();
@@ -84,14 +72,14 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
 }
 
 /// <summary>
-/// Represents the built application host for a specific host application builder type.
+/// Built host wrapper typed to one host-builder type.
 /// </summary>
-/// <typeparam name="THostApplicationBuilder">The type of the host application builder.</typeparam>
+/// <typeparam name="THostApplicationBuilder">The host-builder type this host was built from.</typeparam>
 public class ApplicationHost<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] THostApplicationBuilder>(THostApplicationBuilder builder, IHost host) : ApplicationHost(builder, host)
     where THostApplicationBuilder : IHostApplicationBuilder
 {
     /// <summary>
-    /// Gets the underlying <see cref="IHostApplicationBuilder"/>.
+    /// Gets the underlying builder cast to <typeparamref name="THostApplicationBuilder"/>.
     /// </summary>
     public new THostApplicationBuilder Builder => (THostApplicationBuilder)base.Builder;
 }

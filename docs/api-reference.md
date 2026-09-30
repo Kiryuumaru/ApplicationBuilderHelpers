@@ -1,242 +1,272 @@
 # API Reference
 
-## ApplicationBuilder
+Look up every class and method you call to build your own app. Start with `ApplicationBuilder`, then define commands, then share setup.
 
-The entry point fluent builder.
+New here? Build your first app in [Getting Started](getting-started.md). This page assumes you already ran `Hello, Alice!` once.
 
-```csharp
-public class ApplicationBuilder : ICommandBuilder
-```
-
-### Static
-
-| Method | Returns | Description |
-|---|---|---|
-| `Create()` | `ApplicationBuilder` | Creates a new builder with all built-in type parsers |
-
-### Instance Methods
-
-| Method | Returns | Description |
-|---|---|---|
-| `AddCommand<TCommand>()` | `ApplicationBuilder` | Register a command type (fresh instance per `RunAsync` run) |
-| `AddCommand(ICommand)` | `ApplicationBuilder` | Register a command instance (same reference reused across runs) |
-| `AddApplication<T>()` | `ApplicationBuilder` | Register an application dependency by type |
-| `AddApplication(IApplicationDependency)` | `ApplicationBuilder` | Register an application dependency instance |
-| `AddCommandTypeParser<T>()` | `ApplicationBuilder` | Register a custom type parser |
-| `SetTheme<TTheme>()` | `ApplicationBuilder` | Set theme by type |
-| `SetTheme(IConsoleTheme)` | `ApplicationBuilder` | Set theme by instance |
-| `SetExecutableName(string)` | `ApplicationBuilder` | Override auto-detected name |
-| `SetExecutableTitle(string)` | `ApplicationBuilder` | Override auto-detected title |
-| `SetExecutableDescription(string)` | `ApplicationBuilder` | Override auto-detected description |
-| `SetExecutableVersion(string)` | `ApplicationBuilder` | Override auto-detected version |
-| `SetHelpWidth(int)` | `ApplicationBuilder` | Set help line width (must be positive; `0`/negatives throw; default `120` when unset; effective width floored at `60` = `20` left + `40` right; `80` is a common console-width convention) |
-| `SetHelpBorderWidth(int)` | `ApplicationBuilder` | Set help border indentation |
-| `RunAsync(string[], CancellationToken)` | `Task<int>` | Parse args and run (`0` success/help/version, `2` usage, `1`-or-custom fault, `130` cancel — see `CommandException` below) |
-
-Repeated `RunAsync` calls rebuild the command topology from live registrations, so late `AddCommand` / `AddCommandTypeParser` calls are visible on the next run; type-registered commands get a fresh instance per run while instance registrations reuse the same reference. Per-`Type` reflection descriptors are cached per builder (immutable snapshots, double-checked lock, miss-counted by `CommandReflectionCache.BuildCount`) and reassembled into fresh per-run nodes, with enum `FromAmong` auto-population (options and positional arguments) suppressed when a live parser exists for that enum type. The per-`Type` service-injection plan (property plus optional keyed-service key, CLI-bound set hoisted in) is cached separately via its own `TypePlanCache` instance sharing the same double-checked-lock core; CLI-bound identity is one canonical predicate (`CommandReflectionCache.IsCliBound`, next to `Walk`), and any dual-marked property in the walk chain always throws `InvalidOperationException` (fault, exit 1). The cache layer is thread-safe via immutable descriptors with locked population plus per-run reassembly, but `ApplicationBuilder` collections, shared console output, instance-registered commands, and user command state remain caller-responsibility and are not safe for concurrent runs/mutation.
-
-## Command
-
-```csharp
-public abstract class Command : Command<HostApplicationBuilder>
-public abstract class Command<THostApplicationBuilder> : ApplicationDependency, ICommand
-```
-
-### Abstract Members (to override)
-
-| Member | Returns | Description |
-|---|---|---|
-| `Run(ApplicationHost<THostApplicationBuilder>, CancellationToken)` | `ValueTask` | Command logic (return normally on success; throw `CommandException` for errors; cancellation maps to 130) |
-| `ApplicationBuilder(CancellationToken)` | `ValueTask<THostApplicationBuilder>` | Create host builder (only on generic variant) |
-
-### Inherited from ApplicationDependency
-
-All lifecycle methods are available — see `ApplicationDependency` below.
-
-## ApplicationDependency
-
-```csharp
-public abstract class ApplicationDependency : IApplicationDependency
-```
-
-### Virtual Lifecycle Methods (all optional to override)
-
-| Method | Signature |
+| Task | Go to |
 |---|---|
-| `CommandPreparation` | `(ApplicationBuilder applicationBuilder)` |
-| `BuilderPreparation` | `(ApplicationHostBuilder applicationBuilder)` |
-| `AddConfigurations` | `(ApplicationHostBuilder appBuilder, IConfiguration config)` |
-| `AddServices` | `(ApplicationHostBuilder appBuilder, IServiceCollection services)` |
-| `AddMiddlewares` | `(ApplicationHost appHost, IHost host)` |
-| `AddMappings` | `(ApplicationHost appHost, IHost host)` |
-| `RunPreparation` | `(ApplicationHost appHost)` |
-| `RunPreparationAsync` | `(ApplicationHost appHost, CancellationToken ct)` |
+| Build and run your app | [Build and Run](#build-and-run-your-app) |
+| Define commands, options, arguments | [Define Commands](#define-commands) |
+| Share services and settings | [Share Setup](#share-setup) |
+| Support your own option types | [Read Option Types](#read-option-types) |
+| Style help, reuse settings | [Style Help and Reuse Settings](#style-help-and-reuse-settings) |
+| Fail with the right exit code | [Handle Errors and Exit Codes](#handle-errors-and-exit-codes) |
 
-## ApplicationHost
+Typing rules live in [Commands](commands.md). Setup order lives in [Application Dependencies](application-dependencies.md). Help placeholders and widths live in [Configuration & Themes](configuration.md). Custom parser examples live in [Custom Type Parsers](custom-type-parsers.md). Subcommands, web hosts, and completion live in [Advanced Topics](advanced.md).
+
+## Build and Run Your App
+
+Create a builder, register commands, then run it:
 
 ```csharp
-public abstract class ApplicationHost
-public class ApplicationHost<THostApplicationBuilder> : ApplicationHost
+// Program.cs
+using ApplicationBuilderHelpers;
+
+return await ApplicationBuilder.Create()
+    .SetExecutableName("myapp")
+    .AddCommand<HelloCommand>()
+    .RunAsync(args);
 ```
 
-### Properties
+`Create()` returns an empty builder with 24 parsers ready. `RunAsync(args)` parses the arguments, runs the matched command, and returns the exit code.
 
-| Property | Type | Description |
+| Method | Use it to |
+|---|---|
+| `Create()` | Create an empty builder with built-in parsers ready |
+| `AddCommand<TCommand>()` | Register a command type; each run gets a fresh instance |
+| `AddCommand(command)` | Register one shared instance; state carries between runs |
+| `AddApplication<TModule>()` | Register a shared setup module (needs no constructor values) |
+| `AddApplication(module)` | Register a setup module that needs constructor values |
+| `AddCommandTypeParser<TParser>()` | Register a custom option-type parser for every command |
+| `AddCommandTypeParser(parser)` | Register a parser instance you already built |
+| `SetTheme<TTheme>()` | Pick a help color theme by type |
+| `SetTheme(theme)` | Apply a theme instance you already built |
+| `SetExecutableName(name)` | Set the name shown in help and error hints |
+| `SetExecutableTitle(title)` | Set the title shown in help headers |
+| `SetExecutableDescription(description)` | Set the description shown in help |
+| `SetExecutableVersion(version)` | Set the version printed by `--version` |
+| `SetHelpWidth(width)` | Set help width; needs a positive number |
+| `SetHelpBorderWidth(width)` | Set help padding; `0` removes it |
+| `RunAsync(args, cancellationToken)` | Parse and run; returns the exit code |
+
+All four `SetExecutable*` setters are optional. When you skip them, the library reads your entry assembly instead. Passing `null` throws. `RunAsync` throws when `args` is `null`.
+
+Help renders at 120 columns when you skip `SetHelpWidth`. Narrow output never squeezes below 60 columns.
+
+## Define Commands
+
+Extend `Command` for console apps. Override `Run` with your logic. Return normally for success (exit `0`).
+
+```csharp
+using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Attributes;
+using Microsoft.Extensions.Hosting;
+
+[Command("greet", description: "Greet by name")]
+public class GreetCommand : Command
+{
+    [CommandOption('n', "name", Description = "Who to greet")]
+    public string Name { get; set; } = "World";
+
+    protected override ValueTask Run(
+        ApplicationHost<HostApplicationBuilder> applicationHost,
+        CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Hello, {Name}!");
+        return ValueTask.CompletedTask;
+    }
+}
+```
+
+Need a server or a custom host? Extend `Command<THostBuilder>` instead, build the host in `ApplicationBuilder(stoppingToken)`, and read it back through `applicationHost.Builder` in `Run`. See [Advanced Topics](advanced.md).
+
+Ignore the obsolete `Run` overload that takes a `CancellationTokenSource`. Override the `CancellationToken` overload above. Do not implement `ICommand` directly; derive from `Command<T>` instead.
+
+### `[Command]`
+
+Mark a command class with its route name and help text:
+
+```csharp
+[Command(description: "Runs at the root, no name")]
+[Command("greet", description: "Greet by name")]
+[Command("deploy prod", description: "Deploy to production")]
+```
+
+Use spaces for subcommands. See [Commands](commands.md) for naming rules.
+
+### `[CommandOption]`
+
+Mark a property as a named flag. Pick one of three forms:
+
+```csharp
+[CommandOption('v', "verbose", Description = "Enable verbose output")]
+[CommandOption('v')]            // Short only: -v
+[CommandOption("verbose")]      // Long only: --verbose
+```
+
+| Setting | What it does |
+|---|---|
+| `Description` | Help text |
+| `EnvironmentVariable` | Env var used when the flag is not typed |
+| `Required` | Fail with exit `2` when not supplied |
+| `FromAmong` | Only accept these values |
+| `CaseSensitive` | Match `FromAmong` with exact case |
+| `Secret` | Never print the value; help shows `[REDACTED]` |
+
+A typed flag always beats the env fallback. Env covers omitted options only. Do not declare your own `-h` or `-V`; they belong to help and version. See [Commands](commands.md) for typing rules.
+
+### `[CommandArgument]`
+
+Mark a property as a positional word:
+
+```csharp
+[CommandArgument(Name = "source", Position = 0, Description = "Source file", Required = true)]
+public string SourceFile { get; set; } = "";
+```
+
+| Setting | What it does |
+|---|---|
+| `Name` | Display name in help; defaults to the property name |
+| `Position` | Which positional word, starting at `0` |
+| `Description` | Help text |
+| `Required` | Fail with exit `2` when not supplied |
+| `FromAmong` | Only accept these values |
+| `CaseSensitive` | Match with exact case |
+| `Secret` | Never print the value |
+
+Typing `""` counts as supplied. Check text with `string.IsNullOrEmpty`, not `== null`.
+
+### Get Services in `Run`
+
+Mark a property with `[FromServices]` and the library fills it from the per-run scope before `Run`. A missing service fails with exit `1`. Never mix `[CommandOption]` and `[FromServices]` on one property; the build fails with exit `1`. See [Commands](commands.md).
+
+Ask for `LifetimeService` with `[FromServices]` to register shutdown callbacks (`ApplicationExitingCallback`, `ApplicationExitedCallback`). See [Commands](commands.md).
+
+## Share Setup
+
+Extend `ApplicationDependency` to group services, settings, and startup steps once. Register it with `AddApplication`. Every command then gets the same setup.
+
+```csharp
+using ApplicationBuilderHelpers;
+using Microsoft.Extensions.DependencyInjection;
+
+public class CoreApplication : ApplicationDependency
+{
+    public override void AddServices(
+        ApplicationHostBuilder applicationBuilder,
+        IServiceCollection services)
+    {
+        services.AddSingleton<IMyService, MyService>();
+    }
+}
+
+// Program.cs
+return await ApplicationBuilder.Create()
+    .AddApplication<CoreApplication>()
+    .AddCommand<MyCommand>()
+    .RunAsync(args);
+```
+
+Override only the steps your module owns. Each step runs on every module before the next step starts.
+
+| Order | Override | Use it to |
 |---|---|---|
-| `Host` | `IHost` | The built host |
-| `Services` | `IServiceProvider` | Service provider |
-| `Builder` | `IHostApplicationBuilder` / `THostApplicationBuilder` | The host builder |
+| 1 | `CommandPreparation` | Register custom type parsers before parsing |
+| 2 | `BuilderPreparation` | Adjust the host builder before settings load |
+| 3 | `AddConfigurations` | Add settings sources |
+| 4 | `AddServices` | Register services |
+| 5 | `AddMiddlewares` | Wire middleware onto the built app |
+| 6 | `AddMappings` | Map endpoints (web apps) |
+| 7 | `RunPreparation` | Quick sync setup before the run |
+| 8 | `RunPreparationAsync` | Async setup before the run (all modules run at once) |
 
-## ApplicationHostBuilder
+The command's own hooks run as part of the same pipeline. Full order and replacement guidance live in [Application Dependencies](application-dependencies.md).
 
-```csharp
-public abstract class ApplicationHostBuilder
-public class ApplicationHostBuilder<THostApplicationBuilder> : ApplicationHostBuilder
-```
+During setup your module receives an `ApplicationHostBuilder` with `Builder` (the underlying host builder), `Services` (the service collection), and `Configuration` (the app settings). During `Run` your command receives an `ApplicationHost` with `Host` (the built host), `Services` (the service provider), and `Builder` (the original host builder).
 
-### Properties
+## Read Option Types
 
-| Property | Type | Description |
-|---|---|---|
-| `Builder` | `IHostApplicationBuilder` / `THostApplicationBuilder` | The host builder |
-| `Services` | `IServiceCollection` | Service collection |
-| `Configuration` | `IConfiguration` | Configuration |
+The library ships 24 parsers: `AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`, `DateTime`, `DateTimeOffset`, `decimal`, `double`, `FileInfo`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `TimeOnly`, `TimeSpan`, `uint`, `ulong`, `Uri`, `ushort`, `Version`.
 
-## Interfaces
-
-### ICommand
+Add a custom parser only for your own domain types. The easy way covers most cases: extend `CommandTypeParser<T>`, override `ParseValue`, and register it once.
 
 ```csharp
-public interface ICommand : IApplicationDependency
+ApplicationBuilder.Create()
+    .AddCommandTypeParser<CurrencyTypeParser>()
+    .AddCommand<InvoiceCommand>()
+    .RunAsync(args);
 ```
 
-### IApplicationDependency
+On failure, return `null` and set `validateError` to the reason. That reason appears in the `InvalidValue` error (exit `2`). Keep `Parse` pure: no side effects. Parse numbers and dates with `CultureInfo.InvariantCulture`. Full examples live in [Custom Type Parsers](custom-type-parsers.md).
+
+Need control over defaults and collection storage? Implement `ICommandTypeParser` directly:
+
+| Member | Implement it to |
+|---|---|
+| `Type` | Name the CLR type this parser converts |
+| `Parse` | Convert CLI text; return `null` plus a reason on failure |
+| `GetString` | Format a value for help defaults and completion |
+| `GetDefaultValue` | Supply the value used when input is omitted |
+| `CreateTypedArray` | Build the `T[]` used for repeatable options |
+| `CreateTypedList` | Build the `List<T>` used for repeatable options |
+
+Repeat an option to fill `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, or `IList<T>`. Registering a parser for an enum type turns off automatic enum-value help for that enum. Registering a parser for a built-in type replaces the built-in one.
+
+## Style Help and Reuse Settings
+
+### Console Themes
+
+The library ships 6 themes. `DefaultConsoleTheme` applies unless you pick another.
+
+| Theme | Pick it when |
+|---|---|
+| `DefaultConsoleTheme` | You want the standard colors (start here) |
+| `MonochromeConsoleTheme` | The terminal has no color |
+| `HighContrastConsoleTheme` | You need maximum contrast |
+| `MinimalConsoleTheme` | You want help to stay quiet beside output |
+| `DarkConsoleTheme` | The terminal uses a dark background |
+| `LightConsoleTheme` | The terminal uses a light background |
 
 ```csharp
-public interface IApplicationDependency
-{
-    void CommandPreparation(ApplicationBuilder applicationBuilder);
-    void BuilderPreparation(ApplicationHostBuilder applicationBuilder);
-    void AddConfigurations(ApplicationHostBuilder, IConfiguration);
-    void AddServices(ApplicationHostBuilder, IServiceCollection);
-    void AddMiddlewares(ApplicationHost, IHost);
-    void AddMappings(ApplicationHost, IHost);
-    void RunPreparation(ApplicationHost);
-    ValueTask RunPreparationAsync(ApplicationHost, CancellationToken);
-}
+// Use a shared instance
+ApplicationBuilder.Create()
+    .SetTheme(DarkConsoleTheme.Instance);
+
+// Or pick a theme by type
+ApplicationBuilder.Create()
+    .SetTheme<DarkConsoleTheme>();
 ```
 
-### ICommandTypeParser
+Write your own by implementing `IConsoleTheme` with 6 colors (`HeaderColor`, `FlagColor`, `ParameterColor`, `DescriptionColor`, `SecondaryColor`, `RequiredColor`) and passing an instance to `SetTheme`. Placeholder shapes and required markers live in [Configuration & Themes](configuration.md).
+
+### Reuse One Setting Inside Another (`@ref:`)
+
+Point one setting at another key instead of copying the value. Chains can nest (`A` points at `B`, `B` holds the value). Matching ignores case. Chains resolve at most 32 hops. A cycle or missing key fails to resolve instead of looping.
+
+| Method | Use it to |
+|---|---|
+| `GetRefValue("Key")` | Return the final value; throws `NoConfigValueException` when nothing resolves |
+| `TryGetRefValue("Key", out var resolved)` | Return `true` and set `resolved` on success |
+| `ContainsRefValue("Key")` | Check whether the key resolves |
+| `GetRefValueOrDefault("Key", "fallback")` | Return the resolved value, or `"fallback"` instead |
 
 ```csharp
-public interface ICommandTypeParser
-{
-    Type Type { get; }
-    object? Parse(string? value, out string? validateError);
-    string? GetString(object? value);
-    object? GetDefaultValue();
-    Array CreateTypedArray(int length);
-    IList CreateTypedList(int capacity);
-}
+string connStr = configuration.GetRefValue("ConnectionString");
 ```
 
-### IConsoleTheme
+`NoConfigValueException` names the missing key: `{name} config is empty`.
 
-```csharp
-public interface IConsoleTheme
-{
-    ConsoleColor HeaderColor { get; }
-    ConsoleColor FlagColor { get; }
-    ConsoleColor ParameterColor { get; }
-    ConsoleColor DescriptionColor { get; }
-    ConsoleColor SecondaryColor { get; }
-    ConsoleColor RequiredColor { get; }
-}
-```
-
-### ICommandBuilder
-
-```csharp
-public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDependencyCollection
-```
-
-## Attributes
-
-### CommandAttribute
-
-```csharp
-[AttributeUsage(AttributeTargets.Class)]
-public class CommandAttribute : Attribute
-{
-    public CommandAttribute(string? description = null);
-    public CommandAttribute(string name, string? description = null);
-    public string? Term { get; set; }
-    public string? Description { get; set; }
-}
-```
-
-### `CommandAttribute.Term` Validation Contract
-
-Build-time guard — violations throw `InvalidOperationException` (fault, exit `1`): null `Term` merges at the root; non-null empty/whitespace throws (`term must not be empty or whitespace`); any dash-led part throws (`command names must not start with '-'`); multi-space normalizes via `Split(' ', RemoveEmptyEntries)`. Enforced at both `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:140-159` (`FromCommand`) and `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204` (hierarchy build + abstract-base match). See [Commands](commands.md#term-validation-contract) and [Advanced Topics](advanced.md#bare-root-and-help-first).
-
-### CommandOptionAttribute
-
-```csharp
-[AttributeUsage(AttributeTargets.Property)]
-public class CommandOptionAttribute : Attribute
-{
-    public CommandOptionAttribute(char shortTerm, string term);
-    public CommandOptionAttribute(char shortTerm);
-    public CommandOptionAttribute(string term);
-    public string? Term { get; set; }
-    public char? ShortTerm { get; set; }
-    public string? EnvironmentVariable { get; set; }
-    public bool Required { get; set; }
-    public string? Description { get; set; }
-    public object[] FromAmong { get; set; }
-    public bool CaseSensitive { get; set; }
-    public bool Secret { get; set; }
-}
-```
-
-`ShortTerm` values `'h'` / `'V'` are reserved for help/version — declaring either throws `InvalidOperationException` at registration (fail-closed, `CommandHierarchyBuilder.cs:471-497`), unless `LongName` is `help` for `-h`; `-V` always throws (no version node, gateway-only); use the long `Term` form instead.
-
-Duplicate short names across distinct logical options in the same effective scope fail the build with analyzer error `ABH001` (severity `Error`). The analyzer mirrors the runtime `ValidateDuplicateShortNames` guard (`src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:532-549`; group by short, distinct by canonical key: `Term`, then `ShortTerm`, then property name per `src/ApplicationBuilderHelpers/CommandLineParser/ParseResult.cs:58-59`) over static attribute syntax plus the base-class walk; same-key copies and a long-only option beside a short option stay legal. Scope differs by layer: the analyzer sees base-class options only, while the runtime guard checks each command's effective `AllOptions` scope (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:72-95`) including promoted/inherited globals. Conservative approximation — per-run registration, global-promotion state, and initializer-default state (which can block promotion, `CommandHierarchyBuilder.cs:296-323`) are invisible to the analyzer, so the runtime guard (fault exit `1`) remains the truth.
-
-`-l` rule: when a tree shares `-l, --log-level` from a common base, identical copies promote to global — a shared-base plus promotion pattern, not a library-owned global (the built-in global is help-only). Leaf options must not reuse `-l`; use the long-only form instead. See [Commands](commands.md#compile-time-duplicate-short-check-abh001).
-
-### CommandArgumentAttribute
-
-```csharp
-[AttributeUsage(AttributeTargets.Property)]
-public class CommandArgumentAttribute : Attribute
-{
-    public CommandArgumentAttribute();
-    public CommandArgumentAttribute(string name);
-    public string? Name { get; set; }
-    public string? Description { get; set; }
-    public int Position { get; set; }
-    public bool Required { get; set; }
-    public object[] FromAmong { get; set; }
-    public bool CaseSensitive { get; set; }
-    public bool Secret { get; set; }
-}
-```
-
-## Exceptions
-
-### CommandException
-
-Exit contract for `RunAsync`:
+### Exit Contract
 
 | Outcome | Exit code |
 |---|---|
 | `Run` returns normally (also `--help` / `--version`) | `0` |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — default valued repeats resolve last-wins) | `2` |
-| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
-| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
+| Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` |
+| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` |
 
-Help/footer contract: every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:105-110,220-225`); usage-error footers hint at both `--help` and `--version` (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:28-55`), except when the failing invocation already contained `--help`/`-h`, when only the `--version` hint survives (#509), while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer (`CommandErrorFooter.cs:56-57`).
+Duplicate errors list first, then missing, then invalid-value errors. Missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`. Every help screen lists `-V, --version` under `GLOBAL OPTIONS:`. Usage-error footers hint at both `--help` and `--version`, except when the failing call already contained `--help`/`-h`, when only the `--version` hint survives. `Fault`/`NoImplementation` keep the `--help`-only footer.
 
 ```csharp
 public enum CommandErrorKind
@@ -247,7 +277,7 @@ public enum CommandErrorKind
     RequiresSubcommand,
     InvalidValue,
     UnknownCommand,
-    DuplicateOption, // Strict `SetRejectDuplicateOptions(true)` only; default valued repeats resolve last-wins.
+    DuplicateOption, // Strict `SetRejectDuplicateOptions(true)` only; repeats otherwise take the last value.
     NoImplementation,
 }
 
@@ -263,37 +293,25 @@ public class CommandException : Exception
 }
 ```
 
-### NoConfigValueException
+`NoConfigValueException` names the missing key: `{name} config is empty`.
+
+## Handle Errors and Exit Codes
+
+`RunAsync` returns the exit code. Return normally from `Run` for success.
+
+| Code | Meaning |
+|---|---|
+| `0` | Success; also `--help`, `--version`, and completion answers |
+| `2` | Bad input: unknown option or command, missing required value, bad value, missing subcommand |
+| `1` or custom | Your `CommandException` exit code; unknown failures exit `1` |
+| `130` | Canceled (Ctrl+C or canceled token) |
+
+Shell completion answers before help and parsing. Help beats version: `--help --version` shows help. Unknown options and unknown commands beat both help and version. Usage errors print a footer pointing at the right `--help`. Full help and precedence rules live in [Advanced Topics](advanced.md).
+
+Throw `CommandException` from `Run` to return a custom exit:
 
 ```csharp
-public class NoConfigValueException(string configName) : Exception
+throw new CommandException("Configuration missing", exitCode: 3);
 ```
 
-## ConfigurationExtensions
-
-```csharp
-public static class ConfigurationExtensions
-{
-    public static bool TryGetRefValue(this IConfiguration config, string varName, out string? value);
-    public static bool ContainsRefValue(this IConfiguration config, string varName);
-    public static string GetRefValue(this IConfiguration config, string varName);
-    public static string? GetRefValueOrDefault(this IConfiguration config, string varName, string? defaultValue = null);
-}
-```
-
-## Abstract Base Classes
-
-### CommandTypeParser\<T\>
-
-```csharp
-public abstract class CommandTypeParser<T> : ICommandTypeParser
-{
-    public Type Type { get; }
-    // Override these:
-    public abstract T? ParseValue(string? value, out string? validateError);
-    public abstract string? GetStringValue(T? value);
-    public abstract T? GetDefaultValue();
-    public abstract Array CreateTypedArray(int length);
-    public virtual IList CreateTypedList(int capacity) => new List<T>(capacity);
-}
-```
+`CommandException` carries `ExitCode`, `Kind` (usage vs. fault, which picks the footer), and optional `CommandName` (which scopes the hint). Constructors cover code-only, message plus code, message plus code plus kind, and code plus kind. Keep messages and help text secret-free; never put values or stack traces in them.

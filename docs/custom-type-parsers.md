@@ -1,95 +1,81 @@
 # Custom Type Parsers
 
-Type parsers convert between command-line strings and typed property values. The library ships with 24 built-in parsers, but you can add custom ones for any type.
+Type parsers convert command-line text into typed option and argument values. The library ships with 24 built-in parsers. Add a custom one when you need your own type.
 
-## Interface
+## When You Need One
 
-`ICommandTypeParser` requires:
+If your option uses `int`, `string`, `DateTime`, `FileInfo`, `Uri`, `Guid`, `TimeSpan`, `Version`, `AbsolutePath`, or the other built-in types, you already have a parser. You need a custom parser only for your own domain types, for example `Currency` or `Duration`.
 
 ```csharp
-public interface ICommandTypeParser
+[Command("invoice", description: "Bill a customer")]
+public class InvoiceCommand : Command
 {
-    Type Type { get; }
-    object? Parse(string? value, out string? validateError);
-    string? GetString(object? value);
-    object? GetDefaultValue();
-    Array CreateTypedArray(int length);
-    IList CreateTypedList(int capacity);
+    [CommandOption("total", Description = "Amount to bill.")]
+    public Currency? Total { get; set; }
+
+    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Billing {Total}");
+        return ValueTask.CompletedTask;
+    }
 }
 ```
 
-## Culture Policy (InvariantCulture)
+Without a `Currency` parser this fails. The two sections below show how to write one.
 
-CLI text is always parsed with `CultureInfo.InvariantCulture`, regardless of `CurrentCulture`. The decimal separator is always `.`, with explicit styles per type (integers: `NumberStyles.Integer`; `decimal`: `NumberStyles.Number`; `float`/`double`: `NumberStyles.Float | NumberStyles.AllowThousands`; date/time: `DateTimeStyles.AllowWhiteSpaces`). The `ICommandTypeParser.Parse` signatures are unchanged.
+## The Easy Way: Extend `CommandTypeParser<T>`
 
-Custom `ICommandTypeParser` authors MUST use the `InvariantCulture` provider overloads:
-
-```csharp
-using System.Globalization;
-
-if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
-    return result;
-```
-
-Display/output via `GetString` / `GetStringValue` (which default to `ToString()`) may still follow `CurrentCulture` — that direction is intentionally out of scope.
-
-## Using `CommandTypeParser<T>`
-
-Inherit from the abstract base class for a simpler implementation:
+Override `ParseValue`. Override `GetStringValue` only to change how the value prints in help defaults. You rarely need to touch collection storage: the defaults already build `T[]` and `List<T>`.
 
 ```csharp
 using ApplicationBuilderHelpers.Abstracts;
 using System.Globalization;
 
-public class DateTimeTypeParser : CommandTypeParser<DateTime>
+public class CurrencyTypeParser : CommandTypeParser<Currency>
 {
-    public override DateTime? ParseValue(string? value, out string? validateError)
+    public override Currency? ParseValue(string? value, out string? validateError)
     {
         validateError = null;
         if (string.IsNullOrEmpty(value))
         {
-            validateError = "Date value cannot be empty";
+            validateError = "Currency value cannot be empty";
             return null;
         }
-        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var result))
+        if (Currency.TryParse(value, CultureInfo.InvariantCulture, out var result))
             return result;
-        validateError = $"'{value}' is not a valid date format";
+        validateError = $"'{value}' is not a valid currency";
         return null;
     }
 
-    public override string? GetStringValue(DateTime? value)
+    public override string? GetStringValue(Currency? value)
     {
-        return value?.ToString("yyyy-MM-dd HH:mm:ss");
+        return value?.ToString("C", CultureInfo.InvariantCulture);
     }
-
-    public override DateTime? GetDefaultValue() => null;
-
-    public override Array CreateTypedArray(int length) => new DateTime[length];
-
-    public override IList CreateTypedList(int capacity) => new List<DateTime>(capacity);
 }
 ```
 
-## Implementing `ICommandTypeParser` Directly
+On failure, return `null` and set `validateError` to the reason. That reason appears in the `InvalidValue` error (exit 2).
 
-For maximum control, implement the interface directly:
+## The Full-Control Way: Implement `ICommandTypeParser`
+
+Implement the interface directly when you need control over defaults and collection storage:
 
 ```csharp
+using System.Collections;
 using System.Globalization;
 
-[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-public class TimeSpanTypeParser : ICommandTypeParser
+public class DurationTypeParser : ICommandTypeParser
 {
-    public Type Type => typeof(TimeSpan);
+    public Type Type => typeof(Duration);
 
     public object? Parse(string? value, out string? validateError)
     {
         validateError = null;
         if (string.IsNullOrWhiteSpace(value))
             return null;
-        if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var result))
+        if (Duration.TryParse(value, CultureInfo.InvariantCulture, out var result))
             return result;
-        validateError = $"'{value}' is not a valid time span";
+        validateError = $"'{value}' is not a valid duration";
         return null;
     }
 
@@ -97,49 +83,62 @@ public class TimeSpanTypeParser : ICommandTypeParser
         => value?.ToString();
 
     public object? GetDefaultValue()
-        => TimeSpan.Zero;
+        => Duration.Zero;
 
     public Array CreateTypedArray(int length)
-        => new TimeSpan[length];
+        => new Duration[length];
 
     public IList CreateTypedList(int capacity)
-        => new List<TimeSpan>(capacity);
+        => new List<Duration>(capacity);
 }
 ```
 
-## Registration
+The interface has 6 members: `Type`, `Parse`, `GetString`, `GetDefaultValue`, `CreateTypedArray`, and `CreateTypedList`.
 
-Register in `CommandPreparation` or directly on the builder:
+## Registering Your Parser
+
+Register once and every command can use the type:
 
 ```csharp
-// In ApplicationDependency
-public override void CommandPreparation(ApplicationBuilder applicationBuilder)
-{
-    applicationBuilder.AddCommandTypeParser<DateTimeTypeParser>();
-}
-
-// Or in Program.cs
+// In Program.cs — simplest for one app
 ApplicationBuilder.Create()
-    .AddCommandTypeParser<DateTimeTypeParser>()
-    .AddCommand<MyCommand>()
+    .AddCommandTypeParser<CurrencyTypeParser>()
+    .AddCommand<InvoiceCommand>()
     .RunAsync(args);
 ```
 
-Parsers added between runs are visible on the next `RunAsync` (topology and enum `FromAmong` resolution read the live collection); registering a custom parser for an enum type suppresses the automatic enum-value population for both options and positional arguments.
+```csharp
+// In a shared setup module — reuse across commands
+public override void CommandPreparation(ApplicationBuilder applicationBuilder)
+{
+    applicationBuilder.AddCommandTypeParser<CurrencyTypeParser>();
+}
+```
 
-## Parser Purity (Validation May Call `Parse` Twice)
+Parsers added between runs apply on the next `RunAsync`.
 
-Binding errors collect at Step 7 through the same conversion pipeline before help-with-values (`CommandLineParser.cs:99-115`; dry-run `ValueBinder.cs:29-65`), then bind through the identical pipeline at Step 8. The dry run discards its result and collects the identical `CommandException` messages, so `InvalidValue` (exit 2) beats help-with-values; missing required is skipped under `ShowHelp` (#509), so help-with-values renders whenever the binding probe passes. Keep `ICommandTypeParser.Parse` pure (no side effects, same input → same output/error): on the success path it runs twice per value (collect + bind); the collect no-ops on empty maps and skips bare-ledger keys when `ShowHelp` is set (`ValueBinder.cs:46`).
+## Parsing Rules
 
-## Built-in Parsers
+Always parse numbers and dates with `CultureInfo.InvariantCulture`, regardless of the machine's locale. CLI text always arrives in invariant culture:
 
-These are registered automatically and can be overridden:
+```csharp
+if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
+    return result;
+```
+
+Keep `Parse` pure: no side effects, and the same input always gives the same output and error. Binding may run your parser twice per value (once to check, once to bind).
+
+Registering a custom parser for an enum type turns off automatic enum-value help for that enum, for options and arguments alike.
+
+## Built-in Types
+
+These 24 types already have parsers. You can override any of them by registering your own parser for the same type:
 
 `AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`, `DateTime`, `DateTimeOffset`, `decimal`, `double`, `FileInfo`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `TimeOnly`, `TimeSpan`, `uint`, `ulong`, `Uri`, `ushort`, `Version`
 
-## Collection Binding
+## Repeatable Options and Multi-Value Arguments
 
-Repeatable options and multi-value arguments bind per element through the same pipeline. Supported shapes are `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, and `IList<T>` (interface shapes materialize as `List<T>`):
+Repeat an option to fill a collection. Supported shapes are `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, and `IList<T>`:
 
 ```csharp
 [CommandOption("tag", Description = "Repeatable tags.")]
@@ -151,8 +150,16 @@ public IEnumerable<FileInfo>? Files { get; set; }
 
 ```sh
 myapp build --tag=a --tag=b file1.txt file2.txt
+# exit 0
 ```
 
-## FromAmong Validation
+## Limiting Values With `FromAmong`
 
-`FromAmong` allowed values are compared after conversion (convert-then-compare): the CLI text is parsed to the property type first, then the converted value is compared against the allowed entries (string entries for the same type are parsed before comparison, and non-string entries are normalized into the target type before comparison). Equivalent representations therefore match — `--level=02` satisfies `FromAmong = [1, 2, 3]`, and `--mode=0` matches an enum entry with value `0`. Non-string numeric entries normalize through the target type (`ChangeType` for numerics, `Enum.ToObject` for enums), but for non-`Flags` enums only defined enum values are matchable: with `FromAmong = [0, 1, 2, 3]` on an enum with `Low = 0, High = 1`, inputs `0` and `1` accept while `2` and `3` report `Must be one of: ...`. Unconvertible, overflowing, or inexactly-representable (e.g. `2.5` vs `int`) candidates never match. Enum targets with a custom parser keep exact `Equals` comparison. When conversion itself fails and the raw text matches no allowed display string, the error reports the allowed list (`Must be one of: ...`) instead of a bare invalid-value error, so unparseable enum input such as `--color=Purple` still lists the allowed values. The same rule applies to positional arguments: a plain-enum argument auto-populates its allowed list from the enum names, shows the full list in help and completion, and is suppressed symmetrically when a custom parser is registered for that enum type.
+Restrict an option to an allowed list. The library converts the typed text first, then compares, so equivalent spellings match: `--level=02` satisfies `FromAmong = [1, 2, 3]`.
+
+```csharp
+[CommandOption("level", Description = "Build level.", FromAmong = new[] { 1, 2, 3 })]
+public int Level { get; set; }
+```
+
+When the value is not allowed, the error names the list: `Must be one of: ...`. The same rule applies to positional arguments. Plain enums fill their allowed list from the enum names automatically.

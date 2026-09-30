@@ -5,8 +5,10 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
+/// <summary>Parses CLI text into a <see cref="Uri"/> (relative or absolute); failure surfaces as InvalidValue, exit 2.</summary>
 internal class UriTypeParser : CommandTypeParser<Uri>
 {
+    /// <summary>Converts CLI text to the target value.</summary>
     public override Uri? ParseValue(string? value, out string? validateError)
     {
         if (!string.IsNullOrWhiteSpace(value)
@@ -23,6 +25,7 @@ internal class UriTypeParser : CommandTypeParser<Uri>
         return default;
     }
 
+    /// <summary>Renders the value as its original text.</summary>
     public override string? GetStringValue(Uri? value)
     {
         return value?.OriginalString;
