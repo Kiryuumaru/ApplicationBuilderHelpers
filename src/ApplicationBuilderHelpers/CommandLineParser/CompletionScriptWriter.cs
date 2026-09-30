@@ -3,16 +3,10 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Writes dotnet-style shell completion scripts that re-invoke
-/// <c>myapp complete --position N "&lt;commandline&gt;"</c> on each TAB.
-/// N is always a 0-based character offset into the full command-line string
-/// (same unit CompletionGateway slices with: <c>commandline[..position]</c>).
-/// Stdout only (<see cref="ConsoleOutput"/> Write/WriteLine methods);
-/// descriptions are supported by zsh/pwsh scripts only, omitted for bash/fish.
-/// </summary>
+/// <summary>Writes shell completion scripts re-invoking <c>complete --position N</c> per TAB.</summary>
 internal static class CompletionScriptWriter
 {
+    /// <summary>Writes the bash completion script to stdout; null output is a no-op.</summary>
     internal static void WriteBash(ConsoleOutput output, string? executableName)
     {
         if (output == null)
@@ -39,6 +33,7 @@ internal static class CompletionScriptWriter
         output.WriteLine($"complete -F {func}_complete {exe}");
     }
 
+    /// <summary>Writes the zsh completion script to stdout; null output is a no-op.</summary>
     internal static void WriteZsh(ConsoleOutput output, string? executableName)
     {
         if (output == null)
@@ -66,6 +61,7 @@ internal static class CompletionScriptWriter
         output.WriteLine($"compdef _{func} {exe}");
     }
 
+    /// <summary>Writes the PowerShell completion script to stdout; null output is a no-op.</summary>
     internal static void WritePwsh(ConsoleOutput output, string? executableName)
     {
         if (output == null)
@@ -87,6 +83,7 @@ internal static class CompletionScriptWriter
         output.WriteLine("}");
     }
 
+    /// <summary>Writes the fish completion script to stdout; null output is a no-op.</summary>
     internal static void WriteFish(ConsoleOutput output, string? executableName)
     {
         if (output == null)

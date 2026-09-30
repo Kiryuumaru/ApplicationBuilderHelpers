@@ -6,14 +6,11 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Parses command line arguments against the built hierarchy.
-/// </summary>
+/// <summary>Parse stage: resolves the target command then options/arguments against it.</summary>
+/// <remarks>Order: path-walk → zero-match guard → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe → RequiresSubcommand guard → options/arguments.</remarks>
 internal sealed class ArgumentParser
 {
-    /// <summary>
-    /// Parses the command line arguments against the built hierarchy
-    /// </summary>
+    /// <summary>Parses argv into the target command plus option/argument occurrences; throws on usage errors.</summary>
     public ParseResult ParseCommandLine(SubCommandInfo rootCommand, string[] args)
     {
         var result = new ParseResult();
@@ -49,9 +46,7 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // #558; see docs/advanced.md help-precedence: a mistyped subcommand plus
-            // --help is still an error (exit 2), not a help request — same as a mistyped
-            // top-level command. Skip ShowHelp and fall through to RequiresSubcommand below.
+            // Mistyped subcommand plus --help is still an error, not a help request.
             var surplusSentinelIndex = Array.IndexOf(args, "--");
             var hasSurplusPathToken = argIndex < args.Length
                 && !args[argIndex].StartsWith('-')
@@ -71,9 +66,7 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // #586: an unknown option or invalid flag literal plus --version is still an error (exit 2), not a version request.
-            // #594: reserved version-misuse plus --version is still an error (exit 2), never a version request.
-            // First misuse token wins, matching the concrete per-token loop below.
+            // Unknown option or version-misuse plus --version is still an error, never a version request.
             var abstractEarlyMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (abstractEarlyMisuse != null)
@@ -86,6 +79,7 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
         {
+            // Version beats help on abstract paths, so it short-circuits before the help probe.
             result.ShowVersion = true;
             return result;
         }
@@ -103,7 +97,7 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // First misuse token wins, matching the concrete per-token loop below.
+            // First misuse token wins.
             var abstractMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (abstractMisuse != null)
@@ -143,18 +137,7 @@ internal sealed class ArgumentParser
         return result;
     }
 
-    /// <summary>
-    /// Parses options and arguments from the command line.
-    /// A pre-<c>--</c> version request (<see cref="HelpVersionGateway.RequestedVersion"/>,
-    /// bare token or <c>V</c>-cluster, with no pre-<c>--</c> help token, per
-    /// <see cref="HelpVersionGateway.RequestedHelp"/>) makes eager
-    /// <see cref="CommandErrorKind.InvalidValue"/> throws version-tolerant:
-    /// the offending token is skipped with <c>ShowVersion</c> set so the
-    /// post-parse version gate still fires (exit 0), mirroring deferred
-    /// values that validate after the gate. Unknown options/commands still
-    /// throw (exit 2). Misuse forms (<c>--help=x</c>, <c>--version=x</c>) throw
-    /// (exit 2), never version-tolerant.
-    /// </summary>
+    /// <summary>Parses options/arguments at the start index into the result.</summary>
     private static void ParseOptionsAndArguments(string[] args, int startIndex, ParseResult result)
     {
         var allOptions = result.TargetCommand.AllOptions;
@@ -236,11 +219,13 @@ internal sealed class ArgumentParser
                 }
                 catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && versionWins)
                 {
+                    // Pre--- version request outranks eager value errors; let the version gate fire.
                     result.ShowVersion = true;
                     continue;
                 }
                 catch (CommandException ex) when (ex.CommandName is null)
                 {
+                    // Option ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
                     throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
                 }
 
@@ -330,31 +315,13 @@ internal sealed class ArgumentParser
         }
     }
 
-    /// <summary>
-    /// Records one parsed <c>-o</c> / <c>--option</c> occurrence. Scalars and
-    /// valued flags resolve last-wins (overwrite); collections accumulate.
-    /// Bare bool flags stay idempotent.
-    /// </summary>
+    /// <summary>Records one parsed option occurrence into the result.</summary>
     private static void AddParsedOptionValue(ParseResult result, SubCommandOptionInfo matchedOption, string? value, string arg, string? nextArg)
     {
         result.AddOptionValue(matchedOption, value);
     }
 
-    /// <summary>
-    /// Expands a combined short cluster (<c>-abc</c>): each leading flag binds
-    /// <c>true</c>; the last short takes the attached remainder as its value
-    /// (<c>-abdvalue</c> binds <c>Data=value</c>). A <c>-h</c>/<c>-V</c> char wins
-    /// as help/version even mid-cluster. An unknown char reports only the
-    /// failing char as <see cref="CommandErrorKind.UnknownOption"/> (exit 2),
-    /// unless the whole token closely matches a known option with no valued
-    /// short in it (single-dash-long near-miss, e.g. <c>-verbose</c>), which
-    /// reports the full token plus a suggestion. A valued short must be last:
-    /// a single-char remainder matching a known short (e.g. <c>-nl</c> with
-    /// valued <c>n</c>) fails as <see cref="CommandErrorKind.InvalidValue"/>
-    /// (exit 2) naming the cluster rule; longer remainders keep the compact
-    /// form (<c>-abdvalue</c>).
-    /// Returns false when the token is not a splittable cluster.
-    /// </summary>
+    /// <summary>Expands a combined short cluster into occurrences; returns false when not splittable.</summary>
     private static bool TryHandleCombinedShortCluster(string arg, string? nextArg, List<SubCommandOptionInfo> allOptions, ParseResult result, out bool consumedNext)
     {
         consumedNext = false;
@@ -459,12 +426,7 @@ internal sealed class ArgumentParser
         return true;
     }
 
-    /// <summary>
-    /// Whether any known short in a cluster token owns a value (non-flag).
-    /// When true the tail may carry an attached (possibly secret) value, so
-    /// callers must keep the failing-char-only report and never echo the
-    /// full token.
-    /// </summary>
+    /// <summary>Whether any known short in the letters owns a value.</summary>
     private static bool ClusterContainsValuedShort(string letters, Dictionary<char, SubCommandOptionInfo> byShort)
     {
         foreach (var letter in letters)
@@ -478,12 +440,7 @@ internal sealed class ArgumentParser
         return false;
     }
 
-    /// <summary>
-    /// First valued short whose attached remainder is exactly one char matching
-    /// a known short (or reserved <c>h</c>/<c>V</c>), e.g. <c>n</c> in
-    /// <c>-nl</c>. Longer remainders keep the compact form. Null when no such
-    /// violation exists or an unknown char precedes the valued short.
-    /// </summary>
+    /// <summary>First valued short whose remainder is exactly a known short; null when none.</summary>
     private static char? FindValuedNotLastLetter(string letters, Dictionary<char, SubCommandOptionInfo> byShort)
     {
         for (var k = 0; k < letters.Length; k++)
@@ -505,6 +462,7 @@ internal sealed class ArgumentParser
         return null;
     }
 
+    /// <summary>Re-attaches the command name to cluster-extracted errors.</summary>
     private static string? ExtractClusterValue(SubCommandOptionInfo member, string token, string? next, ParseResult result)
     {
         try
@@ -513,13 +471,12 @@ internal sealed class ArgumentParser
         }
         catch (CommandException ex) when (ex.CommandName is null)
         {
+            // Cluster ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
             throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
         }
     }
 
-    /// <summary>
-    /// Adds an argument value to the parse result
-    /// </summary>
+    /// <summary>Appends a positional value into the result.</summary>
     private static void AddArgumentValue(ParseResult result, SubCommandArgumentInfo argument, string value)
     {
         if (!result.ArgumentValues.ContainsKey(argument))
@@ -528,6 +485,7 @@ internal sealed class ArgumentParser
         result.ArgumentValues[argument].Add(value);
     }
 
+    /// <summary>Whether the value parses as a negative number (consumable value, not a flag).</summary>
     private static bool IsNumericValue(string value)
     {
         if (string.IsNullOrEmpty(value) || !value.StartsWith('-') || value.Length < 2)
@@ -540,32 +498,11 @@ internal sealed class ArgumentParser
         return double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
     }
 
-    /// <summary>
-    /// Reject-by-default neighbor gate: any dash-led non-numeric token is
-    /// flag-looking, known or unknown, including <c>--help</c>/<c>-h</c>,
-    /// <c>--version</c>/<c>-V</c>, and the <c>--</c> separator. Only numeric
-    /// neighbors (<c>-5</c>) and plain words pass as consumable values.
-    /// </summary>
+    /// <summary>Whether the token is flag-looking: dash-led and non-numeric.</summary>
     private static bool IsFlagLookingToken(string token) =>
         token.StartsWith('-') && !IsNumericValue(token);
 
-    /// <summary>
-    /// Scan the pre-<c>--</c> leftovers on an abstract command for
-    /// a known flag in in-token <c>=</c>-form whose literal is invalid (e.g.
-    /// <c>--verbose=banana</c>). The literal check uses
-    /// <see cref="SubCommandOptionInfo.ExtractValue"/>, which throws
-    /// <see cref="CommandErrorKind.InvalidValue"/> naming the option plus the
-    /// valid literals with the secret-aware check. Scope is
-    /// <c>target.AllOptions</c> through <see cref="SubCommandOptionInfo.MatchesArgument"/>.
-    /// Flags plus in-token <c>=</c> only: bare tokens, valued options,
-    /// unknown tokens, numerics, help/version tokens, and the
-/// <c>--no-</c> prefix are skipped; valid literals continue
-/// to <c>RequiresSubcommand</c>.
-    /// Runs after the reserved-misuse scan and before the
-    /// unknown-option scan, so an invalid literal beats both
-    /// <c>RequiresSubcommand</c> and <c>UnknownOption</c>. Post-separator
-    /// tokens stay silent for <c>RequiresSubcommand</c>.
-    /// </summary>
+    /// <summary>Throws on an invalid flag literal in =-form on an abstract path.</summary>
     private static void ThrowOnInvalidFlagLiteralPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
@@ -591,30 +528,13 @@ internal sealed class ArgumentParser
             }
             catch (CommandException ex) when (ex.CommandName is null)
             {
+                // Flag ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
                 throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
             }
         }
     }
 
-    /// <summary>
-    /// Scan the pre-<c>--</c> leftovers on an abstract command for
-    /// the first dash-led non-numeric token that matches no known option
-    /// (<see cref="SubCommandOptionInfo.MatchesArgument"/>, including combined
-    /// short clusters with the same reachability as
-    /// <see cref="ParseOptionsAndArguments"/>). Help/version tokens already
-    /// returned above, so any remaining match here is an unmatched option:
-    /// throw <see cref="CommandErrorKind.UnknownOption"/> with a name-only
-    /// message (strip any <c>=value</c> suffix) and a did-you-mean
-    /// option hint, except an exact single-dash-long near-miss (e.g.
-    /// <c>-verbose</c>) which reports the full token plus a suggestion, and
-    /// a valued-not-last cluster (e.g. <c>-nl</c>) which reports the
-    /// cluster rule as <see cref="CommandErrorKind.InvalidValue"/> first.
-    /// The bare <c>--</c> itself ends the scan;
-    /// post-separator tokens stay silent for RequiresSubcommand.
-    /// The reserved help-word scan runs before this method at the
-    /// invocation point, so <c>--help=x</c>/<c>-h=x</c>/<c>--no-help</c> report
-    /// InvalidValue, never UnknownOption here.
-    /// </summary>
+    /// <summary>Throws on the first unknown pre-separator option on an abstract path.</summary>
     private static void ThrowOnUnknownPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
@@ -683,34 +603,7 @@ internal sealed class ArgumentParser
         }
     }
 
-    /// <summary>
-    /// Scan the pre-<c>--</c> leftovers on an abstract command for
-    /// a valued option in bare form whose neighbor cannot supply
-    /// its value. A bare token (exact <c>--long</c>/<c>-s</c> match, no
-    /// <c>=</c>, no attached short remainder) matched by
-    /// <see cref="SubCommandOptionInfo.MatchesArgument"/> with an
-    /// unconsumable neighbor — end of pre-sentinel input or a
-    /// flag-looking next token under <see cref="IsFlagLookingToken"/>
-    /// (the same consumability rule as
-    /// <see cref="ParseOptionsAndArguments"/>) — would extract a null
-    /// value in normal parsing, and <see cref="ParameterValidator"/>
-    /// reports each bare valued occurrence as missing by itself,
-    /// regardless of env. Throw
-    /// <see cref="CommandErrorKind.MissingRequired"/> naming the option,
-    /// mirroring the validator message (<c>Missing required option</c>
-    /// for required, <c>Missing value for option</c> for optional),
-    /// instead of letting the
-    /// <c>RequiresSubcommand</c> fallback mask it. Runs after the
-    /// invalid-literal and unknown scans so <c>InvalidValue</c> and
-    /// <c>UnknownOption</c> keep precedence (unknown-first); equals-forms,
-    /// attached remainders, flags, numerics, help/version tokens, cluster
-    /// tokens, and post-separator tokens stay silent for
-    /// <c>RequiresSubcommand</c>. A bare repeat of an already-satisfied
-    /// optional valued option stays silent too (record-then-filter over the
-    /// pre-sentinel range, canonical key, so either order converges with
-    /// <see cref="ParameterValidator"/>); required repeats still throw.
-    /// Peek only: consumes nothing.
-    /// </summary>
+    /// <summary>Throws on a bare valued option with no consumable neighbor on an abstract path.</summary>
     private static void ThrowOnBareValuedPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
@@ -777,6 +670,7 @@ internal sealed class ArgumentParser
         }
     }
 
+    /// <summary>Records a valued short's satisfaction for the token.</summary>
     private static void RecordClusterSatisfaction(List<SubCommandOptionInfo> allOptions, string token, string? next, HashSet<string> satisfiedKeys)
     {
         var byShort = new Dictionary<char, SubCommandOptionInfo>();
@@ -802,6 +696,7 @@ internal sealed class ArgumentParser
         }
     }
 
+    /// <summary>Whether the token is the exact bare form of the valued option.</summary>
     private static bool IsBareValuedToken(SubCommandOptionInfo option, string token)
     {
         if (option.LongName != null && token == $"--{option.LongName}")
@@ -811,13 +706,7 @@ internal sealed class ArgumentParser
         return false;
     }
 
-    /// <summary>
-    /// Covers combined-short-cluster reachability in
-    /// <see cref="TryHandleCombinedShortCluster"/>: a bare multi-char single-dash
-    /// token with no <c>=</c> whose every short resolves (reserved <c>h</c>/<c>V</c>
-    /// shorts included, valued shorts allowed since the last one takes
-    /// the remainder/next-token as its value) is a known token, not unknown.
-    /// </summary>
+    /// <summary>Whether the token is a splittable combined short cluster.</summary>
     private static bool IsClusterToken(List<SubCommandOptionInfo> allOptions, string token)
     {
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
@@ -843,6 +732,7 @@ internal sealed class ArgumentParser
         return true;
     }
 
+    /// <summary>Index of the first unknown char in the token, or -1 when splittable.</summary>
     private static int FindUnknownClusterCharIndex(List<SubCommandOptionInfo> allOptions, string token)
     {
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
@@ -869,13 +759,7 @@ internal sealed class ArgumentParser
         return -1;
     }
 
-    /// <summary>
-    /// Valued-not-last probe for the abstract pre-sentinel scan: mirrors the
-    /// <see cref="TryHandleCombinedShortCluster"/> rule as a peek (no binding)
-    /// so group paths report the cluster rule instead of
-    /// <c>RequiresSubcommand</c>. Name-only: returns the valued short letter,
-    /// never the remainder or neighbor.
-    /// </summary>
+    /// <summary>Valued-not-last probe for the token; returns the offending short letter.</summary>
     private static char? FindValuedNotLastToken(List<SubCommandOptionInfo> allOptions, string token)
     {
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
@@ -892,11 +776,7 @@ internal sealed class ArgumentParser
         return FindValuedNotLastLetter(letters, byShort);
     }
 
-    /// <summary>
-    /// Valued-short probe for the abstract pre-sentinel full-token branch: when
-    /// true the tail may carry an attached (possibly secret) value, so the scan
-    /// keeps the failing-char-only report and never echoes the full token.
-    /// </summary>
+    /// <summary>Whether the token contains a valued short, so reports stay failing-char-only.</summary>
     private static bool ClusterContainsValuedShortOption(List<SubCommandOptionInfo> allOptions, string token)
     {
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || IsNumericValue(token))
@@ -927,6 +807,7 @@ internal sealed class ArgumentParser
         return false;
     }
 
+    /// <summary>Whether the root accepts the leading token as a positional instead of an error.</summary>
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
     {
         if (!rootCommand.IsRoot || !rootCommand.HasImplementation)
@@ -944,6 +825,7 @@ internal sealed class ArgumentParser
             DidYouMean.SubCommandCandidates(rootCommand.Children.Keys)) == null;
     }
 
+    /// <summary>Resolves which command a pre-separator help token renders help for.</summary>
     private static SubCommandInfo? ResolveHelpTargetCommand(SubCommandInfo target, string[] args, int argIndex)
     {
         var sentinelIndex = Array.IndexOf(args, "--");
@@ -969,18 +851,7 @@ internal sealed class ArgumentParser
         return resolved ? current : null;
     }
 
-    /// <summary>
-    /// Concrete-root help-first probe: the root command merged with a
-    /// <c>MainCommand</c> implementation (<see cref="SubCommandInfo.HasImplementation"/>)
-    /// skips the abstract help-first branch, so a leading bare help token would
-    /// fall into <see cref="ParseOptionsAndArguments"/> and lose to trailing
-    /// tokens (surplus arguments, unknown options) before help renders. Fires
-    /// only for a leading bare help token (<see cref="HelpVersionGateway.IsHelpToken"/>)
-    /// at the root scope: <c>=</c>-forms, negations, post-separator tokens,
-    /// and non-leading help stay on the normal parse path. Yields to a
-    /// pre-separator version token, mirroring the abstract branch where the
-    /// version check runs before the help check (version beats help).
-    /// </summary>
+    /// <summary>Whether a leading bare help token fires early on a concrete root.</summary>
     private static bool IsConcreteRootLeadingHelp(SubCommandInfo target, string[] args, int argIndex)
     {
         return target.IsRoot
@@ -990,19 +861,7 @@ internal sealed class ArgumentParser
             && !args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken);
     }
 
-    /// <summary>
-    /// Reserved help-word gate: <c>--help=&lt;anything&gt;</c> (including
-    /// empty), <c>-h=&lt;anything&gt;</c> (including empty), bare
-    /// <c>--no-help</c>, and <c>--no-help=&lt;anything&gt;</c>. Ordinal and
-    /// anchored on <c>=</c>/exact: bare <c>--help</c>/<c>-h</c> stay real help
-    /// (handled by <see cref="HelpVersionGateway.IsHelpToken"/>), lookalikes
-    /// (<c>--helpful</c>, <c>--HELP=x</c>) never match, clusters without
-    /// <c>=</c> (e.g. <c>-hfalse</c>) never match, and post-separator tokens
-    /// never reach this gate. The synthetic bool help node must not shadow a
-    /// real <c>-h</c> owner for <c>=</c>-forms: when some non-help option owns
-    /// short <c>'h'</c> (e.g. <c>serve --host</c>), <c>-h=</c> tokens belong
-    /// to that option and are left to normal parsing.
-    /// </summary>
+    /// <summary>Whether the token is a reserved help-word misuse form.</summary>
     private static bool IsHelpEqualsOrNegatedToken(string token, List<SubCommandOptionInfo> allOptions)
     {
         if (token.StartsWith("--help=", StringComparison.Ordinal))
@@ -1022,14 +881,7 @@ internal sealed class ArgumentParser
         return false;
     }
 
-    /// <summary>
-    /// Usage error for reserved help-word misuse: exit 2
-    /// <see cref="CommandErrorKind.InvalidValue"/> with the per-command name
-    /// attached (as in the <c>ExtractValue</c> rethrow above).
-    /// <c>=</c>-forms reuse the secret-aware helpers with
-    /// <c>isSecret:false</c>; bare <c>--no-help</c> uses a dedicated message
-    /// (never <c>NoValueAcceptedMessage</c> with an empty value).
-    /// </summary>
+    /// <summary>Usage error for reserved help-word misuse; throws exit 2 with the command name.</summary>
     private static CommandException HelpMisuseError(string token, string commandName)
     {
         if (token.StartsWith("--help=", StringComparison.Ordinal))
@@ -1053,19 +905,7 @@ internal sealed class ArgumentParser
         return new CommandException("Option '--no-help' is not valid. Use '--help' to show help.", 2, CommandErrorKind.InvalidValue, commandName);
     }
 
-    /// <summary>
-    /// Reserved version-word gate: <c>--version=&lt;anything&gt;</c> (including
-    /// empty), <c>-V=&lt;anything&gt;</c> (including empty), bare
-    /// <c>--no-version</c>, and <c>--no-version=&lt;anything&gt;</c>. Ordinal and
-    /// anchored on <c>=</c>/exact: bare <c>--version</c>/<c>-V</c> stay real version
-    /// (handled by <see cref="HelpVersionGateway.IsVersionToken"/>), lookalikes
-    /// (<c>--versioned</c>, <c>--VERSION=x</c>) never match, clusters without
-    /// <c>=</c> (e.g. <c>-Vfalse</c>) never match, and post-separator tokens
-    /// never reach this gate. Short <c>'V'</c> is reserved for version, so no
-    /// local owner survives hierarchy validation; the guard still yields
-    /// <c>-V=</c>-forms to such an owner, parallel to the <c>-h</c> owner
-    /// check above.
-    /// </summary>
+    /// <summary>Whether the token is a reserved version-word misuse form.</summary>
     private static bool IsVersionEqualsOrNegatedToken(string token, List<SubCommandOptionInfo> allOptions)
     {
         if (token.StartsWith("--version=", StringComparison.Ordinal))
@@ -1084,14 +924,7 @@ internal sealed class ArgumentParser
         return false;
     }
 
-    /// <summary>
-    /// Usage error for reserved version-word misuse: exit 2
-    /// <see cref="CommandErrorKind.InvalidValue"/> with the per-command name
-    /// attached (as in the <c>ExtractValue</c> rethrow above).
-    /// <c>=</c>-forms reuse the secret-aware helpers with
-    /// <c>isSecret:false</c>; bare <c>--no-version</c> uses a dedicated message
-    /// (never <c>NoValueAcceptedMessage</c> with an empty value).
-    /// </summary>
+    /// <summary>Usage error for reserved version-word misuse; throws exit 2 with the command name.</summary>
     private static CommandException VersionMisuseError(string token, string commandName)
     {
         if (token.StartsWith("--version=", StringComparison.Ordinal))

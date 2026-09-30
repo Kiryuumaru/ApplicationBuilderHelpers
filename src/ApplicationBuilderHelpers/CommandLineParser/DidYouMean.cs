@@ -5,26 +5,15 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// "Did you mean" suggestions for unmatched option or command names.
-/// True Damerau-Levenshtein, case-insensitive,
-/// dash-stripped, single best match, null when nothing is close.
 /// </summary>
 internal static class DidYouMean
 {
     private const int MaxDistance = 2;
 
-    /// <summary>
-    /// Larger limit when the first character matches.
-    /// </summary>
     private const int PrefixBonusMaxDistance = 4;
 
     /// <summary>
-    /// Finds the single best suggestion for <paramref name="input"/> among
-    /// <paramref name="candidates"/>, or null when nothing is close.
-    /// Each candidate is a (normalized comparison key, display text) pair.
-    /// Suggests when the distance is within <see cref="MaxDistance"/>;
-    /// a shared normalized first character extends the limit
-    /// to <see cref="PrefixBonusMaxDistance"/>; anything farther returns null.
-    /// Ties break by prefix match, then alphabetically.
+    /// Finds the single best suggestion, or null when nothing is close.
     /// </summary>
     internal static string? FindBestMatch(string input, IEnumerable<(string Key, string Display)> candidates)
     {
@@ -67,10 +56,7 @@ internal static class DidYouMean
         return best;
     }
 
-    /// <summary>
-    /// Builds option candidates: "--long-name" display form,
-    /// falling back to "-s" short form.
-    /// </summary>
+    /// <summary>Builds option candidates.</summary>
     internal static IEnumerable<(string Key, string Display)> OptionCandidates(IEnumerable<SubCommandOptionInfo> options)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -85,9 +71,7 @@ internal static class DidYouMean
         }
     }
 
-    /// <summary>
-    /// Builds subcommand candidates from child command names.
-    /// </summary>
+    /// <summary>Builds subcommand candidates from child command names.</summary>
     internal static IEnumerable<(string Key, string Display)> SubCommandCandidates(IEnumerable<string> names)
     {
         foreach (var name in names)
@@ -97,16 +81,11 @@ internal static class DidYouMean
         }
     }
 
-    /// <summary>
-    /// Appends " Did you mean 'x'?" to a message when a suggestion exists.
-    /// </summary>
+    /// <summary>Appends the suggestion hint to a message when one exists.</summary>
     internal static string WithSuggestion(string message, string? suggestion) =>
         suggestion == null ? message : $"{message}. Did you mean '{suggestion}'?";
 
-    /// <summary>
-    /// Normalizes a token for comparison: strips any "=value" suffix and
-    /// leading dashes, lowercases.
-    /// </summary>
+    /// <summary>Normalizes a token for comparison.</summary>
     internal static string Normalize(string value)
     {
         var token = value;
@@ -116,13 +95,7 @@ internal static class DidYouMean
         return token.TrimStart('-').ToLowerInvariant();
     }
 
-    /// <summary>
-    /// True Damerau-Levenshtein distance with adjacent transposition: a pure
-    /// adjacent transposition costs exactly 1. Lowrance-Rader algorithm with
-    /// a last-row dictionary so multiple edits on overlapping substrings
-    /// (e.g. "CA" vs "ABC") score correctly.
-    /// Inputs must already be normalized.
-    /// </summary>
+    /// <summary>True Damerau-Levenshtein distance with adjacent transposition.</summary>
     internal static int DamerauLevenshtein(string source, string target)
     {
         if (source.Length == 0)

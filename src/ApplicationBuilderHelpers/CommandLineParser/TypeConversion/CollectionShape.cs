@@ -5,11 +5,6 @@ using System.Collections.Generic;
 
 namespace ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 
-/// <summary>
-/// Describes the supported collection shapes for CLI-bound properties:
-/// exactly <c>T[]</c>, <c>List&lt;T&gt;</c>, <c>IEnumerable&lt;T&gt;</c>,
-/// <c>ICollection&lt;T&gt;</c>, or <c>IList&lt;T&gt;</c>.
-/// </summary>
 internal enum CollectionKind
 {
     Array,
@@ -19,19 +14,8 @@ internal enum CollectionKind
     ListInterface,
 }
 
-/// <summary>
-/// Shape detection and materialization for collection-valued command properties.
-/// Only exactly <c>T[]</c>, <c>List&lt;T&gt;</c>, <c>IEnumerable&lt;T&gt;</c>,
-/// <c>ICollection&lt;T&gt;</c>, and <c>IList&lt;T&gt;</c> count as collections;
-/// <see cref="string"/> is never a collection.
-/// </summary>
 internal static class CollectionShape
 {
-    /// <summary>
-    /// Returns true when <paramref name="propertyType"/> is exactly
-    /// <c>T[]</c>, <c>List&lt;T&gt;</c>, <c>IEnumerable&lt;T&gt;</c>,
-    /// <c>ICollection&lt;T&gt;</c>, or <c>IList&lt;T&gt;</c>.
-    /// </summary>
     internal static bool IsCollection(Type propertyType)
     {
         if (propertyType == typeof(string))
@@ -56,10 +40,6 @@ internal static class CollectionShape
         return false;
     }
 
-    /// <summary>
-    /// Gets the element type for a supported collection shape.
-    /// Returns false (with <paramref name="elementType"/> null) for anything else.
-    /// </summary>
     internal static bool TryGetElementType(Type propertyType, out Type? elementType)
     {
         elementType = null;
@@ -91,9 +71,7 @@ internal static class CollectionShape
         return false;
     }
 
-    /// <summary>
-    /// Gets the <see cref="CollectionKind"/> for a supported collection shape.
-    /// </summary>
+    /// <summary>Gets the collection kind; throws if not a supported shape.</summary>
     /// <exception cref="ArgumentException">Thrown when <paramref name="propertyType"/> is not a supported collection shape.</exception>
     internal static CollectionKind GetKind(Type propertyType)
     {
@@ -129,22 +107,6 @@ internal static class CollectionShape
         throw new ArgumentException($"Type '{propertyType.FullName}' is not a supported collection shape (T[], List<T>, IEnumerable<T>, ICollection<T>, IList<T>).", nameof(propertyType));
     }
 
-    /// <summary>
-    /// Materializes the already-converted element values into the target <paramref name="propertyType"/> shape.
-    /// Arrays go through the element parser's <c>CreateTypedArray</c> (AOT-safe:
-    /// the generic <c>CommandTypeParser&lt;T&gt;</c> factory is <c>new T[length]</c>).
-    /// <c>List&lt;T&gt;</c>/<c>IEnumerable&lt;T&gt;</c>/<c>ICollection&lt;T&gt;</c>/<c>IList&lt;T&gt;</c>
-    /// go through the element parser's <c>CreateTypedList</c> (AOT-safe:
-    /// the generic <c>CommandTypeParser&lt;T&gt;</c> factory is <c>new List&lt;T&gt;(capacity)</c>;
-    /// a <c>List&lt;T&gt;</c> instance satisfies all four interface/class shapes).
-    /// The only fallback is an exactly-typed <c>new List&lt;object?&gt;(capacity)</c> when the
-    /// element type is <see cref="object"/> (which <em>is</em> the real element type,
-    /// so it stays assignable); any other missing parser or factory failure throws
-    /// a styled <see cref="ConversionErrors.CollectionMaterialization"/> error
-    /// (exit 2, <c>InvalidValue</c>) instead of returning a wrong-typed collection
-    /// (assigning e.g. <c>object[]</c> into an <c>int[]</c> property throws
-    /// <see cref="ArgumentException"/> at the bind site).
-    /// </summary>
     internal static object? Create(Type propertyType, Type elementType, IReadOnlyList<object?> converted, ICommandTypeParserCollection typeParsers, string? displayName = null, bool isSecret = false)
     {
         var kind = GetKind(propertyType);

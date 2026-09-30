@@ -1,16 +1,18 @@
 # Getting Started
 
-A quick guide to building your first CLI application with ApplicationBuilderHelpers.
+Build your first command-line app in five minutes.
 
-## Installation
+## Install the Package
 
 ```bash
 dotnet add package ApplicationBuilderHelpers
 ```
 
-The package targets `net6.0` through `net10.0` and is AOT-compatible and trimmable.
+Works on `net6.0` through `net10.0`. Ready for trimmed and ahead-of-time builds on `net8.0` and later.
 
-## Minimal Application
+## Minimal App
+
+Create `Program.cs`:
 
 ```csharp
 // Program.cs
@@ -21,7 +23,7 @@ return await ApplicationBuilder.Create()
     .RunAsync(args);
 ```
 
-`RunAsync` parses command-line arguments and returns `Task<int>` — `0` on success (also `--help` / `--version`), `2` on usage errors, `1` (or a custom code) on faults, `130` on cancellation. See the [API Reference](api-reference.md#commandexception) exit contract.
+Three steps: create a builder, add a command, run it. The library parses the arguments and calls your command.
 
 ## Your First Command
 
@@ -36,7 +38,9 @@ public class HelloCommand : Command
     [CommandArgument(Name = "name", Position = 0, Description = "Who to greet")]
     public string Name { get; set; } = "World";
 
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+    protected override ValueTask Run(
+        ApplicationHost<HostApplicationBuilder> applicationHost,
+        CancellationToken cancellationToken)
     {
         Console.WriteLine($"Hello, {Name}!");
         return ValueTask.CompletedTask;
@@ -44,47 +48,75 @@ public class HelloCommand : Command
 }
 ```
 
-Run it:
+What each part does:
+
+- `[Command]` marks the class as a command. With no name it runs at the root.
+- `[CommandArgument]` maps the first typed word to `Name`.
+- `Run` holds your logic. Return normally for success (exit `0`).
+
+To name a command, pass a name: `[Command("greet", description: "Greet with a service")]`. Use spaces for subcommands: `[Command("deploy prod")]`.
+
+## Run It
 
 ```bash
 dotnet run -- Alice
 # Hello, Alice!
+# exit 0
 
 dotnet run --
 # Hello, World!
+# exit 0
 ```
 
-A near-miss of a subcommand name still exits `2`. Use `--` to force positional binding (`dotnet run -- -- Alice`).
+Exit codes: `0` means success, `2` means bad input, `1` means failure, `130` means canceled. See [API Reference](api-reference.md).
 
-## Adding Services
+Use `--` to force words as positionals. Near-miss names get a `Did you mean` hint. See [Commands](commands.md).
 
-Commands can register their own services:
+## Add a Service
+
+Register services in `AddServices`, then read them in `Run`:
 
 ```csharp
+using ApplicationBuilderHelpers;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
 [Command("greet", description: "Greet with a service")]
 public class GreetCommand : Command
 {
-    public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
+    public override void AddServices(
+        ApplicationHostBuilder applicationBuilder,
+        IServiceCollection services)
     {
         services.AddSingleton<IGreetingService, GreetingService>();
     }
 
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+    protected override ValueTask Run(
+        ApplicationHost<HostApplicationBuilder> applicationHost,
+        CancellationToken cancellationToken)
     {
         var greeter = applicationHost.Services.GetRequiredService<IGreetingService>();
         Console.WriteLine(greeter.GetGreeting());
+        return ValueTask.CompletedTask;
     }
 }
 ```
 
-## Using Application Modules
+For automatic property filling with `[FromServices]`, see [Commands](commands.md).
 
-Group shared configuration and services in `ApplicationDependency` classes:
+## Share Setup Across Commands
+
+Put common services in a shared module, then add it once:
 
 ```csharp
+using ApplicationBuilderHelpers;
+using Microsoft.Extensions.DependencyInjection;
+
 public class CoreApplication : ApplicationDependency
 {
-    public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
+    public override void AddServices(
+        ApplicationHostBuilder applicationBuilder,
+        IServiceCollection services)
     {
         services.AddSingleton<IMyService, MyService>();
     }
@@ -97,10 +129,10 @@ return await ApplicationBuilder.Create()
     .RunAsync(args);
 ```
 
+Full setup order lives in [Application Dependencies](application-dependencies.md).
+
 ## Next Steps
 
-Command topology note: a single `[Command]` with a null `Term` merges at the root and runs on a bare invocation (`SubCommandInfo.FromCommand` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:140-159`). A CLI that registers only leaf subcommands (e.g. only `[Command("greet", ...)]`) has no root implementation — a bare run (`[]`) exits `2` with `'<root>' requires a subcommand` plus the global usage footer, and root `--help` first routes a valid trailing subcommand to its help or renders the global model (`src/ApplicationBuilderHelpers/CommandLineParser/ArgumentParser.cs:47-96`; `src/ApplicationBuilderHelpers/CommandLineParser/HelpFormatter.cs:40-42`); a merged root implementation (concrete root) runs on bare invocation, and leading `--help`/`-h` routes a valid trailing subcommand to its help or still renders global help (`IsConcreteRootLeadingHelp` at `ArgumentParser.cs:530-537`, #559; target routing #591). See [Advanced Topics](advanced.md#bare-root-and-help-first) for the full matrix.
-
-- [Commands](commands.md) — Deep dive into command definitions and attributes
-- [Application Dependencies](application-dependencies.md) — Lifecycle hooks and modular composition
-- [Configuration & Themes](configuration.md) — Customize help output and behavior
+- [Commands](commands.md) — Add options, arguments, and subcommands
+- [Application Dependencies](application-dependencies.md) — Share setup between commands
+- [Configuration & Themes](configuration.md) — Name your app and style its help

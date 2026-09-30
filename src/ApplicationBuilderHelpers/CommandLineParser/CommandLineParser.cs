@@ -8,11 +8,7 @@ using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Command line parser that supports hierarchical subcommands with option/argument inheritance.
-/// Implements the processing order: Build hierarchy first, then parse arguments.
-/// Coordinates hierarchy building, argument parsing, validation, and value binding.
-/// </summary>
+/// <summary>Owns the run order: hierarchy → completion → help → parse → version → validate/bind → execute.</summary>
 internal class CommandLineParser
 {
     public ApplicationBuilder ApplicationBuilder { get; }
@@ -32,6 +28,7 @@ internal class CommandLineParser
     private readonly HelpVersionGateway _helpGateway;
     private readonly CompletionGateway _completionGateway;
 
+    /// <summary>Creates the pipeline owner with its stage collaborators.</summary>
     internal CommandLineParser(ApplicationBuilder applicationBuilder, CommandReflectionCache? reflectionCache = null, ConsoleOutput? consoleOutput = null)
     {
         ApplicationBuilder = applicationBuilder;
@@ -49,9 +46,8 @@ internal class CommandLineParser
         _completionGateway = new CompletionGateway(CommandBuilder, ConsoleOutput);
     }
 
-    /// <summary>
-    /// Main entry point - builds hierarchy then parses and executes
-    /// </summary>
+    /// <summary>Runs prep → build → gates → parse → bind → execute.</summary>
+    /// <remarks>Catch chain is ordered: ExternalCancel → canceled; CommandException → Kind + exit; outer-requested OCE → canceled; bare OCE → 0; generic → exit 1, never stack.</remarks>
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
     {
         try
@@ -126,6 +122,7 @@ internal class CommandLineParser
         }
     }
 
+    /// <summary>Builds the hierarchy snapshot and caches the root plus the flat lookup.</summary>
     private void BuildCommandHierarchy()
     {
         _hierarchy.BuildCommandHierarchy();
@@ -137,14 +134,18 @@ internal class CommandLineParser
         }
     }
 
+    /// <summary>Runs hierarchy validation.</summary>
     private void ValidateCommandHierarchy() => _hierarchy.ValidateCommandHierarchy();
 
+    /// <summary>Parses argv into the target command plus option/argument occurrences.</summary>
     private ParseResult ParseCommandLine(string[] args) =>
         _parser.ParseCommandLine(GetRootCommandOrThrow(), args);
 
+    /// <summary>Returns the built root; throws when the hierarchy was never built.</summary>
     private SubCommandInfo GetRootCommandOrThrow() =>
         _rootCommand ?? throw new InvalidOperationException("Command hierarchy has not been built.");
 
+    /// <summary>Merges required-missing and binding errors into one usage error (exit 2).</summary>
     private void ValidateAndBindParameters(ParseResult result)
     {
         List<string> duplicateErrors = [];
@@ -172,6 +173,7 @@ internal class CommandLineParser
             result.TargetCommand.FullCommandName);
     }
 
+    /// <summary>Applies bound values onto the command instance.</summary>
     private void SetCommandValues(ParseResult result)
     {
         try
@@ -184,6 +186,7 @@ internal class CommandLineParser
         }
     }
 
+    /// <summary>Delegates execution to the execute stage.</summary>
     private Task ExecuteCommand(SubCommandInfo commandInfo, CancellationToken cancellationToken) =>
         _executor.ExecuteCommand(commandInfo, cancellationToken);
 
@@ -197,9 +200,7 @@ internal class CommandLineParser
 
     private void ShowVersion() => _helpGateway.ShowVersion();
 
-    /// <summary>
-    /// Shows an error message with footer information.
-    /// </summary>
+    /// <summary>Shows an error message with footer information.</summary>
     private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName, bool showHelpRequested = false) => _helpGateway.ShowErrorMessage(message, kind, commandName, showHelpRequested);
 
     #endregion

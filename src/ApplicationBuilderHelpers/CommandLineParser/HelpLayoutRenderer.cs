@@ -6,15 +6,13 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Layout renderer for help output: left-column width calculation, word
-/// wrapping, theme application, and <see cref="ConsoleOutput"/> writes.
-/// Knows nothing about options, arguments, categorization,
-/// or defaults, it only lays out the <see cref="HelpModel"/> it is given.
+/// Layout renderer for help output.
 /// </summary>
 internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 {
     private readonly ConsoleOutput _consoleOutput = consoleOutput;
 
+    /// <summary>Renders the model at the given width (floored at 60).</summary>
     internal void Render(HelpModel model, IConsoleTheme? theme, int helpWidth)
     {
         WriteColored(model.TitleLine, theme?.HeaderColor);

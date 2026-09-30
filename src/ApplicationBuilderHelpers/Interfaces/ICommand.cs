@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers.Interfaces;
 
 /// <summary>
-/// Represents a command that can be executed within the application.
+/// Caller-view command contract; prefer deriving <c>Command&lt;T&gt;</c> over implementing directly.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public interface ICommand : IApplicationDependency

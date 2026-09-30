@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace ApplicationBuilderHelpers.Common;
 
+/// <summary>
+/// Links cancellation tokens with timeout and task-bridge helpers.
+/// </summary>
 internal static class CancellationTokenExtensions
 {
     private static readonly ConditionalWeakTable<object, TokenSourceTracker> _trackers = [];
@@ -53,19 +56,8 @@ internal static class CancellationTokenExtensions
     }
 
     /// <summary>
-    /// Creates a linked cancellation token that will be cancelled when either the original token 
-    /// is cancelled or the specified timeout elapses.
+    /// Creates a linked token cancelled by the original token or the timeout.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Creates CancellationTokenSource instances that are automatically disposed when:
-    /// 1. The returned token is cancelled (by timeout or original token cancellation)
-    /// 2. The returned token is garbage collected without being cancelled (via finalizer)
-    /// </para>
-    /// <para>
-    /// The implementation uses ConditionalWeakTable for automatic cleanup.
-    /// </para>
-    /// </remarks>
     public static CancellationToken WithTimeout(this CancellationToken cancellationToken, TimeSpan timeout)
     {
         var timeoutCts = new CancellationTokenSource(timeout);
@@ -101,6 +93,9 @@ internal static class CancellationTokenExtensions
         return resultToken;
     }
 
+    /// <summary>
+    /// Bridges cancellation to a task completing on cancel.
+    /// </summary>
     public static Task WhenCanceled(this CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<bool>();
@@ -113,6 +108,9 @@ internal static class CancellationTokenExtensions
         return tcs.Task;
     }
 
+    /// <summary>
+    /// Runs <paramref name="onCancelled"/> once <paramref name="cancellationToken"/> cancels.
+    /// </summary>
     public static void WhenCanceled(this CancellationToken cancellationToken, Func<Task> onCancelled)
     {
         Task.Run(async () =>
@@ -122,6 +120,9 @@ internal static class CancellationTokenExtensions
         }).Forget();
     }
 
+    /// <summary>
+    /// Runs <paramref name="onCancelled"/> once <paramref name="cancellationToken"/> cancels.
+    /// </summary>
     public static void WhenCanceled(this CancellationToken cancellationToken, Action onCancelled)
     {
         Task.Run(async () =>

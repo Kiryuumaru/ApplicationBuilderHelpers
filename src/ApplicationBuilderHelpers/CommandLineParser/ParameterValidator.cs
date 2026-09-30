@@ -3,31 +3,9 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Validates that all required parameters are provided.
-/// </summary>
 internal sealed class ParameterValidator
 {
-    /// <summary>
-    /// Collects every missing-required error without throwing.
-    /// Validates that all required parameters are provided.
-    /// A satisfied-then-bare repeat also fails: each bare valued
-    /// occurrence is a missing value by itself, regardless of env.
-    /// Help always wins over missing required: when
-    /// <see cref="ParseResult.ShowHelp"/> is set, the required-option and
-    /// required-argument passes are skipped so help-with-values renders;
-    /// the binding probe still runs, so invalid values beat
-    /// help-with-values.
-    /// The caller (<see cref="CommandLineParser"/>) joins these with the
-    /// binding errors so one failure no longer masks another; missing errors
-    /// order before binding errors in the final message. Options are visited
-    /// once per logical option (canonical key) so global-copy identities never
-    /// report twice, and arguments once per display name.
-    /// </summary>
-    /// <summary>
-    /// Collects scalar-only duplicate errors. Collections, flags, and
-    /// environment-supplied values are exempt.
-    /// </summary>
+    /// <summary>Collects scalar-only duplicate errors. Collections, flags, and env-supplied values stay exempt; suppressed under help/version.</summary>
     public List<string> CollectDuplicateErrors(ParseResult result)
     {
         var errors = new List<string>();
@@ -59,6 +37,7 @@ internal sealed class ParameterValidator
         return errors;
     }
 
+    /// <summary>Collects every missing-required error. A bare valued occurrence fails on its own, even with env set or a prior value; help wins over missing.</summary>
     public List<string> CollectRequiredErrors(ParseResult result)
     {
         var errors = new List<string>();

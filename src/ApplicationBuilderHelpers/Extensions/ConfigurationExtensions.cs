@@ -6,21 +6,14 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ApplicationBuilderHelpers.Extensions;
 
-/// <summary>
-/// Extension methods for IConfiguration to handle reference values that can point to other configuration keys.
-/// Reference values use the format "@ref:keyName" to point to another configuration key.
-/// </summary>
+/// <summary><c>@ref:</c> reference resolution for <c>IConfiguration</c>.</summary>
 public static class ConfigurationExtensions
 {
-    /// <summary>
-    /// Attempts to get a configuration value, resolving any reference chains.
-    /// If the value starts with "@ref:", it will follow the reference to get the actual value.
-    /// Supports chained references (references that point to other references).
-    /// </summary>
+    /// <summary>Resolves <paramref name="varName"/> through its <c>@ref:</c> chain.</summary>
     /// <param name="configuration">The configuration instance.</param>
-    /// <param name="varName">The variable name to get the value for.</param>
-    /// <param name="value">When this method returns, contains the resolved value if found; otherwise, null.</param>
-    /// <returns><c>true</c> if the value was found and resolved successfully; otherwise, <c>false</c>.</returns>
+    /// <param name="varName">The variable name.</param>
+    /// <param name="value">The resolved value, or null.</param>
+    /// <returns>True when resolved; otherwise, false.</returns>
     public static bool TryGetRefValue(this IConfiguration configuration, string varName, [NotNullWhen(true)] out string? value)
     {
         const int maxDepth = 32;
@@ -50,24 +43,20 @@ public static class ConfigurationExtensions
         return true;
     }
 
-    /// <summary>
-    /// Checks if the configuration contains a value (including resolved references) for the specified variable name.
-    /// </summary>
+    /// <summary>True when <paramref name="varName"/> resolves.</summary>
     /// <param name="configuration">The configuration instance.</param>
-    /// <param name="varName">The variable name to check.</param>
-    /// <returns><c>true</c> if the value exists and can be resolved; otherwise, <c>false</c>.</returns>
+    /// <param name="varName">The variable name.</param>
+    /// <returns>True when the value exists and resolves; otherwise, false.</returns>
     public static bool ContainsRefValue(this IConfiguration configuration, string varName)
     {
         return TryGetRefValue(configuration, varName, out _);
     }
 
-    /// <summary>
-    /// Gets the resolved configuration value for the specified variable name, following any reference chains.
-    /// </summary>
+    /// <summary>Returns the resolved value; throws when the chain cannot resolve.</summary>
     /// <param name="configuration">The configuration instance.</param>
-    /// <param name="varName">The variable name to get the value for.</param>
+    /// <param name="varName">The variable name.</param>
     /// <returns>The resolved configuration value.</returns>
-    /// <exception cref="NoConfigValueException">Thrown when the value is not found or cannot be resolved.</exception>
+    /// <exception cref="NoConfigValueException">Thrown when the value cannot be resolved.</exception>
     public static string GetRefValue(this IConfiguration configuration, string varName)
     {
         if (!TryGetRefValue(configuration, varName, out var value))
@@ -77,13 +66,11 @@ public static class ConfigurationExtensions
         return value;
     }
 
-    /// <summary>
-    /// Gets the resolved configuration value for the specified variable name, or a default value if not found.
-    /// </summary>
+    /// <summary>Returns the resolved value, or <paramref name="defaultValue"/> when the chain cannot resolve.</summary>
     /// <param name="configuration">The configuration instance.</param>
-    /// <param name="varName">The variable name to get the value for.</param>
-    /// <param name="defaultValue">The default value to return if the value is not found or cannot be resolved.</param>
-    /// <returns>The resolved configuration value or the default value.</returns>
+    /// <param name="varName">The variable name.</param>
+    /// <param name="defaultValue">The fallback value.</param>
+    /// <returns>The resolved value or the default value.</returns>
     [return: NotNullIfNotNull(nameof(defaultValue))]
     public static string? GetRefValueOrDefault(this IConfiguration configuration, string varName, string? defaultValue = null)
     {

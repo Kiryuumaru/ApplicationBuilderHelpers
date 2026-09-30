@@ -7,60 +7,61 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers.Interfaces;
 
 /// <summary>
-/// Defines application dependencies, with hooks for configuring and preparing the application during startup.
+/// Caller-view pipeline contract for host modules.
 /// </summary>
 public interface IApplicationDependency
 {
     /// <summary>
-    /// Prepares the application builder and command before the application starts.
+    /// Registers commands and builder state before the host pipeline starts.
     /// </summary>
-    /// <param name="applicationBuilder">The application builder used to configure the application.</param>
+    /// <param name="applicationBuilder">The entry builder receiving command registrations.</param>
     void CommandPreparation(ApplicationBuilder applicationBuilder);
 
     /// <summary>
-    /// Prepares the application builder.
+    /// Adjusts the host builder before configuration and services load.
     /// </summary>
-    /// <param name="applicationBuilder">The application dependency builder used to configure the application.</param>
+    /// <param name="applicationBuilder">The host builder wrapper being prepared.</param>
     void BuilderPreparation(ApplicationHostBuilder applicationBuilder);
 
     /// <summary>
-    /// Adds configuration settings from a given <see cref="IConfiguration"/> source to the application builder.
+    /// Contributes configuration sources to the host builder.
     /// </summary>
-    /// <param name="applicationBuilder">The application dependency builder used to configure the application.</param>
-    /// <param name="configuration">The configuration source containing settings to be added.</param>
+    /// <param name="applicationBuilder">The host builder wrapper receiving configuration.</param>
+    /// <param name="configuration">The current configuration snapshot to extend.</param>
     void AddConfigurations(ApplicationHostBuilder applicationBuilder, IConfiguration configuration);
 
     /// <summary>
-    /// Registers services with the application's <see cref="IServiceCollection"/>.
+    /// Registers services into the host service collection.
     /// </summary>
-    /// <param name="applicationBuilder">The application dependency builder used to configure the application.</param>
-    /// <param name="services">The service collection where services are registered.</param>
+    /// <param name="applicationBuilder">The host builder wrapper being prepared.</param>
+    /// <param name="services">The service collection receiving registrations.</param>
     void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services);
 
     /// <summary>
-    /// Adds middleware components to the application's <see cref="IHost"/>.
+    /// Wires middleware onto the built host.
     /// </summary>
-    /// <param name="applicationHost">The application dependency host used to configure the application.</param>
-    /// <param name="host">The host where middleware components are added.</param>
+    /// <param name="applicationHost">The built host wrapper.</param>
+    /// <param name="host">The built <see cref="IHost"/> receiving middleware.</param>
     void AddMiddlewares(ApplicationHost applicationHost, IHost host);
 
     /// <summary>
-    /// Defines endpoint mappings or other routing configurations for the application's <see cref="IHost"/>.
+    /// Maps endpoints or routing onto the built host.
     /// </summary>
-    /// <param name="applicationHost">The application dependency host used to configure the application.</param>
-    /// <param name="host">The host where endpoint mappings or other routing configurations are defined.</param>
+    /// <param name="applicationHost">The built host wrapper.</param>
+    /// <param name="host">The built <see cref="IHost"/> receiving mappings.</param>
     void AddMappings(ApplicationHost applicationHost, IHost host);
 
     /// <summary>
-    /// Finalizes preparation before the application runs.
+    /// Performs final synchronous setup before the host starts.
     /// </summary>
-    /// <param name="applicationHost">The application dependency host.</param>
+    /// <param name="applicationHost">The built host wrapper.</param>
     void RunPreparation(ApplicationHost applicationHost);
 
     /// <summary>
-    /// Finalizes preparation before the application runs.
+    /// Performs final asynchronous setup before the host starts.
     /// </summary>
-    /// <param name="applicationHost">The application dependency host.</param>
-    /// <param name="cancellationToken">The <see cref="CancellationToken"/> to cancel the operation.</param>
+    /// <param name="applicationHost">The built host wrapper.</param>
+    /// <param name="cancellationToken">Token observing shutdown during setup.</param>
+    /// <returns>A task completing when setup finishes.</returns>
     ValueTask RunPreparationAsync(ApplicationHost applicationHost, CancellationToken cancellationToken);
 }

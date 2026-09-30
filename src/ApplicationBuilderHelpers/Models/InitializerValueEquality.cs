@@ -3,10 +3,7 @@ using System;
 namespace ApplicationBuilderHelpers.Models;
 
 /// <summary>
-/// Shared initializer-default value semantics: element-wise array equality and
-/// defensive array cloning so later replacement cannot alias a stored copy.
-/// Array-only coverage: other collections compare and snapshot by reference,
-/// so unanimous/promotion agreement for non-array collections fails toward omission (fail-safe).
+/// Shared initializer-default value semantics.
 /// </summary>
 internal static class InitializerValueEquality
 {

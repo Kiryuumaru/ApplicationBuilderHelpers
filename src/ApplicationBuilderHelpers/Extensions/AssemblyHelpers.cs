@@ -3,8 +3,10 @@ using System.Reflection;
 
 namespace ApplicationBuilderHelpers.Extensions;
 
+/// <summary>Assembly-metadata fallback for unset builder values.</summary>
 internal static class AssemblyHelpers
 {
+    /// <summary>Informational version without trailing commit hash.</summary>
     internal static string GetAutoDetectedVersion()
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
@@ -13,6 +15,7 @@ internal static class AssemblyHelpers
         return RemoveVersionHash(assemblyInformationalVersion);
     }
 
+    /// <summary>Assembly name, or "app" when blank.</summary>
     internal static string GetAutoDetectedExecutableName()
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
@@ -26,6 +29,7 @@ internal static class AssemblyHelpers
         return "app";
     }
 
+    /// <summary>Assembly title, falling back to the detected executable name.</summary>
     internal static string GetAutoDetectedExecutableTitle()
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
@@ -39,6 +43,7 @@ internal static class AssemblyHelpers
         return GetAutoDetectedExecutableName();
     }
 
+    /// <summary>Assembly description, falling back to a default naming the executable.</summary>
     internal static string GetAutoDetectedExecutableDescription()
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
@@ -52,6 +57,7 @@ internal static class AssemblyHelpers
         return $"Command line application {GetAutoDetectedExecutableName()}";
     }
 
+    /// <summary>Strips a trailing commit-hash metadata segment, keeping other suffixes.</summary>
     private static string RemoveVersionHash(string version)
     {
         int plusIndex = version.IndexOf('+');
@@ -72,6 +78,7 @@ internal static class AssemblyHelpers
         return parts.Length > 0 ? $"{baseVersion}+{string.Join(".", parts)}" : baseVersion;
     }
 
+    /// <summary>True when every character is a hex digit.</summary>
     private static bool IsHex(string s)
     {
         foreach (char c in s)

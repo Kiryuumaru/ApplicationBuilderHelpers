@@ -9,90 +9,39 @@ using System.Reflection;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Represents a command line argument that corresponds to CommandArgumentAttribute.
-/// Supports argument inheritance in subcommand hierarchies.
-/// </summary>
 internal class SubCommandArgumentInfo
 {
-    /// <summary>
-    /// The property this argument is bound to
-    /// </summary>
     public PropertyInfo Property { get; set; } = null!;
 
-    /// <summary>
-    /// The type of the property
-    /// </summary>
     public Type PropertyType { get; set; } = null!;
 
-    /// <summary>
-    /// The name of the argument (for display purposes)
-    /// </summary>
     public string? Name { get; set; }
 
-    /// <summary>
-    /// Description of the argument
-    /// </summary>
     public string? Description { get; set; }
 
-    /// <summary>
-    /// Position of the argument (0-based index)
-    /// </summary>
     public int Position { get; set; }
 
-    /// <summary>
-    /// Whether this argument is required
-    /// </summary>
     public bool IsRequired { get; set; }
 
-    /// <summary>
-    /// Valid values for this argument (for validation)
-    /// </summary>
     public object[]? ValidValues { get; set; }
 
-    /// <summary>
-    /// Whether validation should be case sensitive
-    /// </summary>
     public bool IsCaseSensitive { get; set; }
 
-    /// <summary>
-    /// Whether this argument value is a secret (redacted in errors)
-    /// </summary>
+    /// <summary>Secret value: never echoed in errors or completion.</summary>
     public bool IsSecret { get; set; }
 
-    /// <summary>
-    /// Whether this argument is global (available to all subcommands)
-    /// </summary>
     public bool IsGlobal { get; set; }
 
-    /// <summary>
-    /// Whether this argument is inherited by child commands
-    /// </summary>
     public bool IsInherited { get; set; }
 
-    /// <summary>
-    /// Whether this argument accepts multiple values (collection type)
-    /// </summary>
     public bool IsCollection => CollectionShape.IsCollection(PropertyType);
 
-    /// <summary>
-    /// The element type if this is a collection argument
-    /// </summary>
     public Type? ElementType => CollectionShape.TryGetElementType(PropertyType, out var elementType) ? elementType : null;
 
-    /// <summary>
-    /// The command this argument belongs to
-    /// </summary>
     public SubCommandInfo? OwnerCommand { get; set; }
 
-    /// <summary>
-    /// Display name for the argument (used in help text)
-    /// </summary>
     public string DisplayName => Name ?? Property.Name.ToLowerInvariant();
 
-    /// <summary>
-    /// Creates a SubCommandArgumentInfo from a property and its CommandArgumentAttribute
-    /// </summary>
     public static SubCommandArgumentInfo FromProperty(PropertyInfo property, CommandArgumentAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
@@ -116,11 +65,6 @@ internal class SubCommandArgumentInfo
         return argumentInfo;
     }
 
-    /// <summary>
-    /// Creates a per-run copy from a cached descriptor. Descriptor primitives
-    /// are copied onto a fresh node; positional scope stays per-command
-    /// (no name-based rule), applied to the per-run copy only.
-    /// </summary>
     public static SubCommandArgumentInfo FromDescriptor(CommandArgumentDescriptor descriptor, SubCommandInfo? ownerCommand, object[]? resolvedValidValues)
     {
         var argumentInfo = new SubCommandArgumentInfo
@@ -142,9 +86,6 @@ internal class SubCommandArgumentInfo
         return argumentInfo;
     }
 
-    /// <summary>
-    /// Gets the type name for display
-    /// </summary>
     public string GetTypeName()
     {
         var targetType = IsCollection ? ElementType! : PropertyType;
@@ -152,20 +93,11 @@ internal class SubCommandArgumentInfo
         return HelpTypeDisplay.GetPlaceholderToken(targetType);
     }
 
-    /// <summary>
-    /// Resolves per-run valid values for a cached descriptor: uses
-    /// the shared <see cref="EnumValidValues"/> predicate.
-    /// </summary>
     internal static object[]? ResolveValidValues(CommandArgumentDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
     {
         return EnumValidValues.Resolve(descriptor.EnumCandidateType, descriptor.EnumCandidateNames, descriptor.FromAmong, typeParserCollection);
     }
 
-    /// <summary>
-    /// Reads arguments from properties; shared by the <c>FromCommandType</c>/
-    /// <c>FromDeclaredType</c> overloads. Positional scope is per-command by
-    /// default (no name-based rule).
-    /// </summary>
     private static List<SubCommandArgumentInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand, ICommandTypeParserCollection? typeParserCollection)
     {
         var arguments = new List<SubCommandArgumentInfo>();
@@ -183,32 +115,18 @@ internal class SubCommandArgumentInfo
         return [.. arguments.OrderBy(a => a.Position)];
     }
 
-    /// <summary>
-    /// Creates a list of SubCommandArgumentInfo objects from a command type.
-    /// Full walk.
-    /// </summary>
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandArgumentInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand, typeParserCollection);
     }
 
-    /// <summary>
-    /// Creates a list of SubCommandArgumentInfo objects from properties declared directly in the specified type
-    /// (excludes inherited properties to avoid conflicts).
-    /// Declared-only walk.
-    /// </summary>
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandArgumentInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand, typeParserCollection);
     }
 
-    /// <summary>
-    /// Determines whether this argument should be inherited by child commands.
-    /// Positional arguments are per-command by default and do not auto-inherit.
-    /// Only IsGlobal/IsInherited set before this call flows to child commands.
-    /// </summary>
     private void DetermineInheritanceScope()
     {
         if (!IsGlobal && !IsInherited)
@@ -218,9 +136,6 @@ internal class SubCommandArgumentInfo
         }
     }
 
-    /// <summary>
-    /// Gets the argument signature for help text
-    /// </summary>
     public string GetSignature()
     {
         var name = DisplayName.ToUpperInvariant();
@@ -234,9 +149,6 @@ internal class SubCommandArgumentInfo
             return $"[{name}]";
     }
 
-    /// <summary>
-    /// Checks if this argument can accept the value at the given position
-    /// </summary>
     public bool CanAcceptValueAtPosition(int position)
     {
         if (IsCollection)
@@ -249,9 +161,6 @@ internal class SubCommandArgumentInfo
         }
     }
 
-    /// <summary>
-    /// Returns a string representation of the argument
-    /// </summary>
     public override string ToString()
     {
         return $"{DisplayName} (position {Position})";

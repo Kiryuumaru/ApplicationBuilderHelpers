@@ -1,21 +1,20 @@
 # ApplicationBuilderHelpers
 
-A .NET library for building command-line applications with a fluent API, dependency injection, and modular architecture.
+Build command-line apps in .NET with plain classes. Mark a class as a command, add options and arguments as properties, then run it.
 
-- **Targets**: `net6.0`–`net10.0` · **AOT-compatible** · **Trimmable**
-- **Dependencies**: `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.DependencyInjection.Abstractions`, `AbsolutePathHelpers`
+- **Targets**: `net6.0` through `net10.0` · **AOT-ready on `net8.0`+** · **Trimmable**
+- **Packages**: `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.DependencyInjection.Abstractions`, `AbsolutePathHelpers`
 
 ## Features
 
-- 🎯 **Command-based Architecture** — Command patterns with automatic argument parsing
-- 🔧 **Fluent Builder API** — Intuitive setup via method chaining
-- 💉 **Dependency Injection** — Full `Microsoft.Extensions.DependencyInjection` support
-- 🏗️ **Modular Application Structure** — Reusable `ApplicationDependency` modules with lifecycle hooks
-- ⚙️ **Configuration** — .NET configuration integration with `@ref:` reference values
-- 🎨 **Attributes** — `[Command]`, `[CommandOption]`, `[CommandArgument]` for declarative CLI definitions
-- 🎯 **Sub-Commands** — Hierarchical commands via space-separated names
-- 🖌️ **Themable Help** — 5 built-in console color themes, configurable help width
-- 🧩 **Multiple Host Types** — `HostApplicationBuilder`, `WebApplicationBuilder`, custom builders
+- Commands with automatic parsing. You write a class. The library reads the arguments.
+- Services in your command. Ask for a service. The library provides it.
+- Shared setup modules. Group common services once. Reuse them in every app.
+- App settings that reuse another key with `@ref:` — see [Configuration](docs/configuration.md).
+- Command markers: `[Command]`, `[CommandOption]`, `[CommandArgument]`.
+- Subcommands like `deploy prod`. Nest as deep as you need.
+- Styled `--help` with 6 color themes and adjustable width.
+- Console and web hosts. Use the default for CLIs. Plug in your own for servers.
 
 ## Installation
 
@@ -25,151 +24,42 @@ dotnet add package ApplicationBuilderHelpers
 
 ## Quick Start
 
-```csharp
-// Program.cs
-using ApplicationBuilderHelpers;
+New here? Follow [Getting Started](docs/getting-started.md) for a full Hello sample. It prints `Hello, Alice!` and exits `0`.
 
-return await ApplicationBuilder.Create()
-    .AddApplication<CoreApplication>()
-    .AddCommand<GreetCommand>()
-    .RunAsync(args);
-```
-
-```csharp
-[Command(description: "Greet someone")]
-public class GreetCommand : Command
-{
-    [CommandArgument(Name = "name", Position = 0, Description = "Who to greet")]
-    public string Name { get; set; } = "World";
-
-    protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
-    {
-        Console.WriteLine($"Hello, {Name}!");
-        return ValueTask.CompletedTask;
-    }
-}
-```
-
-```bash
-$ myapp Alice
-Hello, Alice!
-```
-
-A near-miss of a subcommand name still exits `2`. Use `--` to force positional binding (`myapp -- Alice`).
+`RunAsync` returns an exit code: `0` success, `2` bad input, `1` failure, `130` canceled. See [Commands](docs/commands.md).
 
 ## Core Concepts
 
-### Commands
+Extend `Command` and override `Run`. Add options with `[CommandOption]` and positionals with `[CommandArgument]`. Put shared setup in [Application Dependencies](docs/application-dependencies.md).
 
-Extend `Command` and override `Run`. Define options with `[CommandOption]` and positional arguments with `[CommandArgument]`. Commands can register their own services, middleware, and configuration — they inherit the full `ApplicationDependency` lifecycle.
+Exit codes: `0` means success, `2` means bad input, `1` means failure, `130` means canceled. See [API Reference](docs/api-reference.md).
 
-```csharp
-[Command("build", description: "Build the project")]
-public class BuildCommand : Command
-{
-    [CommandOption('v', "verbose", Description = "Enable verbose output")]
-    public bool Verbose { get; set; }
+## How a Run Works
 
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
-    {
-        // ...build logic...
-    }
-}
+```text
+Commands → Shared setup → Host build → Services → Your Run method
 ```
 
-### ApplicationDependency
+1. You register commands and shared setup modules.
+2. The library builds the host once per run.
+3. The library fills your options, arguments, and services.
+4. Your `Run` method executes.
 
-Group shared services and configuration into reusable modules:
-
-```csharp
-public class CoreApplication : ApplicationDependency
-{
-    public override void AddServices(ApplicationHostBuilder appBuilder, IServiceCollection services)
-    {
-        services.AddSingleton<IMyService, MyService>();
-    }
-}
-```
-
-See [Application Dependencies](docs/application-dependencies.md) for the full lifecycle reference.
-
-### Sub-Commands
-
-Use space-separated names for hierarchical commands. Try `myapp deploy prod` or `myapp deploy prod rollback`:
-
-```csharp
-[Command("deploy prod", description: "Deploy to production")]
-public class DeployProductionCommand : Command { /* ... */ }
-```
-
-### Exit Codes
-
-`RunAsync` returns an exit code:
-
-| Outcome | Exit code |
-|---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` (conversion failure beats help-with-values; invalid+version still `0` via the pre-validation version guard at `CommandLineParser.cs:78-82`; leading `--help`/`-h` at the root routes a valid trailing subcommand to its help or renders global help, exit `0` — a bogus bare word errors, exit `2` — via `IsConcreteRootLeadingHelp` + `ResolveHelpTargetCommand` at `ArgumentParser.cs:759-803`, pinned by `RootRoutingDivergenceTests.cs`) |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` |
-| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` (custom host-code passthrough preserved) |
-| Cancellation (`CancellationToken` / Ctrl+C) | `130` (128 + SIGINT) |
-
-Bare root (no root implementation, only leaf subcommands): `myapp` with zero args exits `2` with `'<root>' requires a subcommand. Available subcommands: ...` plus the two-sentence global usage footer (`SubCommandInfo.cs:32`; `ArgumentParser.cs:76-96`; `CommandErrorFooter.cs:21-58`). Help-first (`myapp --help greet`) renders `greet` help, exit `0` (#591 routes a valid trailing subcommand to its target; bare `--help` still renders global help, a bogus bare word errors) (`ArgumentParser.cs:47-62`; `HelpFormatter.cs:40-42`) — and on a concrete root (a description-only `[Command]` merged at root, `HasImplementation` true) a leading bare `--help`/`-h` routes a valid trailing subcommand to its help or renders global help, exit `0` (`IsConcreteRootLeadingHelp` at `ArgumentParser.cs:530-537`; version still beats help) — see [Advanced Topics](docs/advanced.md#bare-root-and-help-first).
-
-Return normally on success. Throw `CommandException` for errors to return a non-zero exit code from `RunAsync`:
-
-```csharp
-throw new CommandException("Operation failed", exitCode: 1);
-```
-
-Shell completion (`complete` / `completions ...`) resolves through the `CompletionGateway` pre-parse stage first — see [Commands](docs/commands.md#shell-completion) for the consolidated 0/1/2 exit matrix.
-
-See [Advanced Topics](docs/advanced.md) for more on sub-commands, custom host types, error handling, and error footers. Every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:`; usage-error footers hint at both `--help` and `--version`, while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer.
-
-## Architecture
-
-```
-┌─────────────────────┐
-│  ApplicationBuilder │ ← Entry Point (fluent API)
-└──────────┬──────────┘
-           │
-    ┌──────▼──────┐
-    │  Commands   │ ← Command Registration (+ own lifecycle hooks)
-    └──────┬──────┘
-           │
-    ┌──────▼──────────┐
-    │  Applications   │ ← Application Modules (lifecycle hooks)
-    └──────┬──────────┘
-           │
-    ┌──────▼───────────┐
-    │  Host Builder    │ ← Host Configuration
-    └──────┬───────────┘
-           │
-    ┌──────▼──────┐
-    │  Services   │ ← Dependency Injection
-    └──────┬──────┘
-           │
-    ┌──────▼──────────┐
-    │  Middleware     │ ← Request Pipeline
-    └──────┬──────────┘
-           │
-    ┌──────▼──────┐
-    │  Execution  │ ← Command Execution
-    └─────────────┘
-```
-
-`RunAsync` pipeline stages: hierarchy build → `CompletionGateway` (completion > help > parse > version) → help → parse → version check → execute.
+Full order lives in [Commands](docs/commands.md).
 
 ## Documentation
 
-| Guide | |
+| Guide | Covers |
 |---|---|
-| [Getting Started](docs/getting-started.md) | Installation, first app, services |
-| [Commands](docs/commands.md) | Attributes, options, arguments, lifecycle |
-| [Application Dependencies](docs/application-dependencies.md) | Full lifecycle reference |
-| [Configuration & Themes](docs/configuration.md) | Fluent config, themes, `@ref:` system, help formatting |
-| [Custom Type Parsers](docs/custom-type-parsers.md) | `ICommandTypeParser` / `CommandTypeParser<T>` |
-| [Advanced Topics](docs/advanced.md) | Sub-commands, host types, exit codes, error handling |
-| [API Reference](docs/api-reference.md) | Complete public API surface |
+| [Getting Started](docs/getting-started.md) | Install, minimal app, first command, run it |
+| [Commands](docs/commands.md) | Commands, options, arguments, services, completion |
+| [Application Dependencies](docs/application-dependencies.md) | Shared setup modules |
+| [Configuration & Themes](docs/configuration.md) | App name, help width, themes, `@ref:` settings |
+| [Custom Type Parsers](docs/custom-type-parsers.md) | Support your own option types |
+| [Advanced Topics](docs/advanced.md) | Subcommands, web hosts, errors, help |
+| [API Reference](docs/api-reference.md) | Every public class and method |
+
+Secret values stay hidden. Help, errors, and completions never print them.
 
 ## Contributing
 
