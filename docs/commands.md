@@ -98,6 +98,10 @@ Two options in one command must not share a short flag. If a shared base class d
 
 When you set `EnvironmentVariable` and the user types no flag, the env value fills the option. A typed flag always beats env. Empty env counts as unset. Env never rescues a flag typed with no value — it covers omitted options only.
 
+### Empty Text Values
+
+Typing `""` counts as supplied. For optional text it binds as `""`; for arguments it binds as `""`. A required text option rejects exactly `""` with exit `2` (`InvalidValue`: `Required text must not be empty.`). Omitted required input still fails as `MissingRequired`. Whitespace-only values bind verbatim (no trimming); a blank env fallback still counts as unset, never as supplied.
+
 ### Allowed Values
 
 ```csharp
@@ -142,7 +146,7 @@ public string? DestPath { get; set; }
 | `CaseSensitive` | Match with exact case |
 | `Secret` | Never print the value |
 
-Typing `""` counts as supplied and binds as `""` for text. Check with `string.IsNullOrEmpty`, not `== null`.
+Typing `""` counts as supplied and binds as `""` for optional text and for arguments. A required text option rejects exactly `""` with exit `2`. Check with `string.IsNullOrEmpty`, not `== null`.
 
 Arguments belong to one command only. A root positional stays hidden from subcommands, so a surplus word fails with `Unexpected argument` (exit `2`).
 

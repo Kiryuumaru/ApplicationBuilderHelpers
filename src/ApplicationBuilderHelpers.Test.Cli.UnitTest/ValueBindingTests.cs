@@ -246,6 +246,34 @@ public sealed class ValueBindingTests
         }
     }
 
+    [Command("bindreqsecret", "Probes required secret option binding.")]
+    public sealed class RequiredSecretOptionCommand : Command
+    {
+        [CommandOption("token", Description = "Token value.", Required = true, Secret = true)]
+        public string? Token { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Token: {Token ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("bindreqchoice", "Probes required constrained option binding.")]
+    public sealed class RequiredChoiceOptionCommand : Command
+    {
+        [CommandOption("mode", Description = "Output mode.", Required = true, FromAmong = ["json", "xml"])]
+        public string? Mode { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationTokenSource cancellationTokenSource)
+        {
+            Console.WriteLine($"Mode: {Mode ?? "null"}");
+            cancellationTokenSource.Cancel();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Command("bindenv", "Probes environment fallback precedence binding.")]
     public sealed class EnvEmptyPrecedenceCommand : Command
     {
@@ -843,29 +871,145 @@ public sealed class ValueBindingTests
     }
 
     [Fact]
-    public async Task RequiredOption_EmptyValue_SatisfiesRequired()
+    public async Task RequiredOption_EmptyValue_RejectsAsInvalidValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for option '--label'", error);
+    }
+
+    [Fact]
+    public async Task RequiredOption_EmptyValueSpaceForm_RejectsAsInvalidValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label", string.Empty]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for option '--label'", error);
+    }
+
+    [Fact]
+    public async Task RequiredOption_Omitted_ReportsMissingRequired()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing required option: --label", error);
+    }
+
+    [Fact]
+    public async Task RequiredOption_Bare_ReportsMissingRequired()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing required option: --label", error);
+    }
+
+    [Fact]
+    public async Task RequiredOption_WhitespaceValue_BindsVerbatim()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label= "]);
 
         Assert.Equal(0, exitCode);
         var labelLine = output
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .FirstOrDefault(l => l.StartsWith("Label:", StringComparison.Ordinal));
-        Assert.Equal("Label: ", labelLine);
+        Assert.Equal("Label:  ", labelLine);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task RequiredOption_EmptyValueSpaceForm_SatisfiesRequired()
+    public async Task RequiredOption_NonEmpty_BindsValue()
     {
-        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label", string.Empty]);
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label=prod"]);
 
         Assert.Equal(0, exitCode);
-        var labelLine = output
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault(l => l.StartsWith("Label:", StringComparison.Ordinal));
-        Assert.Equal("Label: ", labelLine);
+        Assert.Contains("Label: prod", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task RequiredOption_EmptyValue_WithTrailingHelp_ReportsInvalidValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--label=", "--help"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for option '--label'", error);
+    }
+
+    [Fact]
+    public async Task RequiredOption_EmptyValue_WithLeadingHelp_ReportsInvalidValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqopt", "--help", "--label="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for option '--label'", error);
+    }
+
+    [Fact]
+    public async Task OptionalString_EmptyValue_BindsEmpty()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", "--text="]);
+
+        Assert.Equal(0, exitCode);
+        var textLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Text:", StringComparison.Ordinal));
+        Assert.Equal("Text: ", textLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task OptionalString_WhitespaceValue_BindsVerbatim()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", "--text= "]);
+
+        Assert.Equal(0, exitCode);
+        var textLine = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(l => l.StartsWith("Text:", StringComparison.Ordinal));
+        Assert.Equal("Text:  ", textLine);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task RequiredStringSecret_EmptyValue_RedactsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqsecret", "--token="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("[REDACTED]", error);
+        Assert.Contains("option '--token'", error);
+    }
+
+    [Fact]
+    public async Task RequiredStringSecret_NonEmpty_BindsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqsecret", "--token=hunter2"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Token: hunter2", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task RequiredStringConstrained_EmptyValue_RejectsBeforeAllowedValues()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindreqchoice", "--mode="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for option '--mode'", error);
+        Assert.Contains("Required text must not be empty.", error);
+        Assert.DoesNotContain("Must be one of:", error);
     }
 
     [Fact]
@@ -967,7 +1111,9 @@ public sealed class ValueBindingTests
             .AddCommand<BooleanArgumentBindCommand>()
             .AddCommand<RequiredTestCommand>()
             .AddCommand<RequiredOptionBindCommand>()
-            .AddCommand<EnvEmptyPrecedenceCommand>();
+            .AddCommand<EnvEmptyPrecedenceCommand>()
+            .AddCommand<RequiredSecretOptionCommand>()
+            .AddCommand<RequiredChoiceOptionCommand>();
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(string[] args)

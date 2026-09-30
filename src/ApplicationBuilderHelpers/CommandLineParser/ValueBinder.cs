@@ -61,6 +61,9 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             if (values.Count == 0) continue;
 
             var displayName = GetOptionDisplayName(option);
+            if (IsRequiredEmptyString(option, values[0]))
+                throw RequiredEmptyStringError(option, values[0], displayName);
+
             object? propertyValue;
 
             if (CollectionShape.IsCollection(option.PropertyType)
@@ -117,6 +120,12 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
     private void ValidateOptionGroup(SubCommandOptionInfo option, List<string> values, List<string> errors)
     {
         var displayName = GetOptionDisplayName(option);
+
+        if (IsRequiredEmptyString(option, values[0]))
+        {
+            errors.Add(NormalizeBindingError(RequiredEmptyStringError(option, values[0], displayName)));
+            return;
+        }
 
         if (CollectionShape.IsCollection(option.PropertyType)
             && CollectionShape.TryGetElementType(option.PropertyType, out var elementType)
@@ -212,6 +221,16 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
 
     private static string NormalizeBindingError(Exceptions.CommandException ex) =>
         ex.Message ?? string.Empty;
+
+    private static bool IsRequiredEmptyString(SubCommandOptionInfo option, string? raw) =>
+        option.IsRequired
+        && !CollectionShape.IsCollection(option.PropertyType)
+        && option.PropertyType == typeof(string)
+        && raw is not null
+        && raw.Length == 0;
+
+    private static Exceptions.CommandException RequiredEmptyStringError(SubCommandOptionInfo option, string raw, string displayName) =>
+        TypeConversion.ConversionErrors.InvalidValue(raw, displayName, "Required text must not be empty.", option.IsSecret, "String");
 
     private static string GetOptionDisplayName(SubCommandOptionInfo option) =>
         $"option '--{ParseResult.GetCanonicalOptionKey(option)}'";

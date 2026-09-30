@@ -1,6 +1,6 @@
 # ADR 0001: Preserve Empty-String CLI Values
 
-**Status**: Accepted (documents landed fix for #433; strict empty-rejecting mode is a follow-up).
+**Status**: Accepted (documents landed fix for #433; strict empty-reject for required string options landed as the #596 follow-up, documented here).
 
 ## Context
 
@@ -39,6 +39,19 @@ or whitespace-only environment-variable fallback is treated as unset
 `--opt ""` downgrades a set env value. Whitespace-only tokens follow the
 same per-type rule — no trimming exists in the conversion path.
 
+## Strict Follow-Up (#596)
+
+A required scalar `string` option supplied as exactly `""`
+(`--opt=` or `--opt ""`) fails with `InvalidValue` (exit 2)
+instead of binding `""`. Gate: `IsRequired && raw.Length == 0`
+in `ValueBinder` (`ValueBinder.cs`), shared by the probe
+(`CollectBindingErrors` → `ValidateOptionGroup`) and the setter
+(`SetCommandValues`); secret-aware via `ConversionErrors.InvalidValue`.
+Scope is options only, scalar `string` only, empty-only (no trim;
+whitespace still binds); collections and arguments keep preserve
+semantics; `FromAmong` never sees `""` because the guard wins first;
+blank-env stays unset by design.
+
 ## Options Considered
 
 - **Preserve (chosen)**: `""` counts as present and passes required
@@ -47,6 +60,9 @@ same per-type rule — no trimming exists in the conversion path.
   parity.
 - **Strict (deferred follow-up)**: an opt-in mode rejecting empty input
   (e.g. as `InvalidValue`). Not implemented; no such symbol exists in code.
+  Superseded for required scalar string options: #596 rejects exactly
+  `""` as `InvalidValue` (exit 2); optional strings, collections, and
+  arguments still preserve.
 
 ## Industry Precedent
 

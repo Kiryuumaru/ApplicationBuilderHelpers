@@ -135,7 +135,7 @@ public string SourceFile { get; set; } = "";
 | `CaseSensitive` | Match with exact case |
 | `Secret` | Never print the value |
 
-Typing `""` counts as supplied. Check text with `string.IsNullOrEmpty`, not `== null`.
+Typing `""` counts as supplied. It binds as `""` for optional text and for arguments; a required text option rejects exactly `""` with exit `2` (`InvalidValue`). Check text with `string.IsNullOrEmpty`, not `== null`.
 
 ### Get Services in `Run`
 

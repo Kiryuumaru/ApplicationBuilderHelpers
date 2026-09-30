@@ -22,7 +22,7 @@ See [Commands](docs/commands.md).
 - **Supplied**: You typed the option, even as `""`. A non-blank env fallback also counts.
 - **Missing**: You typed nothing and no usable fallback exists. Required inputs then fail with exit `2`.
 - **Blank env**: An empty or whitespace-only env fallback counts as unset, never as supplied.
-- **Empty string**: Typing `""` counts as supplied. It binds as `""` for text. Named `bool` flags reject it. Other types follow their own parser.
+- **Empty string**: Typing `""` counts as supplied. It binds as `""` for optional text and for arguments; a required text option rejects exactly `""` with exit `2` (`InvalidValue`). Named `bool` flags reject it. Other types follow their own parser.
 - **Omitted**: You supplied nothing, so an optional input keeps its starting value in code.
 - **Trailing bare repeat**: A value-taking option typed with no usable next word (for example `--tag` after `--tag=a`). Required inputs fail. Optional inputs keep the earlier value, or fail when no earlier value exists.
 - **Help**: `--help` or `-h` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`.
