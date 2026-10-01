@@ -90,14 +90,16 @@ public class WebCommand : Command<WebApplicationBuilder>
 
 The web sample needs ASP.NET Core packages.
 
+Custom `Command<T>` hosts keep their own logging. The default sink policy below does not apply to them.
+
 ## Exit Codes
 
-| Outcome | Exit code |
-|---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` |
-| Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` (duplicate errors list first, then missing, then invalid-value errors; missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`) |
-| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` |
-| Cancellation (`CancellationToken` / Ctrl+C) | `130` |
+| Outcome | Exit code | Stream |
+|---|---|---|
+| `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
+| Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` (duplicate errors list first, then missing, then invalid-value errors; missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`) | stderr |
+| Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` | stderr |
+| Cancellation (`CancellationToken` / Ctrl+C) | `130` | none (shutdown diagnostics use stderr) |
 
 `RunAsync` returns the exit code as `Task<int>`:
 
@@ -117,7 +119,7 @@ throw new CommandException("Configuration missing", exitCode: 2);
 
 ## Error Handling
 
-The library catches `CommandException` and returns its exit code. Other unhandled errors propagate.
+The library catches `CommandException` and returns its exit code. Other unhandled errors propagate. Usage errors and faults print to stderr.
 
 ### Error Footers
 
@@ -135,6 +137,35 @@ Near-misses get a pointer. Far misses stay silent:
 - `Unknown option: --verbosit. Did you mean '--verbosity'?`
 - `No command found for 'deply'. Did you mean 'deploy'?`
 - `Unknown subcommand 'gett'. Did you mean 'get'?`
+
+## Host Logging
+
+Plain `Command` apps keep stdout clean by default. Status messages stay silent. Console logs write to stderr.
+
+To change logging, override `BuilderPreparation` or `AddServices`. Those hooks run after the default policy, so your settings win:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+
+public override void BuilderPreparation(ApplicationHostBuilder applicationBuilder)
+{
+    applicationBuilder.Services.Configure<ConsoleLifetimeOptions>(
+        options => options.SuppressStatusMessages = false);
+}
+
+public override void AddServices(
+    ApplicationHostBuilder applicationBuilder,
+    IServiceCollection services)
+{
+    services.Configure<ConsoleLoggerOptions>(
+        options => options.LogToStandardErrorThreshold = LogLevel.None);
+}
+```
+
+`SuppressStatusMessages = false` restores status lines. `LogToStandardErrorThreshold` picks which levels use stderr.
 
 ## Running Twice and Thread Safety
 

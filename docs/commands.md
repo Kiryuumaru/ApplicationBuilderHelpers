@@ -217,24 +217,28 @@ The library answers shell TAB probes before help and parsing. A command named `c
 
 | Typed words | What happens |
 |---|---|
-| `complete --position N "<line>"` | Prints one candidate per line, exits `0`. Bare `complete` lists subcommands. |
+| `complete --position N "<line>"` | Prints one candidate per line to stdout, exits `0`. Bare `complete` lists subcommands. |
 | `completions script <bash\|zsh\|pwsh\|powershell\|fish>` | Prints a TAB shim for that shell. |
 | `completions install [--shell <...>] [--dry-run]` | Writes the shim into your shell file. `--dry-run` prints `would-write: <path>` and changes nothing. |
 | `completions uninstall [--shell <...>]` | Removes the shim. |
 
 ### Exit Contract
 
-| Outcome | Exit code |
-|---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` |
-| Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` |
-| Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` |
-| External cancellation (outer `CancellationToken` / Ctrl+C) | `130` |
+| Outcome | Exit code | Stream |
+|---|---|---|
+| `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
+| Completion candidates and shims | `0` | stdout |
+| Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
+| Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` | stderr |
+| External cancellation (outer `CancellationToken` / Ctrl+C) | `130` | none (shutdown diagnostics use stderr) |
+| Host lifetime diagnostics | — | stderr or suppressed, never stdout |
+
+Host lifetime messages never reach stdout. They write to stderr or stay silent.
 
 Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted options. Error footers pair a route-relative `--help` hint with a global `--version` hint. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
 
-Bad shell names and install errors exit `2`. File errors exit `1`. Bare `completions` falls through to normal parsing.
+Bad shell names and install errors exit `2` on stderr. File errors exit `1` on stderr. Bare `completions` falls through to normal parsing.
 
 ## Exit Codes
 
-`0` means success, `2` means bad input, `1` means failure, `130` means canceled. Full table lives in [API Reference](api-reference.md). Commands run the 8 shared setup steps in [Application Dependencies](application-dependencies.md).
+`0` means success, `2` means bad input, `1` means failure, `130` means canceled. Success answers use stdout. Errors use stderr. Full table lives in [API Reference](api-reference.md). Commands run the 8 shared setup steps in [Application Dependencies](application-dependencies.md).

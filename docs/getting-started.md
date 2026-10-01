@@ -70,6 +70,8 @@ dotnet run --
 
 Exit codes: `0` means success, `2` means bad input, `1` means failure, `130` means canceled. See [API Reference](api-reference.md).
 
+Stdout stays clean. Your command output owns stdout. Help, version, and completion answers also use stdout. Errors and host diagnostics use stderr. Pipe stdout to scripts without framework lines.
+
 Use `--` to force words as positionals. Near-miss names get a `Did you mean` hint. See [Commands](commands.md).
 
 ## Add a Service
