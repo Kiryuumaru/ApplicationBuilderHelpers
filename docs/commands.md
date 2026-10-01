@@ -79,6 +79,8 @@ Three forms:
 [CommandOption("long-name")]         // Long only: --long-name
 ```
 
+A single-letter long name also answers its single-dash alias: `[CommandOption("a")]` binds both `-a` and `--a`. An explicit short wins.
+
 ### Option Settings
 
 | Setting | What it does |

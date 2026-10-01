@@ -62,13 +62,14 @@ internal class SubCommandOptionInfo
     public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
-        
+        var longName = attribute.Term ?? property.Name.ToLowerInvariant();
+
         var optionInfo = new SubCommandOptionInfo
         {
             Property = property,
             PropertyType = property.PropertyType,
-            ShortName = attribute.ShortTerm,
-            LongName = attribute.Term ?? property.Name.ToLowerInvariant(),
+            ShortName = CommandDescriptorReflection.ResolveShortName(longName, attribute.ShortTerm),
+            LongName = longName,
             Description = attribute.Description,
             IsRequired = attribute.Required || isRequiredByKeyword,
             EnvironmentVariable = attribute.EnvironmentVariable,
