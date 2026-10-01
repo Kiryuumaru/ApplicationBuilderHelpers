@@ -150,6 +150,17 @@ public sealed class TokenizerTruthTableTests
     }
 
     [Fact]
+    public async Task Separator_NegatedFlagToken_IsPositional()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["tok", "--", "--no-verbose"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.Contains("Items: --no-verbose", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task Separator_HelpToken_IsPositional()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", "--", "--help"]);

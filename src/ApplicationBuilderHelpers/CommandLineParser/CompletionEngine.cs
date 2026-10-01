@@ -72,6 +72,12 @@ internal static class CompletionEngine
                         var longForm = $"--{option.LongName}";
                         if (longForm.StartsWith(prefix, StringComparison.Ordinal))
                             names.Add(longForm);
+                        if (option.ShouldShowNegation && option.NegatedLongName != null)
+                        {
+                            var negatedForm = option.NegatedLongName;
+                            if (negatedForm.StartsWith(prefix, StringComparison.Ordinal))
+                                names.Add(negatedForm);
+                        }
                     }
 
                     if (option.ShortName.HasValue)

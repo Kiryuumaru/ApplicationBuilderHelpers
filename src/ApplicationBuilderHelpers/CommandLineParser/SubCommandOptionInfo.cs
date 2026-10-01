@@ -39,6 +39,18 @@ internal class SubCommandOptionInfo
 
     public bool IsFlag => PropertyType == typeof(bool) || PropertyType == typeof(bool?);
 
+    public bool SupportsNegation => IsFlag && LongName != null;
+
+    // SupportsNegation stays true for help/version; the parser misuse gate rejects their
+    // negated forms before matching, so display paths exclude them here instead.
+    internal bool ShouldShowNegation => SupportsNegation
+        && !string.Equals(LongName, "help", StringComparison.Ordinal)
+        && !string.Equals(LongName, "version", StringComparison.Ordinal);
+
+    internal string? NegatedLongName => LongName == null ? null : $"--no-{LongName}";
+
+    internal string? NegatedBareName => LongName == null ? null : $"no-{LongName}";
+
     public bool IsCollection => CollectionShape.IsCollection(PropertyType);
 
     public Type? ElementType => CollectionShape.TryGetElementType(PropertyType, out var elementType) ? elementType : null;
@@ -192,6 +204,8 @@ internal class SubCommandOptionInfo
     public string GetSignature()
     {
         var name = GetDisplayName();
+        if (ShouldShowNegation && NegatedLongName != null)
+            name += $", {NegatedLongName}";
 
         var placeholder = HelpTypeDisplay.GetParameterPlaceholder(this);
         if (string.IsNullOrEmpty(placeholder))
@@ -214,7 +228,7 @@ internal class SubCommandOptionInfo
         if (LongName != null && (argument == $"--{LongName}" || argument.StartsWith($"--{LongName}=", StringComparison.Ordinal)))
             return true;
 
-        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
+        if (SupportsNegation && NegatedLongName != null && (argument == NegatedLongName || argument.StartsWith($"{NegatedLongName}=", StringComparison.Ordinal)))
             return true;
 
         if (ShortName.HasValue)
@@ -247,12 +261,12 @@ internal class SubCommandOptionInfo
             return literal;
         }
 
-        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
+        if (SupportsNegation && NegatedLongName != null && (argument == NegatedLongName || argument.StartsWith($"{NegatedLongName}=", StringComparison.Ordinal)))
         {
-            if (argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal))
+            if (argument.StartsWith($"{NegatedLongName}=", StringComparison.Ordinal))
             {
-                var rejected = argument[$"--no-{LongName}=".Length..];
-                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--no-{LongName}", rejected, IsSecret, isFlag: true, positiveLongName: LongName), 2, CommandErrorKind.InvalidValue);
+                var rejected = argument[$"{NegatedLongName}=".Length..];
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage(NegatedLongName, rejected, IsSecret, isFlag: true, positiveLongName: LongName), 2, CommandErrorKind.InvalidValue);
             }
 
             return "false";

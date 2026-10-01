@@ -88,19 +88,19 @@ public sealed class HelpLayoutGoldenTests
         Deploy the application to the target environment.
 
         OPTIONS (command):
-            -f, --format <STRING>  Output format for the deployment report.
-                                   Possible values: table, json, yaml
-                                   Environment variable: GOLDEN_FORMAT
-                                   Default: table
-            --dry-run              Preview the deployment without applying any changes.
-                                   Default: False
+            -f, --format <STRING>    Output format for the deployment report.
+                                     Possible values: table, json, yaml
+                                     Environment variable: GOLDEN_FORMAT
+                                     Default: table
+            --dry-run, --no-dry-run  Preview the deployment without applying any changes.
+                                     Default: False
 
         ARGUMENTS:
-            <target>               Deployment target environment.
+            <target>                 Deployment target environment.
 
         GLOBAL OPTIONS:
-            -h, --help             Show help information
-            -V, --version          Show version information
+            -h, --help               Show help information
+            -V, --version            Show version information
 
         """ + "\n";
 
@@ -119,10 +119,9 @@ public sealed class HelpLayoutGoldenTests
             Possible values: table, json, yaml
             Environment variable: GOLDEN_FORMAT
             Default: table
-            --dry-run         Preview the deployment without
-                              applying any
-                              changes.
-                              Default: False
+            --dry-run, --no-dry-run
+        Preview the deployment without applying any changes.
+            Default: False
 
         ARGUMENTS:
             <target>          Deployment target environment.
@@ -214,19 +213,19 @@ public sealed class HelpLayoutGoldenTests
                 continue;
             }
 
-            var firstSpace = body.IndexOf(' ');
-            if (firstSpace < 0)
+            var separator = body.IndexOf("  ", StringComparison.Ordinal);
+            if (separator < 0)
             {
                 continue;
             }
 
-            var descriptionStart = firstSpace;
+            var descriptionStart = separator;
             while (descriptionStart < body.Length && body[descriptionStart] == ' ')
             {
                 descriptionStart++;
             }
 
-            if (descriptionStart - firstSpace < 2 || descriptionStart >= body.Length)
+            if (descriptionStart >= body.Length)
             {
                 continue;
             }
