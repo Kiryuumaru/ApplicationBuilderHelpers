@@ -8,6 +8,7 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
@@ -361,6 +362,23 @@ public sealed class ApplicationHostTests
         Assert.Contains("hosted service failure", error);
         Assert.Contains("exited with code 4", error);
         Assert.Contains("hostprobe", error);
+    }
+
+    [Fact]
+    public void BuildInternal_QuietsHostLifetimeMessages()
+    {
+        var wrapper = new ApplicationHostBuilder<HostApplicationBuilder>(Host.CreateApplicationBuilder());
+        using var host = wrapper.BuildInternal().Host;
+
+        var lifetimeOptions = host.Services.GetRequiredService<IOptions<ConsoleLifetimeOptions>>().Value;
+        Assert.True(lifetimeOptions.SuppressStatusMessages);
+
+        var filterOptions = host.Services.GetRequiredService<IOptions<LoggerFilterOptions>>().Value;
+        Assert.Contains(
+            filterOptions.Rules,
+            rule => rule.ProviderName is null
+                && rule.CategoryName == "Microsoft.Hosting.Lifetime"
+                && rule.LogLevel == LogLevel.Warning);
     }
 
     [Fact]

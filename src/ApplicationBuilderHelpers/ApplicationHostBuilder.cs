@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -71,6 +72,12 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
         {
             applicationDependency.AddServices(this, Builder.Services);
         }
+
+        // The options flag skips registration of the startup/shutdown status messages;
+        // the filter catches residual Microsoft.Hosting.Lifetime output while preserving
+        // the error channel (Warning and above still flow).
+        Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
+        Builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Warning);
 
         return Build();
     }
