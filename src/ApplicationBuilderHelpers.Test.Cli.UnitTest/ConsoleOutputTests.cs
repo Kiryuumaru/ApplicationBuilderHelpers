@@ -90,7 +90,7 @@ public sealed class ConsoleOutputTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Unknown option: --unknown-option", error);
         Assert.Contains("Run 'cout-test coutgreet --help' for more information on specific command options.", error);
-        Assert.Contains("Run 'cout-test coutgreet --version' to show version information.", error);
+        Assert.Contains("Run 'cout-test --version' to show version information.", error);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class ConsoleOutputTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Error: Missing required argument", error);
         Assert.Contains("Run 'cout-test coutpublish --help' for more information on specific command options.", error);
-        Assert.Contains("Run 'cout-test coutpublish --version' to show version information.", error);
+        Assert.Contains("Run 'cout-test --version' to show version information.", error);
     }
 
     [Fact]
