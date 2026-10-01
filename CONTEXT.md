@@ -43,4 +43,4 @@ See [Commands](docs/commands.md).
 
 ## Exit codes
 
-`0` means success, help, version, or completion. `2` means bad input. `1` means failure. `130` means canceled. See [Commands](docs/commands.md).
+`0` means success, help, version, or completion. `2` means bad input. `1` means failure. `130` means canceled (outer cancel, Ctrl+C, or SIGTERM). See [Commands](docs/commands.md).

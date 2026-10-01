@@ -99,7 +99,7 @@ Custom `Command<T>` hosts keep their own logging. The default sink policy below 
 | `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` (duplicate errors list first, then missing, then invalid-value errors; missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`) | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` | stderr |
-| Cancellation (`CancellationToken` / Ctrl+C) | `130` | none (shutdown diagnostics use stderr) |
+| Cancellation (`CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr) |
 
 `RunAsync` returns the exit code as `Task<int>`:
 

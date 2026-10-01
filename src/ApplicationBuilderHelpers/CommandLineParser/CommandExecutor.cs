@@ -13,16 +13,19 @@ internal sealed class CommandExecutor
     private readonly IApplicationDependencyCollection _applicationDependencyCollection;
     private readonly ConsoleOutput _consoleOutput;
     private readonly IConsoleCancelSignal _cancelSignal;
+    private readonly ISigtermSignal? _sigtermSignal;
 
     /// <summary>Wires the dependency collection, output, and cancel signal.</summary>
     internal CommandExecutor(
         IApplicationDependencyCollection applicationDependencyCollection,
         ConsoleOutput consoleOutput,
-        IConsoleCancelSignal? cancelSignal = null)
+        IConsoleCancelSignal? cancelSignal = null,
+        ISigtermSignal? sigtermSignal = null)
     {
         _applicationDependencyCollection = applicationDependencyCollection;
         _consoleOutput = consoleOutput;
         _cancelSignal = cancelSignal ?? new ConsoleCancelSignal(consoleOutput);
+        _sigtermSignal = sigtermSignal;
     }
 
     /// <summary>Exit code for cancellation (128 + SIGINT).</summary>
@@ -44,47 +47,55 @@ internal sealed class CommandExecutor
     {
         var command = commandInfo.Command!;
 
-        using var scope = new CommandShutdownScope(cancellationToken, _cancelSignal);
-
-        LifetimeGlobalService? lifetimeGlobalService = null;
-
+        CommandShutdownScope? scope = null;
         try
         {
-            var applicationBuilder = await command.ApplicationBuilderInternal(scope.Token).ConfigureAwait(false);
-            lifetimeGlobalService = new LifetimeGlobalService();
-            scope.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
+            scope = new CommandShutdownScope(cancellationToken, _cancelSignal, _sigtermSignal);
 
-            applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
-            applicationBuilder.Services.AddScoped<LifetimeService>();
-
-            applicationBuilder.ApplicationDependencies.Add(command);
-            foreach (var dependency in _applicationDependencyCollection.ApplicationDependencies)
-            {
-                applicationBuilder.ApplicationDependencies.Add(dependency);
-            }
-
-            ApplicationHost applicationHost = applicationBuilder.BuildInternal();
-            applicationHost.ConsoleOutput = _consoleOutput;
-
-            var scopeFactory = applicationHost.Services.GetRequiredService<IServiceScopeFactory>();
-            using var commandScope = scopeFactory.CreateScope();
-            ServiceInjectionGate.Inject(commandInfo, commandScope.ServiceProvider);
+            LifetimeGlobalService? lifetimeGlobalService = null;
 
             try
             {
-                _ = await CommandRunOrchestrator.InvokeAsync(command, applicationHost, lifetimeGlobalService, scope, commandInfo).ConfigureAwait(false);
+                var applicationBuilder = await command.ApplicationBuilderInternal(scope.Token).ConfigureAwait(false);
+                lifetimeGlobalService = new LifetimeGlobalService();
+                scope.Token.Register(lifetimeGlobalService.CancellationTokenSource.Cancel);
 
-                await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync().ConfigureAwait(false);
+                applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
+                applicationBuilder.Services.AddScoped<LifetimeService>();
+
+                applicationBuilder.ApplicationDependencies.Add(command);
+                foreach (var dependency in _applicationDependencyCollection.ApplicationDependencies)
+                {
+                    applicationBuilder.ApplicationDependencies.Add(dependency);
+                }
+
+                ApplicationHost applicationHost = applicationBuilder.BuildInternal();
+                applicationHost.ConsoleOutput = _consoleOutput;
+
+                var scopeFactory = applicationHost.Services.GetRequiredService<IServiceScopeFactory>();
+                using var commandScope = scopeFactory.CreateScope();
+                ServiceInjectionGate.Inject(commandInfo, commandScope.ServiceProvider);
+
+                try
+                {
+                    _ = await CommandRunOrchestrator.InvokeAsync(command, applicationHost, lifetimeGlobalService, scope, commandInfo).ConfigureAwait(false);
+
+                    await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    await (lifetimeGlobalService?.InvokeApplicationExitedCallbacksAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+                }
             }
-            finally
+            catch (OperationCanceledException ex) when (ex is not ExternalCancellationException && scope is not null && scope.IsExternalAbortRequested)
             {
-                await (lifetimeGlobalService?.InvokeApplicationExitedCallbacksAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+                // External abort maps to exit 130; caller observes ExternalCancellation, not OCE.
+                throw new ExternalCancellationException();
             }
         }
-        catch (OperationCanceledException ex) when (ex is not ExternalCancellationException && scope.IsExternalAbortRequested)
+        finally
         {
-            // External abort maps to exit 130; caller observes ExternalCancellation, not OCE.
-            throw new ExternalCancellationException();
+            scope?.Dispose();
         }
     }
 }

@@ -232,7 +232,7 @@ The library answers shell TAB probes before help and parsing. A command named `c
 | Completion candidates and shims | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` | stderr |
-| External cancellation (outer `CancellationToken` / Ctrl+C) | `130` | none (shutdown diagnostics use stderr) |
+| External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr) |
 | Host lifetime diagnostics | — | stderr or suppressed, never stdout |
 
 Host lifetime messages never reach stdout. They write to stderr or stay silent.

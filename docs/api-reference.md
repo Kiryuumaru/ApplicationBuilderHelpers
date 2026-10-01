@@ -267,7 +267,7 @@ string connStr = configuration.GetRefValue("ConnectionString");
 | Completion candidates and shims | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` | stderr |
-| Cancellation (`CancellationToken` / Ctrl+C) | `130` | none (shutdown diagnostics use stderr) |
+| Cancellation (`CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr) |
 | Host lifetime diagnostics | — | stderr or suppressed, never stdout |
 
 Duplicate errors list first, then missing, then invalid-value errors. Missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`. Every help screen lists `-V, --version` under `GLOBAL OPTIONS:`. Usage-error footers pair a route-relative `--help` hint with a global `--version` hint, except when the failing call already contained `--help`/`-h`, when only the `--version` hint survives. `Fault`/`NoImplementation` keep the `--help`-only footer.
@@ -308,7 +308,7 @@ public class CommandException : Exception
 | `0` | Success; also `--help`, `--version`, and completion answers | stdout |
 | `2` | Bad input: unknown option or command, missing required value, bad value, missing subcommand | stderr |
 | `1` or custom | Your `CommandException` exit code; unknown failures exit `1` | stderr |
-| `130` | Canceled (Ctrl+C or canceled token) | none (shutdown diagnostics use stderr) |
+| `130` | Canceled (Ctrl+C, SIGTERM, or canceled token) | none (shutdown diagnostics use stderr) |
 
 Shell completion answers before help and parsing. One pre-validation gate forgives help and version: either skips all validation when its flag is present, help beats version, and unknown/misuse/requires-subcommand/invalid-literal errors still beat both. Usage errors print a footer pointing at the right `--help`. Full help and precedence rules live in [Advanced Topics](advanced.md).
 
