@@ -8,7 +8,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollection)
 {
-    public List<string> CollectBindingErrors(ParseResult result, bool skipBareWhenHelpRequested = false)
+    public List<string> CollectBindingErrors(ParseResult result)
     {
         var errors = new List<string>();
 
@@ -21,9 +21,6 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             .OrderBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal)
             .GroupBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal))
         {
-            if (skipBareWhenHelpRequested && result.ShowHelp && result.BareOptionOccurrences.Contains(group.Key))
-                continue;
-
             var option = group.First().Key;
             var values = group.SelectMany(entry => entry.Value).ToList();
             if (values.Count == 0) continue;

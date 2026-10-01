@@ -68,6 +68,25 @@ internal sealed class HelpVersionGateway(
         return false;
     }
 
+    /// <summary>Decides symmetric validation forgiveness (help &gt; version, pre-<c>--</c> only).</summary>
+    internal enum HelpVersionForgiveness
+    {
+        NoForgive,
+        ForgiveHelp,
+        ForgiveVersion,
+    }
+
+    /// <summary>Decides whether validation is forgiven for help vs version from parse flags plus the raw tail.</summary>
+    internal static HelpVersionForgiveness DecideValidationForgiveness(ParseResult result, string[] tail)
+    {
+        var helpRequested = RequestedHelp(tail);
+        if (result.ShowHelp && helpRequested)
+            return HelpVersionForgiveness.ForgiveHelp;
+        if (!result.ShowHelp && result.ShowVersion && RequestedVersion(tail) && !helpRequested)
+            return HelpVersionForgiveness.ForgiveVersion;
+        return HelpVersionForgiveness.NoForgive;
+    }
+
     private static bool IsVersionCluster(string token)
     {
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('='))

@@ -22,6 +22,7 @@ Decision records are immutable. Do not edit a record after it lands.
 | 0009 | Concrete Root Leading Help First | Accepted |
 | 0010 | Group Unknown/Invalid Beats Version | Accepted |
 | 0011 | Help-First Target Routing | Accepted |
+| 0012 | Symmetric Help/Version Forgiveness | Accepted |
 
 Suffixed letters (`0004a`/`0004b`) resolve filename collisions. Numbers never shift after landing.
 

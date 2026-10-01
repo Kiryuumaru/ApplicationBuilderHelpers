@@ -71,7 +71,14 @@ internal class CommandLineParser
 
             var parseResult = ParseCommandLine(args);
 
-            if (parseResult.ShowVersion && !parseResult.ShowHelp)
+            var forgiveness = HelpVersionGateway.DecideValidationForgiveness(parseResult, args);
+            if (forgiveness == HelpVersionGateway.HelpVersionForgiveness.ForgiveHelp)
+            {
+                ShowCommandHelp(parseResult.TargetCommand);
+                return 0;
+            }
+
+            if (forgiveness == HelpVersionGateway.HelpVersionForgiveness.ForgiveVersion)
             {
                 ShowVersion();
                 return 0;
@@ -152,7 +159,7 @@ internal class CommandLineParser
         if (CommandBuilder.RejectDuplicateOptions)
             duplicateErrors = _validator.CollectDuplicateErrors(result);
         var missingErrors = _validator.CollectRequiredErrors(result);
-        var bindingErrors = _binder.CollectBindingErrors(result, skipBareWhenHelpRequested: true);
+        var bindingErrors = _binder.CollectBindingErrors(result);
 
         var allErrors = new List<string>(duplicateErrors.Count + missingErrors.Count + bindingErrors.Count);
         allErrors.AddRange(duplicateErrors);

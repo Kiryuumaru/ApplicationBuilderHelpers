@@ -218,6 +218,11 @@ internal sealed class ArgumentParser
                 {
                     value = matchedOption.ExtractValue(arg, consumableNext);
                 }
+                catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && HelpVersionGateway.RequestedHelp(tail))
+                {
+                    result.ShowHelp = true;
+                    continue;
+                }
                 catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && versionWins)
                 {
                     // Pre--- version request outranks eager value errors; let the version gate fire.
@@ -241,11 +246,22 @@ internal sealed class ArgumentParser
             {
                 if (arg.StartsWith("--no-", StringComparison.Ordinal) && arg.Contains('='))
                 {
+                    if (HelpVersionGateway.RequestedHelp(tail))
+                    {
+                        var helpProbeName = arg[..arg.IndexOf('=')];
+                        var helpProbeBase = helpProbeName["--no-".Length..];
+                        if (SubCommandOptionInfo.FindNoValueBase(allOptions, helpProbeBase) != null)
+                        {
+                            result.ShowHelp = true;
+                            continue;
+                        }
+                    }
+
                     if (versionWins)
                     {
                         var probeName = arg[..arg.IndexOf('=')];
                         var probeBase = probeName["--no-".Length..];
-                        if (SubCommandOptionInfo.FindNoValueBase(allOptions, probeBase) != null || probeBase.Length == 0)
+                        if (SubCommandOptionInfo.FindNoValueBase(allOptions, probeBase) != null)
                         {
                             result.ShowVersion = true;
                             continue;
