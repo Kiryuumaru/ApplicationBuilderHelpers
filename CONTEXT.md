@@ -25,7 +25,7 @@ See [Commands](docs/commands.md).
 - **Empty string**: Typing `""` counts as supplied. It binds as `""` for text. Named `bool` flags reject it. Other types follow their own parser.
 - **Omitted**: You supplied nothing, so an optional input keeps its starting value in code.
 - **Trailing bare repeat**: A value-taking option typed with no usable next word (for example `--tag` after `--tag=a`). Required inputs fail. Optional inputs keep the earlier value, or fail when no earlier value exists.
-- **Help**: `--help` or `-h` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`.
+- **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
 - **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands.
 
 ## Services in commands

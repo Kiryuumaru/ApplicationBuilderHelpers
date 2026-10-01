@@ -24,10 +24,10 @@ internal sealed class HelpVersionGateway(
         return false;
     }
 
-    /// <summary>Bare help token (<c>--help</c> or <c>-h</c> only).</summary>
+    /// <summary>Bare help token (<c>--help</c>, <c>-h</c>, <c>-?</c>, or <c>/?</c> only).</summary>
     internal static bool IsHelpToken(string token)
     {
-        return token == "--help" || token == "-h";
+        return token == "--help" || token == "-h" || token == "-?" || token == "/?";
     }
 
     /// <summary>Bare version token (<c>--version</c> or <c>-V</c> only).</summary>

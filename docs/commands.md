@@ -90,7 +90,7 @@ Three forms:
 | `CaseSensitive` | Match `FromAmong` values with exact case |
 | `Secret` | Never print the value; help shows `[REDACTED]` |
 
-Do not declare your own `-h` or `-V`. They belong to `--help` and `--version` and fail the build.
+Do not declare your own `-h` or `-V`. They belong to `--help` and `--version` and fail the build. `-?` and `/?` are also reserved as bare-token help aliases on every OS; quote them on Unix shells (`'-?'`, `'/?'`) so the shell does not glob them.
 
 Two options in one command must not share a short flag. If a shared base class declares `-l, --log-level` on every command, it becomes one shared global. Leaf commands must then avoid reusing `-l`; use a long-only flag like `--local` instead.
 
@@ -115,7 +115,7 @@ Values compare after converting the typed text to your property type. So `02` ma
 - `--no-<name>` works only on `bool` flags and means `false`. `--no-<name>=value` never works.
 - Words after the first bare `--` are always positional. `--` itself is swallowed.
 - Negative numbers (`-5`) count as positional. Reach a digit short with `-1=value` or after `--`.
-- Grouped shorts (`-abc`) expand left to right. A short that needs a value must come last. `-h` and `-V` win mid-group.
+- Grouped shorts (`-abc`) expand left to right. A short that needs a value must come last. `-h` and `-V` win mid-group. `-?` and `/?` never expand: `-?` is a bare help token and `-v?` reports `Unknown option: -?`.
 - Unknown options report the name only, never the value: `Unknown option: --pasword`.
 - Repeats: flags stay put; repeats of a valued scalar take the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2). Collections gather every value and stay exempt, as do flags and environment-supplied values.
 - `Required` options show `(required)` in help after the description.

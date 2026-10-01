@@ -18,7 +18,7 @@ internal sealed class ArgumentParser
 
         result.TargetCommand = rootCommand!;
 
-        while (argIndex < args.Length && !args[argIndex].StartsWith('-'))
+        while (argIndex < args.Length && !args[argIndex].StartsWith('-') && args[argIndex] != "/?")
         {
             var child = result.TargetCommand.FindChild(args[argIndex]);
             if (child != null)
@@ -32,7 +32,7 @@ internal sealed class ArgumentParser
             }
         }
 
-        if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-'))
+        if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-') && args[0] != "/?" && !args[0].StartsWith("/?=", StringComparison.Ordinal))
         {
             if (!IsExemptRootPositional(rootCommand, args[0]))
             {
@@ -50,6 +50,7 @@ internal sealed class ArgumentParser
             var surplusSentinelIndex = Array.IndexOf(args, "--");
             var hasSurplusPathToken = argIndex < args.Length
                 && !args[argIndex].StartsWith('-')
+                && args[argIndex] != "/?"
                 && (surplusSentinelIndex < 0 || argIndex < surplusSentinelIndex)
                 && result.TargetCommand.FindChild(args[argIndex]) == null;
             if ((result.TargetCommand.IsRoot || argIndex > 0) && !hasSurplusPathToken && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
@@ -112,7 +113,7 @@ internal sealed class ArgumentParser
             var baseMessage = $"'{result.TargetCommand.DisplayName}' requires a subcommand. Available subcommands: {availableSubcommands}";
             string? subcommandSuggestion = null;
             var sentinelIndex = Array.IndexOf(args, "--");
-            if (argIndex < args.Length && !args[argIndex].StartsWith('-') && (sentinelIndex < 0 || argIndex < sentinelIndex))
+            if (argIndex < args.Length && !args[argIndex].StartsWith('-') && args[argIndex] != "/?" && (sentinelIndex < 0 || argIndex < sentinelIndex))
             {
                 subcommandSuggestion = DidYouMean.FindBestMatch(
                     args[argIndex],
@@ -835,11 +836,11 @@ internal sealed class ArgumentParser
             i++;
         if (i >= end)
             return target;
-        if (args[i].StartsWith('-'))
+        if (args[i].StartsWith('-') || args[i] == "/?")
             return target;
         var current = target;
         var resolved = false;
-        while (i < end && !args[i].StartsWith('-'))
+        while (i < end && !args[i].StartsWith('-') && args[i] != "/?")
         {
             var child = current.FindChild(args[i]);
             if (child == null)
@@ -874,6 +875,12 @@ internal sealed class ArgumentParser
             return !hasRealShortHOwner;
         }
 
+        if (token.StartsWith("-?=", StringComparison.Ordinal))
+            return true;
+
+        if (token.StartsWith("/?=", StringComparison.Ordinal))
+            return true;
+
         if (string.Equals(token, "--no-help", StringComparison.Ordinal)
             || token.StartsWith("--no-help=", StringComparison.Ordinal))
             return true;
@@ -894,6 +901,18 @@ internal sealed class ArgumentParser
         {
             var literal = token["-h=".Length..];
             return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-h", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("-?=", StringComparison.Ordinal))
+        {
+            var literal = token["-?=".Length..];
+            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-?", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("/?=", StringComparison.Ordinal))
+        {
+            var literal = token["/?=".Length..];
+            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "/?", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("--no-help=", StringComparison.Ordinal))

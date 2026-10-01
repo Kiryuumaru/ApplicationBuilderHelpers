@@ -152,16 +152,18 @@ myapp deploy --help # Command-specific help: shows options and sub-commands
 myapp --version     # Shows version number
 ```
 
-You never define `--help` or `--version`. Help flags are `--help`/`-h`. Version flags are `--version`/`-V`.
+You never define `--help` or `--version`. Help flags are `--help`/`-h`, plus the `-?` and `/?` aliases (bare token only, every OS; `?` never expands inside a cluster). Version flags are `--version`/`-V`.
+
+On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
 
 Four rules decide ties:
 
-1. Bare `--help` shows help before any checks.
+1. Bare `--help` (or `-h`, `-?`, `/?`) shows help before any checks.
 2. `--help` beats a missing required option.
 3. A bad value beats `--help` when both appear.
 4. `--help` beats `--version` when both appear.
 
-Help never hides typos. `bogus --help` reports an unknown command (exit 2). `--help=<anything>` is an invalid value (exit 2), never help. `--` ends option matching and blocks help: `-- --help` stays exit 2.
+Help never hides typos. `bogus --help` reports an unknown command (exit 2). `--help=<anything>` is an invalid value (exit 2), never help, and `-?=<anything>` / `/?=<anything>` are invalid values the same way. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
 
 Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE>`) live in [Configuration](configuration.md#help-placeholders). Required markers live in [Configuration](configuration.md#required-options-in-help).
 
