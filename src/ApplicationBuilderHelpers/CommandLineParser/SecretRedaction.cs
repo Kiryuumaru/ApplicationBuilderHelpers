@@ -135,7 +135,7 @@ internal static class SecretRedaction
     {
         if (isFlag)
         {
-            if (isSecret)
+            if (isSecret || string.IsNullOrEmpty(rejectedValue))
             {
                 return $"Option '{optionName}' does not accept a value. Use bare '{optionName}' to set the flag to 'false'.";
             }
@@ -144,7 +144,7 @@ internal static class SecretRedaction
         }
 
         var positive = positiveLongName != null ? $" or use '--{positiveLongName}=<value>'" : string.Empty;
-        if (isSecret)
+        if (isSecret || string.IsNullOrEmpty(rejectedValue))
         {
             return $"Option '{optionName}' does not accept a value. Negation applies to boolean flags only; omit '{optionName}'{positive}.";
         }

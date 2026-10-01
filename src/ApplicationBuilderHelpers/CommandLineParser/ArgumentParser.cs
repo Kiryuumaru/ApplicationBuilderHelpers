@@ -275,6 +275,22 @@ internal sealed class ArgumentParser
                     continue;
                 }
 
+                if (arg.StartsWith("--no-", StringComparison.Ordinal) && !arg.Contains('='))
+                {
+                    var resolvedBare = SubCommandOptionInfo.FindNoValueBase(allOptions, arg["--no-".Length..]);
+                    if (resolvedBare != null && !resolvedBare.IsFlag)
+                    {
+                        if (versionWins)
+                        {
+                            result.ShowVersion = true;
+                            continue;
+                        }
+
+                        var bareCommandName = result.TargetCommand.FullCommandName;
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(arg, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName), 2, CommandErrorKind.InvalidValue, bareCommandName);
+                    }
+                }
+
                 var unknownName = arg;
                 var unknownEquals = unknownName.IndexOf('=');
                 if (unknownEquals >= 0)
@@ -541,6 +557,9 @@ internal sealed class ArgumentParser
         var allOptions = target.AllOptions;
         var sentinelIndex = Array.IndexOf(args, "--");
         var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var tail = args[argIndex..];
+        var versionWins = HelpVersionGateway.RequestedVersion(tail)
+            && !HelpVersionGateway.RequestedHelp(tail);
         for (var i = argIndex; i < end; i++)
         {
             var token = args[i];
@@ -560,6 +579,14 @@ internal sealed class ArgumentParser
                 continue;
             if (token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('='))
             {
+                if (versionWins)
+                {
+                    var noProbeName = token[..token.IndexOf('=')];
+                    var noProbeBase = noProbeName["--no-".Length..];
+                    if (SubCommandOptionInfo.FindNoValueBase(allOptions, noProbeBase) != null || noProbeBase.Length == 0)
+                        continue;
+                }
+
                 var name = token[..token.IndexOf('=')];
                 var rejected = token[(token.IndexOf('=') + 1)..];
                 var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
@@ -570,6 +597,16 @@ internal sealed class ArgumentParser
                 var noValueSuggestion = DidYouMean.FindBestMatch(name, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+            }
+            if (token.StartsWith("--no-", StringComparison.Ordinal) && !token.Contains('='))
+            {
+                var resolvedBare = SubCommandOptionInfo.FindNoValueBase(allOptions, token["--no-".Length..]);
+                if (resolvedBare != null && !resolvedBare.IsFlag)
+                {
+                    if (versionWins)
+                        continue;
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(token, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                }
             }
             var clusterFailing = FindUnknownClusterCharIndex(allOptions, token);
             if (clusterFailing >= 0)

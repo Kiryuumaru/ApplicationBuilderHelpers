@@ -125,12 +125,12 @@ public sealed class HelpPlaceholderTests
     }
 
     [Fact]
-    public void NullableFlag_IsFlag_And_SignatureOmitsPlaceholder()
+    public void NullableFlag_IsFlag_And_SignatureListsNegation()
     {
         var option = Option(nameof(PlaceholderHolder.MaybeFlag));
 
         Assert.True(option.IsFlag);
-        Assert.Equal("--probe", option.GetSignature());
+        Assert.Equal("--probe, --no-probe", option.GetSignature());
     }
 
     [Fact]

@@ -639,14 +639,14 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
-    public async Task ValuedOption_BareNegation_ReportsUnknown()
+    public async Task ValuedOption_BareNegation_ReportsBoolOnlyGuidance()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-secret-token"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: --no-secret-token", error);
-        Assert.DoesNotContain("does not accept", error);
+        Assert.Contains("Option '--no-secret-token' does not accept a value. Negation applies to boolean flags only; omit '--no-secret-token' or use '--secret-token=<value>'.", error);
+        Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]

@@ -68,6 +68,9 @@ internal static class DidYouMean
 
             var display = option.LongName != null ? $"--{option.LongName}" : $"-{option.ShortName}";
             yield return (key, display);
+
+            if (option.ShouldShowNegation && option.NegatedBareName != null && option.NegatedLongName != null)
+                yield return (option.NegatedBareName, option.NegatedLongName);
         }
     }
 
