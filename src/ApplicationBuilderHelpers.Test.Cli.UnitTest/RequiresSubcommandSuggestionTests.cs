@@ -146,7 +146,7 @@ public sealed class RequiresSubcommandSuggestionTests
         Assert.Contains("'config' requires a subcommand", error);
         Assert.Contains("Available subcommands: get, set", error);
         Assert.Contains("Did you mean 'get'?", error);
-        Assert.Contains("Run 'didyoumean-abstract-test config --version' to show version information.", error);
+        Assert.Contains("Run 'didyoumean-abstract-test --version' to show version information.", error);
         Assert.DoesNotContain("Run 'didyoumean-abstract-test config --help'", error);
     }
 
