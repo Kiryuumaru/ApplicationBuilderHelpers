@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using System;
 using System.Threading.Tasks;
 using System.Threading;
@@ -75,11 +78,18 @@ public abstract class Command : Command<HostApplicationBuilder>
 {
     /// <summary>
     /// Builds the default host builder via <c>Host.CreateApplicationBuilder</c>.
+    /// Applies the default sink policy so host lifetime diagnostics never reach stdout:
+    /// ConsoleLifetime status messages are suppressed and the console logger writes
+    /// to stderr. Runs before any <c>BuilderPreparation</c>/<c>AddServices</c> hook,
+    /// so user modules can still reconfigure both options.
     /// </summary>
     /// <param name="stoppingToken">Token observing host shutdown during the build.</param>
     /// <returns>The default host application builder.</returns>
     protected override ValueTask<HostApplicationBuilder> ApplicationBuilder(CancellationToken stoppingToken)
     {
-        return new ValueTask<HostApplicationBuilder>(Host.CreateApplicationBuilder());
+        var builder = Host.CreateApplicationBuilder();
+        builder.Services.Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true);
+        builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+        return new ValueTask<HostApplicationBuilder>(builder);
     }
 }
