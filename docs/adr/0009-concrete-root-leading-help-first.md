@@ -28,8 +28,11 @@ exit `2` before `ShowHelp` ever rendered.
   untouched.
 - **Leading-only, side-effect-free**: only a *leading* bare help token fires;
   non-leading help (`["--bogus", "--help"]` → `UnknownOption`, exit `2`),
-  reserved forms (`--help=x`, `--helpful`), `-?` (not a help token), and
-  post-`--` tokens stay on the normal parse path. Trailing tokens are ignored,
+  reserved forms (`--help=x`, `--helpful`), and
+  post-`--` tokens stay on the normal parse path. Note update: `-?` and `/?`
+  are now bare help tokens (same leading-help path as `--help`/`-h`), while
+  `-?=x`/`/?=x` stay reserved misuse forms and `?` still never expands in a
+  cluster (`-v?` → `Unknown option: -?`). Trailing tokens are ignored,
   never validated, never reach `Run` — `MainCommand.Run` never executes on the
   help path. Version beats help (`["--help", "--version"]` prints version),
   mirroring the abstract branch where the version check (`:47-51`) runs first.
