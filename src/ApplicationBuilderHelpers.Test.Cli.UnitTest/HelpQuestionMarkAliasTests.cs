@@ -96,12 +96,13 @@ public class HelpQuestionMarkAliasTests : CliTestBase
     }
 
     [Fact]
-    public async Task Alias_WithBadValue_ErrorsOnValue()
+    public async Task Alias_WithBadValue_ShowsHelp()
     {
         var result = await Runner.RunAsync("test", "mytarget", "--timeout=banana", "-?");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid value 'banana' for option '--timeout'");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
