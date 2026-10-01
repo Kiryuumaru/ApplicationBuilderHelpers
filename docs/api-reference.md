@@ -266,7 +266,7 @@ string connStr = configuration.GetRefValue("ConnectionString");
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` |
 | Cancellation (`CancellationToken` / Ctrl+C) | `130` |
 
-Duplicate errors list first, then missing, then invalid-value errors. Missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`. Every help screen lists `-V, --version` under `GLOBAL OPTIONS:`. Usage-error footers hint at both `--help` and `--version`, except when the failing call already contained `--help`/`-h`, when only the `--version` hint survives. `Fault`/`NoImplementation` keep the `--help`-only footer.
+Duplicate errors list first, then missing, then invalid-value errors. Missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`. Every help screen lists `-V, --version` under `GLOBAL OPTIONS:`. Usage-error footers pair a route-relative `--help` hint with a global `--version` hint, except when the failing call already contained `--help`/`-h`, when only the `--version` hint survives. `Fault`/`NoImplementation` keep the `--help`-only footer.
 
 ```csharp
 public enum CommandErrorKind
@@ -306,7 +306,7 @@ public class CommandException : Exception
 | `1` or custom | Your `CommandException` exit code; unknown failures exit `1` |
 | `130` | Canceled (Ctrl+C or canceled token) |
 
-Shell completion answers before help and parsing. Help beats version: `--help --version` shows help. Unknown options and unknown commands beat both help and version. Usage errors print a footer pointing at the right `--help`. Full help and precedence rules live in [Advanced Topics](advanced.md).
+Shell completion answers before help and parsing. One pre-validation gate forgives help and version: either skips all validation when its flag is present, help beats version, and unknown/misuse/requires-subcommand/invalid-literal errors still beat both. Usage errors print a footer pointing at the right `--help`. Full help and precedence rules live in [Advanced Topics](advanced.md).
 
 Throw `CommandException` from `Run` to return a custom exit:
 
@@ -314,4 +314,4 @@ Throw `CommandException` from `Run` to return a custom exit:
 throw new CommandException("Configuration missing", exitCode: 3);
 ```
 
-`CommandException` carries `ExitCode`, `Kind` (usage vs. fault, which picks the footer), and optional `CommandName` (which scopes the hint). Constructors cover code-only, message plus code, message plus code plus kind, and code plus kind. Keep messages and help text secret-free; never put values or stack traces in them.
+`CommandException` carries `ExitCode`, `Kind` (usage vs. fault, which picks the footer), and optional `CommandName` (which scopes the help hint; the version hint stays global). Constructors cover code-only, message plus code, message plus code plus kind, and code plus kind. Keep messages and help text secret-free; never put values or stack traces in them.

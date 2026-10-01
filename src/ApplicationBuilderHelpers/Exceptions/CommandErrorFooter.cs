@@ -54,8 +54,12 @@ internal static class CommandErrorFooter
             ? $"Run '{executableName} {commandName} --help'"
             : $"Run '{executableName} --help'";
 
-    private static string VersionHint(string executableName, string? commandName) =>
-        !string.IsNullOrEmpty(commandName)
-            ? $"Run '{executableName} {commandName} --version' to show version information."
-            : $"Run '{executableName} --version' to show version information.";
+    /// <summary>
+    /// Version hint is global-only per ADR-0012; commandName is kept for signature compatibility and intentionally unused.
+    /// </summary>
+    private static string VersionHint(string executableName, string? commandName)
+    {
+        _ = commandName;
+        return $"Run '{executableName} --version' to show version information.";
+    }
 }

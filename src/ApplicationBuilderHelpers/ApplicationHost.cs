@@ -52,22 +52,22 @@ public abstract class ApplicationHost(IHostApplicationBuilder builder, IHost hos
         }
         catch (CommandException ex)
         {
-            ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName);
+            ShowErrorMessage(ex.Message, ex.Kind, ex.CommandName, HelpVersionGateway.RequestedHelp(Environment.GetCommandLineArgs().Skip(1).ToArray()));
             return ex.ExitCode;
         }
 
         return 0;
     }
 
-    private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName)
+    private void ShowErrorMessage(string message, CommandErrorKind kind, string? commandName, bool showHelpRequested = false)
     {
-        var executableName = AssemblyHelpers.GetAutoDetectedExecutableName();
+        var executableName = string.IsNullOrEmpty(Builder.Environment.ApplicationName) ? AssemblyHelpers.GetAutoDetectedExecutableName() : Builder.Environment.ApplicationName;
 
         ConsoleOutput.WriteLineError($"Error: {message}", ConsoleColor.Red);
 
         ConsoleOutput.WriteLineError();
 
-        ConsoleOutput.WriteLineError(CommandErrorFooter.Resolve(kind, executableName, commandName));
+        ConsoleOutput.WriteLineError(CommandErrorFooter.Resolve(kind, executableName, commandName, showHelpRequested));
     }
 }
 

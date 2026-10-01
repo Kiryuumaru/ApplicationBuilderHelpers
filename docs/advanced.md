@@ -121,12 +121,12 @@ The library catches `CommandException` and returns its exit code. Other unhandle
 
 ### Error Footers
 
-Usage errors print a `Run '...' --help` + `Run '...' --version` footer matching the error kind:
+Usage errors print a help hint plus a global version hint:
 
-- `RequiresSubcommand` with a command name points at that command's help and version; without one it points at global help and version.
-- `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue`, `DuplicateOption` with a command name point at that command's help and version; without one they point at global help and version.
+- `RequiresSubcommand` with a command name points at that command's help; without one it points at global help. The version hint stays global.
+- `UnknownOption`, `MissingRequired`, `UnknownCommand`, `InvalidValue`, `DuplicateOption` with a command name point at that command's help; without one they point at global help. The version hint stays global.
 - `Fault`, `NoImplementation` print only the `--help` hint.
-- When the failing call already contained `--help`/`-h`, only the `--version` hint survives.
+- When the failing call already contained `--help`/`-h`, only the `--version` hint survives. Parser and host threads agree here.
 
 ### Did-You-Mean Suggestions
 
@@ -156,12 +156,12 @@ You never define `--help` or `--version`. Help flags are `--help`/`-h`, plus the
 
 On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
 
-Four rules decide ties:
+One gate decides help/version forgiveness before any validation:
 
 1. Bare `--help` (or `-h`, `-?`, `/?`) shows help before any checks.
-2. `--help` beats a missing required option.
-3. A bad value beats `--help` when both appear.
-4. `--help` beats `--version` when both appear.
+2. Help or version with its flag present skips all validation (so `--help` beats a missing required option).
+3. Help beats version when both appear.
+4. Unknown, misuse, requires-subcommand, and invalid-literal errors still beat both (so a bad value beats `--help` when both appear).
 
 Help never hides typos. `bogus --help` reports an unknown command (exit 2). `--help=<anything>` is an invalid value (exit 2), never help, and `-?=<anything>` / `/?=<anything>` are invalid values the same way. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
 

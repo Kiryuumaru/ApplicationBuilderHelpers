@@ -231,7 +231,7 @@ The library answers shell TAB probes before help and parsing. A command named `c
 | Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` |
 | External cancellation (outer `CancellationToken` / Ctrl+C) | `130` |
 
-Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted options. Full table lives in [API Reference](api-reference.md).
+Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted options. Error footers pair a route-relative `--help` hint with a global `--version` hint. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
 
 Bad shell names and install errors exit `2`. File errors exit `1`. Bare `completions` falls through to normal parsing.
 
