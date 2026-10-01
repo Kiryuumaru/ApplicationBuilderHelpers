@@ -91,13 +91,14 @@ internal sealed class CommandReflectionCache
     private static CommandOptionDescriptor FromOptionProperty(PropertyInfo property, CommandOptionAttribute attribute)
     {
         var (enumCandidateType, enumCandidateNames) = CommandDescriptorReflection.GetEnumCandidate(property.PropertyType);
+        var longName = attribute.Term ?? property.Name.ToLowerInvariant();
 
         return new CommandOptionDescriptor(
             property,
             property.PropertyType,
             property.DeclaringType,
-            attribute.ShortTerm,
-            attribute.Term ?? property.Name.ToLowerInvariant(),
+            CommandDescriptorReflection.ResolveShortName(longName, attribute.ShortTerm),
+            longName,
             attribute.Description,
             attribute.Required,
             attribute.EnvironmentVariable,

@@ -113,6 +113,28 @@ public sealed class DuplicateShortNameAnalyzerTests
         Assert.Empty(diagnostics);
     }
 
+    [Fact]
+    public void PromotedSingleLetterLong_BesideSameExplicitShort_ReportsABH001Error()
+    {
+        const string source = AttributeStub + """
+            public sealed class PromotedSingleLetterCommand
+            {
+                [CommandOption("a")]
+                public string Alpha { get; set; } = "x";
+                [CommandOption('a', "arc")]
+                public string Arc { get; set; } = "y";
+            }
+            """;
+
+        var diagnostics = GetAnalyzerDiagnostics(source);
+
+        var error = Assert.Single(diagnostics);
+        Assert.Equal(DuplicateShortNameAnalyzer.DiagnosticId, error.Id);
+        Assert.Contains("'-a'", error.GetMessage());
+        Assert.Contains("-a, --a", error.GetMessage());
+        Assert.Contains("-a, --arc", error.GetMessage());
+    }
+
     private static ImmutableArray<Diagnostic> GetAnalyzerDiagnostics(string source, string? typeName = null)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);

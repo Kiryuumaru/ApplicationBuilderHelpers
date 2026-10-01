@@ -105,6 +105,8 @@ Mark a property as a named flag. Pick one of three forms:
 [CommandOption("verbose")]      // Long only: --verbose
 ```
 
+A single-letter long name also answers its single-dash alias: `[CommandOption("a")]` binds both `-a` and `--a`. An explicit short wins.
+
 | Setting | What it does |
 |---|---|
 | `Description` | Help text |

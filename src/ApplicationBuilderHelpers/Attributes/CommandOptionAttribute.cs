@@ -30,7 +30,7 @@ public class CommandOptionAttribute : Attribute
     }
 
     /// <summary>
-    /// Declares a long-only option; see the canonical overload for the short-plus-long form.
+    /// Declares a long-only option, except a single-letter long also answers its single-dash alias unless reserved; see the canonical overload for the short-plus-long form.
     /// </summary>
     /// <param name="term">The long flag name (e.g. <c>"verbose"</c> for <c>--verbose</c>).</param>
     public CommandOptionAttribute(string term)
@@ -45,7 +45,7 @@ public class CommandOptionAttribute : Attribute
     public string? Term { get; set; }
 
     /// <summary>
-    /// Gets or sets the single-character short flag; null (default) exposes the long flag only.
+    /// Gets or sets the single-character short flag; null (default) exposes the long flag only, except a single-letter long also answers its single-dash alias.
     /// </summary>
     public char? ShortTerm { get; set; }
 

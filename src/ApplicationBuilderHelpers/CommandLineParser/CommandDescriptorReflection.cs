@@ -10,7 +10,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <see cref="SubCommandOptionInfo"/>, <see cref="SubCommandArgumentInfo"/>
 /// and <see cref="CommandReflectionCache"/>: the C# <c>required</c>-keyword
 /// query and the nullable-unwrap/enum-candidate
-/// query. Performs no walk, no ordering, and keeps no parser-derived state.
+/// query, plus the single-letter-long short-resolution rule. Performs no walk, no ordering, and keeps no parser-derived state.
 /// </summary>
 internal static class CommandDescriptorReflection
 {
@@ -27,6 +27,19 @@ internal static class CommandDescriptorReflection
 #endif
 
         return hasRequiredMemberAttribute;
+    }
+
+    /// <summary>
+    /// Resolves the effective short flag: an explicit short wins; otherwise a
+    /// single-character long name doubles as the short (case preserved).
+    /// </summary>
+    internal static char? ResolveShortName(string? longName, char? shortTerm)
+    {
+        if (shortTerm.HasValue)
+            return shortTerm;
+        if (longName?.Length == 1)
+            return longName[0];
+        return null;
     }
 
     /// <summary>
