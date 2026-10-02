@@ -200,7 +200,7 @@ Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE
 
 ## Global Options
 
-Declare an option identically on every command and it becomes one shared global: one value in every scope. A repeated scalar takes the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2, `Duplicate option: <display-name>`). Collections stay exempt and accumulate. Flags stay exempt. Values from the environment stay exempt. An explicit flag beats the environment-variable fallback, which covers omitted options only. Names match case-sensitively.
+Declare an option identically on every command and it becomes one shared global: one value in every scope. A repeated scalar takes the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2, `Duplicate option: <display-name>`). Collections stay exempt and accumulate. Flags stay exempt. Values from the environment stay exempt. An explicit flag beats the environment-variable fallback, which covers omitted options only. Option names always match exactly (`Ordinal`). `CaseSensitive` affects `FromAmong` values only; it never affects names. Type a prefix or shorthand and the parser reports `Unknown option` (exit `2`).
 
 ## Tokenizer Behavior
 

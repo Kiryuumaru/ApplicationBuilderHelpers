@@ -89,7 +89,7 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | `EnvironmentVariable` | Env var used when the flag is not typed |
 | `Required` | Fail with exit `2` when not supplied |
 | `FromAmong` | Only accept these values (enums fill this in automatically) |
-| `CaseSensitive` | Match `FromAmong` values with exact case |
+| `CaseSensitive` | Match `FromAmong` values with exact case; does NOT affect option NAME matching (names always match exactly) |
 | `Secret` | Never print the value; help shows `[REDACTED]` |
 
 Do not declare your own `-h` or `-V`. They belong to `--help` and `--version` and fail the build. `-?` and `/?` are also reserved as bare-token help aliases on every OS; quote them on Unix shells (`'-?'`, `'/?'`) so the shell does not glob them.
@@ -141,7 +141,7 @@ public string? DestPath { get; set; }
 | `Description` | Help text |
 | `Required` | Fail with exit `2` when not supplied |
 | `FromAmong` | Only accept these values |
-| `CaseSensitive` | Match with exact case |
+| `CaseSensitive` | Match values with exact case; does NOT affect argument NAME matching |
 | `Secret` | Never print the value |
 
 Typing `""` counts as supplied and binds as `""` for text. Check with `string.IsNullOrEmpty`, not `== null`.
