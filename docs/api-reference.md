@@ -113,7 +113,7 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | `EnvironmentVariable` | Env var used when the flag is not typed |
 | `Required` | Fail with exit `2` when not supplied |
 | `FromAmong` | Only accept these values |
-| `CaseSensitive` | Match `FromAmong` with exact case |
+| `CaseSensitive` | Match `FromAmong` with exact case; does NOT affect option NAME matching (names always match exactly) |
 | `Secret` | Never print the value; help shows `[REDACTED]` |
 
 A typed flag always beats the env fallback. Env covers omitted options only. Do not declare your own `-h` or `-V`; they belong to help and version. See [Commands](commands.md) for typing rules.
@@ -134,7 +134,7 @@ public string SourceFile { get; set; } = "";
 | `Description` | Help text |
 | `Required` | Fail with exit `2` when not supplied |
 | `FromAmong` | Only accept these values |
-| `CaseSensitive` | Match with exact case |
+| `CaseSensitive` | Match values with exact case; does NOT affect argument NAME matching |
 | `Secret` | Never print the value |
 
 Typing `""` counts as supplied. Check text with `string.IsNullOrEmpty`, not `== null`.
