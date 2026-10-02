@@ -3,6 +3,7 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
@@ -18,6 +19,10 @@ internal sealed class CommandHierarchyBuilder(
 
     private readonly Dictionary<string, SubCommandInfo> _allCommands = [];
 
+    private readonly Dictionary<string, SubCommandOptionInfo> _globalRegistry = new(StringComparer.Ordinal);
+
+    public IReadOnlyDictionary<string, SubCommandOptionInfo> GlobalRegistry => _globalRegistry;
+
     public IReadOnlyDictionary<string, SubCommandInfo> AllCommands => _allCommands;
 
     public void BuildCommandHierarchy()
@@ -28,6 +33,7 @@ internal sealed class CommandHierarchyBuilder(
             Description = commandBuilder.ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription()
         };
         _allCommands.Clear();
+        _globalRegistry.Clear();
 
         foreach (var typedCommandHolder in commandBuilder.Commands)
         {
@@ -53,6 +59,7 @@ internal sealed class CommandHierarchyBuilder(
             InsertCommandIntoHierarchy(subCommandInfo);
         }
 
+        BuildGlobalOptionRegistry();
         DetermineGlobalOptions();
     }
 
@@ -133,7 +140,8 @@ internal sealed class CommandHierarchyBuilder(
         {
             foreach (var globalOption in RootCommand.Options.Where(o => o.IsGlobal))
             {
-                if (!result.Options.Any(o => o.GetDisplayName() == globalOption.GetDisplayName()))
+                var canonicalKey = ParseResult.GetCanonicalOptionKey(globalOption);
+                if (!result.Options.Any(o => ReferenceEquals(o, globalOption) || string.Equals(ParseResult.GetCanonicalOptionKey(o), canonicalKey, StringComparison.Ordinal)))
                 {
                     result.Options.Add(globalOption);
                 }
@@ -199,12 +207,48 @@ internal sealed class CommandHierarchyBuilder(
         return null;
     }
 
+    private void BuildGlobalOptionRegistry()
+    {
+        foreach (var option in RootCommand.Options)
+        {
+            RegisterGlobalOption(option);
+        }
+
+        foreach (var command in _allCommands.Values)
+        {
+            foreach (var option in command.Options)
+            {
+                RegisterGlobalOption(option);
+            }
+        }
+    }
+
+    private void RegisterGlobalOption(SubCommandOptionInfo option)
+    {
+        if (!option.IsGlobal)
+            return;
+        if (string.Equals(option.LongName, "help", StringComparison.Ordinal)
+            || string.Equals(option.LongName, "version", StringComparison.Ordinal))
+            return;
+        _globalRegistry.TryAdd(ParseResult.GetCanonicalOptionKey(option), option);
+    }
+
     private void DetermineGlobalOptions()
     {
+        if (_globalRegistry.Count > 0)
+        {
+            AddBuiltInGlobalOptions();
+            return;
+        }
+
+        var promotedKeys = new HashSet<string>(StringComparer.Ordinal);
         var concreteCommands = _allCommands.Values.Where(c => c.HasImplementation).ToList();
 
         if (concreteCommands.Count == 0)
+        {
+            AddBuiltInGlobalOptions();
             return;
+        }
 
         var optionsBySignature = new Dictionary<string, List<(SubCommandOptionInfo option, SubCommandInfo command)>>();
 
@@ -244,15 +288,22 @@ internal sealed class CommandHierarchyBuilder(
                         option.IsInherited = true;
                     }
 
+                    _ = promotedKeys.Add(ParseResult.GetCanonicalOptionKey(firstOption));
+
                     if (!RootCommand!.Options.Any(o => o.GetDisplayName() == signature))
                     {
                         var globalOption = CreateGlobalOptionCopy(firstOption);
                         globalOption.BindTarget = RootCommand;
                         RootCommand.Options.Add(globalOption);
                     }
+                    var promotedCopy = RootCommand.Options.First(o => o.GetDisplayName() == signature);
+                    _ = _globalRegistry.TryAdd(ParseResult.GetCanonicalOptionKey(promotedCopy), promotedCopy);
                 }
             }
         }
+
+        if (promotedKeys.Count > 0)
+            Debug.WriteLine($"[ABH] Global options resolved via legacy promotion fallback (no explicit [CommandOption(IsGlobal=true)] declaration found); promoted {promotedKeys.Count} option(s): {string.Join(",", promotedKeys.OrderBy(k => k, StringComparer.Ordinal))}. Declare the global on a common ancestor for single truth.");
 
         AddBuiltInGlobalOptions();
     }

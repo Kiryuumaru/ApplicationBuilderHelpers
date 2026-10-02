@@ -11,25 +11,51 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal sealed class ArgumentParser
 {
     /// <summary>Parses argv into the target command plus option/argument occurrences; throws on usage errors.</summary>
-    public ParseResult ParseCommandLine(SubCommandInfo rootCommand, string[] args)
+    public ParseResult ParseCommandLine(SubCommandInfo rootCommand, string[] args, IReadOnlyDictionary<string, SubCommandOptionInfo>? globals = null)
     {
         var result = new ParseResult();
         var argIndex = 0;
 
         result.TargetCommand = rootCommand!;
+        var pathGlobals = globals ?? new Dictionary<string, SubCommandOptionInfo>();
 
-        while (argIndex < args.Length && !args[argIndex].StartsWith('-') && args[argIndex] != "/?")
+        while (argIndex < args.Length)
         {
-            var child = result.TargetCommand.FindChild(args[argIndex]);
-            if (child != null)
-            {
-                result.TargetCommand = child;
-                argIndex++;
-            }
-            else
-            {
+            var token = args[argIndex];
+            if (token == "--" || token == "/?")
                 break;
+            if (token.StartsWith('-'))
+            {
+                if (IsNumericValue(token) || HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                    break;
+                var matched = pathGlobals.Values.FirstOrDefault(o => o.MatchesArgument(token));
+                if (matched == null)
+                    break;
+                var consumable = argIndex + 1 < args.Length && !IsFlagLookingToken(args[argIndex + 1]) ? args[argIndex + 1] : null;
+                if (!matched.IsFlag && IsBareValuedToken(matched, token) && consumable == null)
+                    break;
+                if (FindValuedNotLastToken(result.TargetCommand.AllOptions, token).HasValue)
+                    break;
+                string? pathValue;
+                try
+                {
+                    pathValue = matched.ExtractValue(token, consumable);
+                }
+                catch (CommandException)
+                {
+                    break;
+                }
+                result.AddOptionValue(matched, pathValue);
+                argIndex++;
+                if (!matched.IsFlag && IsBareValuedToken(matched, token) && consumable != null)
+                    argIndex++;
+                continue;
             }
+            var child = result.TargetCommand.FindChild(token);
+            if (child == null)
+                break;
+            result.TargetCommand = child;
+            argIndex++;
         }
 
         if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-') && args[0] != "/?" && !args[0].StartsWith("/?=", StringComparison.Ordinal))
