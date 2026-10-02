@@ -7,7 +7,7 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>Parse stage: resolves the target command then options/arguments against it.</summary>
-/// <remarks>Order: path-walk → zero-match guard → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe → RequiresSubcommand guard → options/arguments.</remarks>
+/// <remarks>Order: path-walk → zero-match guard → pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe → RequiresSubcommand guard → options/arguments.</remarks>
 internal sealed class ArgumentParser
 {
     /// <summary>Parses argv into the target command plus option/argument occurrences; throws on usage errors.</summary>
@@ -42,6 +42,16 @@ internal sealed class ArgumentParser
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
             }
+        }
+
+        if ((!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0) || IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
+        {
+            var helpOrderMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
+                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
+            if (helpOrderMisuse != null)
+                throw IsHelpEqualsOrNegatedToken(helpOrderMisuse, result.TargetCommand.AllOptions) ? HelpMisuseError(helpOrderMisuse, result.TargetCommand.FullCommandName) : VersionMisuseError(helpOrderMisuse, result.TargetCommand.FullCommandName);
+            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
         }
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)

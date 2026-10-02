@@ -6,7 +6,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest.HumanFlow;
 /// Leading bare <c>--help</c> at the concrete root (MainCommand merged at
 /// root) routes a valid trailing subcommand to its help: <c>--help test</c>
 /// renders target help (exit 0). A bogus bare word errors (exit 2) and
-/// <c>--help --bogus</c> renders root help (exit 0).
+/// <c>--help --bogus</c> reports the unknown option (exit 2).
 /// Leaf help routing with a trailing value is preserved.
 /// </summary>
 public class RootRoutingDivergenceTests : CliTestBase
@@ -54,15 +54,14 @@ public class RootRoutingDivergenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task ConcreteRoot_Help_WithTrailingUnknownOption_ShowsRootHelp()
+    public async Task ConcreteRoot_Help_WithTrailingUnknownOption_ReportsUnknownOption()
     {
         var result = await Runner.RunAsync("--help", "--bogus");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertExitCode(result, 0);
-        CliTestAssertions.AssertOutputContains(result, "USAGE:");
-        CliTestAssertions.AssertOutputContains(result, "COMMANDS:");
-        CliTestAssertions.AssertOutputContains(result, "GLOBAL OPTIONS:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "ApplicationBuilderHelpers Test CLI - Default Command");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: --bogus");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
     }
 
     [Fact]

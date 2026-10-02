@@ -10,7 +10,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// only leaf subcommands has no root implementation, so bare or help-first
 /// invocations stay on the abstract-root branch of <c>ArgumentParser</c>.
 /// Bare invocations fail with exit 2 naming <c>'&lt;root&gt;'</c> plus a global
-/// footer; leading <c>--help</c> with no trailing name (or a trailing flag)
+/// footer; leading <c>--help</c> with no trailing name
 /// renders the global model (COMMANDS section), while a valid trailing
 /// subcommand name routes to that target's help; unknown and post-separator
 /// tokens keep their error kinds. Term validation (<c>SubCommandInfo.FromCommand</c> plus the
@@ -143,16 +143,13 @@ public sealed class AbstractRootRequiresSubcommandTests
     }
 
     [Fact]
-    public async Task Help_First_With_Unknown_Flag_Shows_Global_Help()
+    public async Task Help_First_With_Unknown_Flag_Reports_Unknown_Option()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--help", "--bogus"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("USAGE:", output);
-        Assert.Contains("<COMMAND>", output);
-        Assert.Contains("COMMANDS:", output);
-        Assert.Contains("GLOBAL OPTIONS:", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: --bogus", error);
     }
 
     [Fact]
