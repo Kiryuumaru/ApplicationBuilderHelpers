@@ -89,6 +89,9 @@ internal sealed class CompletionGateway(
             position = Math.Max(0, Math.Min(position, commandline.Length));
 
             var (probeArgs, partial) = SplitCompletionPrefix(commandline, position);
+            if (partial.StartsWith("@", StringComparison.Ordinal) && !partial.StartsWith("@@", StringComparison.Ordinal))
+                return;
+            probeArgs = ResponseFileExpander.Expand(probeArgs);
             var candidates = CompletionEngine.Complete(rootCommand, probeArgs, partial);
             foreach (var candidate in candidates)
                 consoleOutput.WriteLine(candidate);
@@ -265,49 +268,6 @@ internal sealed class CompletionGateway(
         return (withoutExe[..^1], withoutExe[^1]);
     }
 
-    /// <summary>Tokenizes the pre-cursor prefix honoring single/double quotes.</summary>
-    private static List<string> TokenizeCompletionPrefix(string prefix)
-    {
-        var tokens = new List<string>();
-        var current = new System.Text.StringBuilder();
-        char? quote = null;
-        var hasToken = false;
-
-        for (var i = 0; i < prefix.Length; i++)
-        {
-            var c = prefix[i];
-            if (quote.HasValue)
-            {
-                if (c == quote.Value)
-                    quote = null;
-                else
-                    current.Append(c);
-                hasToken = true;
-            }
-            else if (c == '"' || c == '\'')
-            {
-                quote = c;
-                hasToken = true;
-            }
-            else if (char.IsWhiteSpace(c))
-            {
-                if (hasToken)
-                {
-                    tokens.Add(current.ToString());
-                    current.Clear();
-                    hasToken = false;
-                }
-            }
-            else
-            {
-                current.Append(c);
-                hasToken = true;
-            }
-        }
-
-        if (hasToken)
-            tokens.Add(current.ToString());
-
-        return tokens;
-    }
+    /// <summary>Tokenizes the pre-cursor prefix via the shared command-line splitter.</summary>
+    private static List<string> TokenizeCompletionPrefix(string prefix) => CommandLineTokenizer.Tokenize(prefix);
 }

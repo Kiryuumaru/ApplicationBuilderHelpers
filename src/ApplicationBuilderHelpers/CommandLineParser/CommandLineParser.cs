@@ -52,6 +52,7 @@ internal class CommandLineParser
     {
         try
         {
+            args = ResponseFileExpander.Expand(args);
             foreach (var dependency in ApplicationDependencyCollection.ApplicationDependencies)
             {
                 dependency.CommandPreparation(ApplicationBuilder);

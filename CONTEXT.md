@@ -27,6 +27,9 @@ See [Commands](docs/commands.md).
 - **Trailing bare repeat**: A value-taking option typed with no usable next word (for example `--tag` after `--tag=a`). Required inputs fail. Optional inputs keep the earlier value, or fail when no earlier value exists.
 - **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
 - **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands.
+- **Response file**: A text file of command-line words, referenced as `@path`. Words splice in before parsing.
+- **Expansion fault**: A bad `@file` reference (missing, unreadable, over limits, cycle, lone `@`). It exits `1`.
+- **Escaped `@`**: `@@x` means literal `@x`. An `@` inside a word stays literal.
 
 ## Services in commands
 

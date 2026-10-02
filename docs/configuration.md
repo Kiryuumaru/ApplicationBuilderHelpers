@@ -139,3 +139,14 @@ if (configuration.TryGetRefValue("ConnectionString", out var resolved))
 ```
 
 References can chain: `"A"` points at `"B"`, `"B"` points at `"C"`, `"C"` holds the real value. Matching ignores case. Chains resolve at most 32 hops. A cycle or a missing key fails to resolve instead of looping.
+
+## `@ref:` Versus `@file`
+
+`@ref:` reuses app settings. `@file` splices command-line words. They never cross.
+
+| Marker | Where it works | What it does |
+|---|---|---|
+| `@ref:OtherKey` | Settings values only | Copies another setting |
+| `@path` | Command-line words only | Splices file words before parsing |
+
+Do not put `@file` in settings. Do not put `@ref:` on the command line. Response-file rules live in [Commands](commands.md#response-files-file).

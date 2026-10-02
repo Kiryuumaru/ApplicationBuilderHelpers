@@ -270,7 +270,7 @@ string connStr = configuration.GetRefValue("ConnectionString");
 | Cancellation (`CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr) |
 | Host lifetime diagnostics | — | stderr or suppressed, never stdout |
 
-Duplicate errors list first, then missing, then invalid-value errors. Missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`. Every help screen lists `-V, --version` under `GLOBAL OPTIONS:`. Usage-error footers pair a route-relative `--help` hint with a global `--version` hint, except when the failing call already contained `--help`/`-h`, when only the `--version` hint survives. `Fault`/`NoImplementation` keep the `--help`-only footer.
+Duplicate errors list first, then missing, then invalid-value errors. Missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`. Every help screen lists `-V, --version` under `GLOBAL OPTIONS:`. Usage-error footers pair a route-relative `--help` hint with a global `--version` hint, except when the failing call already contained `--help`/`-h`, when only the `--version` hint survives. `Fault`/`NoImplementation` keep the `--help`-only footer. Response-file expansion faults exit `1` as `Fault` with the `--help`-only footer. Expansion runs before completion, help, and parsing, so a fault beats help. Full rules and limits live in [Commands](commands.md#response-files-file).
 
 ```csharp
 public enum CommandErrorKind
