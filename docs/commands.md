@@ -119,6 +119,68 @@ Values compare after converting the typed text to your property type. So `02` ma
 - Unknown options report the name only, never the value: `Unknown option: --pasword`.
 - Repeats: flags stay put; repeats of a valued scalar take the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2). Collections gather every value and stay exempt, as do flags and environment-supplied values.
 - `Required` options show `(required)` in help after the description.
+- `@file` expands before parsing. File words splice in place.
+- Words after the first bare `--` never expand. They stay literal, even `@@x`.
+- `@@x` means literal `@x` before `--`. Lone `@` fails (exit `1`).
+- An `@` inside a word never expands. `user@example.com` stays literal.
+
+## Response Files (`@file`)
+
+Put common words in a file. Reference it with `@path`. The library splices file words in place before parsing.
+
+```sh
+myapp @args.rsp
+myapp deploy @prod.rsp --dry-run
+```
+
+`args.rsp` holds plain words:
+
+```text
+--verbose --data hello
+```
+
+Quote values with spaces. Use `"` or `'`. Newlines count as spaces. Files have no comments. An unterminated quote runs to end of file and is accepted as-is.
+
+```text
+--data "hello world"
+--verbose
+```
+
+Rules:
+
+- Expansion runs before completion, help, and parsing. Help from a file renders help (exit `0`). An expansion fault still fails (exit `1`).
+- A `@file` token expands wherever it appears before `--`. After `--` it stays literal.
+- `@@x` means literal `@x`. This works on the command line and inside files.
+- Lone `@` names no file. It fails (exit `1`).
+- Relative paths resolve against the current directory. Absolute paths work from any directory.
+- Files can reference files. Reuse of one file twice succeeds. A cycle fails.
+- Completion on a partial `@word` returns nothing (exit `0`). Other probes expand first, then complete.
+
+Limits:
+
+| Limit | Value |
+|---|---|
+| Max file size | 1 MB (1048576 bytes) per file |
+| Max total read | 4 MB (4194304 bytes) |
+| Max expanded args | 10000 args |
+| Max nesting depth | 8 levels |
+
+Errors exit `1` as `Fault` with a help-only footer. The message names the cause:
+
+| Cause | Message contains |
+|---|---|
+| Lone `@` | `names no file` |
+| Missing file | `not found` |
+| Unreadable path | `is unreadable` |
+| File over 1 MB | `exceeds size limit` |
+| Total over 4 MB | `total size limit` |
+| Over 10000 args | `exceeds 10000 arguments` |
+| Over depth 8 | `exceeds nesting depth 8` |
+| Cycle | `forms a cycle` |
+
+The 10000-arg limit applies to the final expanded argv, including words typed on the command line. A bare `--` on the command line stops expansion after it; a `--` inside a file is an ordinary word and does not stop expansion.
+
+This is argv only. It never reads app settings. For settings reuse, see `@ref:` in [Configuration](configuration.md).
 
 ## Arguments
 
