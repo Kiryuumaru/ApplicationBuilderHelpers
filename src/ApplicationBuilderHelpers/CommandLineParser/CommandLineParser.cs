@@ -147,7 +147,7 @@ internal class CommandLineParser
 
     /// <summary>Parses argv into the target command plus option/argument occurrences.</summary>
     private ParseResult ParseCommandLine(string[] args) =>
-        _parser.ParseCommandLine(GetRootCommandOrThrow(), args);
+        _parser.ParseCommandLine(GetRootCommandOrThrow(), args, _hierarchy.GlobalRegistry);
 
     /// <summary>Returns the built root; throws when the hierarchy was never built.</summary>
     private SubCommandInfo GetRootCommandOrThrow() =>
