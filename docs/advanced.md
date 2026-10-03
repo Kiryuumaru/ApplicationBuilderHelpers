@@ -138,6 +138,8 @@ Near-misses get a pointer. Far misses stay silent:
 - `No command found for 'deply'. Did you mean 'deploy'?`
 - `Unknown subcommand 'gett'. Did you mean 'get'?`
 
+A concrete root with its own run reports a leading bare miss as `No command found`, with a pointer only when close. Behind leading help tokens a far miss reports `No command found` before forwarding; a near miss keeps the legacy subcommand wording.
+
 Reserved `--help`/`--version` always compete in option ranking: `--versoin` suggests
 `--version`, and `--ver` suggests `--version` over `--verbose` on an exact
 distance + same-initial tie. A strictly closer user option still wins.
@@ -198,7 +200,7 @@ One gate decides help/version forgiveness before any validation:
 3. Help beats version when both appear.
 4. Unknown, misuse, requires-subcommand, and invalid-literal errors still beat both (so a bad value beats `--help` when both appear).
 
-Help never hides typos. `bogus --help` reports an unknown command (exit 2). `--help=<anything>` is an invalid value (exit 2), never help, and `-?=<anything>` / `/?=<anything>` are invalid values the same way. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
+Help never hides typos. `bogus --help` reports an unknown command (exit 2). On a concrete root with its own run, a far miss behind leading help reports `No command found` before forwarding; a near miss keeps the legacy wording and only a hit forwards to target help. `--help=<anything>` is an invalid value (exit 2), never help, and `-?=<anything>` / `/?=<anything>` are invalid values the same way. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
 
 Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE>`) live in [Configuration](configuration.md#help-placeholders). Required markers live in [Configuration](configuration.md#required-options-in-help).
 

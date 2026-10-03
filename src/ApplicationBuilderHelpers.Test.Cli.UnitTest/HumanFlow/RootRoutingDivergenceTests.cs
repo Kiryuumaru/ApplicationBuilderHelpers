@@ -17,7 +17,7 @@ public class RootRoutingDivergenceTests : CliTestBase
         var result = await Runner.RunAsync("--help", "false");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'false'");
+        CliTestAssertions.AssertErrorContains(result, "No command found for 'false'");
     }
 
     [Fact]
