@@ -62,9 +62,9 @@ internal sealed class ArgumentParser
         {
             if (!IsExemptRootPositional(rootCommand, args[0]))
             {
-                var zeroMatchSuggestion = DidYouMean.FindBestMatch(
+                var zeroMatchSuggestion = DidYouMean.SuggestSubcommand(
                     args[0],
-                    DidYouMean.SubCommandCandidates(rootCommand.Children.Keys));
+                    rootCommand.Children.Keys);
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
             }
@@ -151,11 +151,9 @@ internal sealed class ArgumentParser
             var sentinelIndex = Array.IndexOf(args, "--");
             if (argIndex < args.Length && !args[argIndex].StartsWith('-') && args[argIndex] != "/?" && (sentinelIndex < 0 || argIndex < sentinelIndex))
             {
-                subcommandSuggestion = DidYouMean.FindBestMatch(
+                subcommandSuggestion = DidYouMean.SuggestSubcommand(
                     args[argIndex],
-                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
-                if (string.Equals(subcommandSuggestion, args[argIndex], StringComparison.Ordinal))
-                    subcommandSuggestion = null;
+                    result.TargetCommand.Children.Keys);
                 if (subcommandSuggestion != null
                     && !args.Skip(argIndex).Any(HelpVersionGateway.IsHelpToken))
                     throw new CommandException(
@@ -312,7 +310,7 @@ internal sealed class ArgumentParser
                         throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     if (name.Length == "--no-".Length)
                         throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, noValueCommandName);
-                    var noValueSuggestion = DidYouMean.FindBestMatch(
+                    var noValueSuggestion = DidYouMean.SuggestBlamedToken(
                         name,
                         DidYouMean.OptionCandidates(allOptions));
                     throw new CommandException(
@@ -347,7 +345,7 @@ internal sealed class ArgumentParser
                 var unknownEquals = unknownName.IndexOf('=');
                 if (unknownEquals >= 0)
                     unknownName = unknownName[..unknownEquals];
-                var optionSuggestion = DidYouMean.FindBestMatch(
+                var optionSuggestion = DidYouMean.SuggestBlamedToken(
                     unknownName,
                     DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
@@ -370,11 +368,9 @@ internal sealed class ArgumentParser
             }
             else
             {
-                var subcommandSuggestion = DidYouMean.FindBestMatch(
+                var subcommandSuggestion = DidYouMean.SuggestSubcommand(
                     argumentValue,
-                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
-                if (string.Equals(subcommandSuggestion, argumentValue, StringComparison.Ordinal))
-                    subcommandSuggestion = null;
+                    result.TargetCommand.Children.Keys);
                 var surplusMessage = subcommandSuggestion != null
                     ? $"Unknown subcommand '{argumentValue}'"
                     : $"Unexpected argument '{argumentValue}'";
@@ -422,7 +418,7 @@ internal sealed class ArgumentParser
                     var equals = nameOnly.IndexOf('=');
                     if (equals >= 0)
                         nameOnly = nameOnly[..equals];
-                    var fullTokenSuggestion = DidYouMean.FindBestMatch(
+                    var fullTokenSuggestion = DidYouMean.SuggestBlamedToken(
                         nameOnly,
                         DidYouMean.OptionCandidates(allOptions));
                     if (fullTokenSuggestion != null
@@ -646,7 +642,7 @@ internal sealed class ArgumentParser
                     throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 if (name.Length == "--no-".Length)
                     throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
-                var noValueSuggestion = DidYouMean.FindBestMatch(name, DidYouMean.OptionCandidates(allOptions));
+                var noValueSuggestion = DidYouMean.SuggestBlamedToken(name, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
             }
@@ -669,7 +665,7 @@ internal sealed class ArgumentParser
                     var fullEquals = fullNameOnly.IndexOf('=');
                     if (fullEquals >= 0)
                         fullNameOnly = fullNameOnly[..fullEquals];
-                    var fullSuggestion = DidYouMean.FindBestMatch(
+                    var fullSuggestion = DidYouMean.SuggestBlamedToken(
                         fullNameOnly,
                         DidYouMean.OptionCandidates(allOptions));
                     if (fullSuggestion != null
@@ -679,7 +675,7 @@ internal sealed class ArgumentParser
                 }
 
                 var clusterFragment = $"-{token[clusterFailing]}";
-                var clusterSuggestion = DidYouMean.FindBestMatch(clusterFragment, DidYouMean.OptionCandidates(allOptions));
+                var clusterSuggestion = DidYouMean.SuggestBlamedToken(clusterFragment, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion(SecretRedaction.UnknownClusterCharMessage(token, clusterFailing), clusterSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
             }
@@ -687,7 +683,7 @@ internal sealed class ArgumentParser
             var equals = unknownName.IndexOf('=');
             if (equals >= 0)
                 unknownName = unknownName[..equals];
-            var suggestion = DidYouMean.FindBestMatch(unknownName, DidYouMean.OptionCandidates(allOptions));
+            var suggestion = DidYouMean.SuggestBlamedToken(unknownName, DidYouMean.OptionCandidates(allOptions));
             throw new CommandException(
                 DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
         }
@@ -898,6 +894,11 @@ internal sealed class ArgumentParser
     }
 
     /// <summary>Whether the root accepts the leading token as a positional instead of an error.</summary>
+    /// <remarks>
+    /// The tie/silence probe routes through the subcommand emit gate on
+    /// purpose: a near-miss leaf name keeps its suggestion downstream, while
+    /// a tied or exact-known token returns null here and binds positionally.
+    /// </remarks>
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
     {
         if (!rootCommand.IsRoot || !rootCommand.HasImplementation)
@@ -910,9 +911,9 @@ internal sealed class ArgumentParser
             return true;
         if (rootCommand.FindChild(token) != null)
             return false;
-        return DidYouMean.FindBestMatch(
+        return DidYouMean.SuggestSubcommand(
             token,
-            DidYouMean.SubCommandCandidates(rootCommand.Children.Keys)) == null;
+            rootCommand.Children.Keys) == null;
     }
 
     /// <summary>Resolves which command a pre-separator help token renders help for.</summary>

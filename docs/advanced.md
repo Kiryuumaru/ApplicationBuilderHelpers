@@ -138,6 +138,11 @@ Near-misses get a pointer. Far misses stay silent:
 - `No command found for 'deply'. Did you mean 'deploy'?`
 - `Unknown subcommand 'gett'. Did you mean 'get'?`
 
+Fail-closed rules: an identical token never suggests itself, ambiguous
+ties stay silent with the plain unknown-token error (exit `2`), and
+same-first-letter matches at distance 3-4 only suggest for long tokens.
+Cluster fragments report the failing char only (`Unknown option: -z`).
+
 ## Host Logging
 
 Plain `Command` apps keep stdout clean by default. Status messages stay silent. Console logs write to stderr.
