@@ -25,8 +25,8 @@ See [Commands](docs/commands.md).
 - **Empty string**: Typing `""` counts as supplied. It binds as `""` for text. Named `bool` flags reject it. Other types follow their own parser.
 - **Omitted**: You supplied nothing, so an optional input keeps its starting value in code.
 - **Trailing bare repeat**: A value-taking option typed with no usable next word (for example `--tag` after `--tag=a`). Required inputs fail. Optional inputs keep the earlier value, or fail when no earlier value exists.
-- **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
-- **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands.
+- **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On a concrete root (own run plus children) only a hit behind leading help forwards to target help: a far miss reports `No command found` first and a near miss keeps the legacy wording. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
+- **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands. A root positional binds a bare word only when the root has no children.
 - **Response file**: A text file of command-line words, referenced as `@path`. Words splice in before parsing.
 - **Expansion fault**: A bad `@file` reference (missing, unreadable, over limits, cycle, lone `@`). It exits `1`.
 - **Escaped `@`**: `@@x` means literal `@x`. An `@` inside a word stays literal.
@@ -35,8 +35,8 @@ See [Commands](docs/commands.md).
 
 See [Commands](docs/commands.md).
 
-- **Asking for a service**: Adding `[FromServices]` so the library fills the property for you.
-- **Asking for a keyed service**: Adding a property-capable attribute named `FromKeyedServicesAttribute` with its key.
+- **Asking for a service**: Adding your `[FromServices]` shim so the library fills the property for you. Define the shims once; the gate matches by simple name in any namespace.
+- **Asking for a keyed service**: Adding your property-capable `FromKeyedServicesAttribute` shim with its `object` key (`[FromKeyedServices("primary")]` or `Key = ...`). The built-in keyed marker targets parameters only and cannot sit on properties.
 - **Marking for both input and service**: Putting a command-line marker (`[CommandOption]` or `[CommandArgument]`) and a service marker on the same property. This is always a build error with exit `1`.
 - **Hiding with `new`**: A derived property that hides a base property. Both copies are still checked, so a clash on either one still errors.
 

@@ -7,7 +7,7 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>Parse stage: resolves the target command then options/arguments against it.</summary>
-/// <remarks>Order: path-walk → zero-match guard → pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe → RequiresSubcommand guard → options/arguments.</remarks>
+/// <remarks>Order: path-walk → concrete-root miss gate → miss/near-miss-gated pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe (miss/near-miss-gated) → RequiresSubcommand guard → options/arguments.</remarks>
 internal sealed class ArgumentParser
 {
     /// <summary>Parses argv into the target command plus option/argument occurrences; throws on usage errors.</summary>
@@ -70,8 +70,32 @@ internal sealed class ArgumentParser
             }
         }
 
+        if (result.TargetCommand.IsRoot && result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // First bare pre-sentinel token after path globals that is not an exact
+            // child is a command miss, even without a suggestion. Help/version
+            // tokens stay on their own paths; only a leading bare miss is gated
+            // here, so later help-forward stays reachable.
+            var missSentinelIndex = Array.IndexOf(args, "--");
+            var missEnd = missSentinelIndex < 0 ? args.Length : missSentinelIndex;
+            var missToken = argIndex < missEnd ? args[argIndex] : null;
+            // "/?=" forms are never command misses; they stay misuse errors downstream.
+            var missIsBareNonChild = missToken != null && !missToken.StartsWith('-') && missToken != "/?" && !missToken.StartsWith("/?=", StringComparison.Ordinal) && !HelpVersionGateway.IsHelpToken(missToken) && !HelpVersionGateway.IsVersionToken(missToken) && result.TargetCommand.FindChild(missToken) == null;
+            if (missIsBareNonChild)
+            {
+                var missSuggestion = DidYouMean.SuggestSubcommand(missToken!, result.TargetCommand.Children.Keys);
+                throw new CommandException(
+                    DidYouMean.WithSuggestion($"No command found for '{missToken}'", missSuggestion), 2, CommandErrorKind.UnknownCommand);
+            }
+        }
+
         if ((!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0) || IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
         {
+            // Far trailing words report before help-forward, mirroring the
+            // leading-miss gate; near-miss words keep legacy error wording and
+            // hits/flag tails fall through to routing.
+            if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex) && ClassifyHelpTrailingMiss(result.TargetCommand, args, argIndex) is { } leadingHelpMiss)
+                throw leadingHelpMiss;
             var helpOrderMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (helpOrderMisuse != null)
@@ -914,6 +938,28 @@ internal sealed class ArgumentParser
         return DidYouMean.SuggestSubcommand(
             token,
             rootCommand.Children.Keys) == null;
+    }
+
+    /// <summary>Miss behind a leading help token: bare non-child far word, else null.</summary>
+    private static CommandException? ClassifyHelpTrailingMiss(SubCommandInfo target, string[] args, int argIndex)
+    {
+        if (!target.IsRoot || !target.HasImplementation || target.Children.Count == 0)
+            return null;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        var missToken = i < end ? args[i] : null;
+        if (missToken == null || missToken.StartsWith('-') || missToken == "/?" || missToken.StartsWith("/?=", StringComparison.Ordinal))
+            return null;
+        if (target.FindChild(missToken) != null)
+            return null;
+        var suggestion = DidYouMean.SuggestSubcommand(missToken, target.Children.Keys);
+        if (suggestion != null)
+            return null;
+        return new CommandException(
+            DidYouMean.WithSuggestion($"No command found for '{missToken}'", suggestion), 2, CommandErrorKind.UnknownCommand);
     }
 
     /// <summary>Resolves which command a pre-separator help token renders help for.</summary>

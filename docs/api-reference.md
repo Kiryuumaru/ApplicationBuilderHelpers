@@ -22,6 +22,7 @@ Create a builder, register commands, then run it:
 ```csharp
 // Program.cs
 using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Extensions;
 
 return await ApplicationBuilder.Create()
     .SetExecutableName("myapp")
@@ -141,9 +142,9 @@ Typing `""` counts as supplied. Check text with `string.IsNullOrEmpty`, not `== 
 
 ### Get Services in `Run`
 
-Mark a property with `[FromServices]` and the library fills it from the per-run scope before `Run`. A missing service fails with exit `1`. Never mix `[CommandOption]` and `[FromServices]` on one property; the build fails with exit `1`. See [Commands](commands.md).
+Define the `FromServices` / `FromKeyedServices` shims once in your app (see [Commands](commands.md)). Mark a property with your `[FromServices]` shim and the library fills it from the per-run scope before `Run`. A missing service fails with exit `1`. Never mix `[CommandOption]` and `[FromServices]` on one property; the build fails with exit `1`.
 
-Ask for `LifetimeService` with `[FromServices]` to register shutdown callbacks (`ApplicationExitingCallback`, `ApplicationExitedCallback`). See [Commands](commands.md).
+Ask for `LifetimeService` with your `[FromServices]` shim to register shutdown callbacks (`ApplicationExitingCallback`, `ApplicationExitedCallback`). See [Commands](commands.md).
 
 ## Share Setup
 
@@ -194,6 +195,9 @@ The library ships 24 parsers: `AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`
 Add a custom parser only for your own domain types. The easy way covers most cases: extend `CommandTypeParser<T>`, override `ParseValue`, and register it once.
 
 ```csharp
+// Program.cs
+using ApplicationBuilderHelpers;
+
 ApplicationBuilder.Create()
     .AddCommandTypeParser<CurrencyTypeParser>()
     .AddCommand<InvoiceCommand>()
@@ -231,6 +235,10 @@ The library ships 6 themes. `DefaultConsoleTheme` applies unless you pick anothe
 | `LightConsoleTheme` | The terminal uses a light background |
 
 ```csharp
+// Program.cs
+using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Themes;
+
 // Use a shared instance
 ApplicationBuilder.Create()
     .SetTheme(DarkConsoleTheme.Instance);
@@ -254,6 +262,9 @@ Point one setting at another key instead of copying the value. Chains can nest (
 | `GetRefValueOrDefault("Key", "fallback")` | Return the resolved value, or `"fallback"` instead |
 
 ```csharp
+using ApplicationBuilderHelpers.Extensions;
+using Microsoft.Extensions.Configuration;
+
 string connStr = configuration.GetRefValue("ConnectionString");
 ```
 
@@ -315,6 +326,8 @@ Shell completion answers before help and parsing. One pre-validation gate forgiv
 Throw `CommandException` from `Run` to return a custom exit:
 
 ```csharp
+using ApplicationBuilderHelpers.Exceptions;
+
 throw new CommandException("Configuration missing", exitCode: 3);
 ```
 
