@@ -212,33 +212,51 @@ Arguments belong to one command only. A root positional stays hidden from subcom
 
 ## Get Services in a Command
 
-Mark a property with `[FromServices]` and the library fills it before `Run`:
+Define these markers once in your app. The library ships no service attributes, so bare `[FromServices]` does not compile alone. The gate matches by simple name (`FromServicesAttribute` / `FromKeyedServicesAttribute`) in any namespace:
 
 ```csharp
-public class BuildCommand : Command
+using System;
+
+namespace MyApp;
+
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+public sealed class FromServicesAttribute : Attribute
 {
-    [FromServices]
-    public IMyService Service { get; set; } = null!;
-
-    protected override ValueTask Run(
-        ApplicationHost<HostApplicationBuilder> applicationHost,
-        CancellationToken cancellationToken)
-    {
-        // Service is already filled from the per-run scope.
-        return ValueTask.CompletedTask;
-    }
 }
-```
 
-For a keyed service, define a property-capable attribute with the same name:
-
-```csharp
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
 public sealed class FromKeyedServicesAttribute(object key) : Attribute
 {
     public object Key { get; } = key;
 }
 ```
+
+Do not use the built-in `Microsoft.Extensions.DependencyInjection.FromKeyedServicesAttribute` on properties. It targets parameters only and never compiles there. Use the shim above instead.
+
+Mark a property with your `[FromServices]` shim and the library fills it before `Run`:
+
+```csharp
+using MyApp;
+
+public class BuildCommand : Command
+{
+    [FromServices]
+    public IMyService Service { get; set; } = null!;
+
+    [FromKeyedServices("primary")]
+    public ICache Cache { get; set; } = null!;
+
+    protected override ValueTask Run(
+        ApplicationHost<HostApplicationBuilder> applicationHost,
+        CancellationToken cancellationToken)
+    {
+        // Service and Cache are already filled from the per-run scope.
+        return ValueTask.CompletedTask;
+    }
+}
+```
+
+Pass the key as the constructor argument. The key is an `object` and the `Key` property carries it. The gate also reads a `Key = ...` named argument from shims shaped that way.
 
 Rules:
 
@@ -249,9 +267,11 @@ Rules:
 
 ## Run Cleanup Code
 
-Ask for `LifetimeService` in your command, then register callbacks:
+Ask for `LifetimeService` in your command with your `[FromServices]` shim (`using MyApp;`), then register callbacks:
 
 ```csharp
+using MyApp;
+
 [FromServices]
 public LifetimeService Lifetime { get; set; } = null!;
 

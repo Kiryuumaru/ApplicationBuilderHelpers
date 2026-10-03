@@ -113,5 +113,5 @@ During `Run` your command receives an `ApplicationHost` with:
 - The command's own `AddServices` runs before shared modules. A later registration for the same service wins. So a command can replace a shared default by registering its own.
 - `BuilderPreparation` and `AddServices` run after the default host logging policy, so your logging settings win. See [Advanced Topics](advanced.md#host-logging).
 - In shared modules use `TryAdd*` (`TryAddSingleton`, `TryAddScoped`) when a command may replace the registration. The replacement then stays intentional.
-- Prefer the injected `[FromServices]` properties inside `Run`. They come from a scope that closes after the run.
+- Prefer the injected `[FromServices]` shim properties inside `Run` (define the shims once; see [Commands](commands.md)). They come from a scope that closes after the run.
 - For extra scoped services inside `Run`, open a scope: `applicationHost.Services.CreateScope()`. Never hold scoped services past the run.

@@ -35,8 +35,8 @@ See [Commands](docs/commands.md).
 
 See [Commands](docs/commands.md).
 
-- **Asking for a service**: Adding `[FromServices]` so the library fills the property for you.
-- **Asking for a keyed service**: Adding a property-capable attribute named `FromKeyedServicesAttribute` with its key.
+- **Asking for a service**: Adding your `[FromServices]` shim so the library fills the property for you. Define the shims once; the gate matches by simple name in any namespace.
+- **Asking for a keyed service**: Adding your property-capable `FromKeyedServicesAttribute` shim with its `object` key (`[FromKeyedServices("primary")]` or `Key = ...`). The built-in keyed marker targets parameters only and cannot sit on properties.
 - **Marking for both input and service**: Putting a command-line marker (`[CommandOption]` or `[CommandArgument]`) and a service marker on the same property. This is always a build error with exit `1`.
 - **Hiding with `new`**: A derived property that hides a base property. Both copies are still checked, so a clash on either one still errors.
 
