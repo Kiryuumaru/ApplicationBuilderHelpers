@@ -138,6 +138,10 @@ Near-misses get a pointer. Far misses stay silent:
 - `No command found for 'deply'. Did you mean 'deploy'?`
 - `Unknown subcommand 'gett'. Did you mean 'get'?`
 
+Reserved `--help`/`--version` always compete in option ranking: `--versoin` suggests
+`--version`, and `--ver` suggests `--version` over `--verbose` on an exact
+distance + same-initial tie. A strictly closer user option still wins.
+
 ## Host Logging
 
 Plain `Command` apps keep stdout clean by default. Status messages stay silent. Console logs write to stderr.
