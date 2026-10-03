@@ -140,6 +140,10 @@ Near-misses get a pointer. Far misses stay silent:
 
 A concrete root with its own run reports a leading bare miss as `No command found`, with a pointer only when close. Behind leading help tokens a far miss reports `No command found` before forwarding; a near miss keeps the legacy subcommand wording.
 
+Reserved `--help`/`--version` always compete in option ranking: `--versoin` suggests
+`--version`, and `--ver` suggests `--version` over `--verbose` on an exact
+distance + same-initial tie. A strictly closer user option still wins.
+
 ## Host Logging
 
 Plain `Command` apps keep stdout clean by default. Status messages stay silent. Console logs write to stderr.

@@ -24,6 +24,7 @@ internal static class DidYouMean
         string? best = null;
         var bestDistance = int.MaxValue;
         var bestPrefix = false;
+        var bestReserved = false;
         string? bestKey = null;
 
         foreach (var (key, display) in candidates)
@@ -33,6 +34,7 @@ internal static class DidYouMean
                 continue;
 
             var prefix = normalizedInput[0] == normalizedKey[0];
+            var reserved = IsReserved(normalizedKey);
             var distance = DamerauLevenshtein(normalizedInput, normalizedKey);
 
             var limit = prefix ? PrefixBonusMaxDistance : MaxDistance;
@@ -42,13 +44,15 @@ internal static class DidYouMean
             var isBetter = best == null
                 || distance < bestDistance
                 || (distance == bestDistance && prefix && !bestPrefix)
-                || (distance == bestDistance && prefix == bestPrefix && string.Compare(normalizedKey, bestKey, StringComparison.Ordinal) < 0);
+                || (distance == bestDistance && prefix == bestPrefix && reserved && !bestReserved)
+                || (distance == bestDistance && prefix == bestPrefix && reserved == bestReserved && string.Compare(normalizedKey, bestKey, StringComparison.Ordinal) < 0);
 
             if (isBetter)
             {
                 best = display;
                 bestDistance = distance;
                 bestPrefix = prefix;
+                bestReserved = reserved;
                 bestKey = normalizedKey;
             }
         }
@@ -72,7 +76,22 @@ internal static class DidYouMean
             if (option.ShouldShowNegation && option.NegatedBareName != null && option.NegatedLongName != null)
                 yield return (option.NegatedBareName, option.NegatedLongName);
         }
+
+        foreach (var reserved in ReservedCandidates)
+        {
+            if (seen.Add(reserved.Key))
+                yield return reserved;
+        }
     }
+
+    private static readonly (string Key, string Display)[] ReservedCandidates =
+    [
+        ("help", "--help"),
+        ("version", "--version"),
+    ];
+
+    private static bool IsReserved(string normalizedKey) =>
+        normalizedKey is "help" or "version";
 
     /// <summary>Builds subcommand candidates from child command names.</summary>
     internal static IEnumerable<(string Key, string Display)> SubCommandCandidates(IEnumerable<string> names)
