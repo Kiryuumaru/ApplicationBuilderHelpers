@@ -141,9 +141,9 @@ Typing `""` counts as supplied. Check text with `string.IsNullOrEmpty`, not `== 
 
 ### Get Services in `Run`
 
-Mark a property with `[FromServices]` and the library fills it from the per-run scope before `Run`. A missing service fails with exit `1`. Never mix `[CommandOption]` and `[FromServices]` on one property; the build fails with exit `1`. See [Commands](commands.md).
+Define the `FromServices` / `FromKeyedServices` shims once in your app (see [Commands](commands.md)). Mark a property with your `[FromServices]` shim and the library fills it from the per-run scope before `Run`. A missing service fails with exit `1`. Never mix `[CommandOption]` and `[FromServices]` on one property; the build fails with exit `1`.
 
-Ask for `LifetimeService` with `[FromServices]` to register shutdown callbacks (`ApplicationExitingCallback`, `ApplicationExitedCallback`). See [Commands](commands.md).
+Ask for `LifetimeService` with your `[FromServices]` shim to register shutdown callbacks (`ApplicationExitingCallback`, `ApplicationExitedCallback`). See [Commands](commands.md).
 
 ## Share Setup
 

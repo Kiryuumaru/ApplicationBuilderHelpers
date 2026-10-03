@@ -104,7 +104,7 @@ public class GreetCommand : Command
 }
 ```
 
-For automatic property filling with `[FromServices]`, see [Commands](commands.md).
+For automatic property filling, define the `[FromServices]` / `[FromKeyedServices]` shims once and see [Commands](commands.md).
 
 ## Share Setup Across Commands
 
