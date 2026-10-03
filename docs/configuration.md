@@ -9,6 +9,10 @@ Start with executable metadata, then help width, then a theme. Reach for `@ref:`
 All four setters are optional. When you skip them, the library detects values from your entry assembly's attributes.
 
 ```csharp
+// Program.cs
+using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Extensions;
+
 ApplicationBuilder.Create()
     .SetExecutableName("myapp")
     .SetExecutableTitle("My Application")
@@ -28,6 +32,10 @@ ApplicationBuilder.Create()
 ## Help Width
 
 ```csharp
+// Program.cs
+using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Extensions;
+
 ApplicationBuilder.Create()
     .SetHelpWidth(120);
 ```
@@ -79,6 +87,10 @@ The library ships 6 built-in color themes. Start with `DefaultConsoleTheme` unle
 ### Setting a Theme
 
 ```csharp
+// Program.cs
+using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Themes;
+
 // Use a built-in theme
 ApplicationBuilder.Create()
     .SetTheme(DarkConsoleTheme.Instance);
@@ -93,6 +105,9 @@ ApplicationBuilder.Create()
 Implement `IConsoleTheme` with 6 colors and pass an instance to `SetTheme`:
 
 ```csharp
+using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Interfaces;
+
 public class MyCustomTheme : IConsoleTheme
 {
     public ConsoleColor HeaderColor => ConsoleColor.Yellow;
@@ -130,6 +145,9 @@ Point one setting at another key instead of copying the value:
 | `GetRefValueOrDefault("Missing", "fallback")` | Return the resolved value, or `"fallback"` when nothing resolves. |
 
 ```csharp
+using ApplicationBuilderHelpers.Extensions;
+using Microsoft.Extensions.Configuration;
+
 string connStr = configuration.GetRefValue("ConnectionString");
 
 if (configuration.TryGetRefValue("ConnectionString", out var resolved))
