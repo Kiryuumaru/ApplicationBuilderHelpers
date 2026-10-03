@@ -47,7 +47,7 @@ Rules for names:
 | Name starting with `-` | Build error, exit `1`: names must not start with `-` |
 | Extra spaces (`"a  b"`) | Treated as single spaces |
 
-A root with no command behind it needs a subcommand: running it bare exits `2`. See [Advanced Topics](advanced.md).
+A root with no command behind it needs a subcommand: running it bare exits `2`. A root with its own run plus subcommands reports a bare non-child first word as `No command found` (`UnknownCommand`, exit `2`), with a pointer only when close. See [Advanced Topics](advanced.md).
 
 ### Command Base Classes
 
@@ -208,7 +208,7 @@ public string? DestPath { get; set; }
 
 Typing `""` counts as supplied and binds as `""` for text. Check with `string.IsNullOrEmpty`, not `== null`.
 
-Arguments belong to one command only. A root positional stays hidden from subcommands, so a surplus word fails with `Unexpected argument` (exit `2`).
+Arguments belong to one command only. A root positional stays hidden from subcommands. It binds a bare word only when the root has no children; with children the miss check runs first and a bare non-child word fails as `No command found` (exit `2`). A surplus word on a leaf fails with `Unexpected argument` (exit `2`).
 
 ## Get Services in a Command
 
@@ -299,7 +299,7 @@ The library answers shell TAB probes before help and parsing. A command named `c
 
 Host lifetime messages never reach stdout. They write to stderr or stay silent.
 
-Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted options. Error footers pair a route-relative `--help` hint with a global `--version` hint. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
+Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted options. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a far miss behind leading help tokens reports `No command found` before forwarding, while a near miss keeps the legacy subcommand wording and hits forward to target help. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
 
 Bad shell names and install errors exit `2` on stderr. File errors exit `1` on stderr. Bare `completions` falls through to normal parsing.
 

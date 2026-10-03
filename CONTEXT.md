@@ -25,8 +25,8 @@ See [Commands](docs/commands.md).
 - **Empty string**: Typing `""` counts as supplied. It binds as `""` for text. Named `bool` flags reject it. Other types follow their own parser.
 - **Omitted**: You supplied nothing, so an optional input keeps its starting value in code.
 - **Trailing bare repeat**: A value-taking option typed with no usable next word (for example `--tag` after `--tag=a`). Required inputs fail. Optional inputs keep the earlier value, or fail when no earlier value exists.
-- **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
-- **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands.
+- **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On a concrete root (own run plus children) only a hit behind leading help forwards to target help: a far miss reports `No command found` first and a near miss keeps the legacy wording. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
+- **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands. A root positional binds a bare word only when the root has no children.
 - **Response file**: A text file of command-line words, referenced as `@path`. Words splice in before parsing.
 - **Expansion fault**: A bad `@file` reference (missing, unreadable, over limits, cycle, lone `@`). It exits `1`.
 - **Escaped `@`**: `@@x` means literal `@x`. An `@` inside a word stays literal.
