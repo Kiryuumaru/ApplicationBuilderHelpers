@@ -15,50 +15,18 @@ internal static class DidYouMean
     /// <summary>
     /// Finds the single best suggestion, or null when nothing is close.
     /// </summary>
-    internal static string? FindBestMatch(string input, IEnumerable<(string Key, string Display)> candidates)
-    {
-        var normalizedInput = Normalize(input);
-        if (string.IsNullOrEmpty(normalizedInput))
-            return null;
-
-        string? best = null;
-        var bestDistance = int.MaxValue;
-        var bestPrefix = false;
-        var bestReserved = false;
-        string? bestKey = null;
-
-        foreach (var (key, display) in candidates)
-        {
-            var normalizedKey = Normalize(key);
-            if (string.IsNullOrEmpty(normalizedKey))
-                continue;
-
-            var prefix = normalizedInput[0] == normalizedKey[0];
-            var reserved = IsReserved(normalizedKey);
-            var distance = DamerauLevenshtein(normalizedInput, normalizedKey);
-
-            var limit = prefix ? PrefixBonusMaxDistance : MaxDistance;
-            if (distance > limit)
-                continue;
-
-            var isBetter = best == null
-                || distance < bestDistance
-                || (distance == bestDistance && prefix && !bestPrefix)
-                || (distance == bestDistance && prefix == bestPrefix && reserved && !bestReserved)
-                || (distance == bestDistance && prefix == bestPrefix && reserved == bestReserved && string.Compare(normalizedKey, bestKey, StringComparison.Ordinal) < 0);
-
-            if (isBetter)
-            {
-                best = display;
-                bestDistance = distance;
-                bestPrefix = prefix;
-                bestReserved = reserved;
-                bestKey = normalizedKey;
-            }
-        }
-
-        return best;
-    }
+    /// <remarks>
+    /// Back-compat alias over the fail-closed core for pinned unit coverage;
+    /// new call sites must use the <c>SuggestBlamedToken</c>/<c>SuggestSubcommand</c>
+    /// emit gates. Fail-closed: byte-identical display tokens never suggest,
+    /// distance ties stay silent with no winner picked, and distances 3-4 need
+    /// a shared first letter plus a long token. The first-letter bonus only
+    /// widens the limit; it never outranks a smaller edit distance. Reserved
+    /// <c>help</c>/<c>version</c> names win an exact distance + same-initial
+    /// tie; a strictly closer user option still wins.
+    /// </remarks>
+    internal static string? FindBestMatch(string input, IEnumerable<(string Key, string Display)> candidates) =>
+        SuggestCore(input, candidates);
 
     /// <summary>Builds option candidates.</summary>
     internal static IEnumerable<(string Key, string Display)> OptionCandidates(IEnumerable<SubCommandOptionInfo> options)
@@ -93,7 +61,7 @@ internal static class DidYouMean
     private static bool IsReserved(string normalizedKey) =>
         normalizedKey is "help" or "version";
 
-    /// <summary>Builds subcommand candidates from child command names.</summary>
+    /// <summary>Finds the single best subcommand-name suggestion among sibling children.</summary>
     internal static IEnumerable<(string Key, string Display)> SubCommandCandidates(IEnumerable<string> names)
     {
         foreach (var name in names)
@@ -101,6 +69,169 @@ internal static class DidYouMean
             if (!string.IsNullOrEmpty(name))
                 yield return (name, name);
         }
+    }
+
+    /// <summary>Option emit gate: single owner for option-token suggestions.</summary>
+    internal static string? SuggestBlamedToken(string input, IEnumerable<(string Key, string Display)> candidates) =>
+        SuggestCore(input, candidates);
+
+    /// <summary>Subcommand emit gate: single owner for subcommand-name suggestions.</summary>
+    internal static string? SuggestSubcommand(string input, IEnumerable<string> childNames)
+    {
+        foreach (var child in childNames)
+        {
+            if (!string.IsNullOrEmpty(child) && string.Equals(child, input, StringComparison.Ordinal))
+                return null;
+        }
+
+        return SuggestCore(input, SubCommandCandidates(childNames));
+    }
+
+    /// <summary>Fail-closed core: byte-identical tokens never suggest, distance ties stay silent.</summary>
+    /// <remarks>
+    /// Ties stay silent by counting every best-distance match and returning
+    /// null; the loop purposefully tracks no tie winner, so each tied
+    /// candidate only increments the count. Whole-query exact suppression
+    /// (byte-identical raw input only) is symmetric across both gates: option
+    /// display tokens ('--name') and subcommand names ('name') share the raw
+    /// argv token shape, so case variants like '--VERBOSITY' vs '--verbosity'
+    /// keep a distance-0 self-echo instead of leaking a sibling.
+    /// Reserved help/version wins an exact distance + same-initial tie; a
+    /// strictly closer user option still wins (#635 preservation).
+    /// </remarks>
+    private static string? SuggestCore(string input, IEnumerable<(string Key, string Display)> candidates)
+    {
+        var normalizedInput = Normalize(input);
+        if (string.IsNullOrEmpty(normalizedInput))
+            return null;
+
+        var bestDistance = int.MaxValue;
+        var bestCount = 0;
+
+        foreach (var (key, display) in candidates)
+        {
+            var normalizedKey = Normalize(key);
+            if (string.IsNullOrEmpty(normalizedKey))
+                continue;
+            if (string.Equals(display, input, StringComparison.Ordinal))
+                continue;
+
+            var prefix = normalizedInput[0] == normalizedKey[0];
+            var distance = DamerauLevenshtein(normalizedInput, normalizedKey);
+
+            var limit = prefix ? PrefixBonusMaxDistance : MaxDistance;
+            if (distance > limit)
+                continue;
+            if (distance > MaxDistance && Math.Max(normalizedInput.Length, normalizedKey.Length) < 6)
+                continue;
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestCount = 1;
+            }
+            else if (distance == bestDistance)
+            {
+                bestCount++;
+            }
+        }
+
+        if (bestCount != 1)
+        {
+            // Single exception to tie-silence: same-distance + same-initial
+            // ties resolve to reserved help/version (#635). All other ties
+            // stay silent (fail-closed #601). A strictly closer distance
+            // never reaches this path (bestCount tracks only bestDistance).
+            // Note: reserved preference applies only when the tied reserved
+            // candidate itself shares the best distance (BreakReservedTie
+            // re-checks distance); e.g. --versoin d(version)=1 beats
+            // d(verbose)=3 outright and needs no tie-break.
+            var tieWinner = BreakReservedTie(input, candidates, bestDistance);
+            return tieWinner;
+        }
+
+        string? best = null;
+        var bestPrefix = false;
+        string? bestKey = null;
+
+        foreach (var (key, display) in candidates)
+        {
+            var normalizedKey = Normalize(key);
+            if (string.IsNullOrEmpty(normalizedKey))
+                continue;
+            if (string.Equals(display, input, StringComparison.Ordinal))
+                continue;
+
+            var prefix = normalizedInput[0] == normalizedKey[0];
+            var distance = DamerauLevenshtein(normalizedInput, normalizedKey);
+
+            var limit = prefix ? PrefixBonusMaxDistance : MaxDistance;
+            if (distance > limit)
+                continue;
+            if (distance > MaxDistance && Math.Max(normalizedInput.Length, normalizedKey.Length) < 6)
+                continue;
+            if (distance != bestDistance)
+                continue;
+
+            var isBetter = best == null
+                || (prefix && !bestPrefix)
+                || (prefix == bestPrefix && string.Compare(normalizedKey, bestKey, StringComparison.Ordinal) < 0);
+
+            if (isBetter)
+            {
+                best = display;
+                bestPrefix = prefix;
+                bestKey = normalizedKey;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Reserved tie-break (#635): exact distance + same-initial ties resolve to help/version.</summary>
+    private static string? BreakReservedTie(string input, IEnumerable<(string Key, string Display)> candidates, int bestDistance)
+    {
+        if (bestDistance == int.MaxValue)
+            return null;
+
+        var normalizedInput = Normalize(input);
+        if (string.IsNullOrEmpty(normalizedInput))
+            return null;
+
+        string? reservedBest = null;
+        var reservedCount = 0;
+
+        foreach (var (key, display) in candidates)
+        {
+            var normalizedKey = Normalize(key);
+            if (string.IsNullOrEmpty(normalizedKey))
+                continue;
+            if (string.Equals(display, input, StringComparison.Ordinal))
+                continue;
+            if (!IsReserved(normalizedKey))
+                continue;
+
+            var prefix = normalizedInput[0] == normalizedKey[0];
+            if (!prefix)
+                continue;
+            var distance = DamerauLevenshtein(normalizedInput, normalizedKey);
+            if (distance != bestDistance)
+                continue;
+
+            var limit = PrefixBonusMaxDistance;
+            if (distance > limit)
+                continue;
+            if (distance > MaxDistance && Math.Max(normalizedInput.Length, normalizedKey.Length) < 6)
+                continue;
+
+            reservedCount++;
+            reservedBest = display;
+        }
+
+        // Exactly one reserved candidate shares the best distance: that is the
+        // #635 pinned case (--versoin/--ver rows). Zero or 2+ reserved sharers
+        // keep fail-closed silence.
+        return reservedCount == 1 ? reservedBest : null;
     }
 
     /// <summary>Appends the suggestion hint to a message when one exists.</summary>
