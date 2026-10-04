@@ -28,26 +28,80 @@ internal sealed class ArgumentParser
             {
                 if (IsNumericValue(token) || HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
                     break;
-                var matched = pathGlobals.Values.FirstOrDefault(o => o.MatchesArgument(token));
-                if (matched == null)
+                // Current node before descendants: globals, then options bindable here, then one unambiguous leaf owner.
+                // A leaf-owned probe only binds ahead of the child that owns it; any current-node
+                // match blocks the probe so a following wrong child keeps the token unknown.
+                var ownedMatches = FindOwnedMatches(result.TargetCommand, token);
+                SubCommandOptionInfo? pathMatched = pathGlobals.Values.FirstOrDefault(o => o.MatchesArgument(token));
+                if (pathMatched == null && ownedMatches.Count == 1)
+                    pathMatched = ownedMatches[0];
+                if (pathMatched != null || ownedMatches.Count > 0)
+                {
+                    if (pathMatched == null || ownedMatches.Count > 1)
+                        break;
+                }
+                else
+                {
+                    var nextToken = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+                    var leafOwner = FindLeafOwnedOption(result.TargetCommand, token);
+                    if (leafOwner == null)
+                        break;
+                    if (nextToken != null && (HelpVersionGateway.IsHelpToken(nextToken) || HelpVersionGateway.IsVersionToken(nextToken)))
+                    {
+                        pathMatched = leafOwner;
+                    }
+                    else
+                    {
+                        // A bare valued probe's neighbor is its value, so the owning child follows the value.
+                        var isBareValuedProbe = !leafOwner.IsFlag && IsBareValuedToken(leafOwner, token)
+                            && nextToken != null && !IsFlagLookingToken(nextToken);
+                        if (isBareValuedProbe)
+                        {
+                            var childToken = argIndex + 2 < args.Length ? args[argIndex + 2] : null;
+                            if (childToken != null && (HelpVersionGateway.IsHelpToken(childToken) || HelpVersionGateway.IsVersionToken(childToken)))
+                            {
+                                pathMatched = leafOwner;
+                            }
+                            else
+                            {
+                                var childAfterValue = childToken != null && !childToken.StartsWith('-')
+                                    ? result.TargetCommand.FindChild(childToken)
+                                    : null;
+                                if (childAfterValue == null || !OwnsOption(childAfterValue, leafOwner))
+                                    break;
+                                pathMatched = leafOwner;
+                            }
+                        }
+                        else
+                        {
+                            var nextChild = nextToken != null && !nextToken.StartsWith('-')
+                                ? result.TargetCommand.FindChild(nextToken)
+                                : null;
+                            if (nextChild == null || !OwnsOption(nextChild, leafOwner))
+                                break;
+                            pathMatched = leafOwner;
+                        }
+                    }
+                }
+                if (pathMatched == null)
                     break;
                 var consumable = argIndex + 1 < args.Length && !IsFlagLookingToken(args[argIndex + 1]) ? args[argIndex + 1] : null;
-                if (!matched.IsFlag && IsBareValuedToken(matched, token) && consumable == null)
+                if (!pathMatched.IsFlag && IsBareValuedToken(pathMatched, token) && consumable == null)
                     break;
                 if (FindValuedNotLastToken(result.TargetCommand.AllOptions, token).HasValue)
                     break;
                 string? pathValue;
                 try
                 {
-                    pathValue = matched.ExtractValue(token, consumable);
+                    pathValue = pathMatched.ExtractValue(token, consumable);
                 }
                 catch (CommandException)
                 {
                     break;
                 }
-                result.AddOptionValue(matched, pathValue);
+                result.AddOptionValue(pathMatched, pathValue);
                 argIndex++;
-                if (!matched.IsFlag && IsBareValuedToken(matched, token) && consumable != null)
+                if (!pathMatched.IsFlag && IsBareValuedToken(pathMatched, token) && consumable != null)
                     argIndex++;
                 continue;
             }
@@ -708,8 +762,15 @@ internal sealed class ArgumentParser
             if (equals >= 0)
                 unknownName = unknownName[..equals];
             var suggestion = DidYouMean.SuggestBlamedToken(unknownName, DidYouMean.OptionCandidates(allOptions));
+            var leafOwner = FindLeafOwnedOption(target, token);
+            string? leafCommandName = null;
+            if (leafOwner?.OwnerCommand is { } leafCommand && !string.IsNullOrEmpty(leafCommand.FullCommandName)
+                && !string.IsNullOrEmpty(target.FullCommandName))
+            {
+                leafCommandName = leafCommand.FullCommandName;
+            }
             throw new CommandException(
-                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, leafCommandName ?? target.FullCommandName);
         }
     }
 
@@ -915,6 +976,98 @@ internal sealed class ArgumentParser
         }
 
         return false;
+    }
+
+    /// <summary>Non-global options on the current path node matching the token.</summary>
+    private static List<SubCommandOptionInfo> FindOwnedMatches(SubCommandInfo target, string token)
+    {
+        var owned = new List<SubCommandOptionInfo>();
+        foreach (var option in target.AllOptions)
+        {
+            if (option.IsGlobal || !option.MatchesArgument(token))
+                continue;
+            if (!owned.Any(o => ReferenceEquals(o, option)))
+                owned.Add(option);
+        }
+
+        return owned;
+    }
+
+    /// <summary>Leaf-owned option reachable below the current path; the single compatible owner.</summary>
+    private static SubCommandOptionInfo? FindLeafOwnedOption(SubCommandInfo target, string token)
+    {
+        SubCommandOptionInfo? owner = null;
+        var ownerCommandName = string.Empty;
+        var ambiguous = false;
+        var stack = new Stack<SubCommandInfo>(target.Children.Values);
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            foreach (var option in current.Options)
+            {
+                if (option.IsGlobal || option.IsInherited)
+                    continue;
+                if (!option.MatchesArgument(token))
+                    continue;
+                if (owner == null)
+                {
+                    owner = option;
+                    ownerCommandName = OwnerName(current);
+                    continue;
+                }
+                if (string.Equals(OwnerName(current), ownerCommandName, StringComparison.Ordinal))
+                    continue;
+                if (!AreOptionsShapeCompatible(owner, option))
+                {
+                    ambiguous = true;
+                    break;
+                }
+            }
+            if (ambiguous)
+                break;
+            foreach (var child in current.Children.Values)
+                stack.Push(child);
+        }
+
+        if (owner == null || ambiguous)
+            return null;
+        return owner;
+    }
+
+    /// <summary>Canonical owner identity for a match: prefer the deepest leaf holding the option.</summary>
+    private static string OwnerName(SubCommandInfo command) =>
+        string.IsNullOrEmpty(command.FullCommandName) ? "<root>" : command.FullCommandName;
+
+    /// <summary>Whether the child (or its subtree) binds the leaf-owned probe by canonical key.</summary>
+    private static bool OwnsOption(SubCommandInfo child, SubCommandOptionInfo probe)
+    {
+        var key = ParseResult.GetCanonicalOptionKey(probe);
+        var stack = new Stack<SubCommandInfo>();
+        stack.Push(child);
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            if (current.AllOptions.Any(o => string.Equals(ParseResult.GetCanonicalOptionKey(o), key, StringComparison.Ordinal)))
+                return true;
+            foreach (var next in current.Children.Values)
+                stack.Push(next);
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether two options share one bindable shape; mismatched shapes stay ambiguous.</summary>
+    private static bool AreOptionsShapeCompatible(SubCommandOptionInfo first, SubCommandOptionInfo second)
+    {
+        if (!string.Equals(ParseResult.GetCanonicalOptionKey(first), ParseResult.GetCanonicalOptionKey(second), StringComparison.Ordinal))
+            return false;
+        if (first.IsFlag != second.IsFlag)
+            return false;
+        if (first.IsCollection != second.IsCollection)
+            return false;
+        if (!Equals(first.PropertyType, second.PropertyType))
+            return false;
+        return true;
     }
 
     /// <summary>Whether the root accepts the leading token as a positional instead of an error.</summary>

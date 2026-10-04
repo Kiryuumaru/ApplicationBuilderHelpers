@@ -70,7 +70,7 @@ internal sealed class HelpContentProvider(
             sections.Add(new HelpSection { Header = "OPTIONS:", Entries = entries });
         }
 
-        var topLevelCommands = _rootCommand?.Children.Values.ToList() ?? [];
+        var topLevelCommands = _rootCommand?.Children.Values.OrderBy(c => c.Name, StringComparer.Ordinal).ToList() ?? [];
         if (topLevelCommands.Count > 0)
         {
             var entries = new List<HelpEntry>();
@@ -149,6 +149,9 @@ internal sealed class HelpContentProvider(
 
         if (commandInfo.AllOptions.Count > 0)
             usage.Append(" [OPTIONS]");
+
+        if (commandInfo.Children.Count > 0)
+            usage.Append(" <COMMAND> [ARGS...]");
 
         foreach (var arg in commandInfo.AllArguments.OrderBy(a => a.Position))
         {
@@ -235,6 +238,20 @@ internal sealed class HelpContentProvider(
                 }
                 sections.Add(new HelpSection { Header = hierarchySectionName!, Entries = entries });
             }
+        }
+
+        if (commandInfo.Children.Count > 0)
+        {
+            var entries = new List<HelpEntry>();
+            foreach (var child in commandInfo.Children.Values.OrderBy(c => c.Name, StringComparer.Ordinal))
+            {
+                entries.Add(new HelpEntry
+                {
+                    Left = $"    {child.Name}",
+                    Right = child.Description ?? "",
+                });
+            }
+            sections.Add(new HelpSection { Header = "COMMANDS:", Entries = entries });
         }
 
         if (commandInfo.Arguments.Count > 0)
