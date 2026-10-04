@@ -41,11 +41,13 @@ public class ValuedOptionNeighborTests : CliTestBase
     }
 
     [Fact]
-    public async Task Valued_Option_With_Help_Neighbor_Shows_Help()
+    public async Task Valued_Option_With_Help_Neighbor_Reports_Missing()
     {
         var result = await Runner.RunAsync("test", "mytarget", "--config", "--help");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "config=\"--help\"");
     }
 
     [Fact]

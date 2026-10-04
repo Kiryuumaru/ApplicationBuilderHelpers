@@ -26,6 +26,7 @@ Decision records are immutable. Do not edit a record after it lands.
 | 0013 | Unknown Beats Help Order-Invariance | Accepted |
 | 0014 | Concrete-Root Miss Gate + Childless-Only Positional Exemption | Accepted |
 | 0015 | Bare-Only Boolean Flags | Accepted |
+| 0016 | Dangling-Valued Error Beats Help, Empty `=`-Form Carve-Out, Single-Dash Long Tokens | Accepted |
 
 Suffixed letters (`0004a`/`0004b`) resolve filename collisions. Numbers never shift after landing.
 

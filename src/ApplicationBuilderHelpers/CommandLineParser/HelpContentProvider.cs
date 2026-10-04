@@ -132,7 +132,9 @@ internal sealed class HelpContentProvider(
             UsageText = globalUsage.ToString(),
             DescriptionText = !string.IsNullOrEmpty(executableDescription) ? $"    {executableDescription}" : null,
             Sections = sections,
-            FooterText = $"Run '{executableName} <command> --help' for more information on specific commands.",
+            FooterText = topLevelCommands.Count > 0
+                ? $"Run '{executableName} <command> --help' for more information on specific commands."
+                : null,
         };
     }
 

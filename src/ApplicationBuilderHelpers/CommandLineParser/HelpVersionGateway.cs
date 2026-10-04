@@ -89,6 +89,8 @@ internal sealed class HelpVersionGateway(
 
     private static bool IsVersionCluster(string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return false;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('='))
             return false;
         if (char.IsDigit(token[1]) || token[1] == '.')
@@ -99,6 +101,8 @@ internal sealed class HelpVersionGateway(
 
     private static bool IsHelpCluster(string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return false;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('='))
             return false;
         if (char.IsDigit(token[1]) || token[1] == '.')

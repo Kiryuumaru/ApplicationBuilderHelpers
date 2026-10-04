@@ -72,6 +72,9 @@ internal class CommandLineParser
 
             var parseResult = ParseCommandLine(args);
 
+            if (parseResult.ShowHelp && HasDanglingValuedOption(parseResult))
+                parseResult.ShowHelp = false;
+
             var forgiveness = HelpVersionGateway.DecideValidationForgiveness(parseResult, args);
             if (forgiveness == HelpVersionGateway.HelpVersionForgiveness.ForgiveHelp)
             {
@@ -148,6 +151,10 @@ internal class CommandLineParser
     /// <summary>Parses argv into the target command plus option/argument occurrences.</summary>
     private ParseResult ParseCommandLine(string[] args) =>
         _parser.ParseCommandLine(GetRootCommandOrThrow(), args, _hierarchy.GlobalRegistry);
+
+    /// <summary>Parse carries a dangling valued option only an error path can settle; help must not forgive it. Shared definitions: <see cref="DanglingValuedOptionPolicy.IsEmptyEqualsForm"/> (eager) and <see cref="DanglingValuedOptionPolicy.HasBareValuedOccurrence"/> (late). Version is never cleared here, so version beats dangling by construction.</summary>
+    private static bool HasDanglingValuedOption(ParseResult result) =>
+        DanglingValuedOptionPolicy.HasBareValuedOccurrence(result);
 
     /// <summary>Returns the built root; throws when the hierarchy was never built.</summary>
     private SubCommandInfo GetRootCommandOrThrow() =>
