@@ -109,6 +109,17 @@ public sealed class ValidationPrecedenceTests
     }
 
     [Fact]
+    public async Task EnvironmentValue_MatchingIgnoresCase()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["precedencecheck"],
+            new Dictionary<string, string?> { [ModeVariable] = "JSON", [CountVariable] = null });
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Mode: json", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task EnvironmentValue_RejectedWhenConversionFails()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["precedencecheck"],

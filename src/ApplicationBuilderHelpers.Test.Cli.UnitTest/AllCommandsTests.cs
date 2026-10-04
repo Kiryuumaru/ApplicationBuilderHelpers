@@ -77,6 +77,14 @@ public class AllCommandsTests : CliTestBase
     }
 
     [Fact]
+    public async Task Build_With_Target_MatchingIgnoresCase()
+    {
+        var result = await Runner.RunAsync("build", "MyProject.csproj", "--target=reLease");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "Target: Release");
+    }
+
+    [Fact]
     public async Task Build_With_Defines()
     {
         var result = await Runner.RunAsync("build", "MyProject.csproj", "--define", "DEBUG", "--define", "TRACE");
