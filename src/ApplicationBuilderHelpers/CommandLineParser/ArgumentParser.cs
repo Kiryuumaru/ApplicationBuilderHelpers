@@ -836,15 +836,22 @@ internal sealed class ArgumentParser
             if (equals >= 0)
                 unknownName = unknownName[..equals];
             var suggestion = DidYouMean.SuggestBlamedToken(unknownName, DidYouMean.OptionCandidates(allOptions));
-            var leafOwner = FindLeafOwnedOption(target, token);
-            string? leafCommandName = null;
-            if (leafOwner?.OwnerCommand is { } leafCommand && !string.IsNullOrEmpty(leafCommand.FullCommandName)
-                && !string.IsNullOrEmpty(target.FullCommandName))
+            var footerCommandName = target.FullCommandName;
+            for (var j = i + 1; j < end; j++)
             {
-                leafCommandName = leafCommand.FullCommandName;
+                var trailing = args[j];
+                if (trailing.StartsWith('-'))
+                    continue;
+                if (HelpVersionGateway.IsHelpToken(trailing) || HelpVersionGateway.IsVersionToken(trailing))
+                    continue;
+                if (target.FindChild(trailing) is { } typedChild)
+                {
+                    footerCommandName = typedChild.FullCommandName;
+                    break;
+                }
             }
             throw new CommandException(
-                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, leafCommandName ?? target.FullCommandName);
+                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, footerCommandName);
         }
     }
 
