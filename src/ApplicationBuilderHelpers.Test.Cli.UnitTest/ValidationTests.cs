@@ -29,7 +29,7 @@ public class ValidationTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=JSON", "-v");
         CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Output Format: JSON");
+        CliTestAssertions.AssertOutputContains(result, "Output Format: json");
     }
 
     [Fact]

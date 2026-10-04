@@ -162,4 +162,4 @@ Restrict an option to an allowed list. The library converts the typed text first
 public int Level { get; set; }
 ```
 
-When the value is not allowed, the error names the list: `Must be one of: ...`. The same rule applies to positional arguments. Plain enums fill their allowed list from the enum names automatically.
+When the value is not allowed, the error names the list: `Must be one of: ...`. The same rule applies to positional arguments. Plain enums fill their allowed list from the enum names automatically. A matched string value binds in the allowed list's casing: `--mode=JSON` binds as `json` when `FromAmong` lists `json`.
