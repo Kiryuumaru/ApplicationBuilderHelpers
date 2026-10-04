@@ -49,6 +49,8 @@ Rules for names:
 
 A root with no command behind it needs a subcommand: running it bare exits `2`. See [Advanced Topics](advanced.md).
 
+Grouping parents without their own `Run` still render a synthetic help page: `myapp deploy --help` lists child commands under `COMMANDS:` and appends `<COMMAND> [ARGS...]` to usage. Leaf-owned options may be interleaved before the child name (`myapp deploy --force prod`) when the current node owns nothing for that spelling and exactly one descendant does: the flag must sit ahead of the child that owns it (a valued option in space form must sit ahead with its value, e.g. `myapp deploy --config v prod-east`), and same-spelling leaves merge only when canonical names match (long name, else short) and shapes agree (flag vs valued, collection, property type) — otherwise the token stays unknown. An unknown option with one unambiguous leaf owner points the error footer at that leaf (`myapp deploy --fast bogus` → `Run 'myapp deploy staging --help' ...`).
+
 ### Command Base Classes
 
 | Base class | Use for |

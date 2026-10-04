@@ -22,6 +22,8 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             .GroupBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal))
         {
             var option = group.First().Key;
+            if (result.TryGetCanonicalIdentityOption(group.Key, out var canonical))
+                option = canonical;
             var values = group.SelectMany(entry => entry.Value).ToList();
             if (values.Count == 0) continue;
 

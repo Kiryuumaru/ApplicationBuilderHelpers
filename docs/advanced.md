@@ -46,6 +46,8 @@ myapp deploy prod rollback # exit 0 — runs rollback
 
 When the parent has its own `Run`, bare `deploy` runs it. When the parent is only a grouping with no `Run` of its own, bare `deploy` fails with exit 2 and lists the available subcommands.
 
+Parent help lists children: `myapp deploy --help` shows a `COMMANDS:` section with one row per child (sorted) plus a `<COMMAND> [ARGS...]` usage suffix. An option typed before the child name still reaches the leaf: `myapp deploy --force prod` binds `--force` on `deploy prod` when the `deploy` node owns nothing for that spelling and exactly one descendant does — the flag must sit ahead of the child that owns it (a valued option in space form must sit ahead with its value, e.g. `myapp deploy --config v prod-east`). Same-spelling leaves merge only when canonical names match (long name, else short) and shapes agree (flag vs valued, collection, property type); otherwise the pre-path flag stays unknown instead of binding the wrong leaf. An unknown option with one unambiguous leaf owner points the error footer at that leaf (`myapp deploy --fast bogus` → `Run 'myapp deploy staging --help' ...`).
+
 ## Commands Without a Root Name
 
 Register only leaf subcommands and your app has no root command of its own. Running it bare fails with exit 2 and lists subcommands. `--help` still works: `--help greet` shows `greet` help, and bare `--help` shows global help.
