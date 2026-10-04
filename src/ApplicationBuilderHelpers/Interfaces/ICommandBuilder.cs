@@ -37,7 +37,7 @@ public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDep
     internal string? ExecutableVersion { get; set; }
 
     /// <summary>
-    /// Gets or sets the help width; null (default) sizes to the console.
+    /// Gets or sets the help width; null (default) renders at 120 columns, values below 60 render at 60.
     /// </summary>
     internal int? HelpWidth { get; set; }
 

@@ -42,7 +42,7 @@ ApplicationBuilder.Create()
 
 `SetHelpWidth` needs a positive number. `0` and negatives throw `ArgumentOutOfRangeException`.
 
-When you skip it, help renders at 120 columns. Narrow output never squeezes below 60 columns, so two-column help stays readable.
+When you skip it, help renders at 120 columns. Values below 60 render at 60, so two-column help stays readable.
 
 ## Help Placeholders
 
@@ -73,7 +73,7 @@ A required option never shows a `Default:` line. An optional option with a start
 
 ## Console Themes
 
-The library ships 6 built-in color themes. Start with `DefaultConsoleTheme` unless the terminal needs something else.
+The library ships 6 built-in color themes. Start with `DefaultConsoleTheme` unless the terminal needs something else. Piped or redirected output renders plain; themes apply to interactive terminals only.
 
 | Theme | Header | Flag | Value | Text |
 |---|---|---|---|---|

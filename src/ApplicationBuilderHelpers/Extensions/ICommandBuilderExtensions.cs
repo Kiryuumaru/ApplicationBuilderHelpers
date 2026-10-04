@@ -71,10 +71,10 @@ public static class ICommandBuilderExtensions
         return commandBuilder;
     }
 
-    /// <summary>Stores the help width; unset renders at 120 columns (floored at 60).</summary>
+    /// <summary>Stores the help width; unset renders at 120 columns, values below 60 render at 60.</summary>
     /// <typeparam name="TICommandBuilder">The command builder type.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
-    /// <param name="helpWidth">The width; must be positive.</param>
+    /// <param name="helpWidth">The width; must be positive. Values below 60 render at 60.</param>
     /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="helpWidth"/> is not positive.</exception>
