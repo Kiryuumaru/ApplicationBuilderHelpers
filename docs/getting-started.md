@@ -133,6 +133,12 @@ return await ApplicationBuilder.Create()
 
 Full setup order lives in [Application Dependencies](application-dependencies.md).
 
+## Starting from a Template
+
+Prefer a full starter app over the minimal flow above? Pick one in [Starter Templates](../templates/README.md), then copy its folder.
+
+Copy only. There is no `dotnet new` package to install.
+
 ## Next Steps
 
 - [Commands](commands.md) — Add options, arguments, and subcommands

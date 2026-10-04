@@ -24,7 +24,7 @@ dotnet add package ApplicationBuilderHelpers
 
 ## Quick Start
 
-New here? Follow [Getting Started](docs/getting-started.md) for a full Hello sample. It prints `Hello, Alice!` and exits `0`.
+New here? Follow [Getting Started](docs/getting-started.md) for a full Hello sample. It prints `Hello, Alice!` and exits `0`. Prefer a full starter app? See [Starter Templates](templates/README.md).
 
 `RunAsync` returns an exit code: `0` success, `2` bad input, `1` failure, `130` canceled. See [Commands](docs/commands.md).
 
@@ -52,6 +52,7 @@ Full order lives in [Commands](docs/commands.md).
 | Guide | Covers |
 |---|---|
 | [Getting Started](docs/getting-started.md) | Install, minimal app, first command, run it |
+| [Starter Templates](templates/README.md) | Copy-only Plain CLI, WebApi, or WebApiAndWebApp starter |
 | [Commands](docs/commands.md) | Commands, options, arguments, services, completion |
 | [Application Dependencies](docs/application-dependencies.md) | Shared setup modules |
 | [Configuration & Themes](docs/configuration.md) | App name, help width, themes, `@ref:` settings |

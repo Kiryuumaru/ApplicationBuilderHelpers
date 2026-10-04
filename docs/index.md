@@ -5,6 +5,7 @@ Welcome to the **ApplicationBuilderHelpers** documentation. Start with [Getting 
 | Guide | Covers |
 |---|---|
 | [Getting Started](getting-started.md) | Install, minimal app, first command, run it |
+| [Starter Templates](../templates/README.md) | Copy-only Plain CLI, WebApi, or WebApiAndWebApp starter |
 | [Commands](commands.md) | Commands, options, arguments, services, completion |
 | [Application Dependencies](application-dependencies.md) | Shared setup modules |
 | [Configuration & Themes](configuration.md) | App name, help width, themes, `@ref:` settings |
