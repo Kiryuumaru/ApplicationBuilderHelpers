@@ -219,6 +219,6 @@ Declare an option identically on every command and it becomes one shared global:
 
 The full typing rules live in [Commands](commands.md#how-typing-works). Short version:
 
-- Bare flags never eat the next word. Use `--verbose=off` for values.
+- Bare flags never eat the next word. A flag with `=` never works (exit `2`).
 - A bare valued option never steals a flag-looking word. A trailing bare repeat of a valued scalar fails as missing (exit `2`), even with env set or a prior value. Env covers omitted options only.
 - One splitter parses response files and completion prefixes. It strips `"` and `'` quotes. Any whitespace splits, including newlines. Files have no comments. Response-file rules and limits live in [Commands](commands.md#response-files-file).

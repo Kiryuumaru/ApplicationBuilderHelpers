@@ -52,17 +52,30 @@ public class EdgeCaseTests : CliTestBase
     }
 
     [Fact]
-    public async Task Mixed_Option_Styles_In_Same_Command()
+    public async Task Mixed_Option_Styles_BareFlags_Only()
+    {
+        var result = await Runner.RunAsync("test", "target",
+            "--verbose",
+            "--timeout=60",
+            "-t=unit",
+            "--parallel");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "Timeout: 60s");
+        CliTestAssertions.AssertOutputContains(result, "Tags: unit");
+        CliTestAssertions.AssertOutputContains(result, "Parallel: True");
+    }
+
+    [Fact]
+    public async Task Mixed_Option_Styles_FlagEqualsForm_ReportsBareOnly()
     {
         var result = await Runner.RunAsync("test", "target",
             "--verbose",
             "--timeout=60",
             "-t=unit",
             "--parallel=true");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Timeout: 60s");
-        CliTestAssertions.AssertOutputContains(result, "Tags: unit");
-        CliTestAssertions.AssertOutputContains(result, "Parallel: True");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Option '--parallel' does not accept a value 'true'");
     }
 
     [Fact]

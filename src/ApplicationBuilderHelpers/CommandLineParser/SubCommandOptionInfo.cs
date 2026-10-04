@@ -250,7 +250,7 @@ internal class SubCommandOptionInfo
         {
             var literal = argument[$"--{LongName}=".Length..];
             if (IsFlag)
-                ValidateFlagLiteral(literal);
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--{LongName}", literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
             return literal;
         }
 
@@ -258,7 +258,10 @@ internal class SubCommandOptionInfo
         {
             var literal = argument[$"-{ShortName}=".Length..];
             if (IsFlag)
-                ValidateFlagLiteral(literal);
+            {
+                var display = LongName != null ? $"--{LongName}" : $"-{ShortName}";
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage(display, literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
+            }
             return literal;
         }
 
@@ -267,7 +270,7 @@ internal class SubCommandOptionInfo
             if (argument.StartsWith($"{NegatedLongName}=", StringComparison.Ordinal))
             {
                 var rejected = argument[$"{NegatedLongName}=".Length..];
-                throw new CommandException(SecretRedaction.NoValueAcceptedMessage(NegatedLongName, rejected, IsSecret, isFlag: true, positiveLongName: LongName), 2, CommandErrorKind.InvalidValue);
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage(NegatedLongName, rejected, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: true), 2, CommandErrorKind.InvalidValue);
             }
 
             return "false";
@@ -294,7 +297,7 @@ internal class SubCommandOptionInfo
         return null;
     }
 
-    private static bool IsBooleanValue(string value)
+    internal static bool IsBooleanValue(string value)
     {
         return value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
@@ -304,13 +307,6 @@ internal class SubCommandOptionInfo
                value.Equals("off", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("0", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void ValidateFlagLiteral(string literal)
-    {
-        // Secret literal never echoes; exit 2 InvalidValue.
-        if (!IsBooleanValue(literal))
-            throw new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, $"--{LongName ?? ShortName?.ToString()}", IsSecret), 2, CommandErrorKind.InvalidValue);
     }
 
     public override string ToString()

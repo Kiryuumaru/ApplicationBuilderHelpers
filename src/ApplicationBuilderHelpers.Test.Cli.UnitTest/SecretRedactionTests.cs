@@ -526,24 +526,34 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
-    public async Task SecretFlag_InvalidLiteral_OmitsLiteral()
+    public async Task SecretFlag_InvalidLiteral_ReportsBareOnlyRedacted()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--secure=maybe"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value provided for option '--secure'.", error);
+        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
         Assert.DoesNotContain("maybe", error);
     }
 
     [Fact]
-    public async Task PlainFlag_InvalidLiteral_EchoesLiteral()
+    public async Task PlainFlag_InvalidLiteral_ReportsBareOnly()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--open=maybe"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value 'maybe' for option '--open'.", error);
+        Assert.Contains("Option '--open' does not accept a value 'maybe'. Use bare '--open'", error);
+    }
+
+    [Fact]
+    public async Task SecretFlag_EmptyLiteral_ReportsBareOnlyRedacted()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--secure="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
     }
 
     [Fact]

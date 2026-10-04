@@ -131,10 +131,21 @@ internal static class SecretRedaction
     /// <remarks>
     /// Secret values are never echoed.
     /// </remarks>
-    public static string NoValueAcceptedMessage(string optionName, string rejectedValue, bool isSecret, bool isFlag, string? positiveLongName = null)
+    public static string NoValueAcceptedMessage(string optionName, string rejectedValue, bool isSecret, bool isFlag, bool isNegated, string? positiveLongName = null)
     {
         if (isFlag)
         {
+            if (!isNegated)
+            {
+                var negatedHint = positiveLongName != null ? $" (or '--no-{positiveLongName}' for false)" : string.Empty;
+                if (isSecret || string.IsNullOrEmpty(rejectedValue))
+                {
+                    return $"Option '{optionName}' does not accept a value. Use bare '{optionName}'{negatedHint}.";
+                }
+
+                return $"Option '{optionName}' does not accept a value '{rejectedValue}'. Use bare '{optionName}'{negatedHint}.";
+            }
+
             if (isSecret || string.IsNullOrEmpty(rejectedValue))
             {
                 return $"Option '{optionName}' does not accept a value. Use bare '{optionName}' to set the flag to 'false'.";

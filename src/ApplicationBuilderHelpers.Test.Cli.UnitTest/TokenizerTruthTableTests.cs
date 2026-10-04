@@ -8,7 +8,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Tokenizer behavior tests for the CLI parser.
 /// Pins the frozen set through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
-/// bare flags, <c>=</c>-form boolean literals, no space-consumption for flags,
+/// bare flags, <c>=</c>-form flag rejection, space-form flag rejection,
 /// the <c>--</c> separator, negative positionals, combined short flags,
 /// <c>--no-</c> negation, and bare-flag repetition.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
@@ -69,13 +69,17 @@ public sealed class TokenizerTruthTableTests
     [InlineData("on")]
     [InlineData("ON")]
     [InlineData("1")]
-    public async Task EqualsForm_TrueLiterals_SetVerboseTrue(string literal)
+    public async Task EqualsForm_TrueLiterals_RejectBareOnly(string literal)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", $"--verbose={literal}"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Verbose: True", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--verbose' does not accept a value", error);
+        Assert.Contains($"'{literal}'", error);
+        Assert.Contains("Use bare '--verbose'", error);
+        Assert.Contains("--no-verbose", error);
+        Assert.DoesNotContain("Unknown option", error);
     }
 
     [Theory]
@@ -86,13 +90,17 @@ public sealed class TokenizerTruthTableTests
     [InlineData("off")]
     [InlineData("OFF")]
     [InlineData("0")]
-    public async Task EqualsForm_FalseLiterals_SetVerboseFalse(string literal)
+    public async Task EqualsForm_FalseLiterals_RejectBareOnly(string literal)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", $"--verbose={literal}"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Verbose: False", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--verbose' does not accept a value", error);
+        Assert.Contains($"'{literal}'", error);
+        Assert.Contains("Use bare '--verbose'", error);
+        Assert.Contains("--no-verbose", error);
+        Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]
@@ -102,19 +110,21 @@ public sealed class TokenizerTruthTableTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value", error);
+        Assert.Contains("Option '--verbose' does not accept a value 'maybe'", error);
+        Assert.Contains("Use bare '--verbose'", error);
         Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]
-    public async Task SpaceSeparatedBooleanWord_StaysPositional()
+    public async Task SpaceSeparatedBooleanWord_RejectsBareOnly()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", "--verbose", "off"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Verbose: True", output);
-        Assert.Contains("Items: off", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--verbose' does not accept a value 'off'", error);
+        Assert.Contains("Use bare '--verbose'", error);
+        Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]

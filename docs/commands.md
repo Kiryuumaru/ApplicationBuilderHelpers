@@ -113,9 +113,9 @@ Values compare after converting the typed text to your property type. So `02` ma
 
 ### How Typing Works
 
-- Bare flags never eat the next word. `--verbose` means `true`. Use `--verbose=off` for a value.
+- Bare flags never eat the next word. `--verbose` means `true`. `--no-verbose` means `false`.
 - An option typed with no value never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted options only.
-- `=`-form flags accept `true/false/yes/no/on/off/1/0` in any case. Anything else exits `2`.
+- A flag with `=` never works (exit `2`). Use bare `--verbose` or `--no-verbose`.
 - `--no-<name>` works only on `bool` flags and means `false`. `--no-<name>=value` never works.
 - Words after the first bare `--` are always positional. `--` itself is swallowed.
 - Negative numbers (`-5`) count as positional. Reach a digit short with `-1=value` or after `--`.
