@@ -203,9 +203,11 @@ On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob
 One gate decides help/version forgiveness before any validation:
 
 1. Bare `--help` (or `-h`, `-?`, `/?`) shows help before any checks.
-2. Help or version with its flag present skips all validation (so `--help` beats a missing required option).
+2. Help or version with its flag present skips all validation (so `--help` beats a missing required option), except a dangling valued option beside help still fails (exit `2`).
 3. Help beats version when both appear.
 4. Unknown, misuse, requires-subcommand, and invalid-literal errors still beat both (so a bad value beats `--help` when both appear).
+
+A dangling valued option (bare `--config` with no value beside help) clears help and exits `2`; a typed bare scalar fails even with its environment variable set — env rescues only omitted options, and collections with merged values stay exempt. An empty `=`-form on a non-string option fails as `InvalidValue` (exit `2`); string options still bind empty. Other `=`-form value errors stay forgiven beside help. `-help` and `-version` are exact-only full-token unknown options with a did-you-mean pointer, never clusters; neither requests help or version, so both footer hints survive. Global help with no subcommands prints no `<command>` footer.
 
 Help never hides typos. `bogus --help` reports an unknown command (exit 2). On a concrete root with its own run, a far miss behind leading help reports `No command found` before forwarding; a near miss keeps the legacy wording and only a hit forwards to target help. `--help=<anything>` is an invalid value (exit 2), never help, and `-?=<anything>` / `/?=<anything>` are invalid values the same way. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
 

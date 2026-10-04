@@ -119,7 +119,8 @@ Values compare after converting the typed text to your property type. So `02` ma
 - `--no-<name>` works only on `bool` flags and means `false`. `--no-<name>=value` never works.
 - Words after the first bare `--` are always positional. `--` itself is swallowed.
 - Negative numbers (`-5`) count as positional. Reach a digit short with `-1=value` or after `--`.
-- Grouped shorts (`-abc`) expand left to right. A short that needs a value must come last. `-h` and `-V` win mid-group. `-?` and `/?` never expand: `-?` is a bare help token and `-v?` reports `Unknown option: -?`.
+- Grouped shorts (`-abc`) expand left to right. A short that needs a value must come last. `-h` and `-V` win mid-group. `-?` and `/?` never expand: `-?` is a bare help token and `-v?` reports `Unknown option: -?`. `-help` and `-version` never expand either (exact tokens only): each reports `Unknown option` with a did-you-mean pointer.
+- An empty `=`-form on a non-string option fails as `InvalidValue` (exit `2`); string options still bind empty.
 - Unknown options report the name only, never the value: `Unknown option: --pasword`.
 - Repeats: flags stay put; repeats of a valued scalar take the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2). Collections gather every value and stay exempt, as do flags and environment-supplied values.
 - `Required` options show `(required)` in help after the description.

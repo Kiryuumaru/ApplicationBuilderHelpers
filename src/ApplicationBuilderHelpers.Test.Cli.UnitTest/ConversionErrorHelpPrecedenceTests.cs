@@ -96,7 +96,7 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Constrained_Argument_Invalid_Value_With_Trailing_Help_Shows_Help()
+    public async Task Constrained_Argument_Value_With_Trailing_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("plugin", "bogus", "--help");
         CliTestAssertions.AssertSuccess(result);
@@ -107,7 +107,7 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Constrained_Argument_Invalid_Value_With_Leading_Help_Shows_Help()
+    public async Task Constrained_Argument_Value_With_Leading_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("plugin", "--help", "bogus");
         CliTestAssertions.AssertSuccess(result);
@@ -124,6 +124,25 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputContains(result, "Manage plugins and extensions");
         CliTestAssertions.AssertOutputDoesNotContain(result, "Listing installed plugins");
+    }
+
+    [Fact]
+    public async Task Empty_Equals_Int_With_Help_Reports_Error()
+    {
+        var result = await Runner.RunAsync("test", "target", "--timeout=", "--help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: ''");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version' to show version information.");
+    }
+
+    [Fact]
+    public async Task Empty_Equals_String_With_Help_Shows_Help()
+    {
+        var result = await Runner.RunAsync("test", "target", "--config=", "--help");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
     }
 
     [Fact]
@@ -147,27 +166,29 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Bare_Valued_Option_With_Help_Shows_Help()
+    public async Task Bare_Valued_Option_With_Help_Reports_Missing()
     {
         var result = await Runner.RunAsync("test", "mytarget", "--config", "--help");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
     }
 
     [Fact]
-    public async Task Bare_Valued_Option_With_Help_And_Environment_Shows_Help()
+    public async Task Bare_Valued_Option_With_Help_And_Environment_Reports_Missing()
     {
         var envVars = new Dictionary<string, string>
         {
             ["TEST_CONFIG"] = "env-config.json"
         };
         var result = await Runner.RunAsync(envVars, "test", "target", "--config", "--help");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
     }
 
     [Fact]
-    public async Task Conversion_Error_With_Help_Shows_Help()
+    public async Task Deferred_Conversion_Error_With_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("required-test", "mytarget", "--age", "abc", "--help");
         CliTestAssertions.AssertSuccess(result);
@@ -333,6 +354,62 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
         CliTestAssertions.AssertExitCode(result, 2);
         CliTestAssertions.AssertErrorContains(result, "No command found");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task SingleDash_Help_Reports_Unknown_With_Suggestion_And_Footer_Hints()
+    {
+        var result = await Runner.RunAsync("test", "target", "-help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: -help");
+        CliTestAssertions.AssertErrorContains(result, "Did you mean '--help'?");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test test --help'");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version'");
+    }
+
+    [Fact]
+    public async Task SingleDash_Version_Reports_Unknown_With_Suggestion_And_Footer_Hints()
+    {
+        var result = await Runner.RunAsync("test", "target", "-version");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: -version");
+        CliTestAssertions.AssertErrorContains(result, "Did you mean '--version'?");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test test --help'");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version'");
+    }
+
+    [Fact]
+    public async Task Empty_Equals_Int_With_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--timeout=", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Bare_Valued_Option_With_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("test", "target", "--config", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Global_SingleDash_Help_Reports_Unknown_With_Suggestion_And_Footer_Hints()
+    {
+        var result = await Runner.RunAsync("-help");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: -help");
+        CliTestAssertions.AssertErrorContains(result, "Did you mean '--help'?");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --help'");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version'");
     }
 
     [Fact]

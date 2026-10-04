@@ -251,6 +251,7 @@ internal class SubCommandOptionInfo
             var literal = argument[$"--{LongName}=".Length..];
             if (IsFlag)
                 throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--{LongName}", literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
+            ThrowOnEmptyEqualsLiteral(literal);
             return literal;
         }
 
@@ -262,6 +263,7 @@ internal class SubCommandOptionInfo
                 var display = LongName != null ? $"--{LongName}" : $"-{ShortName}";
                 throw new CommandException(SecretRedaction.NoValueAcceptedMessage(display, literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
             }
+            ThrowOnEmptyEqualsLiteral(literal);
             return literal;
         }
 
@@ -307,6 +309,18 @@ internal class SubCommandOptionInfo
                value.Equals("off", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ThrowOnEmptyEqualsLiteral(string literal)
+    {
+        if (literal.Length != 0 || PropertyType == typeof(string))
+            return;
+        if (IsCollection && ElementType == typeof(string))
+            return;
+        Type effectiveType = IsCollection && ElementType is not null ? ElementType : PropertyType;
+        effectiveType = Nullable.GetUnderlyingType(effectiveType) ?? effectiveType;
+        string? reason = effectiveType.IsEnum ? null : $"Invalid {effectiveType.Name} value: '{literal}'. Expected a valid {effectiveType.Name}.";
+        throw ConversionErrors.InvalidValue(literal, $"option '--{LongName ?? ShortName?.ToString()}'", reason, IsSecret, effectiveType.Name);
     }
 
     public override string ToString()

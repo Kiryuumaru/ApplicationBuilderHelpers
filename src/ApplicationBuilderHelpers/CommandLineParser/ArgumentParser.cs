@@ -53,7 +53,7 @@ internal sealed class ArgumentParser
                     else
                     {
                         // A bare valued probe's neighbor is its value, so the owning child follows the value.
-                        var isBareValuedProbe = !leafOwner.IsFlag && IsBareValuedToken(leafOwner, token)
+                        var isBareValuedProbe = !leafOwner.IsFlag && DanglingValuedOptionPolicy.IsBareForm(leafOwner, token)
                             && nextToken != null && !IsFlagLookingToken(nextToken);
                         if (isBareValuedProbe)
                         {
@@ -89,7 +89,7 @@ internal sealed class ArgumentParser
                 if (pathMatched.IsFlag && IsBareFlagToken(pathMatched, token) && rawNext != null && SubCommandOptionInfo.IsBooleanValue(rawNext))
                     break;
                 var consumable = argIndex + 1 < args.Length && !IsFlagLookingToken(args[argIndex + 1]) ? args[argIndex + 1] : null;
-                if (!pathMatched.IsFlag && IsBareValuedToken(pathMatched, token) && consumable == null)
+                if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable == null)
                     break;
                 if (FindValuedNotLastToken(result.TargetCommand.AllOptions, token).HasValue)
                     break;
@@ -104,7 +104,7 @@ internal sealed class ArgumentParser
                 }
                 result.AddOptionValue(pathMatched, pathValue);
                 argIndex++;
-                if (!pathMatched.IsFlag && IsBareValuedToken(pathMatched, token) && consumable != null)
+                if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable != null)
                     argIndex++;
                 continue;
             }
@@ -263,8 +263,9 @@ internal sealed class ArgumentParser
         var argumentIndex = 0;
         var separatorSeen = false;
         var tail = args[startIndex..];
+        var helpWins = HelpVersionGateway.RequestedHelp(tail);
         var versionWins = HelpVersionGateway.RequestedVersion(tail)
-            && !HelpVersionGateway.RequestedHelp(tail);
+            && !helpWins;
 
         for (int i = startIndex; i < args.Length; i++)
         {
@@ -346,8 +347,11 @@ internal sealed class ArgumentParser
                     }
                     value = matchedOption.ExtractValue(arg, consumableNext);
                 }
-                catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && HelpVersionGateway.RequestedHelp(tail))
+                catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && helpWins)
                 {
+                    // Empty =-forms are never forgiven; surface them stamped.
+                    if (DanglingValuedOptionPolicy.IsEmptyEqualsForm(matchedOption, arg))
+                        throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
                     result.ShowHelp = true;
                     continue;
                 }
@@ -374,7 +378,7 @@ internal sealed class ArgumentParser
             {
                 if (arg.StartsWith("--no-", StringComparison.Ordinal) && arg.Contains('='))
                 {
-                    if (HelpVersionGateway.RequestedHelp(tail))
+                    if (helpWins)
                     {
                         var helpProbeName = arg[..arg.IndexOf('=')];
                         var helpProbeBase = helpProbeName["--no-".Length..];
@@ -485,6 +489,8 @@ internal sealed class ArgumentParser
     {
         consumedNext = false;
 
+        if (SingleDashPolicy.IsReservedWord(arg))
+            return false;
         if (arg.Length <= 2 || !arg.StartsWith('-') || arg.StartsWith("--", StringComparison.Ordinal) || arg.Contains('=') || IsNumericValue(arg))
             return false;
 
@@ -746,7 +752,24 @@ internal sealed class ArgumentParser
                 continue;
             if (allOptions.Any(o => o.MatchesArgument(token))
                 && !(token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('=')))
+            {
+                if (token.Contains('='))
+                {
+                    var equalsOption = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+                    if (equalsOption != null && !equalsOption.IsFlag)
+                    {
+                        try
+                        {
+                            equalsOption.ExtractValue(token, null);
+                        }
+                        catch (CommandException ex) when (ex.CommandName is null)
+                        {
+                            throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
+                        }
+                    }
+                }
                 continue;
+            }
             var valuedNotLast = FindValuedNotLastToken(allOptions, token);
             if (valuedNotLast.HasValue)
                 throw new CommandException(
@@ -843,7 +866,17 @@ internal sealed class ArgumentParser
             {
                 var equalsMatched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
                 if (equalsMatched != null && !equalsMatched.IsFlag)
+                {
                     satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(equalsMatched));
+                    try
+                    {
+                        equalsMatched.ExtractValue(token, null);
+                    }
+                    catch (CommandException ex) when (ex.CommandName is null)
+                    {
+                        throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
+                    }
+                }
                 continue;
             }
             if (IsClusterToken(allOptions, token))
@@ -855,7 +888,7 @@ internal sealed class ArgumentParser
             var seen = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
             if (seen == null || seen.IsFlag)
                 continue;
-            if (!IsBareValuedToken(seen, token))
+            if (!DanglingValuedOptionPolicy.IsBareForm(seen, token))
             {
                 satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(seen));
                 continue;
@@ -878,7 +911,7 @@ internal sealed class ArgumentParser
             var matched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
             if (matched == null || matched.IsFlag)
                 continue;
-            if (!IsBareValuedToken(matched, token))
+            if (!DanglingValuedOptionPolicy.IsBareForm(matched, token))
                 continue;
             var next = i + 1 < end ? args[i + 1] : null;
             if (next != null && !IsFlagLookingToken(next))
@@ -940,9 +973,11 @@ internal sealed class ArgumentParser
         return false;
     }
 
-    /// <summary>Whether the token is a splittable combined short cluster.</summary>
+    /// <summary>Whether the token is a splittable combined short cluster. Reserved-word gate lives at <see cref="SingleDashPolicy.IsReservedWord"/>.</summary>
     private static bool IsClusterToken(List<SubCommandOptionInfo> allOptions, string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return false;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
             return false;
         if (!allOptions.Any(o => o.ShortName.HasValue))
@@ -969,6 +1004,8 @@ internal sealed class ArgumentParser
     /// <summary>Index of the first unknown char in the token, or -1 when splittable.</summary>
     private static int FindUnknownClusterCharIndex(List<SubCommandOptionInfo> allOptions, string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return -1;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
             return -1;
         if (!allOptions.Any(o => o.ShortName.HasValue))
@@ -996,6 +1033,8 @@ internal sealed class ArgumentParser
     /// <summary>Valued-not-last probe for the token; returns the offending short letter.</summary>
     private static char? FindValuedNotLastToken(List<SubCommandOptionInfo> allOptions, string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return null;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
             return null;
         if (!allOptions.Any(o => o.ShortName.HasValue))
@@ -1013,6 +1052,8 @@ internal sealed class ArgumentParser
     /// <summary>Whether the token contains a valued short, so reports stay failing-char-only.</summary>
     private static bool ClusterContainsValuedShortOption(List<SubCommandOptionInfo> allOptions, string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return false;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || IsNumericValue(token))
             return false;
         var nameOnly = token;

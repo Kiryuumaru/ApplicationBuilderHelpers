@@ -35,6 +35,9 @@ public sealed class AbstractRootValuedNeighborTests
         [CommandOption("output", Description = "Output value.", EnvironmentVariable = OutputVariable)]
         public string? Output { get; set; }
 
+        [CommandOption("retry-count", Description = "Retry count value.")]
+        public int RetryCount { get; set; }
+
         [CommandOption("verbose", Description = "Verbose flag.")]
         public bool Verbose { get; set; }
 
@@ -202,6 +205,17 @@ public sealed class AbstractRootValuedNeighborTests
         Assert.Equal(0, exitCode);
         Assert.Contains("USAGE:", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Abstract_EmptyEquals_Int_With_Help_Reports_InvalidValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--retry-count=", "--help"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid Int32 value: ''", error);
+        Assert.DoesNotContain("requires a subcommand", error);
     }
 
     [Fact]
