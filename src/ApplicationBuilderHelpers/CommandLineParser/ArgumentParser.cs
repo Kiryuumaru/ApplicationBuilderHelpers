@@ -85,6 +85,9 @@ internal sealed class ArgumentParser
                 }
                 if (pathMatched == null)
                     break;
+                var rawNext = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+                if (pathMatched.IsFlag && IsBareFlagToken(pathMatched, token) && rawNext != null && SubCommandOptionInfo.IsBooleanValue(rawNext))
+                    break;
                 var consumable = argIndex + 1 < args.Length && !IsFlagLookingToken(args[argIndex + 1]) ? args[argIndex + 1] : null;
                 if (!pathMatched.IsFlag && IsBareValuedToken(pathMatched, token) && consumable == null)
                     break;
@@ -154,7 +157,7 @@ internal sealed class ArgumentParser
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (helpOrderMisuse != null)
                 throw IsHelpEqualsOrNegatedToken(helpOrderMisuse, result.TargetCommand.AllOptions) ? HelpMisuseError(helpOrderMisuse, result.TargetCommand.FullCommandName) : VersionMisuseError(helpOrderMisuse, result.TargetCommand.FullCommandName);
-            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnFlagEqualsPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
         }
 
@@ -188,7 +191,7 @@ internal sealed class ArgumentParser
                 throw IsHelpEqualsOrNegatedToken(abstractEarlyMisuse, result.TargetCommand.AllOptions)
                     ? HelpMisuseError(abstractEarlyMisuse, result.TargetCommand.FullCommandName)
                     : VersionMisuseError(abstractEarlyMisuse, result.TargetCommand.FullCommandName);
-            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnFlagEqualsPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
         }
 
@@ -219,7 +222,8 @@ internal sealed class ArgumentParser
                 throw IsHelpEqualsOrNegatedToken(abstractMisuse, result.TargetCommand.AllOptions)
                     ? HelpMisuseError(abstractMisuse, result.TargetCommand.FullCommandName)
                     : VersionMisuseError(abstractMisuse, result.TargetCommand.FullCommandName);
-            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnFlagEqualsPreSentinelOption(result.TargetCommand, args, argIndex);
+            ThrowOnFlagSpacePreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
             ThrowOnBareValuedPreSentinelOption(result.TargetCommand, args, argIndex);
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
@@ -328,6 +332,18 @@ internal sealed class ArgumentParser
                 string? value;
                 try
                 {
+                    if (matchedOption.IsFlag && IsBareFlagToken(matchedOption, arg) && nextArg != null && SubCommandOptionInfo.IsBooleanValue(nextArg))
+                    {
+                        var spaceNegated = matchedOption.SupportsNegation && matchedOption.NegatedLongName != null && arg == matchedOption.NegatedLongName;
+                        string spaceDisplay;
+                        if (spaceNegated)
+                            spaceDisplay = matchedOption.NegatedLongName!;
+                        else if (matchedOption.LongName != null)
+                            spaceDisplay = $"--{matchedOption.LongName}";
+                        else
+                            spaceDisplay = $"-{matchedOption.ShortName}";
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(spaceDisplay, nextArg, matchedOption.IsSecret, isFlag: true, positiveLongName: matchedOption.LongName, isNegated: spaceNegated), 2, CommandErrorKind.InvalidValue);
+                    }
                     value = matchedOption.ExtractValue(arg, consumableNext);
                 }
                 catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && HelpVersionGateway.RequestedHelp(tail))
@@ -385,9 +401,9 @@ internal sealed class ArgumentParser
                     var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
                     var noValueCommandName = result.TargetCommand.FullCommandName;
                     if (resolved != null)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     if (name.Length == "--no-".Length)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     var noValueSuggestion = DidYouMean.SuggestBlamedToken(
                         name,
                         DidYouMean.OptionCandidates(allOptions));
@@ -415,7 +431,7 @@ internal sealed class ArgumentParser
                         }
 
                         var bareCommandName = result.TargetCommand.FullCommandName;
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(arg, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName), 2, CommandErrorKind.InvalidValue, bareCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(arg, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, bareCommandName);
                     }
                 }
 
@@ -645,8 +661,8 @@ internal sealed class ArgumentParser
     private static bool IsFlagLookingToken(string token) =>
         token.StartsWith('-') && !IsNumericValue(token);
 
-    /// <summary>Throws on an invalid flag literal in =-form on an abstract path.</summary>
-    private static void ThrowOnInvalidFlagLiteralPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    /// <summary>Rejects any =-form flag occurrence on an abstract path via the bare-only gate.</summary>
+    private static void ThrowOnFlagEqualsPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
         var sentinelIndex = Array.IndexOf(args, "--");
@@ -674,6 +690,41 @@ internal sealed class ArgumentParser
                 // Flag ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
                 throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
             }
+        }
+    }
+
+    /// <summary>Rejects a bare flag followed by a boolean word on an abstract path via the bare-only gate.</summary>
+    private static void ThrowOnFlagSpacePreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var allOptions = target.AllOptions;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        for (var i = argIndex; i < end; i++)
+        {
+            var token = args[i];
+            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
+                continue;
+            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                continue;
+            if (IsClusterToken(allOptions, token))
+                continue;
+            var matched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+            if (matched == null || !matched.IsFlag || !IsBareFlagToken(matched, token))
+                continue;
+            if (i + 1 >= end)
+                continue;
+            var next = args[i + 1];
+            if (!SubCommandOptionInfo.IsBooleanValue(next))
+                continue;
+            var spaceNegated = matched.SupportsNegation && matched.NegatedLongName != null && token == matched.NegatedLongName;
+            string spaceDisplay;
+            if (spaceNegated)
+                spaceDisplay = matched.NegatedLongName!;
+            else if (matched.LongName != null)
+                spaceDisplay = $"--{matched.LongName}";
+            else
+                spaceDisplay = $"-{matched.ShortName}";
+            throw new CommandException(SecretRedaction.NoValueAcceptedMessage(spaceDisplay, next, matched.IsSecret, isFlag: true, positiveLongName: matched.LongName, isNegated: spaceNegated), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
         }
     }
 
@@ -717,9 +768,9 @@ internal sealed class ArgumentParser
                 var rejected = token[(token.IndexOf('=') + 1)..];
                 var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
                 if (resolved != null)
-                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 if (name.Length == "--no-".Length)
-                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 var noValueSuggestion = DidYouMean.SuggestBlamedToken(name, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
@@ -731,7 +782,7 @@ internal sealed class ArgumentParser
                 {
                     if (versionWins)
                         continue;
-                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(token, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(token, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 }
             }
             var clusterFailing = FindUnknownClusterCharIndex(allOptions, token);
@@ -865,6 +916,18 @@ internal sealed class ArgumentParser
                 satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(member));
             return;
         }
+    }
+
+    /// <summary>Whether the token is the exact bare form of the flag option.</summary>
+    private static bool IsBareFlagToken(SubCommandOptionInfo option, string token)
+    {
+        if (option.LongName != null && token == $"--{option.LongName}")
+            return true;
+        if (option.ShortName.HasValue && token == $"-{option.ShortName}")
+            return true;
+        if (option.SupportsNegation && option.NegatedLongName != null && token == option.NegatedLongName)
+            return true;
+        return false;
     }
 
     /// <summary>Whether the token is the exact bare form of the valued option.</summary>
@@ -1207,7 +1270,7 @@ internal sealed class ArgumentParser
         if (token.StartsWith("--no-help=", StringComparison.Ordinal))
         {
             var rejected = token["--no-help=".Length..];
-            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-help", rejected, isSecret: false, isFlag: false), 2, CommandErrorKind.InvalidValue, commandName);
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-help", rejected, isSecret: false, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         return new CommandException("Option '--no-help' is not valid. Use '--help' to show help.", 2, CommandErrorKind.InvalidValue, commandName);
@@ -1250,7 +1313,7 @@ internal sealed class ArgumentParser
         if (token.StartsWith("--no-version=", StringComparison.Ordinal))
         {
             var rejected = token["--no-version=".Length..];
-            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-version", rejected, isSecret: false, isFlag: false), 2, CommandErrorKind.InvalidValue, commandName);
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-version", rejected, isSecret: false, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         return new CommandException("Option '--no-version' is not valid. Use '--version' to show version.", 2, CommandErrorKind.InvalidValue, commandName);

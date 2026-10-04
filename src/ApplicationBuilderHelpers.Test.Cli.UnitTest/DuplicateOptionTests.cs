@@ -9,7 +9,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Default keeps last-wins for scalar repeats; strict mode via
 /// <c>SetRejectDuplicateOptions(true)</c> rejects scalar repeats with
 /// <c>Duplicate option: &lt;display-name&gt;</c> (exit 2) while arrays,
-/// flags, and environment-supplied values stay exempt.
+/// bare flags, and environment-supplied values stay exempt. Any
+/// <c>=</c>-form on a flag is rejected by the bare-only gate before
+/// duplicate handling runs.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -113,13 +115,13 @@ public sealed class DuplicateOptionTests
     }
 
     [Fact]
-    public async Task FlagOption_RepeatedValue_LastWins()
+    public async Task FlagOption_RepeatedValue_ReportsBareOnly()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["dupflag", "--verbose=true", "--verbose=false"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Verbose: False", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
     }
 
     [Fact]
@@ -177,14 +179,14 @@ public sealed class DuplicateOptionTests
     }
 
     [Fact]
-    public async Task Strict_FlagOption_RepeatedValue_IsAllowed()
+    public async Task Strict_FlagOption_RepeatedValue_ReportsBareOnly()
     {
         var builder = CreateBuilder().SetRejectDuplicateOptions(true);
         var (exitCode, output, error) = await RunCapturedAsync(builder, ["dupflag", "--verbose=true", "--verbose=false"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Verbose: False", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
     }
 
     [Fact]

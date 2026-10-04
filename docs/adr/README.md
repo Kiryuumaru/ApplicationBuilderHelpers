@@ -25,6 +25,7 @@ Decision records are immutable. Do not edit a record after it lands.
 | 0012 | Symmetric Help/Version Forgiveness | Accepted |
 | 0013 | Unknown Beats Help Order-Invariance | Accepted |
 | 0014 | Concrete-Root Miss Gate + Childless-Only Positional Exemption | Accepted |
+| 0015 | Bare-Only Boolean Flags | Accepted |
 
 Suffixed letters (`0004a`/`0004b`) resolve filename collisions. Numbers never shift after landing.
 

@@ -16,7 +16,7 @@ public class ComplexScenariosTests : CliTestBase
             "--timeout=120",
             "-t", "unit",
             "-t", "integration",
-            "--parallel=true",
+            "--parallel",
             "--coverage",
             "--output-format=junit");
         
@@ -32,14 +32,6 @@ public class ComplexScenariosTests : CliTestBase
 
     [Theory]
     [InlineData("--diag", "True")]
-    [InlineData("--diag=true", "True")]
-    [InlineData("--diag=true", "True")]
-    [InlineData("--diag=false", "False")]
-    [InlineData("--diag=false", "False")]
-    [InlineData("--diag=yes", "True")]
-    [InlineData("--diag=no", "False")]
-    [InlineData("--diag=1", "True")]
-    [InlineData("--diag=0", "False")]
     public async Task All_Boolean_Value_Formats(string args, string expected)
     {
         var argArray = args.Split(' ');
