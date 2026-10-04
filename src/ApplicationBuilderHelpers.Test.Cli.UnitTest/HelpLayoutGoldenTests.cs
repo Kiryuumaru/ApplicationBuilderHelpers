@@ -174,6 +174,44 @@ public sealed class HelpLayoutGoldenTests
     }
 
     [Fact]
+    public async Task GlobalHelp_BelowMinimumWidth_FloorsToMinimum()
+    {
+        var (floorExitCode, floorOutput, floorError) = await RunCapturedAsync(CreateBuilder(60), ["--help"]);
+        var (narrowExitCode, narrowOutput, narrowError) = await RunCapturedAsync(CreateBuilder(10), ["--help"]);
+
+        Assert.Equal(0, floorExitCode);
+        Assert.Equal(0, narrowExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(floorError), $"Expected empty stderr but got: {floorError}");
+        Assert.True(string.IsNullOrWhiteSpace(narrowError), $"Expected empty stderr but got: {narrowError}");
+        var floorNormalized = Normalize(floorOutput);
+        var narrowNormalized = Normalize(narrowOutput);
+        Assert.Equal(floorNormalized, narrowNormalized);
+        Assert.Contains("USAGE", narrowNormalized);
+        Assert.All(
+            narrowNormalized.Split('\n'),
+            line => Assert.True(line.Length <= 60, $"Line exceeds width 60 ({line.Length}): {line}"));
+    }
+
+    [Fact]
+    public async Task CommandHelp_BelowMinimumWidth_FloorsToMinimum()
+    {
+        var (floorExitCode, floorOutput, floorError) = await RunCapturedAsync(CreateBuilder(60), ["deploy", "--help"]);
+        var (narrowExitCode, narrowOutput, narrowError) = await RunCapturedAsync(CreateBuilder(10), ["deploy", "--help"]);
+
+        Assert.Equal(0, floorExitCode);
+        Assert.Equal(0, narrowExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(floorError), $"Expected empty stderr but got: {floorError}");
+        Assert.True(string.IsNullOrWhiteSpace(narrowError), $"Expected empty stderr but got: {narrowError}");
+        var floorNormalized = Normalize(floorOutput);
+        var narrowNormalized = Normalize(narrowOutput);
+        Assert.Equal(floorNormalized, narrowNormalized);
+        Assert.Equal(Normalize(CommandHelpAt60), narrowNormalized);
+        Assert.All(
+            narrowNormalized.Split('\n'),
+            line => Assert.True(line.Length <= 60, $"Line exceeds width 60 ({line.Length}): {line}"));
+    }
+
+    [Fact]
     public async Task GlobalHelp_SectionsShareSingleLeftColumnWidth()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(120), ["--help"]);

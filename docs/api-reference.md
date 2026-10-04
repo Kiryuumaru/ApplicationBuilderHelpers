@@ -53,7 +53,7 @@ return await ApplicationBuilder.Create()
 
 All four `SetExecutable*` setters are optional. When you skip them, the library reads your entry assembly instead. Passing `null` throws. `RunAsync` throws when `args` is `null`.
 
-Help renders at 120 columns when you skip `SetHelpWidth`. Narrow output never squeezes below 60 columns.
+Help renders at 120 columns when you skip `SetHelpWidth`. Values below 60 render at 60.
 
 ## Define Commands
 
@@ -223,7 +223,7 @@ Repeat an option to fill `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, o
 
 ### Console Themes
 
-The library ships 6 themes. `DefaultConsoleTheme` applies unless you pick another.
+The library ships 6 themes. `DefaultConsoleTheme` applies unless you pick another. Piped or redirected output renders plain; themes apply to interactive terminals only.
 
 | Theme | Pick it when |
 |---|---|

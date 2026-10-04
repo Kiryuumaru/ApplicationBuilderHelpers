@@ -12,9 +12,11 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 {
     private readonly ConsoleOutput _consoleOutput = consoleOutput;
 
-    /// <summary>Renders the model at the given width (floored at 60).</summary>
+    /// <summary>Renders the model at the given width; values below 60 are floored to 60.</summary>
     internal void Render(HelpModel model, IConsoleTheme? theme, int helpWidth)
     {
+        helpWidth = Math.Max(helpWidth, 60);
+
         WriteColored(model.TitleLine, theme?.HeaderColor);
         _consoleOutput.WriteLine();
 
