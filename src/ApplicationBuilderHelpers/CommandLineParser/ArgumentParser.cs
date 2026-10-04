@@ -7,7 +7,7 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>Parse stage: resolves the target command then options/arguments against it.</summary>
-/// <remarks>Order: path-walk → zero-match guard → pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe → RequiresSubcommand guard → options/arguments.</remarks>
+/// <remarks>Order: path-walk → concrete-root miss gate → miss/near-miss-gated pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe (miss/near-miss-gated) → RequiresSubcommand guard → options/arguments.</remarks>
 internal sealed class ArgumentParser
 {
     /// <summary>Parses argv into the target command plus option/argument occurrences; throws on usage errors.</summary>
@@ -116,16 +116,40 @@ internal sealed class ArgumentParser
         {
             if (!IsExemptRootPositional(rootCommand, args[0]))
             {
-                var zeroMatchSuggestion = DidYouMean.FindBestMatch(
+                var zeroMatchSuggestion = DidYouMean.SuggestSubcommand(
                     args[0],
-                    DidYouMean.SubCommandCandidates(rootCommand.Children.Keys));
+                    rootCommand.Children.Keys);
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
             }
         }
 
+        if (result.TargetCommand.IsRoot && result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // First bare pre-sentinel token after path globals that is not an exact
+            // child is a command miss, even without a suggestion. Help/version
+            // tokens stay on their own paths; only a leading bare miss is gated
+            // here, so later help-forward stays reachable.
+            var missSentinelIndex = Array.IndexOf(args, "--");
+            var missEnd = missSentinelIndex < 0 ? args.Length : missSentinelIndex;
+            var missToken = argIndex < missEnd ? args[argIndex] : null;
+            // "/?=" forms are never command misses; they stay misuse errors downstream.
+            var missIsBareNonChild = missToken != null && !missToken.StartsWith('-') && missToken != "/?" && !missToken.StartsWith("/?=", StringComparison.Ordinal) && !HelpVersionGateway.IsHelpToken(missToken) && !HelpVersionGateway.IsVersionToken(missToken) && result.TargetCommand.FindChild(missToken) == null;
+            if (missIsBareNonChild)
+            {
+                var missSuggestion = DidYouMean.SuggestSubcommand(missToken!, result.TargetCommand.Children.Keys);
+                throw new CommandException(
+                    DidYouMean.WithSuggestion($"No command found for '{missToken}'", missSuggestion), 2, CommandErrorKind.UnknownCommand);
+            }
+        }
+
         if ((!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0) || IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
         {
+            // Far trailing words report before help-forward, mirroring the
+            // leading-miss gate; near-miss words keep legacy error wording and
+            // hits/flag tails fall through to routing.
+            if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex) && ClassifyHelpTrailingMiss(result.TargetCommand, args, argIndex) is { } leadingHelpMiss)
+                throw leadingHelpMiss;
             var helpOrderMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
                 .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
             if (helpOrderMisuse != null)
@@ -205,11 +229,9 @@ internal sealed class ArgumentParser
             var sentinelIndex = Array.IndexOf(args, "--");
             if (argIndex < args.Length && !args[argIndex].StartsWith('-') && args[argIndex] != "/?" && (sentinelIndex < 0 || argIndex < sentinelIndex))
             {
-                subcommandSuggestion = DidYouMean.FindBestMatch(
+                subcommandSuggestion = DidYouMean.SuggestSubcommand(
                     args[argIndex],
-                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
-                if (string.Equals(subcommandSuggestion, args[argIndex], StringComparison.Ordinal))
-                    subcommandSuggestion = null;
+                    result.TargetCommand.Children.Keys);
                 if (subcommandSuggestion != null
                     && !args.Skip(argIndex).Any(HelpVersionGateway.IsHelpToken))
                     throw new CommandException(
@@ -366,7 +388,7 @@ internal sealed class ArgumentParser
                         throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     if (name.Length == "--no-".Length)
                         throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, noValueCommandName);
-                    var noValueSuggestion = DidYouMean.FindBestMatch(
+                    var noValueSuggestion = DidYouMean.SuggestBlamedToken(
                         name,
                         DidYouMean.OptionCandidates(allOptions));
                     throw new CommandException(
@@ -401,7 +423,7 @@ internal sealed class ArgumentParser
                 var unknownEquals = unknownName.IndexOf('=');
                 if (unknownEquals >= 0)
                     unknownName = unknownName[..unknownEquals];
-                var optionSuggestion = DidYouMean.FindBestMatch(
+                var optionSuggestion = DidYouMean.SuggestBlamedToken(
                     unknownName,
                     DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
@@ -424,11 +446,9 @@ internal sealed class ArgumentParser
             }
             else
             {
-                var subcommandSuggestion = DidYouMean.FindBestMatch(
+                var subcommandSuggestion = DidYouMean.SuggestSubcommand(
                     argumentValue,
-                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
-                if (string.Equals(subcommandSuggestion, argumentValue, StringComparison.Ordinal))
-                    subcommandSuggestion = null;
+                    result.TargetCommand.Children.Keys);
                 var surplusMessage = subcommandSuggestion != null
                     ? $"Unknown subcommand '{argumentValue}'"
                     : $"Unexpected argument '{argumentValue}'";
@@ -476,7 +496,7 @@ internal sealed class ArgumentParser
                     var equals = nameOnly.IndexOf('=');
                     if (equals >= 0)
                         nameOnly = nameOnly[..equals];
-                    var fullTokenSuggestion = DidYouMean.FindBestMatch(
+                    var fullTokenSuggestion = DidYouMean.SuggestBlamedToken(
                         nameOnly,
                         DidYouMean.OptionCandidates(allOptions));
                     if (fullTokenSuggestion != null
@@ -700,7 +720,7 @@ internal sealed class ArgumentParser
                     throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 if (name.Length == "--no-".Length)
                     throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
-                var noValueSuggestion = DidYouMean.FindBestMatch(name, DidYouMean.OptionCandidates(allOptions));
+                var noValueSuggestion = DidYouMean.SuggestBlamedToken(name, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
             }
@@ -723,7 +743,7 @@ internal sealed class ArgumentParser
                     var fullEquals = fullNameOnly.IndexOf('=');
                     if (fullEquals >= 0)
                         fullNameOnly = fullNameOnly[..fullEquals];
-                    var fullSuggestion = DidYouMean.FindBestMatch(
+                    var fullSuggestion = DidYouMean.SuggestBlamedToken(
                         fullNameOnly,
                         DidYouMean.OptionCandidates(allOptions));
                     if (fullSuggestion != null
@@ -733,7 +753,7 @@ internal sealed class ArgumentParser
                 }
 
                 var clusterFragment = $"-{token[clusterFailing]}";
-                var clusterSuggestion = DidYouMean.FindBestMatch(clusterFragment, DidYouMean.OptionCandidates(allOptions));
+                var clusterSuggestion = DidYouMean.SuggestBlamedToken(clusterFragment, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion(SecretRedaction.UnknownClusterCharMessage(token, clusterFailing), clusterSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
             }
@@ -741,7 +761,7 @@ internal sealed class ArgumentParser
             var equals = unknownName.IndexOf('=');
             if (equals >= 0)
                 unknownName = unknownName[..equals];
-            var suggestion = DidYouMean.FindBestMatch(unknownName, DidYouMean.OptionCandidates(allOptions));
+            var suggestion = DidYouMean.SuggestBlamedToken(unknownName, DidYouMean.OptionCandidates(allOptions));
             var leafOwner = FindLeafOwnedOption(target, token);
             string? leafCommandName = null;
             if (leafOwner?.OwnerCommand is { } leafCommand && !string.IsNullOrEmpty(leafCommand.FullCommandName)
@@ -1051,6 +1071,11 @@ internal sealed class ArgumentParser
     }
 
     /// <summary>Whether the root accepts the leading token as a positional instead of an error.</summary>
+    /// <remarks>
+    /// The tie/silence probe routes through the subcommand emit gate on
+    /// purpose: a near-miss leaf name keeps its suggestion downstream, while
+    /// a tied or exact-known token returns null here and binds positionally.
+    /// </remarks>
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
     {
         if (!rootCommand.IsRoot || !rootCommand.HasImplementation)
@@ -1063,9 +1088,31 @@ internal sealed class ArgumentParser
             return true;
         if (rootCommand.FindChild(token) != null)
             return false;
-        return DidYouMean.FindBestMatch(
+        return DidYouMean.SuggestSubcommand(
             token,
-            DidYouMean.SubCommandCandidates(rootCommand.Children.Keys)) == null;
+            rootCommand.Children.Keys) == null;
+    }
+
+    /// <summary>Miss behind a leading help token: bare non-child far word, else null.</summary>
+    private static CommandException? ClassifyHelpTrailingMiss(SubCommandInfo target, string[] args, int argIndex)
+    {
+        if (!target.IsRoot || !target.HasImplementation || target.Children.Count == 0)
+            return null;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        var missToken = i < end ? args[i] : null;
+        if (missToken == null || missToken.StartsWith('-') || missToken == "/?" || missToken.StartsWith("/?=", StringComparison.Ordinal))
+            return null;
+        if (target.FindChild(missToken) != null)
+            return null;
+        var suggestion = DidYouMean.SuggestSubcommand(missToken, target.Children.Keys);
+        if (suggestion != null)
+            return null;
+        return new CommandException(
+            DidYouMean.WithSuggestion($"No command found for '{missToken}'", suggestion), 2, CommandErrorKind.UnknownCommand);
     }
 
     /// <summary>Resolves which command a pre-separator help token renders help for.</summary>
