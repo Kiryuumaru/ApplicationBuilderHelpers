@@ -111,8 +111,8 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | Setting | What it does |
 |---|---|
 | `Description` | Help text |
-| `EnvironmentVariable` | Env var used when the flag is not typed |
-| `Required` | Fail with exit `2` when not supplied |
+| `EnvironmentVariable` | Env var used when the flag is omitted (blank counts as omitted) |
+| `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values |
 | `CaseSensitive` | Match `FromAmong` with exact case; does NOT affect option NAME matching (names always match exactly) |
 | `Secret` | Never print the value; help shows `[REDACTED]` |
@@ -133,12 +133,19 @@ public string SourceFile { get; set; } = "";
 | `Name` | Display name in help; defaults to the property name |
 | `Position` | Which positional word, starting at `0` |
 | `Description` | Help text |
-| `Required` | Fail with exit `2` when not supplied |
+| `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values |
 | `CaseSensitive` | Match values with exact case; does NOT affect argument NAME matching |
 | `Secret` | Never print the value |
 
-Typing `""` counts as supplied. Check text with `string.IsNullOrEmpty`, not `== null`.
+Typing `""` counts as supplied and satisfies `Required`; only omission fails `Required`. Check text with `string.IsNullOrEmpty`, not `== null`. Need non-empty text? Guard it in your command:
+
+```csharp
+using ApplicationBuilderHelpers.Exceptions;
+
+if (string.IsNullOrEmpty(SourceFile))
+    throw new CommandException("Source must not be empty.", exitCode: 2);
+```
 
 ### Get Services in `Run`
 
