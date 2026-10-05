@@ -74,6 +74,19 @@ public sealed class DeployInterleavedOptionTests
         }
     }
 
+    [Command("deploy qa", "Deploy to QA.")]
+    public sealed class DeployQaCommand : Command
+    {
+        [CommandOption('f', "force", Description = "Force deployment.")]
+        public bool Force { get; set; }
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"deploy qa:{Force}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private static ApplicationBuilder CreateSingle()
     {
         return ApplicationBuilder.Create()
@@ -149,15 +162,45 @@ public sealed class DeployInterleavedOptionTests
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--force", "staging"]);
         Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --force", error);
-        Assert.Contains("Run 'verify634 deploy prod --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'verify634 deploy staging --help' for more information on specific command options.", error);
     }
 
     [Fact]
-    public async Task Two_UnambiguousLeafFooter_NamesLeaf()
+    public async Task Two_TrailingTypelessChild_StaysParentFooter()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--fast", "unknownchild"]);
         Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --fast", error);
+        Assert.Contains("Run 'verify634 deploy --help' for more information on specific command options.", error);
+    }
+
+    [Fact]
+    public async Task Two_BareUnknownOption_StaysParentFooter()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--fast"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: --fast", error);
+        Assert.Contains("Run 'verify634 deploy --help' for more information on specific command options.", error);
+    }
+
+    [Fact]
+    public async Task Three_SiblingSameShape_KeepsTypedFooter()
+    {
+        static ApplicationBuilder CreateThree()
+        {
+            return ApplicationBuilder.Create()
+                .SetExecutableName("verify634")
+                .SetExecutableTitle("Verify 634")
+                .SetExecutableDescription("Verify.")
+                .SetExecutableVersion("9.9.9")
+                .AddCommand<DeployProdCommand>()
+                .AddCommand<DeployStagingCommand>()
+                .AddCommand<DeployQaCommand>();
+        }
+
+        var (exitCode, output, error) = await RunCapturedAsync(CreateThree, ["deploy", "--force", "staging"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: --force", error);
         Assert.Contains("Run 'verify634 deploy staging --help' for more information on specific command options.", error);
     }
 
