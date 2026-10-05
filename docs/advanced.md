@@ -145,7 +145,7 @@ ties stay silent with the plain unknown-token error (exit `2`), and
 same-first-letter matches at distance 3-4 only suggest for long tokens.
 Cluster fragments report the failing char only (`Unknown option: -z`).
 
-A concrete root with its own run reports a leading bare miss as `No command found`, with a pointer only when close. Behind leading help tokens a far miss reports `No command found` before forwarding; a near miss keeps the legacy subcommand wording.
+A concrete root with its own run reports a leading bare miss as `No command found`, with a pointer only when close. A bare miss behind leading help tokens reports `No command found` before forwarding; only a hit forwards to target help. A named grouping parent keeps `Unknown subcommand` wording for a near miss behind its help token, while a far miss keeps the subcommand list.
 
 Reserved `--help`/`--version` always compete in option ranking: `--versoin` suggests
 `--version`, and `--ver` suggests `--version` over `--verbose` on an exact
@@ -209,7 +209,7 @@ One gate decides help/version forgiveness before any validation:
 
 A dangling valued option (bare `--config` with no value beside help) clears help and exits `2`; a typed bare scalar fails even with its environment variable set — env rescues only omitted options, and collections with merged values stay exempt. An empty `=`-form on a non-string option fails as `InvalidValue` (exit `2`); string options still bind empty. Other `=`-form value errors stay forgiven beside help. `-help` and `-version` are exact-only full-token unknown options with a did-you-mean pointer, never clusters; neither requests help or version, so both footer hints survive. Global help with no subcommands prints no `<command>` footer.
 
-Help never hides typos. `bogus --help` reports an unknown command (exit 2). On a concrete root with its own run, a far miss behind leading help reports `No command found` before forwarding; a near miss keeps the legacy wording and only a hit forwards to target help. `--help=<anything>` is an invalid value (exit 2), never help, and `-?=<anything>` / `/?=<anything>` are invalid values the same way. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
+Help never hides typos. `bogus --help` reports an unknown command (exit 2). On a concrete root with its own run, a miss behind leading help reports `No command found` before forwarding and only a hit forwards to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. `--help=<anything>` is an invalid value (exit 2), never help, and `-?=<anything>` / `/?=<anything>` are invalid values the same way. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
 
 Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE>`) live in [Configuration](configuration.md#help-placeholders). Required markers live in [Configuration](configuration.md#required-options-in-help).
 

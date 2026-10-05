@@ -244,6 +244,41 @@ public sealed class DeployInterleavedOptionTests
     }
 
     [Fact]
+    public async Task Two_Help_BeforeNearMiss_ReportsUnknownSubcommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--help", "porod"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown subcommand 'porod'", error);
+        Assert.Contains("Did you mean 'prod'?", error);
+    }
+
+    [Fact]
+    public async Task Two_Help_BeforeFarMiss_RequiresSubcommandList()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--help", "zzzz"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("requires a subcommand", error);
+        Assert.Contains("Available subcommands:", error);
+        Assert.Contains("prod", error);
+        Assert.Contains("staging", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task Two_Help_BeforeHit_ForwardsToLeafHelp()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--help", "prod"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Deploy to production.", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task Two_ParentHelp_Usage_ListsSubcommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--help"]);
