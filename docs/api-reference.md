@@ -197,6 +197,7 @@ Add a custom parser only for your own domain types. The easy way covers most cas
 ```csharp
 // Program.cs
 using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Extensions;
 
 ApplicationBuilder.Create()
     .AddCommandTypeParser<CurrencyTypeParser>()

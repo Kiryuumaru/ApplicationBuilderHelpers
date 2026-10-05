@@ -61,7 +61,10 @@ On failure, return `null` and set `validateError` to the reason. That reason app
 Implement the interface directly when you need control over defaults and collection storage:
 
 ```csharp
+using ApplicationBuilderHelpers.Interfaces;
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 
 public class DurationTypeParser : ICommandTypeParser
@@ -101,6 +104,9 @@ Register once and every command can use the type:
 
 ```csharp
 // In Program.cs — simplest for one app
+using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Extensions;
+
 ApplicationBuilder.Create()
     .AddCommandTypeParser<CurrencyTypeParser>()
     .AddCommand<InvoiceCommand>()
@@ -109,6 +115,8 @@ ApplicationBuilder.Create()
 
 ```csharp
 // In a shared setup module — reuse across commands
+using ApplicationBuilderHelpers;
+
 public override void CommandPreparation(ApplicationBuilder applicationBuilder)
 {
     applicationBuilder.AddCommandTypeParser<CurrencyTypeParser>();
