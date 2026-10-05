@@ -7,7 +7,7 @@ using System.Linq;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>Parse stage: resolves the target command then options/arguments against it.</summary>
-/// <remarks>Order: path-walk → concrete-root miss gate → miss/near-miss-gated pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe (miss/near-miss-gated) → RequiresSubcommand guard → options/arguments.</remarks>
+/// <remarks>Order: path-walk → concrete-root miss gate → miss/near-miss-gated pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe (miss/near-miss-gated) → RequiresSubcommand guard → banked-prefix unknown gate → options/arguments.</remarks>
 internal sealed class ArgumentParser
 {
     /// <summary>Parses argv into the target command plus option/argument occurrences; throws on usage errors.</summary>
@@ -15,6 +15,7 @@ internal sealed class ArgumentParser
     {
         var result = new ParseResult();
         var argIndex = 0;
+        var bankedPrefix = new List<(SubCommandOptionInfo Option, string Token)>();
 
         result.TargetCommand = rootCommand!;
         var pathGlobals = globals ?? new Dictionary<string, SubCommandOptionInfo>();
@@ -103,6 +104,7 @@ internal sealed class ArgumentParser
                     break;
                 }
                 result.AddOptionValue(pathMatched, pathValue);
+                bankedPrefix.Add((pathMatched, token));
                 argIndex++;
                 if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable != null)
                     argIndex++;
@@ -251,9 +253,52 @@ internal sealed class ArgumentParser
             throw new CommandException($"No implementation found for command '{result.TargetCommand.FullCommandName}'", 1, CommandErrorKind.NoImplementation);
         }
 
+        ThrowOnBankedPrefixUnknownOption(result, bankedPrefix);
+
         ParseOptionsAndArguments(args, argIndex, result);
 
         return result;
+    }
+
+    /// <summary>Rejects banked pre-path options the routed leaf cannot bind as leaf-scoped unknown options.</summary>
+    private static void ThrowOnBankedPrefixUnknownOption(ParseResult result, List<(SubCommandOptionInfo Option, string Token)> bankedPrefix)
+    {
+        var leafOptions = result.TargetCommand.AllOptions;
+        var leafKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var option in leafOptions)
+            leafKeys.Add(ParseResult.GetCanonicalOptionKey(option));
+        (SubCommandOptionInfo Option, string Token)? firstUnknown = null;
+        foreach (var banked in bankedPrefix)
+        {
+            if (!leafKeys.Contains(ParseResult.GetCanonicalOptionKey(banked.Option)))
+            {
+                firstUnknown ??= banked;
+            }
+        }
+        if (firstUnknown is not { } unknown)
+            return;
+        var unknownName = unknown.Token;
+        if (unknown.Option.ShortName.HasValue && !unknown.Option.IsFlag)
+        {
+            var nameOnly = unknown.Token;
+            var tokenEquals = nameOnly.IndexOf('=');
+            if (tokenEquals >= 0)
+                nameOnly = nameOnly[..tokenEquals];
+            if (nameOnly.StartsWith($"-{unknown.Option.ShortName}", StringComparison.Ordinal)
+                && nameOnly.Length > 2)
+                unknownName = $"-{unknown.Option.ShortName}";
+            else
+                unknownName = nameOnly;
+        }
+        else
+        {
+            var equals = unknownName.IndexOf('=');
+            if (equals >= 0)
+                unknownName = unknownName[..equals];
+        }
+        var suggestion = DidYouMean.SuggestBlamedToken(unknownName, DidYouMean.OptionCandidates(leafOptions));
+        throw new CommandException(
+            DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
     }
 
     /// <summary>Parses options/arguments at the start index into the result.</summary>
@@ -441,10 +486,7 @@ internal sealed class ArgumentParser
                     }
                 }
 
-                var unknownName = arg;
-                var unknownEquals = unknownName.IndexOf('=');
-                if (unknownEquals >= 0)
-                    unknownName = unknownName[..unknownEquals];
+                var unknownName = FindUnknownOptionName(arg, result.TargetCommand, allOptions);
                 var optionSuggestion = DidYouMean.SuggestBlamedToken(
                     unknownName,
                     DidYouMean.OptionCandidates(allOptions));
@@ -1008,6 +1050,33 @@ internal sealed class ArgumentParser
                 return true;
         }
         return true;
+    }
+
+    /// <summary>Leaf-scoped unknown name: valued-short attached remainder collapses to -X, else =-form strips at =.</summary>
+    private static string FindUnknownOptionName(string token, SubCommandInfo target, List<SubCommandOptionInfo> allOptions)
+    {
+        var scope = new HashSet<SubCommandOptionInfo>(allOptions);
+        foreach (var option in target.AllOptions)
+            scope.Add(option);
+        var current = target.Parent;
+        while (current != null)
+        {
+            foreach (var option in current.Options)
+                scope.Add(option);
+            current = current.Parent;
+        }
+        var nameOnly = token;
+        var tokenEquals = nameOnly.IndexOf('=');
+        if (tokenEquals >= 0)
+            nameOnly = nameOnly[..tokenEquals];
+        foreach (var option in scope)
+        {
+            if (option.ShortName.HasValue && !option.IsFlag
+                && nameOnly.StartsWith($"-{option.ShortName}", StringComparison.Ordinal)
+                && nameOnly.Length > 2)
+                return $"-{option.ShortName}";
+        }
+        return nameOnly;
     }
 
     /// <summary>Index of the first unknown char in the token, or -1 when splittable.</summary>
