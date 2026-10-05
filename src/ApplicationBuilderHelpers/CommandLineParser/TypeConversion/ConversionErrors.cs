@@ -54,6 +54,7 @@ internal static class ConversionErrors
 
     internal static CommandException NotAmong(string? raw, string displayName, string allowedDisplay, bool isSecret = false, bool isArgument = false)
     {
+        CommandException failure;
         if (isSecret)
         {
             string bareName = displayName;
@@ -71,13 +72,18 @@ internal static class ConversionErrors
             string message = isArgument
                 ? SecretRedaction.InvalidArgumentValueMessage(raw ?? string.Empty, bareName, allowedDisplay, true)
                 : SecretRedaction.InvalidOptionValueMessage(raw ?? string.Empty, bareName, allowedDisplay, true);
-            return new CommandException(message, 2, CommandErrorKind.InvalidValue);
+            failure = new CommandException(message, 2, CommandErrorKind.InvalidValue);
+        }
+        else
+        {
+            failure = new CommandException(
+                $"Value '{raw}' is not valid for {displayName}. Must be one of: {allowedDisplay}",
+                2,
+                CommandErrorKind.InvalidValue);
         }
 
-        return new CommandException(
-            $"Value '{raw}' is not valid for {displayName}. Must be one of: {allowedDisplay}",
-            2,
-            CommandErrorKind.InvalidValue);
+        failure.IsAllowedValueViolation = true;
+        return failure;
     }
 
     /// <summary>Missing parser or failed typed factory; exit 2 InvalidValue.</summary>
