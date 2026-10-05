@@ -12,7 +12,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// the <c>--</c> separator, the separator form keeps binding, an exact leaf
 /// name still routes to the leaf, leaf-name misses (near or far) error as
 /// unknown commands instead of binding, leading global/leaf help keeps
-/// forwarding on leaf hits while far misses exit 2, a childless root still
+/// forwarding on leaf hits while near and far misses exit 2 with
+/// <c>No command found</c>, a childless root still
 /// binds a bare value, root positionals render in global help but never in
 /// leaf help, help/version and dash tokens keep precedence, and surplus
 /// still exits 2.
@@ -147,6 +148,18 @@ public sealed class RootPositionalBindingTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("No command found for 'zzzz'", error);
         Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task MixedRoot_Help_BeforeNearMiss_RejectsWithSuggestion()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--help", "mixedleef"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'mixedleef'", error);
+        Assert.Contains("Did you mean", error);
+        Assert.Contains("mixedleaf", error);
     }
 
     [Fact]

@@ -148,9 +148,8 @@ internal sealed class ArgumentParser
 
         if ((!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0) || IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
         {
-            // Far trailing words report before help-forward, mirroring the
-            // leading-miss gate; near-miss words keep legacy error wording and
-            // hits/flag tails fall through to routing.
+            // Trailing misses report before help-forward, mirroring the
+            // leading-miss gate; hits/flag tails fall through to routing.
             if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex) && ClassifyHelpTrailingMiss(result.TargetCommand, args, argIndex) is { } leadingHelpMiss)
                 throw leadingHelpMiss;
             var helpOrderMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
@@ -179,6 +178,9 @@ internal sealed class ArgumentParser
                     result.ShowHelp = true;
                     return result;
                 }
+                var trailingMiss = ClassifyNamedParentHelpMiss(result.TargetCommand, args, argIndex);
+                if (trailingMiss != null)
+                    throw trailingMiss;
             }
         }
 
@@ -1197,7 +1199,7 @@ internal sealed class ArgumentParser
             rootCommand.Children.Keys) == null;
     }
 
-    /// <summary>Miss behind a leading help token: bare non-child far word, else null.</summary>
+    /// <summary>Miss behind a leading help token: bare non-child word, else null.</summary>
     private static CommandException? ClassifyHelpTrailingMiss(SubCommandInfo target, string[] args, int argIndex)
     {
         if (!target.IsRoot || !target.HasImplementation || target.Children.Count == 0)
@@ -1213,10 +1215,34 @@ internal sealed class ArgumentParser
         if (target.FindChild(missToken) != null)
             return null;
         var suggestion = DidYouMean.SuggestSubcommand(missToken, target.Children.Keys);
-        if (suggestion != null)
-            return null;
         return new CommandException(
             DidYouMean.WithSuggestion($"No command found for '{missToken}'", suggestion), 2, CommandErrorKind.UnknownCommand);
+    }
+
+    /// <summary>Miss after a named parent's help token: first unmatched bare word, else null.</summary>
+    private static CommandException? ClassifyNamedParentHelpMiss(SubCommandInfo target, string[] args, int argIndex)
+    {
+        if (target.IsRoot || target.HasImplementation || target.Children.Count == 0)
+            return null;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        while (i < end && target.FindChild(args[i]) != null)
+            i++;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        var missToken = i < end ? args[i] : null;
+        if (missToken == null || missToken.StartsWith('-') || missToken == "/?" || missToken.StartsWith("/?=", StringComparison.Ordinal))
+            return null;
+        if (target.FindChild(missToken) != null)
+            return null;
+        var suggestion = DidYouMean.SuggestSubcommand(missToken, target.Children.Keys);
+        if (suggestion == null)
+            return null;
+        return new CommandException(
+            DidYouMean.WithSuggestion($"Unknown subcommand '{missToken}'", suggestion), 2, CommandErrorKind.UnknownCommand, target.FullCommandName);
     }
 
     /// <summary>Resolves which command a pre-separator help token renders help for.</summary>
