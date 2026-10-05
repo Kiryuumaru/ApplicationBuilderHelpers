@@ -76,14 +76,15 @@ internal class CommandLineParser
                 parseResult.ShowHelp = false;
 
             var forgiveness = HelpVersionGateway.DecideValidationForgiveness(parseResult, args);
-            if (forgiveness == HelpVersionGateway.HelpVersionForgiveness.ForgiveHelp)
+            if (forgiveness != HelpVersionGateway.HelpVersionForgiveness.NoForgive
+                && !_binder.HasAllowedValueViolation(parseResult))
             {
-                ShowCommandHelp(parseResult.TargetCommand);
-                return 0;
-            }
+                if (forgiveness == HelpVersionGateway.HelpVersionForgiveness.ForgiveHelp)
+                {
+                    ShowCommandHelp(parseResult.TargetCommand);
+                    return 0;
+                }
 
-            if (forgiveness == HelpVersionGateway.HelpVersionForgiveness.ForgiveVersion)
-            {
                 ShowVersion();
                 return 0;
             }

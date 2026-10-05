@@ -23,6 +23,13 @@ public class CommandException : Exception
     public string? CommandName { get; }
 
     /// <summary>
+    /// Gets whether this failure is an allowed-value (<c>FromAmong</c>) violation.
+    /// The help/version forgiveness gate lets these beat <c>--help</c>/<c>--version</c>;
+    /// all other deferred validation stays forgiven. Set only by the NotAmong factory.
+    /// </summary>
+    internal bool IsAllowedValueViolation { get; set; }
+
+    /// <summary>
     /// Throws with an exit code and an empty message.
     /// </summary>
     /// <param name="exitCode">The process exit code.</param>
