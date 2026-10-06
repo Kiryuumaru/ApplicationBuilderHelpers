@@ -115,7 +115,7 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values |
 | `CaseSensitive` | Match `FromAmong` with exact case; does NOT affect option NAME matching (names always match exactly) |
-| `Secret` | Never print the value; help shows `[REDACTED]` |
+| `Secret` | Never print the value; optional-option help always shows `Default: [REDACTED]` to signal secrecy, not that a default exists. The allowed-values list still shows — `[REDACTED]` may be one of the listed values |
 
 A typed flag always beats the env fallback. Env covers omitted options only. Do not declare your own `-h` or `-V`; they belong to help and version. See [Commands](commands.md) for typing rules.
 
@@ -136,7 +136,7 @@ public string SourceFile { get; set; } = "";
 | `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values |
 | `CaseSensitive` | Match values with exact case; does NOT affect argument NAME matching |
-| `Secret` | Never print the value |
+| `Secret` | Never print the value; the allowed-values list still shows |
 
 Typing `""` counts as supplied and satisfies `Required`; only omission fails `Required`. Check text with `string.IsNullOrEmpty`, not `== null`. Need non-empty text? Guard it in your command:
 

@@ -69,7 +69,7 @@ Rules you will see in practice:
 
 Required options print a lowercase `(required)` marker on the line after the description. The order is always description, then `(required)`, then `Possible values:`, then `Environment variable:`.
 
-A required option never shows a `Default:` line. An optional option with a starting value keeps its `Default:` line, for example `Default: 3`. See [Commands](commands.md#options).
+A required option never shows a `Default:` line. An optional option with a starting value keeps its `Default:` line, for example `Default: 3`. A secret optional always shows `Default: [REDACTED]` to signal secrecy, not that a default exists. See [Commands](commands.md#options).
 
 ## Console Themes
 

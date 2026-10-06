@@ -446,6 +446,40 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
+    public async Task SecretFromAmongOptionHelp_ShowsCandidatesBesideRedactedDefault()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secchoice", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--mode", output);
+        Assert.Contains("Default: [REDACTED]", output);
+        Assert.Contains("Possible values: json, xml", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task SecretFromAmongArgumentHelp_ShowsCandidates()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secchoicearg", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("mode", output);
+        Assert.Contains("Possible values: json, xml", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task PlainFromAmongOptionHelp_ShowsCandidates()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["plainchoice", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--mode", output);
+        Assert.Contains("Possible values: json, xml", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task SecretOption_InvalidAllowedValue_OmitsValueKeepsValidList()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secchoice", "--mode", "bogus"]);
