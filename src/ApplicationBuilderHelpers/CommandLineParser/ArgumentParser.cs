@@ -63,7 +63,11 @@ internal sealed class ArgumentParser
                     var nextToken = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
                     var leafOwner = OptionScopeAuthority.FindLeafOwnedOption(result.TargetCommand, token);
                     if (leafOwner == null)
+                    {
+                        if (TryConsumeClusterInWalk(result, args, ref argIndex))
+                            continue;
                         break;
+                    }
                     if (nextToken != null && (HelpVersionGateway.IsHelpToken(nextToken) || HelpVersionGateway.IsVersionToken(nextToken)))
                     {
                         pathMatched = leafOwner;
@@ -502,6 +506,54 @@ internal sealed class ArgumentParser
     private static void AddParsedOptionValue(ParseResult result, SubCommandOptionInfo matchedOption, string? value, string arg, string? nextArg)
     {
         result.AddOptionValue(matchedOption, value);
+    }
+
+    /// <summary>Expands a combined short cluster during the path walk so cluster spellings route like long forms.</summary>
+    private static bool TryConsumeClusterInWalk(ParseResult result, string[] args, ref int argIndex)
+    {
+        var token = args[argIndex];
+        var scopedOptions = result.TargetCommand.AllOptions.ToList();
+        if (!token.StartsWith("--", StringComparison.Ordinal))
+        {
+            var knownShorts = new HashSet<char>(scopedOptions.Where(o => o.ShortName.HasValue).Select(o => o.ShortName!.Value));
+            foreach (var letter in token[1..])
+            {
+                if (letter == 'h' || letter == 'V' || letter == '-' || knownShorts.Contains(letter))
+                    continue;
+                var leafOwned = OptionScopeAuthority.FindLeafOwnedOption(result.TargetCommand, $"-{letter}");
+                if (leafOwned?.ShortName.HasValue == true && knownShorts.Add(leafOwned.ShortName.Value))
+                    scopedOptions.Add(leafOwned);
+            }
+        }
+        var savedShowHelp = result.ShowHelp;
+        var savedShowVersion = result.ShowVersion;
+        var savedOptions = result.OptionValues.ToDictionary(kvp => kvp.Key, kvp => new List<string>(kvp.Value));
+        var savedBare = new HashSet<string>(result.BareOptionOccurrences, StringComparer.Ordinal);
+        var savedValued = new Dictionary<string, int>(result.ValuedOptionOccurrenceCounts, StringComparer.Ordinal);
+        var nextArg = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+        try
+        {
+            if (!TryHandleCombinedShortCluster(token, nextArg, scopedOptions, result, out var consumedNext))
+                return false;
+            argIndex++;
+            if (consumedNext)
+                argIndex++;
+            return true;
+        }
+        catch (CommandException)
+        {
+            result.ShowHelp = savedShowHelp;
+            result.ShowVersion = savedShowVersion;
+            result.OptionValues.Clear();
+            foreach (var (option, values) in savedOptions)
+                result.OptionValues.Add(option, values);
+            result.BareOptionOccurrences.Clear();
+            result.BareOptionOccurrences.UnionWith(savedBare);
+            result.ValuedOptionOccurrenceCounts.Clear();
+            foreach (var (key, count) in savedValued)
+                result.ValuedOptionOccurrenceCounts.Add(key, count);
+            return false;
+        }
     }
 
     /// <summary>Expands a combined short cluster into occurrences; returns false when not splittable.</summary>
