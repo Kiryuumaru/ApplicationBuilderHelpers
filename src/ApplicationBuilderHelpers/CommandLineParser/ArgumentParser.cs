@@ -1287,6 +1287,21 @@ internal sealed class ArgumentParser
             resolved = true;
             i++;
         }
+        if (resolved && i < end)
+        {
+            var breaker = args[i];
+            // A bare word after a resolved help path is a typo, never help context; fail like leaf surplus.
+            if (!breaker.StartsWith('-') && breaker != "/?" && !breaker.StartsWith("/?=", StringComparison.Ordinal)
+                && !HelpVersionGateway.IsHelpToken(breaker) && !HelpVersionGateway.IsVersionToken(breaker))
+            {
+                var surplusSuggestion = DidYouMean.SuggestSubcommand(breaker, current.Children.Keys);
+                var surplusMessage = surplusSuggestion != null
+                    ? $"Unknown subcommand '{breaker}'"
+                    : $"Unexpected argument '{breaker}'";
+                throw new CommandException(
+                    DidYouMean.WithSuggestion(surplusMessage, surplusSuggestion), 2, CommandErrorKind.UnknownCommand, current.FullCommandName);
+            }
+        }
         return resolved ? current : null;
     }
 
