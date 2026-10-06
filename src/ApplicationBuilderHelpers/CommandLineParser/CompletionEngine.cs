@@ -4,13 +4,10 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Tolerant shell-completion over the <see cref="SubCommandInfo"/> hierarchy.
-/// Never throws: null inputs and malformed tokens yield an empty list.
-/// Secret values are never suggested.
-/// </summary>
+/// <summary>Tolerant shell completion over the <see cref="SubCommandInfo"/> hierarchy.</summary>
 internal static class CompletionEngine
 {
+    /// <summary>Lists candidates for <paramref name="partial"/>; never throws, null inputs yield empty.</summary>
     internal static IReadOnlyList<string> Complete(SubCommandInfo? root, string[]? args, string? partial = null)
     {
         try
@@ -75,6 +72,12 @@ internal static class CompletionEngine
                         var longForm = $"--{option.LongName}";
                         if (longForm.StartsWith(prefix, StringComparison.Ordinal))
                             names.Add(longForm);
+                        if (option.ShouldShowNegation && option.NegatedLongName != null)
+                        {
+                            var negatedForm = option.NegatedLongName;
+                            if (negatedForm.StartsWith(prefix, StringComparison.Ordinal))
+                                names.Add(negatedForm);
+                        }
                     }
 
                     if (option.ShortName.HasValue)
@@ -113,10 +116,12 @@ internal static class CompletionEngine
         }
         catch
         {
+            // TAB completion never throws; faults yield no candidates.
             return [];
         }
     }
 
+    /// <summary>Finds an option by token, stripping any =value suffix.</summary>
     private static SubCommandOptionInfo? FindOption(List<SubCommandOptionInfo> options, string token)
     {
         try
@@ -131,6 +136,7 @@ internal static class CompletionEngine
                 }
                 catch
                 {
+                    // Faulting matcher never breaks completion; try the next candidate.
                     continue;
                 }
             }
@@ -139,10 +145,12 @@ internal static class CompletionEngine
         }
         catch
         {
+            // Completion never throws; outer fault yields no match.
             return null;
         }
     }
 
+    /// <summary>Filters valid values by prefix; secrets and empty lists yield empty.</summary>
     private static IReadOnlyList<string> CompleteValidValues(object[]? validValues, bool isSecret, string prefix, string valuePrefix)
     {
         try
@@ -160,6 +168,7 @@ internal static class CompletionEngine
                 }
                 catch
                 {
+                    // Faulting matcher never breaks completion; try the next candidate.
                     continue;
                 }
 
@@ -174,6 +183,7 @@ internal static class CompletionEngine
         }
         catch
         {
+            // Completion never throws; outer fault yields no candidates.
             return [];
         }
     }

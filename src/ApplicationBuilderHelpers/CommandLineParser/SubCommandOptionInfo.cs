@@ -2,6 +2,7 @@
 using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.ParserTypes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -10,114 +11,66 @@ using System.Reflection;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Represents a command line option that corresponds to CommandOptionAttribute.
-/// Supports option inheritance in subcommand hierarchies.
-/// </summary>
 internal class SubCommandOptionInfo
 {
-    /// <summary>
-    /// The property this option is bound to
-    /// </summary>
     public PropertyInfo Property { get; set; } = null!;
 
-    /// <summary>
-    /// The type of the property
-    /// </summary>
     public Type PropertyType { get; set; } = null!;
 
-    /// <summary>
-    /// Short option name (e.g., 'l' for -l)
-    /// </summary>
     public char? ShortName { get; set; }
 
-    /// <summary>
-    /// Long option name (e.g., "log-level" for --log-level)
-    /// </summary>
     public string? LongName { get; set; }
 
-    /// <summary>
-    /// Description of the option
-    /// </summary>
     public string? Description { get; set; }
 
-    /// <summary>
-    /// Whether this option is required
-    /// </summary>
     public bool IsRequired { get; set; }
 
-    /// <summary>
-    /// Environment variable to fall back to if option is not provided
-    /// </summary>
     public string? EnvironmentVariable { get; set; }
 
-    /// <summary>
-    /// Valid values for this option (for validation)
-    /// </summary>
     public object[]? ValidValues { get; set; }
 
-    /// <summary>
-    /// Whether validation should be case sensitive
-    /// </summary>
     public bool IsCaseSensitive { get; set; }
 
-    /// <summary>
-    /// Whether this option value is a secret (redacted in help and errors)
-    /// </summary>
+    /// <summary>Secret value: never echoed in help, errors, or completion.</summary>
     public bool IsSecret { get; set; }
 
-    /// <summary>
-    /// Whether this option is global (available to all subcommands)
-    /// </summary>
     public bool IsGlobal { get; set; }
 
-    /// <summary>
-    /// Whether this option is inherited by child commands
-    /// </summary>
     public bool IsInherited { get; set; }
 
-    /// <summary>
-    /// Whether this is a boolean flag option
-    /// </summary>
     public bool IsFlag => PropertyType == typeof(bool) || PropertyType == typeof(bool?);
 
-    /// <summary>
-    /// Whether this option accepts multiple values (collection type)
-    /// </summary>
+    public bool SupportsNegation => IsFlag && LongName != null;
+
+    // SupportsNegation stays true for help/version; the parser misuse gate rejects their
+    // negated forms before matching, so display paths exclude them here instead.
+    internal bool ShouldShowNegation => SupportsNegation
+        && !string.Equals(LongName, "help", StringComparison.Ordinal)
+        && !string.Equals(LongName, "version", StringComparison.Ordinal);
+
+    internal string? NegatedLongName => LongName == null ? null : $"--no-{LongName}";
+
+    internal string? NegatedBareName => LongName == null ? null : $"no-{LongName}";
+
     public bool IsCollection => CollectionShape.IsCollection(PropertyType);
 
-    /// <summary>
-    /// The element type if this is a collection option
-    /// </summary>
     public Type? ElementType => CollectionShape.TryGetElementType(PropertyType, out var elementType) ? elementType : null;
 
-    /// <summary>
-    /// The command this option belongs to
-    /// </summary>
     public SubCommandInfo? OwnerCommand { get; set; }
 
-    /// <summary>
-    /// Explicit bind-target scope for this option copy: the command whose
-    /// <see cref="SubCommandInfo.Options"/> list holds this node. For a
-    /// definition-site node this equals <see cref="OwnerCommand"/>; for a
-    /// global copy <see cref="OwnerCommand"/> keeps the definition site
-    /// while this identifies the scope holding the copy.
-    /// </summary>
     public SubCommandInfo? BindTarget { get; set; }
 
-    /// <summary>
-    /// Creates a SubCommandOptionInfo from a property and its CommandOptionAttribute
-    /// </summary>
     public static SubCommandOptionInfo FromProperty(PropertyInfo property, CommandOptionAttribute attribute, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         var isRequiredByKeyword = CommandDescriptorReflection.IsPropertyRequired(property);
-        
+        var longName = attribute.Term ?? property.Name.ToLowerInvariant();
+
         var optionInfo = new SubCommandOptionInfo
         {
             Property = property,
             PropertyType = property.PropertyType,
-            ShortName = attribute.ShortTerm,
-            LongName = attribute.Term ?? property.Name.ToLowerInvariant(),
+            ShortName = CommandDescriptorReflection.ResolveShortName(longName, attribute.ShortTerm),
+            LongName = longName,
             Description = attribute.Description,
             IsRequired = attribute.Required || isRequiredByKeyword,
             EnvironmentVariable = attribute.EnvironmentVariable,
@@ -134,12 +87,6 @@ internal class SubCommandOptionInfo
         return optionInfo;
     }
 
-    /// <summary>
-    /// Creates a per-run copy from a cached descriptor with parser-derived
-    /// <paramref name="resolvedValidValues"/>. Descriptor primitives are copied
-    /// onto a fresh node; inheritance uses the same declaringType-vs-targetType
-    /// check as <see cref="FromProperty"/>, applied to the per-run copy only.
-    /// </summary>
     public static SubCommandOptionInfo FromDescriptor(CommandOptionDescriptor descriptor, SubCommandInfo? ownerCommand, object[]? resolvedValidValues)
     {
         var optionInfo = new SubCommandOptionInfo
@@ -163,36 +110,21 @@ internal class SubCommandOptionInfo
         return optionInfo;
     }
 
-    /// <summary>
-    /// Single enum predicate (live overload): uses the shared
-    /// <see cref="EnumValidValues"/> predicate.
-    /// </summary>
     private static object[]? ResolveEnumValues(Type propertyType, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
     {
         return EnumValidValues.Resolve(propertyType, fromAmong, typeParserCollection);
     }
 
-    /// <summary>
-    /// Single enum predicate (frozen overload): uses the shared
-    /// <see cref="EnumValidValues"/> predicate.
-    /// </summary>
     private static object[]? ResolveEnumValues(Type? enumCandidateType, string[]? enumCandidateNames, object[]? fromAmong, ICommandTypeParserCollection? typeParserCollection)
     {
         return EnumValidValues.Resolve(enumCandidateType, enumCandidateNames, fromAmong, typeParserCollection);
     }
 
-    /// <summary>
-    /// Resolves per-run valid values for a cached descriptor: uses
-    /// the shared <see cref="EnumValidValues"/> predicate.
-    /// </summary>
     internal static object[]? ResolveValidValues(CommandOptionDescriptor descriptor, ICommandTypeParserCollection? typeParserCollection)
     {
         return EnumValidValues.Resolve(descriptor.EnumCandidateType, descriptor.EnumCandidateNames, descriptor.FromAmong, typeParserCollection);
     }
 
-    /// <summary>
-    /// Gets the type name for display
-    /// </summary>
     public string GetTypeName()
     {
         var targetType = IsCollection ? ElementType! : PropertyType;
@@ -200,11 +132,6 @@ internal class SubCommandOptionInfo
         return HelpTypeDisplay.GetPlaceholderToken(targetType);
     }
 
-    /// <summary>
-    /// Reads options from properties; shared by the <c>FromCommandType</c>/
-    /// <c>FromDeclaredType</c> overloads. Inheritance keeps the
-    /// declaringType-vs-targetType check.
-    /// </summary>
     private static List<SubCommandOptionInfo> FromProperties(IEnumerable<PropertyInfo> properties, SubCommandInfo? ownerCommand, ICommandTypeParserCollection? typeParserCollection)
     {
         var options = new List<SubCommandOptionInfo>();
@@ -222,31 +149,18 @@ internal class SubCommandOptionInfo
         return options;
     }
 
-    /// <summary>
-    /// Creates a list of SubCommandOptionInfo objects from a command type.
-    /// Full walk.
-    /// </summary>
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandOptionInfo> FromCommandType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.Walk(commandType), ownerCommand, typeParserCollection);
     }
 
-    /// <summary>
-    /// Creates a list of SubCommandOptionInfo objects from properties declared directly in the specified type
-    /// (excludes inherited properties to avoid conflicts).
-    /// Declared-only walk.
-    /// </summary>
     [Obsolete("Use CommandReflectionCache for cached descriptors or the per-run FromDescriptor path instead.")]
     public static List<SubCommandOptionInfo> FromDeclaredType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] Type commandType, SubCommandInfo? ownerCommand = null, ICommandTypeParserCollection? typeParserCollection = null)
     {
         return FromProperties(CommandReflectionCache.WalkDeclaredOnly(commandType), ownerCommand, typeParserCollection);
     }
 
-    /// <summary>
-    /// Applies the declaringType-vs-targetType inheritance-scope decision shared by
-    /// <see cref="FromProperty"/> and <see cref="FromDescriptor"/>.
-    /// </summary>
     private void ApplyInheritanceScope(Type? declaringType, SubCommandInfo? ownerCommand)
     {
         var targetType = ownerCommand?.Command?.GetType();
@@ -262,19 +176,12 @@ internal class SubCommandOptionInfo
         }
     }
 
-    /// <summary>
-    /// Determines whether this option should be inherited by child commands
-    /// </summary>
     private void DetermineInheritanceScope()
     {
         IsGlobal = false;
         IsInherited = true;
     }
 
-    /// <summary>
-    /// Validates the option value against constraints (only required field validation now).
-    /// ValidValues validation is applied inside TypeConversion.Convert (convert-then-compare).
-    /// </summary>
     public void ValidateValue(object? value)
     {
         if (IsRequired && value == null)
@@ -284,9 +191,6 @@ internal class SubCommandOptionInfo
 
     }
 
-    /// <summary>
-    /// Gets the option name for display purposes
-    /// </summary>
     public string GetDisplayName()
     {
         if (ShortName.HasValue && !string.IsNullOrEmpty(LongName))
@@ -299,12 +203,11 @@ internal class SubCommandOptionInfo
             return Property.Name;
     }
 
-    /// <summary>
-    /// Gets the option signature for help text
-    /// </summary>
     public string GetSignature()
     {
         var name = GetDisplayName();
+        if (ShouldShowNegation && NegatedLongName != null)
+            name += $", {NegatedLongName}";
 
         var placeholder = HelpTypeDisplay.GetParameterPlaceholder(this);
         if (string.IsNullOrEmpty(placeholder))
@@ -313,13 +216,6 @@ internal class SubCommandOptionInfo
         return $"{name} {placeholder}";
     }
 
-    /// <summary>
-    /// Resolves a <c>--no-&lt;name&gt;=value</c> base name against the caller's
-    /// <see cref="SubCommandInfo.AllOptions"/> scope: Ordinal long-name match
-    /// across every option kind (flag, valued, collection). The returned node
-    /// is the scope's own copy, so <see cref="IsSecret"/> is preserved.
-    /// Returns null when the base is unknown or empty.
-    /// </summary>
     internal static SubCommandOptionInfo? FindNoValueBase(IEnumerable<SubCommandOptionInfo> allOptions, string baseName)
     {
         if (string.IsNullOrEmpty(baseName))
@@ -329,15 +225,12 @@ internal class SubCommandOptionInfo
             o.LongName != null && string.Equals(o.LongName, baseName, StringComparison.Ordinal));
     }
 
-    /// <summary>
-    /// Checks if this option matches the given argument
-    /// </summary>
     public bool MatchesArgument(string argument)
     {
         if (LongName != null && (argument == $"--{LongName}" || argument.StartsWith($"--{LongName}=", StringComparison.Ordinal)))
             return true;
 
-        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
+        if (SupportsNegation && NegatedLongName != null && (argument == NegatedLongName || argument.StartsWith($"{NegatedLongName}=", StringComparison.Ordinal)))
             return true;
 
         if (ShortName.HasValue)
@@ -352,16 +245,14 @@ internal class SubCommandOptionInfo
         return false;
     }
 
-    /// <summary>
-    /// Extracts the value from a command line argument
-    /// </summary>
     public string? ExtractValue(string argument, string? nextArgument = null)
     {
         if (LongName != null && argument.StartsWith($"--{LongName}=", StringComparison.Ordinal))
         {
             var literal = argument[$"--{LongName}=".Length..];
             if (IsFlag)
-                ValidateFlagLiteral(literal);
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--{LongName}", literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
+            ThrowOnEmptyEqualsLiteral(literal);
             return literal;
         }
 
@@ -369,16 +260,20 @@ internal class SubCommandOptionInfo
         {
             var literal = argument[$"-{ShortName}=".Length..];
             if (IsFlag)
-                ValidateFlagLiteral(literal);
+            {
+                var display = LongName != null ? $"--{LongName}" : $"-{ShortName}";
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage(display, literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
+            }
+            ThrowOnEmptyEqualsLiteral(literal);
             return literal;
         }
 
-        if (IsFlag && LongName != null && (argument == $"--no-{LongName}" || argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal)))
+        if (SupportsNegation && NegatedLongName != null && (argument == NegatedLongName || argument.StartsWith($"{NegatedLongName}=", StringComparison.Ordinal)))
         {
-            if (argument.StartsWith($"--no-{LongName}=", StringComparison.Ordinal))
+            if (argument.StartsWith($"{NegatedLongName}=", StringComparison.Ordinal))
             {
-                var rejected = argument[$"--no-{LongName}=".Length..];
-                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--no-{LongName}", rejected, IsSecret, isFlag: true, positiveLongName: LongName), 2, CommandErrorKind.InvalidValue);
+                var rejected = argument[$"{NegatedLongName}=".Length..];
+                throw new CommandException(SecretRedaction.NoValueAcceptedMessage(NegatedLongName, rejected, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: true), 2, CommandErrorKind.InvalidValue);
             }
 
             return "false";
@@ -405,10 +300,7 @@ internal class SubCommandOptionInfo
         return null;
     }
 
-    /// <summary>
-    /// Checks if a string represents a boolean value
-    /// </summary>
-    private static bool IsBooleanValue(string value)
+    internal static bool IsBooleanValue(string value)
     {
         return value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
@@ -420,18 +312,18 @@ internal class SubCommandOptionInfo
                value.Equals("0", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Validates a flag =-form literal; invalid throws a value error naming the option
-    /// </summary>
-    private void ValidateFlagLiteral(string literal)
+    private void ThrowOnEmptyEqualsLiteral(string literal)
     {
-        if (!IsBooleanValue(literal))
-            throw new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, $"--{LongName ?? ShortName?.ToString()}", IsSecret), 2, CommandErrorKind.InvalidValue);
+        if (literal.Length != 0 || PropertyType == typeof(string))
+            return;
+        if (IsCollection && ElementType == typeof(string))
+            return;
+        Type effectiveType = IsCollection && ElementType is not null ? ElementType : PropertyType;
+        effectiveType = Nullable.GetUnderlyingType(effectiveType) ?? effectiveType;
+        string? reason = effectiveType.IsEnum ? ParserErrorHints.EnumAllowedValues(effectiveType) : ParserErrorHints.HintFor(effectiveType);
+        throw ConversionErrors.InvalidValue(literal, $"option '--{LongName ?? ShortName?.ToString()}'", reason, IsSecret, effectiveType.Name);
     }
 
-    /// <summary>
-    /// Returns a string representation of the option
-    /// </summary>
     public override string ToString()
     {
         return GetDisplayName();

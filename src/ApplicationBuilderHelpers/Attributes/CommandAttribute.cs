@@ -3,15 +3,15 @@
 namespace ApplicationBuilderHelpers.Attributes;
 
 /// <summary>
-/// Attribute to define command metadata for classes that implement application commands.
+/// Declares command identity for one command class.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
 public class CommandAttribute : Attribute
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommandAttribute"/> class with an optional description.
+    /// Declares an unnamed command showing only the given description.
     /// </summary>
-    /// <param name="description">The description for the command.</param>
+    /// <param name="description">The help description.</param>
     public CommandAttribute(string? description = null)
     {
         Term = null;
@@ -19,10 +19,10 @@ public class CommandAttribute : Attribute
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommandAttribute"/> class with a name and an optional description.
+    /// Declares a named command; see the description-only overload for the unnamed form.
     /// </summary>
-    /// <param name="name">The name for the command.</param>
-    /// <param name="description">The description for the command.</param>
+    /// <param name="name">The space-separated route term.</param>
+    /// <param name="description">The help description.</param>
     public CommandAttribute(string name, string? description = null)
     {
         Term = name;
@@ -30,12 +30,12 @@ public class CommandAttribute : Attribute
     }
 
     /// <summary>
-    /// Gets or sets the name of the command.
+    /// Gets or sets the route term; null (default) leaves the command unnamed.
     /// </summary>
     public string? Term { get; set; }
 
     /// <summary>
-    /// Gets or sets the description of the command.
+    /// Gets or sets the help description; null (default) omits it.
     /// </summary>
     public string? Description { get; set; }
 }

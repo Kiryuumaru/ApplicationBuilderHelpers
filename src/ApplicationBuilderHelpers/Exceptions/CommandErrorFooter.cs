@@ -1,10 +1,7 @@
 namespace ApplicationBuilderHelpers.Exceptions;
 
 /// <summary>
-/// Resolves the shared CLI error footer. Both the command-line handling
-/// path and the host path render this footer so the same <see cref="CommandErrorKind"/>
-/// always prints the same footer regardless of raising path.
-/// Pure string resolver: no <c>ICommandBuilder</c>, theme, or console knowledge.
+/// Renders the shared CLI error footer so every raising path prints the same hint per kind.
 /// </summary>
 internal static class CommandErrorFooter
 {
@@ -13,11 +10,6 @@ internal static class CommandErrorFooter
         return Resolve(kind, executableName, commandName, showHelpRequested: false);
     }
 
-    /// <summary>
-    /// Resolves the footer. When <paramref name="showHelpRequested"/> is true,
-    /// omits the <c>--help</c> hint and keeps only the <c>--version</c> hint;
-    /// otherwise keeps both hints.
-    /// </summary>
     internal static string Resolve(CommandErrorKind kind, string executableName, string? commandName, bool showHelpRequested)
     {
         var helpHint = HelpHint(executableName, commandName);
@@ -62,8 +54,12 @@ internal static class CommandErrorFooter
             ? $"Run '{executableName} {commandName} --help'"
             : $"Run '{executableName} --help'";
 
-    private static string VersionHint(string executableName, string? commandName) =>
-        !string.IsNullOrEmpty(commandName)
-            ? $"Run '{executableName} {commandName} --version' to show version information."
-            : $"Run '{executableName} --version' to show version information.";
+    /// <summary>
+    /// Version hint is global-only per ADR-0012; commandName is kept for signature compatibility and intentionally unused.
+    /// </summary>
+    private static string VersionHint(string executableName, string? commandName)
+    {
+        _ = commandName;
+        return $"Run '{executableName} --version' to show version information.";
+    }
 }

@@ -4,11 +4,13 @@ A clean architecture application template for building .NET applications with au
 
 ## 🚀 Quick Start
 
-Run this command to create a new project from this template:
+Copied this folder? Rename before you build (full checklist was in `templates/README.md` before you copied):
+1. Rename the solution file to your app name.
+2. Rename the project namespaces to your app name.
+3. Search for leftover `ApplicationBuilderHelpersTemplate` text and `sampleapp` assembly names, then replace them.
+4. Update `README.md`, `LICENSE.txt`, and `.csproj` metadata.
 
-```powershell
-C:\Windows\System32\WindowsPowerShell\v1.0\powershell -c "& ([ScriptBlock]::Create((irm https://raw.githubusercontent.com/Kiryuumaru/ApplicationBuilderHelpersTemplate/master/init.ps1)))"
-```
+> This copy travels alone. The rename steps above are the full list. Keep this file as your guide.
 
 ## 📋 Overview
 
@@ -182,8 +184,7 @@ The file will not be overwritten if it already exists.
 dotnet build                # Build the solution
 dotnet test                 # Run all tests
 
-dotnet run --project src/Presentation.WebApp   # Run REST API
-dotnet run --project src/Presentation.WebApp   # Run Blazor web app
+dotnet run --project src/Presentation.WebApp.Server   # Run API + Blazor app (hosted)
 ```
 
 ## 🧪 Testing

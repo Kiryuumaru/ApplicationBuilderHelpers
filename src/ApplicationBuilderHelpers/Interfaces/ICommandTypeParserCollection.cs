@@ -5,10 +5,13 @@ using System.Diagnostics.CodeAnalysis;
 namespace ApplicationBuilderHelpers.Interfaces;
 
 /// <summary>
-/// Represents a collection of command type parsers keyed by the type each parser handles.
+/// Caller-view parser map keyed by handled type.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public interface ICommandTypeParserCollection
 {
+    /// <summary>
+    /// Gets the parser map keyed by handled type.
+    /// </summary>
     internal Dictionary<Type, ICommandTypeParser> TypeParsers { get; }
 }

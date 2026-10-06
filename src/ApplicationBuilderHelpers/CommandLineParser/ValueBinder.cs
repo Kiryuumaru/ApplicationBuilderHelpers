@@ -6,22 +6,9 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Binds parsed values onto the command instance with the shared
-/// <see cref="TypeConversion.TypeConversion"/> scalar pipeline and <see cref="CollectionShape"/>
-/// collection materialization (per-element conversion for collections,
-/// scalar conversion otherwise).
-/// </summary>
 internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollection)
 {
-    /// <summary>
-    /// Validates every supplied value without binding. Applies
-    /// environment-variable fallback, converts each option/argument value in
-    /// canonical-key order, and skips bare-occurrence keys when help is
-    /// requested. Error messages join the missing errors in the caller; the
-    /// first message matches the single-error text.
-    /// </summary>
-    public List<string> CollectBindingErrors(ParseResult result, bool skipBareWhenHelpRequested = false)
+    public List<string> CollectBindingErrors(ParseResult result)
     {
         var errors = new List<string>();
 
@@ -34,10 +21,9 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             .OrderBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal)
             .GroupBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal))
         {
-            if (skipBareWhenHelpRequested && result.ShowHelp && result.BareOptionOccurrences.Contains(group.Key))
-                continue;
-
             var option = group.First().Key;
+            if (result.TryGetCanonicalIdentityOption(group.Key, out var canonical))
+                option = canonical;
             var values = group.SelectMany(entry => entry.Value).ToList();
             if (values.Count == 0) continue;
 
@@ -54,9 +40,38 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         return errors;
     }
 
-    /// <summary>
-    /// Sets the parsed values on the command instance properties
-    /// </summary>
+    public bool HasAllowedValueViolation(ParseResult result)
+    {
+        foreach (var option in result.TargetCommand.AllOptions.Where(o => !string.IsNullOrEmpty(o.EnvironmentVariable)))
+        {
+            EnvVarFallback.Apply(result, option, requiredOnly: false);
+        }
+
+        foreach (var group in result.OptionValues
+            .OrderBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal)
+            .GroupBy(entry => ParseResult.GetCanonicalOptionKey(entry.Key), StringComparer.Ordinal))
+        {
+            var option = group.First().Key;
+            if (result.TryGetCanonicalIdentityOption(group.Key, out var canonical))
+                option = canonical;
+            var values = group.SelectMany(entry => entry.Value).ToList();
+            if (values.Count == 0) continue;
+
+            if (ProbeOptionAllowedValue(option, values))
+                return true;
+        }
+
+        foreach (var (argument, values) in result.ArgumentValues.OrderBy(entry => entry.Key.DisplayName, StringComparer.Ordinal))
+        {
+            if (values.Count == 0) continue;
+
+            if (ProbeArgumentAllowedValue(argument, values))
+                return true;
+        }
+
+        return false;
+    }
+
     public void SetCommandValues(ParseResult result)
     {
         var command = result.TargetCommand.Command!;
@@ -148,6 +163,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                 }
                 catch (Exceptions.CommandException ex)
                 {
+                    // Probe only: first element failure records one message and stops; anything else is a fault.
                     errors.Add(NormalizeBindingError(ex));
                     return;
                 }
@@ -159,6 +175,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             }
             catch (Exceptions.CommandException ex)
             {
+                // Probe only: first element failure records one message and stops; anything else is a fault.
                 errors.Add(NormalizeBindingError(ex));
             }
 
@@ -171,6 +188,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         }
         catch (Exceptions.CommandException ex)
         {
+            // Probe only: first element failure records one message and stops; anything else is a fault.
             errors.Add(NormalizeBindingError(ex));
         }
     }
@@ -193,6 +211,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
                 }
                 catch (Exceptions.CommandException ex)
                 {
+                    // Probe only: first element failure records one message and stops; anything else is a fault.
                     errors.Add(NormalizeBindingError(ex));
                     return;
                 }
@@ -204,6 +223,7 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             }
             catch (Exceptions.CommandException ex)
             {
+                // Probe only: first element failure records one message and stops; anything else is a fault.
                 errors.Add(NormalizeBindingError(ex));
             }
 
@@ -216,8 +236,93 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
         }
         catch (Exceptions.CommandException ex)
         {
+            // Probe only: first element failure records one message and stops; anything else is a fault.
             errors.Add(NormalizeBindingError(ex));
         }
+    }
+
+    private bool ProbeOptionAllowedValue(SubCommandOptionInfo option, List<string> values)
+    {
+        var displayName = GetOptionDisplayName(option);
+
+        if (CollectionShape.IsCollection(option.PropertyType)
+            && CollectionShape.TryGetElementType(option.PropertyType, out var elementType)
+            && elementType is not null)
+        {
+            foreach (var raw in values)
+            {
+                try
+                {
+                    TypeConversion.TypeConversion.Convert(
+                        raw, elementType, option.IsCaseSensitive, option.ValidValues, displayName, typeParserCollection, option.IsSecret, isArgument: false);
+                }
+                catch (Exceptions.CommandException ex) when (ex.IsAllowedValueViolation)
+                {
+                    return true;
+                }
+                catch (Exceptions.CommandException)
+                {
+                }
+            }
+
+            return false;
+        }
+
+        try
+        {
+            TypeConversion.TypeConversion.Convert(values[0], option, displayName, typeParserCollection);
+        }
+        catch (Exceptions.CommandException ex) when (ex.IsAllowedValueViolation)
+        {
+            return true;
+        }
+        catch (Exceptions.CommandException)
+        {
+        }
+
+        return false;
+    }
+
+    private bool ProbeArgumentAllowedValue(SubCommandArgumentInfo argument, List<string> values)
+    {
+        var displayName = GetArgumentDisplayName(argument);
+
+        if (CollectionShape.IsCollection(argument.PropertyType)
+            && CollectionShape.TryGetElementType(argument.PropertyType, out var elementType)
+            && elementType is not null)
+        {
+            foreach (var raw in values)
+            {
+                try
+                {
+                    TypeConversion.TypeConversion.Convert(
+                        raw, elementType, argument.IsCaseSensitive, argument.ValidValues, displayName, typeParserCollection, argument.IsSecret, isArgument: true);
+                }
+                catch (Exceptions.CommandException ex) when (ex.IsAllowedValueViolation)
+                {
+                    return true;
+                }
+                catch (Exceptions.CommandException)
+                {
+                }
+            }
+
+            return false;
+        }
+
+        try
+        {
+            TypeConversion.TypeConversion.Convert(values[0], argument, displayName, typeParserCollection);
+        }
+        catch (Exceptions.CommandException ex) when (ex.IsAllowedValueViolation)
+        {
+            return true;
+        }
+        catch (Exceptions.CommandException)
+        {
+        }
+
+        return false;
     }
 
     private static string NormalizeBindingError(Exceptions.CommandException ex) =>

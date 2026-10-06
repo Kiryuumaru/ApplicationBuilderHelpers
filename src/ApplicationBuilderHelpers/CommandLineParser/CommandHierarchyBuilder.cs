@@ -3,18 +3,13 @@ using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Builds and validates the command hierarchy from registered commands.
-/// Each build resolves a per-run instance: type registrations get a fresh
-/// instance so bound values cannot leak across runs, while caller-supplied
-/// instance registrations keep their identity.
-/// </summary>
 internal sealed class CommandHierarchyBuilder(
     ICommandBuilder commandBuilder,
     ICommandTypeParserCollection typeParserCollection,
@@ -24,11 +19,12 @@ internal sealed class CommandHierarchyBuilder(
 
     private readonly Dictionary<string, SubCommandInfo> _allCommands = [];
 
+    private readonly Dictionary<string, SubCommandOptionInfo> _globalRegistry = new(StringComparer.Ordinal);
+
+    public IReadOnlyDictionary<string, SubCommandOptionInfo> GlobalRegistry => _globalRegistry;
+
     public IReadOnlyDictionary<string, SubCommandInfo> AllCommands => _allCommands;
 
-    /// <summary>
-    /// Builds the command hierarchy from registered commands
-    /// </summary>
     public void BuildCommandHierarchy()
     {
         RootCommand = new SubCommandInfo
@@ -37,6 +33,7 @@ internal sealed class CommandHierarchyBuilder(
             Description = commandBuilder.ExecutableDescription ?? AssemblyHelpers.GetAutoDetectedExecutableDescription()
         };
         _allCommands.Clear();
+        _globalRegistry.Clear();
 
         foreach (var typedCommandHolder in commandBuilder.Commands)
         {
@@ -62,12 +59,10 @@ internal sealed class CommandHierarchyBuilder(
             InsertCommandIntoHierarchy(subCommandInfo);
         }
 
+        BuildGlobalOptionRegistry();
         DetermineGlobalOptions();
     }
 
-    /// <summary>
-    /// Inserts a command into the appropriate place in the hierarchy
-    /// </summary>
     private void InsertCommandIntoHierarchy(SubCommandInfo commandInfo)
     {
         foreach (var part in commandInfo.CommandParts)
@@ -116,9 +111,6 @@ internal sealed class CommandHierarchyBuilder(
         }
     }
 
-    /// <summary>
-    /// Creates an intermediate command, checking for abstract base class information
-    /// </summary>
     private SubCommandInfo CreateIntermediateCommand(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType)
     {
         var leafDescriptor = reflectionCache.GetOrAdd(leafCommandType);
@@ -148,7 +140,8 @@ internal sealed class CommandHierarchyBuilder(
         {
             foreach (var globalOption in RootCommand.Options.Where(o => o.IsGlobal))
             {
-                if (!result.Options.Any(o => o.GetDisplayName() == globalOption.GetDisplayName()))
+                var canonicalKey = ParseResult.GetCanonicalOptionKey(globalOption);
+                if (!result.Options.Any(o => ReferenceEquals(o, globalOption) || string.Equals(ParseResult.GetCanonicalOptionKey(o), canonicalKey, StringComparison.Ordinal)))
                 {
                     result.Options.Add(globalOption);
                 }
@@ -158,9 +151,6 @@ internal sealed class CommandHierarchyBuilder(
         return result;
     }
 
-    /// <summary>
-    /// Searches the inheritance hierarchy for an abstract base class with Command attribute matching the path
-    /// </summary>
     private SubCommandInfo? FindAbstractBaseCommandInfo(string[] commandParts, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type leafCommandType, CommandTypeDescriptor leafDescriptor)
     {
         var currentType = leafCommandType.BaseType;
@@ -217,15 +207,48 @@ internal sealed class CommandHierarchyBuilder(
         return null;
     }
 
-    /// <summary>
-    /// Determines which options should be global based on commonality across commands
-    /// </summary>
+    private void BuildGlobalOptionRegistry()
+    {
+        foreach (var option in RootCommand.Options)
+        {
+            RegisterGlobalOption(option);
+        }
+
+        foreach (var command in _allCommands.Values)
+        {
+            foreach (var option in command.Options)
+            {
+                RegisterGlobalOption(option);
+            }
+        }
+    }
+
+    private void RegisterGlobalOption(SubCommandOptionInfo option)
+    {
+        if (!option.IsGlobal)
+            return;
+        if (string.Equals(option.LongName, "help", StringComparison.Ordinal)
+            || string.Equals(option.LongName, "version", StringComparison.Ordinal))
+            return;
+        _globalRegistry.TryAdd(ParseResult.GetCanonicalOptionKey(option), option);
+    }
+
     private void DetermineGlobalOptions()
     {
+        if (_globalRegistry.Count > 0)
+        {
+            AddBuiltInGlobalOptions();
+            return;
+        }
+
+        var promotedKeys = new HashSet<string>(StringComparer.Ordinal);
         var concreteCommands = _allCommands.Values.Where(c => c.HasImplementation).ToList();
 
         if (concreteCommands.Count == 0)
+        {
+            AddBuiltInGlobalOptions();
             return;
+        }
 
         var optionsBySignature = new Dictionary<string, List<(SubCommandOptionInfo option, SubCommandInfo command)>>();
 
@@ -265,34 +288,26 @@ internal sealed class CommandHierarchyBuilder(
                         option.IsInherited = true;
                     }
 
+                    _ = promotedKeys.Add(ParseResult.GetCanonicalOptionKey(firstOption));
+
                     if (!RootCommand!.Options.Any(o => o.GetDisplayName() == signature))
                     {
                         var globalOption = CreateGlobalOptionCopy(firstOption);
                         globalOption.BindTarget = RootCommand;
                         RootCommand.Options.Add(globalOption);
                     }
+                    var promotedCopy = RootCommand.Options.First(o => o.GetDisplayName() == signature);
+                    _ = _globalRegistry.TryAdd(ParseResult.GetCanonicalOptionKey(promotedCopy), promotedCopy);
                 }
             }
         }
 
+        if (promotedKeys.Count > 0)
+            Debug.WriteLine($"[ABH] Global options resolved via legacy promotion fallback (no explicit [CommandOption(IsGlobal=true)] declaration found); promoted {promotedKeys.Count} option(s): {string.Join(",", promotedKeys.OrderBy(k => k, StringComparer.Ordinal))}. Declare the global on a common ancestor for single truth.");
+
         AddBuiltInGlobalOptions();
     }
 
-    /// <summary>
-    /// Compares initializer defaults across definitions. No
-    /// <c>DefaultValue</c> snapshot exists on the option node, so divergence
-    /// is read from the registration holders keyed by the option property's
-    /// declaring type (see
-    /// <c>HelpContentProvider.GetOptionDefaultValue</c>). For type registrations the
-    /// holder's registration instance is pristine (binding mutates per-run
-    /// copies, never the registration). For caller-supplied instance
-    /// registrations the registration instance is the shared mutable
-    /// registration: a prior run's binding may already have replaced the
-    /// initializer, so the comparison uses the holder's registration-time
-    /// snapshot (captured on the first read, before binding can mutate
-    /// the instance). Any unknown or ambiguous holder, or any read failure,
-    /// blocks promotion (stays local) rather than risking a wrong global merge.
-    /// </summary>
     private bool InitializerValuesEqual(SubCommandOptionInfo option, SubCommandOptionInfo firstOption)
     {
         try
@@ -306,18 +321,11 @@ internal sealed class CommandHierarchyBuilder(
         }
         catch
         {
+            // Unreadable initializer blocks promotion (stays local) rather than a wrong global merge.
             return false;
         }
     }
 
-    /// <summary>
-    /// Reads one option's initializer default for the promotion lookup off the
-    /// registration holder keyed by the option property's declaring type:
-    /// the holder's registration-time snapshot for caller-supplied
-    /// instance registrations, otherwise the holder's registration instance
-    /// value. Returns the sentinel when the holder is unknown, ambiguous
-    /// (more than one holder for the declaring type), missing, or unreadable.
-    /// </summary>
     private object? ReadInitializerValue(SubCommandOptionInfo option)
     {
         var declaringType = option.Property.DeclaringType;
@@ -340,31 +348,17 @@ internal sealed class CommandHierarchyBuilder(
         }
         catch
         {
+            // Getter may throw on uninitialized registration instances: block promotion, stay local.
             return InitializerValuesUnreadable.Value;
         }
     }
 
-    /// <summary>
-    /// Sentinel that never equals a real initializer default, so an unknown or
-    /// ambiguous holder, or a missing/unreadable instance-registration snapshot,
-    /// blocks promotion (stays local).
-    /// </summary>
     private sealed class InitializerValuesUnreadable
     {
         public static readonly InitializerValuesUnreadable Value = new();
         private InitializerValuesUnreadable() { }
     }
 
-    /// <summary>
-    /// Finds the single registration holder whose command type can supply the
-    /// declaring type's initializer default: a holder whose
-    /// <c>CommandType</c> equals the declaring type, or whose type derives from
-    /// it (inherited option reports the base declaring type). Returns null when
-    /// no holder matches or more than one matches (ambiguous), both are
-    /// rejected. Multiple same-type registrations are rejected
-    /// elsewhere (duplicate-command validation), so a single exact-type match
-    /// remains the common definition-site case.
-    /// </summary>
     private Models.TypedCommandHolder? FindHolder(Type declaringType)
     {
         Models.TypedCommandHolder? match = null;
@@ -381,9 +375,6 @@ internal sealed class CommandHierarchyBuilder(
         return match;
     }
 
-    /// <summary>
-    /// Compares two arrays for equality
-    /// </summary>
     private static bool ArraysEqual(object[]? arr1, object[]? arr2)
     {
         if (arr1 == null && arr2 == null) return true;
@@ -397,9 +388,6 @@ internal sealed class CommandHierarchyBuilder(
         return true;
     }
 
-    /// <summary>
-    /// Adds built-in global options (help only) to all commands
-    /// </summary>
     private void AddBuiltInGlobalOptions()
     {
         var dummyProperty = typeof(SubCommandOptionInfo).GetProperty(nameof(SubCommandOptionInfo.Property))!;
@@ -439,9 +427,6 @@ internal sealed class CommandHierarchyBuilder(
         }
     }
 
-    /// <summary>
-    /// Validates the built command hierarchy
-    /// </summary>
     public void ValidateCommandHierarchy()
     {
         RootCommand?.Validate();
@@ -460,16 +445,6 @@ internal sealed class CommandHierarchyBuilder(
         ValidateDuplicateShortNames();
     }
 
-    /// <summary>
-    /// Rejects registration-time shadowing of the reserved help/version shorts:
-    /// <c>-h</c> (help) and <c>-V</c> (version) win inside combined short
-    /// clusters even mid-cluster (<c>ArgumentParser</c>), so a declared option
-    /// reusing either short (e.g. <c>-h/--host</c> on <c>serve</c>) would never
-    /// bind, <c>serve -hw</c> routes to help instead of <c>Host=w</c>. Only the
-    /// built-in <c>--help</c> owner may hold <c>-h</c>; <c>-V</c> is forbidden
-    /// for all local options because no built-in version node exists (version
-    /// is handled in pre-parse), so any local <c>-V</c> would silently never bind.
-    /// </summary>
     private void ValidateReservedShortNames()
     {
         if (RootCommand != null)
@@ -498,16 +473,6 @@ internal sealed class CommandHierarchyBuilder(
         }
     }
 
-    /// <summary>
-    /// Rejects per-command short-name shadowing across distinct logical options:
-    /// each command's effective scope (<see cref="SubCommandInfo.AllOptions"/>,
-    /// own options plus inherited globals) must not hold two options with the
-    /// same short but different canonical keys (<see
-    /// cref="ParseResult.GetCanonicalOptionKey"/>) — e.g. <c>-l/--log-level</c>
-    /// (promoted global) next to <c>-l/--local</c> on <c>config get</c>, where
-    /// the parser would otherwise first-win silently. Same-key copies (one
-    /// logical option under several copy identities) stay legal.
-    /// </summary>
     private void ValidateDuplicateShortNames()
     {
         if (RootCommand != null)
@@ -536,11 +501,6 @@ internal sealed class CommandHierarchyBuilder(
         }
     }
 
-    /// <summary>
-    /// Creates an independent copy of an option for global use.
-    /// <c>OwnerCommand</c> keeps the definition site, <c>ValidValues</c> is
-    /// copied, and the caller assigns <c>BindTarget</c>.
-    /// </summary>
     internal static SubCommandOptionInfo CreateGlobalOptionCopy(SubCommandOptionInfo original)
     {
         return new SubCommandOptionInfo

@@ -3,9 +3,9 @@
 namespace ApplicationBuilderHelpers.Exceptions;
 
 /// <summary>
-/// Represents an exception that is thrown when a required configuration value is not found or is empty.
+/// Missing-configuration fault naming only the key.
 /// </summary>
-/// <param name="configName">The name of the missing configuration value.</param>
+/// <param name="configName">The missing configuration key name.</param>
 public class NoConfigValueException(string configName) : Exception($"{configName} config is empty")
 {
 }

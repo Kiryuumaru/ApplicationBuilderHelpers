@@ -10,9 +10,7 @@ using System.Text;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Content provider for help output: signatures, descriptions, categorization,
-/// hierarchy policy, and default-value resolution.
-/// Has no Console, no ConsoleOutput, no width math, and no theme knowledge.
+/// Content provider for help output.
 /// </summary>
 internal sealed class HelpContentProvider(
     ICommandBuilder commandBuilder,
@@ -24,6 +22,7 @@ internal sealed class HelpContentProvider(
     private readonly Dictionary<string, SubCommandInfo> _allCommands = allCommands;
     private readonly ICommandTypeParserCollection _typeParserCollection = commandBuilder;
 
+    /// <summary>Builds the global model.</summary>
     internal HelpModel BuildGlobalModel()
     {
         var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
@@ -71,7 +70,7 @@ internal sealed class HelpContentProvider(
             sections.Add(new HelpSection { Header = "OPTIONS:", Entries = entries });
         }
 
-        var topLevelCommands = _rootCommand?.Children.Values.ToList() ?? [];
+        var topLevelCommands = _rootCommand?.Children.Values.OrderBy(c => c.Name, StringComparer.Ordinal).ToList() ?? [];
         if (topLevelCommands.Count > 0)
         {
             var entries = new List<HelpEntry>();
@@ -133,10 +132,13 @@ internal sealed class HelpContentProvider(
             UsageText = globalUsage.ToString(),
             DescriptionText = !string.IsNullOrEmpty(executableDescription) ? $"    {executableDescription}" : null,
             Sections = sections,
-            FooterText = $"Run '{executableName} <command> --help' for more information on specific commands.",
+            FooterText = topLevelCommands.Count > 0
+                ? $"Run '{executableName} <command> --help' for more information on specific commands."
+                : null,
         };
     }
 
+    /// <summary>Builds the per-command model.</summary>
     internal HelpModel BuildCommandModel(SubCommandInfo commandInfo)
     {
         var executableName = _commandBuilder.ExecutableName ?? AssemblyHelpers.GetAutoDetectedExecutableName();
@@ -149,6 +151,9 @@ internal sealed class HelpContentProvider(
 
         if (commandInfo.AllOptions.Count > 0)
             usage.Append(" [OPTIONS]");
+
+        if (commandInfo.Children.Count > 0)
+            usage.Append(" <COMMAND> [ARGS...]");
 
         foreach (var arg in commandInfo.AllArguments.OrderBy(a => a.Position))
         {
@@ -235,6 +240,20 @@ internal sealed class HelpContentProvider(
                 }
                 sections.Add(new HelpSection { Header = hierarchySectionName!, Entries = entries });
             }
+        }
+
+        if (commandInfo.Children.Count > 0)
+        {
+            var entries = new List<HelpEntry>();
+            foreach (var child in commandInfo.Children.Values.OrderBy(c => c.Name, StringComparer.Ordinal))
+            {
+                entries.Add(new HelpEntry
+                {
+                    Left = $"    {child.Name}",
+                    Right = child.Description ?? "",
+                });
+            }
+            sections.Add(new HelpSection { Header = "COMMANDS:", Entries = entries });
         }
 
         if (commandInfo.Arguments.Count > 0)
@@ -328,6 +347,8 @@ internal sealed class HelpContentProvider(
 
     private static string BuildOptionSignature(SubCommandOptionInfo option)
     {
+        if (string.Equals(option.LongName, "help", StringComparison.Ordinal))
+            return "    -h, --help, -?";
         return "    " + option.GetSignature();
     }
 
@@ -338,6 +359,11 @@ internal sealed class HelpContentProvider(
         if (!string.IsNullOrEmpty(option.Description))
         {
             parts.Add(option.Description);
+        }
+
+        if (string.Equals(option.LongName, "help", StringComparison.Ordinal))
+        {
+            parts.Add("Also -? /? bare");
         }
 
         if (option.IsRequired)
@@ -358,9 +384,16 @@ internal sealed class HelpContentProvider(
 
         if (!option.IsRequired && option.LongName != "help" && option.LongName != "version")
         {
-            var defaultValue = GetOptionDefaultValue(option);
-            if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-                parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, option.IsSecret)}");
+            if (option.IsSecret)
+            {
+                parts.Add($"Default: {SecretRedaction.Mask}");
+            }
+            else
+            {
+                var defaultValue = GetOptionDefaultValue(option);
+                if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
+                    parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, isSecret: false)}");
+            }
         }
 
         return string.Join("\n", parts);
@@ -498,16 +531,7 @@ internal sealed class HelpContentProvider(
         }
     }
 
-    /// <summary>
-    /// Finds the registration holder for a command type. Multiple registrations
-    /// of one type are rejected elsewhere (duplicate-command validation), so
-    /// first match is the definition. Deliberate divergence from the
-    /// promotion lookup (<c>CommandHierarchyBuilder.FindHolder</c>): the
-    /// lookup keys by the option property's declaring type and stay local on
-    /// ambiguity because it compares initializers across definitions,
-    /// while this lookup keys by the holding scope's concrete command type
-    /// because it reads one scope's default.
-    /// </summary>
+    /// <summary>Finds the registration holder for a command type.</summary>
     private TypedCommandHolder? FindHolder(Type commandType)
     {
         foreach (var holder in _commandBuilder.Commands)
@@ -519,13 +543,7 @@ internal sealed class HelpContentProvider(
         return null;
     }
 
-    /// <summary>
-    /// Reads the declaring type's initializer default off derived registration
-    /// holders when no holder matches the declaring type itself (abstract base
-    /// options on a synthesized parent scope). Returns the value only when at
-    /// least one derived holder reads and every readable value agrees;
-    /// otherwise null, so disagreement stays silent instead of picking one.
-    /// </summary>
+    /// <summary>Reads the unanimous declaring-type default across derived holders.</summary>
     private object? GetUnanimousDerivedDefault(SubCommandOptionInfo option)
     {
         var declaringType = option.Property.DeclaringType;
@@ -606,9 +624,7 @@ internal sealed class HelpContentProvider(
     private static bool InitializerValuesEqual(object? first, object? second) =>
         InitializerValueEquality.ValuesEqual(first, second);
 
-    /// <summary>
-    /// Gets the default value for a type using the registered type parsers, fallback to trim-safe defaults
-    /// </summary>
+    /// <summary>Gets the default value for a type using the registered type parsers.</summary>
     private object? GetDefaultValueFromTypeParser(Type type)
     {
         if (_typeParserCollection.TypeParsers.TryGetValue(type, out var parser))

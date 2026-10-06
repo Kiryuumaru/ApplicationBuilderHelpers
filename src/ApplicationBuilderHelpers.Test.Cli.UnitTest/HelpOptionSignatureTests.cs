@@ -57,7 +57,7 @@ public sealed class HelpOptionSignatureTests
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
         var normalized = Normalize(output);
-        Assert.Contains("    -v, --verbose", normalized);
+        Assert.Contains("    -v, --verbose, --no-verbose", normalized);
         Assert.DoesNotContain("--verbose <", normalized);
     }
 

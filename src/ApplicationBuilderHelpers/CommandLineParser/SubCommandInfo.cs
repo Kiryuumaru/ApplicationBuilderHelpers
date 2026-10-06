@@ -7,68 +7,28 @@ using System.Reflection;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Represents a subcommand in the command line parser hierarchy.
-/// Supports cascading subcommands like "git submodule add" where submodule has subcommands.
-/// </summary>
 internal class SubCommandInfo
 {
-    /// <summary>
-    /// The command name parts (e.g., ["git", "submodule", "add"] for "git submodule add")
-    /// </summary>
     public string[] CommandParts { get; set; } = [];
 
-    /// <summary>
-    /// The full command name (e.g., "git submodule add")
-    /// </summary>
     public string FullCommandName => string.Join(" ", CommandParts);
 
-    /// <summary>
-    /// Display name for error messages: <c>&lt;root&gt;</c> for the root command,
-    /// otherwise the full command name. The structured
-    /// <c>CommandException.CommandName</c> stays empty for root so the
-    /// error footer remains global.
-    /// </summary>
     public string DisplayName => IsRoot ? "<root>" : FullCommandName;
 
-    /// <summary>
-    /// The last part of the command name (e.g., "add" for "git submodule add")
-    /// </summary>
     public string Name => CommandParts.Length > 0 ? CommandParts[^1] : string.Empty;
 
-    /// <summary>
-    /// Description of the subcommand
-    /// </summary>
     public string? Description { get; set; }
 
-    /// <summary>
-    /// The actual command implementation
-    /// </summary>
     public ICommand? Command { get; set; }
 
-    /// <summary>
-    /// Parent subcommand in the hierarchy (null for root commands)
-    /// </summary>
     public SubCommandInfo? Parent { get; set; }
 
-    /// <summary>
-    /// Child subcommands
-    /// </summary>
     public Dictionary<string, SubCommandInfo> Children { get; set; } = [];
 
-    /// <summary>
-    /// Options specific to this command level
-    /// </summary>
     public List<SubCommandOptionInfo> Options { get; set; } = [];
 
-    /// <summary>
-    /// Arguments specific to this command level
-    /// </summary>
     public List<SubCommandArgumentInfo> Arguments { get; set; } = [];
 
-    /// <summary>
-    /// Gets all options including inherited from parent commands
-    /// </summary>
     public List<SubCommandOptionInfo> AllOptions
     {
         get
@@ -99,6 +59,7 @@ internal class SubCommandInfo
 
     private static bool IsBindableTo(SubCommandOptionInfo option, Type? leafType)
     {
+        // Unknown scope is permissive; otherwise the declaring type must fit the leaf.
         if (leafType == null)
             return true;
         var declaringType = option.Property.DeclaringType;
@@ -107,9 +68,6 @@ internal class SubCommandInfo
         return declaringType.IsAssignableFrom(leafType);
     }
 
-    /// <summary>
-    /// Gets all arguments including inherited from parent commands
-    /// </summary>
     public List<SubCommandArgumentInfo> AllArguments
     {
         get
@@ -125,29 +83,14 @@ internal class SubCommandInfo
         }
     }
 
-    /// <summary>
-    /// Depth in the command hierarchy (0 for root, 1 for first level subcommands, etc.)
-    /// </summary>
     public int Depth => CommandParts.Length;
 
-    /// <summary>
-    /// Whether this is a leaf command (has no children)
-    /// </summary>
     public bool IsLeaf => Children.Count == 0;
 
-    /// <summary>
-    /// Whether this is the root command
-    /// </summary>
     public bool IsRoot => Parent == null && CommandParts.Length == 0;
 
-    /// <summary>
-    /// Whether this command has an associated implementation
-    /// </summary>
     public bool HasImplementation => Command != null;
 
-    /// <summary>
-    /// Creates a SubCommandInfo from a command type
-    /// </summary>
     public static SubCommandInfo FromCommand(Type commandType, ICommand? commandInstance = null)
     {
         var commandAttr = commandType.GetCustomAttribute<CommandAttribute>();
@@ -169,17 +112,11 @@ internal class SubCommandInfo
         };
     }
 
-    /// <summary>
-    /// Finds a child subcommand by name
-    /// </summary>
     public SubCommandInfo? FindChild(string name)
     {
         return Children.TryGetValue(name, out var child) ? child : null;
     }
 
-    /// <summary>
-    /// Adds a child subcommand
-    /// </summary>
     public void AddChild(SubCommandInfo child)
     {
         if (child.CommandParts.Length == 0)
@@ -190,9 +127,6 @@ internal class SubCommandInfo
         Children[childName] = child;
     }
 
-    /// <summary>
-    /// Finds a descendant command by following the command path
-    /// </summary>
     public SubCommandInfo? FindCommand(string[] commandPath)
     {
         if (commandPath.Length == 0)
@@ -205,9 +139,6 @@ internal class SubCommandInfo
         return child.FindCommand(commandPath[1..]);
     }
 
-    /// <summary>
-    /// Gets the command path from root to this command
-    /// </summary>
     public string[] GetPathFromRoot()
     {
         var path = new List<string>();
@@ -223,9 +154,6 @@ internal class SubCommandInfo
         return [.. path];
     }
 
-    /// <summary>
-    /// Validates the subcommand hierarchy
-    /// </summary>
     public void Validate()
     {
         if (HasImplementation && !IsLeaf)
@@ -296,9 +224,6 @@ internal class SubCommandInfo
         }
     }
 
-    /// <summary>
-    /// Returns a string representation of the subcommand
-    /// </summary>
     public override string ToString()
     {
         return IsRoot ? "<root>" : FullCommandName;

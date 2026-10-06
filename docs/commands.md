@@ -1,8 +1,8 @@
 # Commands
 
-Commands are the core unit of work in ApplicationBuilderHelpers. Each command is a class that processes a specific CLI operation.
+Commands are classes. Options are named flags. Arguments are positional words. Subcommands are space-separated names.
 
-## Defining a Command
+## Define a Command
 
 ```csharp
 using ApplicationBuilderHelpers;
@@ -12,52 +12,55 @@ using Microsoft.Extensions.Hosting;
 [Command("build", description: "Build the project")]
 public class BuildCommand : Command
 {
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+    protected override ValueTask Run(
+        ApplicationHost<HostApplicationBuilder> applicationHost,
+        CancellationToken cancellationToken)
     {
-        // Command logic here. A normal return means success (exit 0).
+        // Return normally for success (exit 0).
+        return ValueTask.CompletedTask;
     }
 }
 ```
 
-### Command Attribute
+Extend `Command`. Override `Run`. Mark the class with `[Command]`.
 
-`[Command]` supports these constructors:
+### Naming Commands
 
 ```csharp
-[Command(description: "Description only")]          // Auto-detects name from class
-[Command("name")]                                     // Name only
-[Command("name", description: "With description")]    // Both
+[Command(description: "Description only")]          // Runs at the root, no name
+[Command("name")]                                     // Named command
+[Command("name", description: "With description")]    // Named with help text
 ```
 
-The `Term` property is the command name. Use space-separated names for sub-commands:
+Use spaces for subcommands:
 
 ```csharp
 [Command("deploy prod", description: "Deploy to production")]
 ```
 
-### Term Validation Contract
+Rules for names:
 
-`Term` is validated at build time — violations throw `InvalidOperationException` (build fault, exit `1`), never a usage error (exit `2`). Two guards enforce the same rules so both call sites agree (`SubCommandInfo.FromCommand` at `src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:140-159`; hierarchy build at `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:82-88,193-204`):
-
-| `Term` | Result |
+| Name | Result |
 |---|---|
-| `null` (e.g. `[Command]` description-only) | Preserved — merges at the root (`CommandParts` empty; `?? []` at `SubCommandInfo.cs:146`). Whether that root is abstract or concrete is a runtime property, not a `Term` property: no implementation (`HasImplementation` false at `SubCommandInfo.cs:133`) → abstract root (bare run exits `2`, leading `--help` globalizes via the help-first branch); a merged implementation (`HasImplementation` true, e.g. `MainCommand` in the test CLI at `src/ApplicationBuilderHelpers.Test.Cli/Commands/MainCommand.cs:6-8` + `Program.cs:14`) → concrete root (bare run executes `Run`; leading `--help`/`-h` globalizes via `IsConcreteRootLeadingHelp` in `ArgumentParser.cs`, #559) |
-| `""`, whitespace-only (`"   "`, `"\t"`) | `InvalidOperationException`: `term must not be empty or whitespace` |
-| Dash-led part (`"--bogus"`, `"hub --get"`) | `InvalidOperationException`: `command names must not start with '-'` (checked per part, `Ordinal`) |
-| Multi-space (`"a  b"`, `"config  hub"`) | Normalized via `Split(' ', RemoveEmptyEntries)` → `["a", "b"]`, `FullCommandName` `"a b"` (abstract-base match uses the same normalization, so `[Command("config  hub")]` on an abstract base matches the `config hub` path) |
+| No name (description only) | Runs at the root |
+| `""` or only spaces | Build error, exit `1`: name must not be empty |
+| Name starting with `-` | Build error, exit `1`: names must not start with `-` |
+| Extra spaces (`"a  b"`) | Treated as single spaces |
 
-Pinned by `AbstractRootRequiresSubcommandTests.cs` (Term guard + normalization tests) + `RootRoutingDivergenceTests.cs` (`ConcreteRoot_Help_WithTrailingValue/CommandName/UnknownOption_ShowsRootHelp` + `Leaf_Help_WithTrailingValue_ShowsLeafHelp`, #559).
+A root with no command behind it needs a subcommand: running it bare exits `2`. A root with its own run plus subcommands reports a bare non-child first word as `No command found` (`UnknownCommand`, exit `2`), with a pointer only when close. See [Advanced Topics](advanced.md).
 
-### Command Variants
+Grouping parents without their own `Run` still render a synthetic help page: `myapp deploy --help` lists child commands under `COMMANDS:` and appends `<COMMAND> [ARGS...]` to usage. Leaf-owned options may be interleaved before the child name (`myapp deploy --force prod`) when the current node owns nothing for that spelling and exactly one descendant does: the flag must sit ahead of the child that owns it (a valued option in space form must sit ahead with its value, e.g. `myapp deploy --config v prod-east`), and same-spelling leaves merge only when canonical names match (long name, else short) and shapes agree (flag vs valued, collection, property type) — otherwise the token stays unknown. An unknown option with one unambiguous leaf owner points the error footer at that leaf (`myapp deploy --fast bogus` → `Run 'myapp deploy staging --help' ...`). Short clusters route like long forms (`myapp deploy -f prod` binds `-f` on `deploy prod`). The same single-owner check applies, with a valued short last (`myapp deploy -fc v prod-east`).
 
-| Base Class | Host Builder | Use For |
-|---|---|---|
-| `Command` | `HostApplicationBuilder` | Console apps, workers |
-| `Command<THostApplicationBuilder>` | Custom | Web apps, custom hosts |
+### Command Base Classes
+
+| Base class | Use for |
+|---|---|
+| `Command` | Console apps and workers (default) |
+| `Command<THostApplicationBuilder>` | Web apps or custom hosts |
 
 ## Options
 
-Define command-line flags with `[CommandOption]`:
+Add a property with `[CommandOption]`:
 
 ```csharp
 [CommandOption('v', "verbose", Description = "Enable verbose output")]
@@ -70,82 +73,136 @@ public string? ConfigPath { get; set; }
 public int Timeout { get; set; } = 30;
 ```
 
-### Option Constructors
+Three forms:
 
 ```csharp
-[CommandOption('s', "long-name")]   // Short + long
-[CommandOption('s')]                 // Short only
-[CommandOption("long-name")]         // Long only
+[CommandOption('s', "long-name")]   // Short and long: -s, --long-name
+[CommandOption('s')]                 // Short only: -s
+[CommandOption("long-name")]         // Long only: --long-name
 ```
 
-### Compile-Time Duplicate Short Check (ABH001)
+A single-letter long name also answers its single-dash alias: `[CommandOption("a")]` binds both `-a` and `--a`. An explicit short wins.
 
-Two options in the same effective command scope must not share a short name under different canonical keys (long name, then short name, then property name — `ParseResult.GetCanonicalOptionKey` at `src/ApplicationBuilderHelpers/CommandLineParser/ParseResult.cs:58-59`) — the parser would otherwise first-win silently. Violations fail the build with error `ABH001` (severity `Error`, `src/ApplicationBuilderHelpers.Analyzers/DuplicateShortNameAnalyzer.cs:13-21`):
+### Option Settings
+
+| Setting | What it does |
+|---|---|
+| `Description` | Help text |
+| `EnvironmentVariable` | Env var used when the flag is omitted (blank counts as omitted) |
+| `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
+| `FromAmong` | Only accept these values (enums fill this in automatically) |
+| `CaseSensitive` | Match `FromAmong` values with exact case; does NOT affect option NAME matching (names always match exactly) |
+| `Secret` | Never print the value; optional-option help always shows `Default: [REDACTED]` to signal secrecy, not that a default exists. The allowed-values list still shows — `[REDACTED]` may be one of the listed values |
+
+Do not declare your own `-h` or `-V`. They belong to `--help` and `--version` and fail the build. `-?` and `/?` are also reserved as bare-token help aliases on every OS; quote them on Unix shells (`'-?'`, `'/?'`) so the shell does not glob them.
+
+Two options in one command must not share a short flag. If a shared base class declares `-l, --log-level` on every command, it becomes one shared global. Leaf commands must then avoid reusing `-l`; use a long-only flag like `--local` instead.
+
+### Env Var Fallback
+
+When you set `EnvironmentVariable` and the user types no flag, the env value fills the option. A typed flag always beats env. Empty or whitespace-only env counts as unset. Env never rescues a flag typed with no value — it covers omitted options only.
+
+### Required Means Present, Not Non-Empty
+
+`Required` checks presence only. Typing `--name ""` or `""` supplies a value, so it passes `Required` and binds as `""`. Only omission fails `Required` with exit `2`. To reject empty text, guard it in code:
 
 ```csharp
-public class BadCommand : Command
-{
-    [CommandOption('l', "level")]
-    public string Level { get; set; } = "information";
+using ApplicationBuilderHelpers.Exceptions;
 
-    [CommandOption('l', "local")]   // ABH001: '-l' already used by '-l, --level'
-    public bool LocalOnly { get; set; }
-}
+if (string.IsNullOrEmpty(Name))
+    throw new CommandException("Name must not be empty.", exitCode: 2);
 ```
 
-Same-key copies (one logical option seen through several identities) stay legal, as does a long-only option beside a short option. Scope differs by layer: the analyzer walks the command's own options plus inherited base-class options (static attribute syntax only); the runtime guard checks each command's effective `AllOptions` scope (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandInfo.cs:72-95`) — own options plus inherited/promoted globals (`DetermineGlobalOptions` at `src/ApplicationBuilderHelpers/CommandLineParser/CommandHierarchyBuilder.cs:223-279`) — grouped by short and split by canonical key (`:532-549`). The analyzer is a conservative approximation: per-run registration, global-promotion state, and initializer-default state (which can block promotion via `InitializerValuesEqual` at `CommandHierarchyBuilder.cs:296-323`) are invisible to it. The runtime guard (`CommandHierarchyBuilder.ValidateDuplicateShortNames`, fault exit `1`) remains the truth and still catches collisions the analyzer cannot see.
+Omitted means no value exists (env blank or missing counts as omitted). Empty means a zero-length value was supplied.
 
-`-l` rule: when a tree shares `-l, --log-level` from a common base (e.g. `BaseCommand` at `src/ApplicationBuilderHelpers.Test.Cli/Commands/BaseCommand.cs:9`), identical copies promote to global — this is a shared-base plus promotion pattern, not a library-owned global (the built-in global is help-only). Leaf options must therefore not reuse `-l`; use the long-only form instead (e.g. `--local` at `src/ApplicationBuilderHelpers.Test.Cli/Commands/ConfigGetCommand.cs:18`, `--limited-level` at `src/ApplicationBuilderHelpers.Test.Cli/Commands/EnumLimitedCommand.cs:10`).
-
-### Option Properties
-
-| Property | Type | Description |
-|---|---|---|
-| `Term` | `string?` | Long option name (e.g., `"verbose"` → `--verbose`) |
-| `ShortTerm` | `char?` | Short option flag (e.g., `'v'` → `-v`) |
-| `Description` | `string?` | Help text |
-| `EnvironmentVariable` | `string?` | Fallback env var |
-| `Required` | `bool` | Must be provided |
-| `FromAmong` | `object[]` | Restrict to specific values (enum-typed options auto-populate from the enum names when `FromAmong` is empty, unless a custom parser is registered for that enum type) |
-| `CaseSensitive` | `bool` | Case-sensitive matching for FromAmong |
-| `Secret` | `bool` | Redact value: help default shows `[REDACTED]`, errors omit the provided value (including `--no-<name>=value` rejections and combined-short clusters, which report only the failing char e.g. `Unknown option: -x`, for secret valued options) |
-
-### Environment Variable Fallback
-
-When `EnvironmentVariable` is set and no CLI token is supplied, the env value fills the option — except an empty or whitespace-only env value is treated as unset. Precedence is CLI-wins: an explicit CLI token always replaces the env value, so `--opt ""` downgrades a set env value to `""` for string targets. A typed bare occurrence (`--config` with no value) never qualifies as "no CLI token" — env rescues only omitted (never-typed) options, never an explicit bare.
-
-### Required Options in Help
-
-A required option (`Required = true`) renders the verbatim lowercase `(required)` marker on the line immediately after its description. Description lines follow a fixed ordinal (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:275-310`): Description (`:279-282`) → `(required)` (`:284-287`) → `Possible values: ...` (`:289-294`) → `Environment variable: ...` (`:296-299`). There is no `Default:` line when `IsRequired` (`:301-306`).
-
-- `Default:` suppression: a required option never shows a `Default:` line, even when the CLR type carries an implicit default. The motivating case is a required `int` (e.g. `[CommandOption("count", Description = "Item count.", Required = true)]`), which omits the phantom `Default: 0` (`RequiredOptionHelpTests.cs:47-58`). A required `string` likewise shows the marker with no `Default:` line (`:61-72`), while an optional `int` with an explicit initializer keeps its `Default:` line (e.g. `Default: 3`, `:75-86`).
-- Env interplay: a required option with an `EnvironmentVariable` fallback still shows the `Environment variable: ...` line after `(required)` (and after `Possible values:` when `FromAmong` is set): Description → `(required)` → `Possible values:` → `Environment variable:` (`RequiredOptionHelpTests.cs:89-102`).
-- Secret interplay: suppression beats redaction — a required secret option shows `(required)` but never a `Default: [REDACTED]` line, because the `Default:` arm is skipped before `SecretRedaction.GetDefaultDisplay` is reached (`HelpContentProvider.cs:301-306`; mask defined at `src/ApplicationBuilderHelpers/CommandLineParser/SecretRedaction.cs:40-46`).
-- Unchanged: option signatures, usage `[OPTIONS]`, and two-column layout are untouched — only the description lines change.
-
-### Restricted Values
+### Allowed Values
 
 ```csharp
 [CommandOption('l', "level", FromAmong = new[] { "debug", "info", "warn", "error" })]
 public string Level { get; set; } = "info";
 ```
 
-### Tokenizer Behavior
+Values compare after converting the typed text to your property type. So `02` matches `2` for an `int` option (`--level=02`). Bad values exit `2` with `Must be one of: ...`. See [Custom Type Parsers](custom-type-parsers.md).
 
-- Bare boolean flags never consume the next token: `--verbose` binds `true` and a following word stays positional (`--verbose off` sets `Verbose: True`, `Items: off`). Use `--verbose=off` for explicit values.
-- A bare valued option never consumes a flag-looking neighbor (reject-by-default): any dash-led non-numeric token — known or unknown, including `--help`/`--version` and the `--` separator — is left to bind or error on its own merits, while the valued option falls back to the trailing-bare missing sentinel (`null`, enforced in `ParameterValidator.cs:30-95`). A bare occurrence with no merged value is a missing value on its own merits — required or optional alike — and always fails `MissingRequired` (exit 2) even with env set: `Missing value for option: <display-name>` (optional) or `Missing required option: <display-name>` (required). Typing the option claims ownership, so env fallback never rescues a typed bare; it applies only to omitted (never-typed) options (`EnvVarFallback.cs:21-39`; the required rescue at `ParameterValidator.cs:43-45` is gated on no bare mark, and the optional pass at `:60-77` has no rescue call). A single trailing-bare fails even with env set; a satisfied required valued scalar repeated bare (`--name John ... --name` at end-of-line) fails `MissingRequired` (exit 2) regardless of env fallback. Precedence: an unknown neighbor errors on its own merits first — `--config --nope` reports `Unknown option: --nope` (exit 2) because the parser throws before validation runs; `--help`/`--version` neighbors keep their carve-out — `--config --help` shows help and `--config --version` fires version on a leaf, since the optional-bare pass is skipped when `ShowHelp`/`ShowVersion` is set. On a group path a pre-`--` unknown/invalid token beats `--version` (exit `2`, #586); pure `--version` stays exit `0`. Conversion beats help-with-values only (#483): binding errors collect at `ValidateAndBindParameters` (`CommandLineParser.cs:148-164`; dry-run `ValueBinder.cs:24-55`), so an `InvalidValue` (exit 2) surfaces before help-with-values; missing is skipped when `ShowHelp` is set (suppressed per `ParameterValidator.cs:33,60,79`) and only the binding probe beats help. Version path untouched — the post-parse version check (`CommandLineParser.cs:78-82`) runs before validation, so invalid+version still exits `0` except on a group path with a pre-`--` error token (#586). Bare carve-out preserved: the collect skips bare-ledger keys when `ShowHelp` is set (`ValueBinder.cs:37`). `--config --verbose` fails `Missing value for option: -c, --config` (exit 2) whether or not `TEST_CONFIG` is set — remove the flag to use the env value. `=`-form (`--config=f.json`), compact (`-cf.json`), and numeric neighbors (`--seed -5`) still bind as values; use `--` to pass a dash-led value positionally.
-- `=`-form boolean literals accept `true/false/yes/no/on/off/1/0` (case-insensitive); anything else is an `InvalidValue` usage error (exit 2), e.g. `--verbose=maybe`. On an abstract prefix with no implementation (e.g. bare root, `config` hub), a known flag in `=`-form with an invalid literal (e.g. `--verbose=banana`) reports `InvalidValue` (exit 2) naming the option plus the valid literals instead of `RequiresSubcommand` (#542 invalid-literal gate `ThrowOnInvalidFlagLiteralPreSentinelOption` in `ArgumentParser.cs`, pre-version plus post-version call; literal check delegates to `SubCommandOptionInfo.ExtractValue`, no literal-table copy). Valid literals (`--verbose=true`), bare flags, valued options (`--data=x`), unknown bases (still `UnknownOption` via #508), `--no-`-prefixed tokens (owned by the `--no-` mirror), and post-`--` tokens fall through unchanged. Bare `--help`/`-h` and `--version`/`-V` tokens are skipped by the scans (`:428-429`, `:473-474`) — but so is the whole abstract branch once leading help fires: on a concrete root `["--help", "--verbose=banana"]` renders help (exit `0`) because the #559 leading-help gate (`:80`) enters as a separate block after the abstract help (`:60`) and version (`:74-78`) checks returns before the #542 gate ever runs. On a group path a pre-`--` unknown/invalid token beats `--version` in either order (exit `2`, #586 pre-version gate at `:67-72`); pure `--version` stays exit `0`. On a concrete command, eager `InvalidValue` throws (`=`-form flag literals, `--no-<name>=value`) are version-tolerant: with a pre-`--` version request (bare `--version`/`-V` or `V`-cluster, per `HelpVersionGateway.RequestedVersion`) and no pre-`--` help request, the offending token is skipped and version fires (exit `0`), matching deferred values; without version the same token fails `InvalidValue` (exit 2). Unknown options/commands with `--version` stay exit 2.
-- Help-reserved `=`/negated forms never bind help — they are `InvalidValue` usage errors (exit 2): `--help=<anything>` (including empty `--help=`), `-h=<anything>` (including empty `-h=`) unless a real short-`h` owner exists (e.g. `serve --host`, where `-h=<value>` parses as that option), bare `--no-help`, and `--no-help=<anything>` (reserved gate `IsHelpEqualsOrNegatedToken` + `HelpMisuseError` in `ArgumentParser.cs`). Bare `--help`/`-h` still show help (exit 0); `--help false` shows help with `false` left positional (on a concrete root via the #559 gate; on an abstract root via the help-first carve-out). Post-`--` tokens stay positional and never hit this gate. On an abstract prefix (e.g. `config --help=x`) the reserved form reports `InvalidValue` (exit 2) instead of `RequiresSubcommand`.
-- The first bare `--` ends option matching; every following token is positional, including `--verbose` and `--help`. The #559 concrete-root gate scans only pre-`--` tokens and requires `argIndex == 0`, so `["--", "--help"]` never fires it (abstract root: `RequiresSubcommand`, exit `2`; concrete root: surplus-argument error, exit `2`).
-- Negative numbers (`-5`, `-1.5`) are positional without a separator — and a bare numeric token wins over a digit short: `-1`, `-10`, `-1.5` never bind a `ShortTerm '0'`–`'9'` option even when one is declared (reject-by-default neighbor gate `IsFlagLookingToken` with numeric test `IsNumericValue` in `ArgumentParser.cs`). The digit short stays reachable only via in-token forms (`-1=value` per `SubCommandOptionInfo.cs` `MatchesArgument`/`ExtractValue` (`:335-380`), compact `-1x` for valued options) or after `--`.
-- Combined shorts expand left to right: `-abc` binds each flag `true`; the last short takes the attached remainder (`-abdvalue` binds `Data: value`); an unknown char reports only the failing char (`Unknown option: -x`, exit 2, `UnknownOption`). `-h`/`-V` inside a cluster win as help/version even mid-cluster. `h`/`V` are reserved shorts — declaring either as a local `ShortTerm` throws `InvalidOperationException` at registration (fail-closed, `CommandHierarchyBuilder.cs:483-507`), unless `LongName` is `help` for `-h`; `-V` always throws (no version node, gateway-only); use the long form instead (e.g. `serve --host`, long-only).
-- `--no-<name>` negates a boolean flag (`--no-verbose` binds `false`); `--no-<name>=value` never accepts a value. A known name (flag, valued, or collection — including secret valued options resolved through the command's full option scope) is rejected as `InvalidValue` (exit 2) with secret-aware text that omits the value for secrets — a flag (`bool`/`bool?`) rejection advises bare `--no-<name>` (binds `false`), while a valued/collection rejection never prescribes bare `--no-<name>` (bare would itself reject as `Unknown option`) and instead advises omitting the option or using `--<name>=<value>` as a value-free template; an unknown name reports `Unknown option: --no-<name>` (exit 2) with a name-only suggestion, never echoing the value; an empty base (`--no-=value`) fails closed as `InvalidValue` (exit 2) with redaction on. On an abstract prefix (e.g. `config --no-verbose=x`) the rejected form reports `InvalidValue` (exit 2) instead of `RequiresSubcommand`.
-- Bare-flag repetition is idempotent (`--verbose --verbose` succeeds); valued repeats are last-wins (`--text=a --text=b` binds `b`), except a trailing bare repeat of a satisfied required valued scalar fails `MissingRequired` (exit 2) regardless of env fallback, while a trailing bare repeat of a satisfied optional is ignored and the prior value stands (`ParameterValidator.cs` bare passes (`:51-56` required repeat, `:60-77` optional)). Unsatisfied bare (`--config` with no value anywhere) is not a repeat — it fails per the tokenizer bullet above even with env set. Bare-then-valued heals; collections accumulate; bare boolean flags stay idempotent.
-- Unknown options report name-only (fail-closed logging): `--pasword=hunter2` reports `Unknown option: --pasword` (exit 2) with a name-only suggestion, never echoing the value. Combined-short clusters report only the failing char (`Unknown option: -x`), never the whole-token remainder.
+### How Typing Works
+
+- Bare flags never eat the next word. `--verbose` means `true`. `--no-verbose` means `false`.
+- An option typed with no value never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted options only.
+- A flag with `=` never works (exit `2`). Use bare `--verbose` or `--no-verbose`.
+- `--no-<name>` works only on `bool` flags and means `false`. `--no-<name>=value` never works.
+- Words after the first bare `--` are always positional. `--` itself is swallowed.
+- Negative numbers (`-5`) count as positional. Reach a digit short with `-1=value` or after `--`.
+- Grouped shorts (`-abc`) expand left to right. A short that needs a value must come last. `-h` and `-V` win mid-group. `-?` and `/?` never expand: `-?` is a bare help token and `-v?` reports `Unknown option: -?`. `-help` and `-version` never expand either (exact tokens only): each reports `Unknown option` with a did-you-mean pointer.
+- An empty `=`-form on a non-string option fails as `InvalidValue` (exit `2`); string options still bind empty.
+- Unknown options report the name only, never the value: `Unknown option: --pasword`.
+- Repeats: flags stay put; repeats of a valued scalar take the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2). Collections gather every value and stay exempt, as do flags and environment-supplied values.
+- `Required` options show `(required)` in help after the description.
+- `@file` expands before parsing. File words splice in place.
+- Words after the first bare `--` never expand. They stay literal, even `@@x`.
+- `@@x` means literal `@x` before `--`. Lone `@` fails (exit `1`).
+- An `@` inside a word never expands. `user@example.com` stays literal.
+
+## Response Files (`@file`)
+
+Put common words in a file. Reference it with `@path`. The library splices file words in place before parsing.
+
+```sh
+myapp @args.rsp
+myapp deploy @prod.rsp --dry-run
+```
+
+`args.rsp` holds plain words:
+
+```text
+--verbose --data hello
+```
+
+Quote values with spaces. Use `"` or `'`. Newlines count as spaces. Files have no comments. An unterminated quote runs to end of file and is accepted as-is.
+
+```text
+--data "hello world"
+--verbose
+```
+
+Rules:
+
+- Expansion runs before completion, help, and parsing. Help from a file renders help (exit `0`). An expansion fault still fails (exit `1`).
+- A `@file` token expands wherever it appears before `--`. After `--` it stays literal.
+- `@@x` means literal `@x`. This works on the command line and inside files.
+- Lone `@` names no file. It fails (exit `1`).
+- Relative paths resolve against the current directory. Absolute paths work from any directory.
+- Files can reference files. Reuse of one file twice succeeds. A cycle fails.
+- Completion on a partial `@word` returns nothing (exit `0`). Other probes expand first, then complete.
+
+Limits:
+
+| Limit | Value |
+|---|---|
+| Max file size | 1 MB (1048576 bytes) per file |
+| Max total read | 4 MB (4194304 bytes) |
+| Max expanded args | 10000 args |
+| Max nesting depth | 8 levels |
+
+Errors exit `1` as `Fault` with a help-only footer. The message names the cause:
+
+| Cause | Message contains |
+|---|---|
+| Lone `@` | `names no file` |
+| Missing file | `not found` |
+| Unreadable path | `is unreadable` |
+| File over 1 MB | `exceeds size limit` |
+| Total over 4 MB | `total size limit` |
+| Over 10000 args | `exceeds 10000 arguments` |
+| Over depth 8 | `exceeds nesting depth 8` |
+| Cycle | `forms a cycle` |
+
+The 10000-arg limit applies to the final expanded argv, including words typed on the command line. A bare `--` on the command line stops expansion after it; a `--` inside a file is an ordinary word and does not stop expansion.
+
+This is argv only. It never reads app settings. For settings reuse, see `@ref:` in [Configuration](configuration.md).
 
 ## Arguments
 
-Define positional arguments with `[CommandArgument]`:
+Add a property with `[CommandArgument]`:
 
 ```csharp
 [CommandArgument(Name = "source", Position = 0, Description = "Source file", Required = true)]
@@ -155,99 +212,34 @@ public string SourceFile { get; set; } = "";
 public string? DestPath { get; set; }
 ```
 
-### Argument Properties
-
-| Property | Type | Description |
-|---|---|---|
-| `Name` | `string?` | Display name in help |
-| `Position` | `int` | Positional index |
-| `Description` | `string?` | Help text |
-| `Required` | `bool` | Must be provided |
-| `FromAmong` | `object[]` | Restrict to specific values (enum-typed arguments auto-populate from the enum names when `FromAmong` is empty, unless a custom parser is registered for that enum type — same rule as options) |
-| `CaseSensitive` | `bool` | Case-sensitive matching |
-| `Secret` | `bool` | Redact value: errors omit the provided value |
-
-A positional argument is present when its token is supplied — even as `""` — which satisfies `Required`, while an omitted required argument fails with `MissingRequired` (exit 2); for string-typed targets the token binds verbatim as `""` (a whitespace-only token is likewise preserved, not trimmed). Non-string `""` follows per-type parser semantics instead: unparseable types report `InvalidValue` (exit 2). Named `bool` options reject `""` in `=`-form (`InvalidValue`, exit 2, same rule as the tokenizer section above) and never consume a following `""` in space-form — it stays positional; the `BoolTypeParser` empty-binds-`true` path is reachable only for positional `bool` arguments, which pass through with no literal gate. The same preserve rule applies to named options, except an empty or whitespace-only environment-variable fallback is treated as unset, and any strict empty-rejecting mode is a separate follow-up.
-
-**Breaking change:** code that relied on `""` arriving as `null` (e.g. `== null` sentinels) must migrate to `string.IsNullOrEmpty` — an explicitly supplied `""` now binds as `""`, never `null`.
-
-Positional arguments are per-command (leaf-local) by default and never inherit by name: a root positional (even a common name like `target`) is invisible to leaf scopes, so a surplus leaf token fails as a usage error (`Unexpected argument '<value>'`, exit 2 — surplus-argument throw in `ArgumentParser.cs`) rather than binding the root value. See ADR-0008 (`docs/adr/0008-positional-no-inherit.md`); scope pinned by `DetermineInheritanceScope` (`src/ApplicationBuilderHelpers/CommandLineParser/SubCommandArgumentInfo.cs:219-230`).
-
-## Shell Completion
-
-Owner: `CompletionGateway` (`src/ApplicationBuilderHelpers/CommandLineParser/CompletionGateway.cs:17-19`, ctor `ICommandBuilder` + `ConsoleOutput`) delegating to `CompletionEngine` (probe), `CompletionScriptWriter` (script), `CompletionInstaller` (install/uninstall). Wired in `CommandLineParser` after hierarchy build, before help/parsing.
-
-Precedence: completion > help > parse > version — the gateway runs at `CommandLineParser.cs:67-68` after hierarchy build (`:64-65`), before bare `--help` (`:70-74`), before `ParseCommandLine` (`:76`), before the post-parse version check (`:78-82`); on a group path a pre-`--` unknown/invalid token beats `--version` (exit `2`, #586).
-
-> Shadowing warning: gateway words never dispatch to registered commands. A user-registered `complete` or `completions install` command never runs — the gateway handles first (`CompletionGateway.cs:10-15`).
-
-Reserved gateway words intercepted after hierarchy build, before help/parsing (never dispatch to registered commands):
-
-- `complete --position N "<commandline>"` — `N` is a 0-based character offset into the full command-line string (clamped to its length; defaults to end). Probes the hierarchy tolerantly, prints one candidate per line on stdout, exits `0`. Bare `complete` (no command line) lists root subcommands; other malformed input prints nothing, still `0`.
-- `completions script <bash|zsh|pwsh|powershell|fish>` — prints a dotnet-style shim that re-invokes `complete --position N "<commandline>"` per TAB.
-- `completions install [--shell <bash|zsh|pwsh|fish>] [--dry-run]` — writes the shim into the shell startup file inside a guarded `# >>> <exe> completion >>>` / `# <<< <exe> completion <<<` block (replace-in-place, append when absent; missing rc is created). Without `--shell`, the basename of `$SHELL` is used (`powershell` maps to `pwsh`). Targets:
-| Shell | Target |
+| Setting | What it does |
 |---|---|
-| bash | `~/.bashrc` |
-| zsh | `~/.zshrc` |
-| pwsh | Windows: `~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1`; elsewhere: `$XDG_CONFIG_HOME/powershell/Microsoft.PowerShell_profile.ps1`, else `~/.config/powershell/Microsoft.PowerShell_profile.ps1` |
-| fish | `$XDG_CONFIG_HOME/fish/completions/<exe>.fish`, else `~/.config/fish/completions/<exe>.fish` |
-`XDG_CONFIG_HOME` is honored only when absolute; a relative, empty, or unreadable value falls back to `~/.config` (applies to fish and non-Windows pwsh). Fish idempotence is byte-exact over UTF-8-no-BOM bytes, so a stale encoding counts as drift and reinstalls. Byte-identical re-runs print `already installed: <path>` without rewriting; otherwise prints `installed: <path>`, exit `0`. `--dry-run` prints `would-write: <path>` plus the content and changes nothing. Mutating install/uninstall paths hold a per-target sibling `<target>.lock` (same-target serializes ≤10s then fails loudly, different targets never block, dry-run never locks); a lock timeout reports on stderr, exit `1`.
-- `completions uninstall [--shell <...>]` — removes only the managed block; missing file or no block prints `not installed: <path>`, exit `0` (rc files are never deleted; only a fully-managed fish file is deleted). A fish file without the managed block is left untouched and refused on stderr, exit `1`.
-- `completions install` / `uninstall` with an unknown shell (including undetectable `$SHELL`) or a bare trailing `--shell` with no value report on stderr, exit `2`. A bare `--shell` reports `Missing value for '--shell'. Expected bash, zsh, pwsh, or fish.` `completions script <unknown>` is handled (returns `true`): it reports `Unknown shell '<shell>'. Expected bash, zsh, pwsh, or fish.` on stderr via the shared `CompletionInstaller.TryCanonicalizeShell` canonicalizer (`CompletionGateway.cs:196-202`), exit `2` — never the parse-path `No command found`. IO failures report on stderr, exit `1` (lock/permission failures name the lock path; permission failures say "Access denied"). Executable names are validated (ASCII letters, digits, `.`, `_`, `-`, max 64 chars, starting with a letter or `_`; empty falls back to `myapp`) — anything else reports the allowed set on stderr, exit `2`.
+| `Name` | Display name in help |
+| `Position` | Which positional word (starts at `0`) |
+| `Description` | Help text |
+| `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
+| `FromAmong` | Only accept these values |
+| `CaseSensitive` | Match values with exact case; does NOT affect argument NAME matching |
+| `Secret` | Never print the value |
 
-Exit matrix (`CompletionGateway.cs:24-57,106-204`):
+Typing `""` counts as supplied and binds as `""` for text. It satisfies `Required`; only omission fails `Required`. Check with `string.IsNullOrEmpty`, not `== null`. Need non-empty text? Guard it in code (see Options above).
 
-| Input | Exit | Notes |
-|---|---|---|
-| `complete [...]` (any probe, incl. bare/malformed) | `0` | Tolerant probe: malformed input prints nothing, still `0` (`:100-103`) |
-| `completions script <known shell>` | `0` | Extra tokens (e.g. `--help`) ignored (`:39-44`; test `CompletionsScript_IgnoresTrailingHelp`) |
-| `completions install` / `uninstall` success | `0` | Includes `already installed` / `not installed` no-ops |
-| `completions install` / `uninstall` unknown option, unknown shell, missing `--shell` value, or invalid exe name | `2` | stderr (`:127-128,:169-170,:218-230`); bare `--shell` reports `Missing value for '--shell'. Expected bash, zsh, pwsh, or fish.` |
-| `completions script <unknown shell>` | `2` | Handled (`true`): `Unknown shell '<shell>'. Expected bash, zsh, pwsh, or fish.` on stderr via shared `TryCanonicalizeShell` (`:196-202`); never the parse path |
-| `completions install` / `uninstall` IO failure (incl. lock timeout) | `1` | stderr (`:141-150,:183-192`); fish foreign-file refusal surfaces here |
-| Bare `completions`, `completions script` (no shell), `completions <unknown>` | falls through to parse | Returns `false`; parse reports `No command found`, exit `2` (`:36-37,:41-42,:56`) |
+Arguments belong to one command only. A root positional stays hidden from subcommands. It binds a bare word only when the root has no children; with children the miss check runs first and a bare non-child word fails as `No command found` (exit `2`). A surplus word on a leaf fails with `Unexpected argument` (exit `2`).
 
-## Accessing Services
+## Get Services in a Command
 
-Mark a writable instance property with `[FromServices]` (unkeyed) or
-`[FromKeyedServices(key)]` (keyed). Owner: `ServiceInjectionGate`
-(`src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-126`,
-single `Inject` entry at `:111`). The thin `CommandExecutor`
-(`src/ApplicationBuilderHelpers/CommandLineParser/CommandExecutor.cs:19-33`)
-creates one `IServiceScope` per command run, then the gate injects those
-properties from `scope.ServiceProvider` after CLI binding; the command runs,
-then the scope is disposed after the lifetime callbacks. Scoped services are
-therefore isolated to one command run; resolve additional services inside
-`Run` from `applicationHost.Services` only when property injection does not fit.
+Define these markers once in your app. The library ships no service attributes, so bare `[FromServices]` does not compile alone. The gate matches by simple name (`FromServicesAttribute` / `FromKeyedServicesAttribute`) in any namespace:
 
 ```csharp
-public class BuildCommand : Command
+using System;
+
+namespace MyApp;
+
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+public sealed class FromServicesAttribute : Attribute
 {
-    [FromServices]
-    public IMyService Service { get; set; } = null!;
-
-    // Schematic — the upstream FromKeyedServicesAttribute targets parameters
-    // only, so this line does NOT compile against the real framework
-    // attribute (CS0592). Use the property-capable shim below instead.
-    [FromKeyedServices("primary")]
-    public IMyService Primary { get; set; } = null!;
-
-    protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
-    {
-        // Service and Primary are already injected from the per-command scope.
-    }
 }
-```
 
-Compilable keyed path: define a same-named property-capable shim (or a
-`using`-alias to one). The gate matches by attribute simple name
-(`ServiceInjectionGate.cs:24-30,75-77` — reuse-only seam, no new library
-dependency) and reads the key from attribute metadata (`:146-174`), so no
-new library dependency is needed. This is
-exactly what `ServicePropertyInjectionTests` proves:
-
-```csharp
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
 public sealed class FromKeyedServicesAttribute(object key) : Attribute
 {
@@ -255,112 +247,98 @@ public sealed class FromKeyedServicesAttribute(object key) : Attribute
 }
 ```
 
-Rules:
+Do not use the built-in `Microsoft.Extensions.DependencyInjection.FromKeyedServicesAttribute` on properties. It targets parameters only and never compiles there. Use the shim above instead.
 
-- Canonical bound identity: a property is CLI-bound iff it carries
-  `[CommandOption]` or `[CommandArgument]`. The predicate lives once as
-  `CommandReflectionCache.IsCliBound` (`:212-216`), next to `Walk` (`:229-248`),
-  and both the reflection cache (`Build` at `:131-162`) and the injection
-  plan (`ServiceInjectionGate.cs:51-109`) call it. The plan additionally
-  hoists a bound-name set derived once from that same predicate over the
-  walk (`:53-70`) — so cross-entry hide conflicts (base CLI + derived
-  service under one name) throw too — never re-derived per `Inject` call
-  from the per-run `AllOptions`/`AllArguments` view (that second source
-  is deleted).
-- Disjoint sets: CLI-bound properties (`[CommandOption]` /
-  `[CommandArgument]`) are never injected. A property marked with both a
-  CLI attribute and a service attribute throws `InvalidOperationException`
-  from the gate's single fail-fast point (`ServiceInjectionGate.cs:133-139`,
-  exact historical message preserved) — surfaces as a fault,
-  exit 1, never a usage error. Injection runs after
-  binding, so CLI values are never overwritten.
-  Fault-path re-verify: an injection throw propagates out of
-  `CommandExecutor.ExecuteCommand` (`CommandExecutor.cs:86`) before the
-  orchestrator runs, so no `Exiting` callback fires and only the `Exited`
-  `finally` at `:94-99` runs — the same fault-path shape as a faulted
-  command/host win.
-- Always-error on hiding: member hiding (`new`) never excuses a conflict.
-  The walk keeps hidden members as base-first duplicates
-  (`CommandReflectionCache.cs:229-248`, characterization
-  `Options_HiddenMember_CharacterizesCurrentWalk`), so any dual-marked
-  `PropertyInfo` anywhere in the walk chain throws — checking the hidden
-  derived entry alone is not enough.
-- Injection plans are cached: the per-`Type` target list (property plus
-  optional keyed-service key) is built once under the shared
-  double-checked lock (`TypePlanCache.cs`; gate use at
-  `ServiceInjectionGate.cs:44-48`) and reused across runs; the CLI-bound
-  set is hoisted into the cached plan at `:53-70`. Reflection descriptors
-  are cached separately per builder through the same shared core
-  (`CommandReflectionCache.cs:107-125`, miss-counted by `BuildCount` at
-  `:109-112`; shared core at `TypePlanCache.cs`). Marker matching stays
-  narrow: by attribute simple name (`ServiceInjectionGate.cs:24-30,75-77`
-  — reuse-only seam, no new library dependency) with the key read from
-  attribute metadata (`:146-174`).
+Mark a property with your `[FromServices]` shim and the library fills it before `Run`:
 
 ```csharp
-// Dual-marked example — always throws InvalidOperationException (fault, exit 1):
-public class BadCommand : Command
+using MyApp;
+
+public class BuildCommand : Command
 {
-    [CommandOption("name")]
-    [FromServices] // configuration error: CLI-bound AND service-marked
+    [FromServices]
     public IMyService Service { get; set; } = null!;
+
+    [FromKeyedServices("primary")]
+    public ICache Cache { get; set; } = null!;
+
+    protected override ValueTask Run(
+        ApplicationHost<HostApplicationBuilder> applicationHost,
+        CancellationToken cancellationToken)
+    {
+        // Service and Cache are already filled from the per-run scope.
+        return ValueTask.CompletedTask;
+    }
 }
 ```
-- Keyed services resolve from the same per-command scope via
-  `GetRequiredKeyedService(type, key)`.
-- A missing service throws out of the executor and maps to a fault
-  (exit 1), never a usage error (exit 2).
-- Help, version, and validation paths return before the executor, so they
-  construct zero scopes.
-- No new attribute types: reuse the framework `[FromServices]` /
-  `[FromKeyedServices]` markers. Note the upstream
-  `FromKeyedServicesAttribute` targets parameters only, so compiler-applied
-  property use is rejected (CS0592); the gate matches by attribute name
-  and reads the key from attribute metadata.
 
-## Command Lifecycle
+Pass the key as the constructor argument. The key is an `object` and the `Key` property carries it. The gate also reads a `Key = ...` named argument from shims shaped that way.
 
-Commands inherit the full `ApplicationDependency` lifecycle. See [Application Dependencies](application-dependencies.md) for details on `AddServices`, `AddConfigurations`, `AddMiddlewares`, `AddMappings`, `RunPreparation`, and `RunPreparationAsync`.
+Rules:
 
-### Lifetime Callbacks
+- Keep input and services apart. A property with both `[CommandOption]` and `[FromServices]` always fails the build (exit `1`).
+- Hiding with `new` never excuses a clash. Both copies are checked.
+- Services resolve per run. Help, version, and validation paths create no scope.
+- A missing service fails with exit `1`, never exit `2`.
 
-Register via `LifetimeService` (`applicationHost.Services.GetRequiredService<LifetimeService>()`): `ApplicationExitingCallback` runs when the command/host is stopping, `ApplicationExitedCallback` runs after shutdown. Owner of the call sites: `CommandRunOrchestrator` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOrchestrator.cs:23-99`) owns the joint command/host run and the exactly-once `Exiting` fan-out — command-wins canceled (`:52`), host-wins canceled (`:78`), host-won-success-but-command-canceled OCE-only (`:86-89`) — plus the executor's trailing success `Exiting` (`CommandExecutor.cs:90-92`). The `LifetimeGlobalService` `Interlocked.Exchange` guards (`src/ApplicationBuilderHelpers/Services/LifetimeGlobalService.cs:17-22,58-86`) are retained fail-safe: the first caller wins, late callers no-op. On success and cancellation (`130`) paths — whether the command or the host wins the shutdown race — each runs exactly once per `RunAsync`. On fault paths the exception rethrows before any `Exiting` invocation (command-wins faulted at `CommandRunOrchestrator.cs:41-47`, host-wins faulted at `:69-74`, injection-throw fault path at `CommandExecutor.cs:86`), so only `Exited` runs via the null-guarded `finally` (`CommandExecutor.cs:94-99`).
+## Run Cleanup Code
 
-Fail-safe proof: `AbsolutePathAndLifetimeTests.LifetimeGlobalService_ExitingDoubleInvoke_RunsOnce` and `..._ExitedDoubleInvoke_RunsOnce` (`src/ApplicationBuilderHelpers.Test.Cli.UnitTest/AbsolutePathAndLifetimeTests.cs:222-260`) invoke each callback set twice and assert each action/task ran exactly once.
+Ask for `LifetimeService` in your command with your `[FromServices]` shim (`using MyApp;`), then register callbacks:
 
-### Lifecycle stages (landed file map)
+```csharp
+using MyApp;
 
-Thin sequencer `CommandExecutor` (`CommandLineParser/CommandExecutor.cs:19-33`) over collaborators — mechanical split, no behavior change:
+[FromServices]
+public LifetimeService Lifetime { get; set; } = null!;
 
-| Stage | Owner | Landed path |
+// When the app starts stopping:
+Lifetime.ApplicationExitingCallback(() => Console.WriteLine("stopping"));
+// After shutdown completes:
+Lifetime.ApplicationExitedCallback(() => Console.WriteLine("stopped"));
+```
+
+`Exiting` runs when the command or host stops. `Exited` runs after shutdown. Each phase runs once even when shutdown is signaled twice. On failure only `Exited` runs.
+
+## Register Commands
+
+```csharp
+// Fresh instance every run (usual case):
+ApplicationBuilder.Create().AddCommand<MyCommand>();
+
+// One shared instance (state carries between runs):
+ApplicationBuilder.Create().AddCommand(new MyCommand());
+```
+
+Commands added between runs appear on the next run.
+
+## Shell Completion
+
+The library answers shell TAB probes before help and parsing. A command named `complete` never runs.
+
+| Typed words | What happens |
+|---|---|
+| `complete --position N "<line>"` | Prints one candidate per line to stdout, exits `0`. Bare `complete` lists subcommands. |
+| `completions script <bash\|zsh\|pwsh\|powershell\|fish>` | Prints a TAB shim for that shell. |
+| `completions install [--shell <...>] [--dry-run]` | Writes the shim into your shell file. `--dry-run` prints `would-write: <path>` and changes nothing. |
+| `completions uninstall [--shell <...>]` | Removes the shim. |
+
+### Exit Contract
+
+| Outcome | Exit code | Stream |
 |---|---|---|
-| Shutdown scope (linked CTS joining outer token + Ctrl+C; host `ApplicationStopping` stays host-owned downstream) + Ctrl+C subscribe/dispose | `CommandShutdownScope` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandShutdownScope.cs:6-14,23-46` |
-| Console cancel signal (injectable; production forwarder) | `IConsoleCancelSignal` / `ConsoleCancelSignal` | `src/ApplicationBuilderHelpers/CommandLineParser/IConsoleCancelSignal.cs:14-26`, `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleCancelSignal.cs:12-38` |
-| Console adapter only (Out/Error routing + `CancelKeyPress` forwarder) | `ConsoleOutput` | `src/ApplicationBuilderHelpers/CommandLineParser/ConsoleOutput.cs:6-35` |
-| Per-command service injection (single `Inject` entry) | `ServiceInjectionGate` | `src/ApplicationBuilderHelpers/CommandLineParser/ServiceInjectionGate.cs:40-44,111-126` |
-| Joint command/host run + exactly-once `Exiting` fan-out | `CommandRunOrchestrator` → `CommandRunOutcome` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOrchestrator.cs:23-30`, `src/ApplicationBuilderHelpers/CommandLineParser/CommandRunOutcome.cs:8-41` |
-| Single cancel-wins classification point | `CommandExitMapper` | `src/ApplicationBuilderHelpers/CommandLineParser/CommandExitMapper.cs:6-40` |
-| Exactly-once guards (fail-safe) | `LifetimeGlobalService` | `src/ApplicationBuilderHelpers/Services/LifetimeGlobalService.cs:17-22,58-86` |
+| `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
+| Completion candidates and shims | `0` | stdout |
+| Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
+| Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` | stderr |
+| External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr) |
+| Host lifetime diagnostics | — | stderr or suppressed, never stdout |
 
-## Command Registration
+Host lifetime messages never reach stdout. They write to stderr or stay silent.
 
-Register a command by type with `AddCommand<TCommand>()` or by instance with `AddCommand(ICommand)`. Type registrations resolve a fresh instance on each `RunAsync` call so bound option values reset between runs; instance registrations reuse the same reference across runs. The command topology is rebuilt on every `RunAsync` from live registrations, so commands added between runs are visible on the next run.
+Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted options. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a miss behind leading help tokens reports `No command found` before forwarding and only hits forward to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
+
+Bad shell names and install errors exit `2` on stderr. File errors exit `1` on stderr. Bare `completions` falls through to normal parsing.
 
 ## Exit Codes
 
-Single classification point: `CommandExitMapper` (`src/ApplicationBuilderHelpers/CommandLineParser/CommandExitMapper.cs:18-40`, cancel-wins `IsExternalAbort(shutdown, outer, ctrlC)` at `:25-28`) — cancellation observed via the outer token or Ctrl+C before host completion maps to `130`; internal-only cooperative cancellation stays success (`0`). The executor catch filter (`CommandExecutor.cs:101-104`) and the orchestrator `ThrowIfExternalAbort` (`CommandShutdownScope.cs:74-75` → `CommandExitMapper.cs:34-40`) both funnel through it.
-
-| Outcome | Exit code |
-|---|---|
-| `Run` returns normally (also `--help` / `--version`); internal-only cooperative `OperationCanceledException` | `0` (`CommandLineParser.cs:86-98`; conversion failure beats help-with-values, invalid+version still `0` via the pre-validation version guard at `:78-82` except on a group path with a pre-`--` error token (#586); leading `--help`/`-h` on a concrete root renders global help, exit `0`, before trailing validation — `IsConcreteRootLeadingHelp` in `ArgumentParser.cs`, pinned by `RootRoutingDivergenceTests.cs`) |
-| Usage / validation error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` is reserved and never thrown — valued repeats resolve last-wins) | `2` — `MissingRequired` also covers an explicit bare valued option, which fails even with env set (`Missing value for option: <display-name>` for optional, `Missing required option: <display-name>` for required; `ParameterValidator.cs:30-95`; env rescues only omitted options). Missing and invalid failures aggregate at `ValidateAndBindParameters` (`CommandLineParser.cs:148-164`): every missing error reports first, then every invalid-value error, joined with newlines in one exit-`2` failure (missing-only keeps kind `MissingRequired`, any invalid line makes the kind `InvalidValue`); conversion failure beats help-with-values via the binding probe while missing required is skipped under `ShowHelp` (#509, help always wins over missing) |
-| Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` passthrough (`CommandException.cs:13,43-46`; non-zero host-winner throws `CommandException` at `CommandRunOrchestrator.cs:91-94`; surfaced at `CommandLineParser.cs:110-112`) |
-| External cancellation (outer `CancellationToken` / Ctrl+C, incl. pre-cancelled token) | `130` — Unix 128 + SIGINT convention (`CommandExecutor.cs:39`; `ExternalCancellationException` at `:45-51` always maps to it; surfaced at `CommandLineParser.cs:105-108,114-116`). Windows note: Windows has no SIGINT exit-code convention — a Ctrl+C kill tears the process down at OS level with its own status — so `130` is the library-level cancellation mapping on all platforms (`CommandExitMapper.cs:13-17`, code remark only). |
-
-Return normally on success. Throw `CommandException` for errors:
-
-Help/footer contract (see [Advanced Topics](advanced.md#error-footers) and [Advanced Topics](advanced.md#help-system)): every help screen (global and per-command) lists `-V, --version` under `GLOBAL OPTIONS:` (`src/ApplicationBuilderHelpers/CommandLineParser/HelpContentProvider.cs:103-106,211-214`); usage-error footers hint at both `--help` and `--version` (`src/ApplicationBuilderHelpers/Exceptions/CommandErrorFooter.cs:21-54`), except when the failing invocation already contained `--help`/`-h`, when only the `--version` hint survives (#509); while `Fault`/`NoImplementation` keep the single-sentence `--help`-only footer (`CommandErrorFooter.cs:55-56`). Precedence is unchanged: completion > help > parse > version, with one group-path carve-out: a pre-`--` unknown/invalid token beats `--version` there (exit `2`, #586).
-
-```csharp
-throw new CommandException("Operation failed", exitCode: 1);
-```
+`0` means success, `2` means bad input, `1` means failure, `130` means canceled. Success answers use stdout. Errors use stderr. Full table lives in [API Reference](api-reference.md). Commands run the 8 shared setup steps in [Application Dependencies](application-dependencies.md).

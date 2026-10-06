@@ -3,12 +3,10 @@ using System;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Injectable abstraction over the console cancel signal (Ctrl+C).
-/// Joins the <c>CancelKeyPress</c> source with the host lifetime's
-/// <c>ApplicationStopping</c> counterpart through the linked CTS owned by
-/// <see cref="CommandShutdownScope"/>: this side observes Ctrl+C, the host run
-/// joins <c>ApplicationStopping</c> downstream, and the scope's token is the
-/// single combined cancellation for the command task and host task run together.
+/// Injectable abstraction over the console cancel signal (Ctrl+C only).
+/// This side observes Ctrl+C; <see cref="CommandShutdownScope"/> joins outer +
+/// Ctrl+C + SIGTERM, and the host lifetime's <c>ApplicationStopping</c> stays
+/// host-owned.
 /// Exists so tests can simulate Ctrl+C in-process with a fake.
 /// </summary>
 internal interface IConsoleCancelSignal

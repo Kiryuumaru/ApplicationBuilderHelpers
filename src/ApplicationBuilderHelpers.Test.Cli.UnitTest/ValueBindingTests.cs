@@ -324,13 +324,14 @@ public sealed class ValueBindingTests
     [InlineData("yes")]
     [InlineData("on")]
     [InlineData("1")]
-    public async Task Scalar_Boolean_TrueSynonyms_BindTrue(string input)
+    public async Task Scalar_Boolean_TrueSynonyms_RejectBareOnly(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", $"--verbose={input}"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Verbose: True", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--verbose' does not accept a value", error);
+        Assert.Contains($"'{input}'", error);
     }
 
     [Theory]
@@ -338,13 +339,14 @@ public sealed class ValueBindingTests
     [InlineData("No")]
     [InlineData("off")]
     [InlineData("0")]
-    public async Task Scalar_Boolean_FalseSynonyms_BindFalse(string input)
+    public async Task Scalar_Boolean_FalseSynonyms_RejectBareOnly(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", $"--verbose={input}"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Verbose: False", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--verbose' does not accept a value", error);
+        Assert.Contains($"'{input}'", error);
     }
 
     [Fact]
@@ -364,7 +366,7 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value", error);
+        Assert.Contains("Option '--verbose' does not accept a value 'maybe'", error);
     }
 
     [Fact]
@@ -497,7 +499,17 @@ public sealed class ValueBindingTests
         var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--mode=JSON"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Mode: JSON", output);
+        Assert.Contains("Mode: json", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Constrained_Mode_MatchingIgnoresInteriorCase()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--mode=jSoN"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Mode: json", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
@@ -599,6 +611,16 @@ public sealed class ValueBindingTests
     public async Task Array_AllowedValues_AcceptsAllListedElements()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--formats=json", "--formats=xml"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Formats: json,xml", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Array_AllowedValues_MatchingIgnoresCase()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--formats=JSON", "--formats=Xml"]);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Formats: json,xml", output);
@@ -819,7 +841,7 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value '' for option '--verbose'", error);
+        Assert.Contains("Option '--verbose' does not accept a value. Use bare '--verbose'", error);
     }
 
     [Fact]
@@ -829,7 +851,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Guid value: ''", error);
+        Assert.Contains("Invalid value '' for option '--correlation'", error);
+        Assert.Contains("Expected a GUID (for example '3f2504e0-4f89-11d3-9a0c-0305e82c3301').", error);
     }
 
     [Fact]
@@ -839,7 +862,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid DateTime value: ''", error);
+        Assert.Contains("Invalid value '' for option '--not-before'", error);
+        Assert.Contains("Expected a date and time (for example '2024-01-15' or '2024-01-15 13:30:00').", error);
     }
 
     [Fact]
@@ -907,7 +931,7 @@ public sealed class ValueBindingTests
         var (exitCode, output, error) = await RunCapturedAsync(["bindargs", "Alice", "3", "HIGH"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Level: HIGH", output);
+        Assert.Contains("Level: high", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 

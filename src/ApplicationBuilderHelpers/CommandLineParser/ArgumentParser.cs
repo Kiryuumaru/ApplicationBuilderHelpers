@@ -6,59 +6,222 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Parses command line arguments against the built hierarchy.
-/// </summary>
+/// <summary>Parse stage: resolves the target command then options/arguments against it.</summary>
+/// <remarks>Order: path-walk → concrete-root miss gate → miss/near-miss-gated pre-scan (misuse/unknown on abstract + concrete-root-leading-help) → abstract help-first → abstract misuse/unknown scans → version gate → concrete-root help probe (miss/near-miss-gated) → RequiresSubcommand guard → options/arguments.</remarks>
 internal sealed class ArgumentParser
 {
-    /// <summary>
-    /// Parses the command line arguments against the built hierarchy
-    /// </summary>
-    public ParseResult ParseCommandLine(SubCommandInfo rootCommand, string[] args)
+    /// <summary>Parses argv into the target command plus option/argument occurrences; throws on usage errors.</summary>
+    public ParseResult ParseCommandLine(SubCommandInfo rootCommand, string[] args, IReadOnlyDictionary<string, SubCommandOptionInfo>? globals = null)
     {
         var result = new ParseResult();
         var argIndex = 0;
 
         result.TargetCommand = rootCommand!;
+        var pathGlobals = globals ?? new Dictionary<string, SubCommandOptionInfo>();
 
-        while (argIndex < args.Length && !args[argIndex].StartsWith('-'))
+        while (argIndex < args.Length)
         {
-            var child = result.TargetCommand.FindChild(args[argIndex]);
-            if (child != null)
-            {
-                result.TargetCommand = child;
-                argIndex++;
-            }
-            else
-            {
+            var token = args[argIndex];
+            if (token == "--" || token == "/?")
                 break;
+            if (token.StartsWith('-'))
+            {
+                if (IsNumericValue(token) || HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                    break;
+                // Current node before descendants: globals, then options bindable here, then one unambiguous leaf owner.
+                // A leaf-owned probe only binds ahead of the child that owns it; any current-node
+                // match blocks the probe so a following wrong child keeps the token unknown.
+                var ownedMatches = OptionScopeAuthority.FindOwnedMatches(result.TargetCommand, token);
+                SubCommandOptionInfo? pathMatched = pathGlobals.Values.FirstOrDefault(o => o.MatchesArgument(token));
+                if (pathMatched == null && ownedMatches.Count == 1)
+                    pathMatched = ownedMatches[0];
+                if (pathMatched != null || ownedMatches.Count > 0)
+                {
+                    if (pathMatched == null || ownedMatches.Count > 1)
+                        break;
+                    // A current-owned token followed by a child that cannot bind it stays unknown.
+                    if (ownedMatches.Count == 1 && ReferenceEquals(pathMatched, ownedMatches[0]))
+                    {
+                        var probe = ownedMatches[0];
+                        var isBareValued = !probe.IsFlag && DanglingValuedOptionPolicy.IsBareForm(probe, token);
+                        var probeNext = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+                        var childToken = isBareValued && probeNext != null && !IsFlagLookingToken(probeNext)
+                            ? argIndex + 2 < args.Length ? args[argIndex + 2] : null
+                            : probeNext;
+                        var followingChild = childToken != null && !childToken.StartsWith('-') && childToken != "--" && childToken != "/?"
+                            ? result.TargetCommand.FindChild(childToken)
+                            : null;
+                        if (followingChild != null && !OptionScopeAuthority.OwnsOption(followingChild, probe))
+                        {
+                            result.TargetCommand = followingChild;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    var nextToken = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+                    var leafOwner = OptionScopeAuthority.FindLeafOwnedOption(result.TargetCommand, token);
+                    if (leafOwner == null)
+                    {
+                        if (TryConsumeClusterInWalk(result, args, ref argIndex))
+                            continue;
+                        break;
+                    }
+                    if (nextToken != null && (HelpVersionGateway.IsHelpToken(nextToken) || HelpVersionGateway.IsVersionToken(nextToken)))
+                    {
+                        pathMatched = leafOwner;
+                    }
+                    else
+                    {
+                        // A bare valued probe's neighbor is its value, so the owning child follows the value.
+                        var isBareValuedProbe = !leafOwner.IsFlag && DanglingValuedOptionPolicy.IsBareForm(leafOwner, token)
+                            && nextToken != null && !IsFlagLookingToken(nextToken);
+                        if (isBareValuedProbe)
+                        {
+                            var childToken = argIndex + 2 < args.Length ? args[argIndex + 2] : null;
+                            if (childToken != null && (HelpVersionGateway.IsHelpToken(childToken) || HelpVersionGateway.IsVersionToken(childToken)))
+                            {
+                                pathMatched = leafOwner;
+                            }
+                            else
+                            {
+                                var childAfterValue = childToken != null && !childToken.StartsWith('-')
+                                    ? result.TargetCommand.FindChild(childToken)
+                                    : null;
+                                if (childAfterValue == null || !OptionScopeAuthority.OwnsOption(childAfterValue, leafOwner))
+                                    break;
+                                pathMatched = leafOwner;
+                            }
+                        }
+                        else
+                        {
+                            var nextChild = nextToken != null && !nextToken.StartsWith('-')
+                                ? result.TargetCommand.FindChild(nextToken)
+                                : null;
+                            if (nextChild == null || !OptionScopeAuthority.OwnsOption(nextChild, leafOwner))
+                                break;
+                            pathMatched = leafOwner;
+                        }
+                    }
+                }
+                if (pathMatched == null)
+                    break;
+                var rawNext = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+                if (pathMatched.IsFlag && IsBareFlagToken(pathMatched, token) && rawNext != null && SubCommandOptionInfo.IsBooleanValue(rawNext))
+                    break;
+                var consumable = argIndex + 1 < args.Length && !IsFlagLookingToken(args[argIndex + 1]) ? args[argIndex + 1] : null;
+                if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable == null)
+                    break;
+                if (FindValuedNotLastToken(result.TargetCommand.AllOptions, token).HasValue)
+                    break;
+                string? pathValue;
+                try
+                {
+                    pathValue = pathMatched.ExtractValue(token, consumable);
+                }
+                catch (CommandException)
+                {
+                    break;
+                }
+                result.AddOptionValue(pathMatched, pathValue);
+                argIndex++;
+                if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable != null)
+                    argIndex++;
+                continue;
             }
+            var child = result.TargetCommand.FindChild(token);
+            if (child == null)
+                break;
+            result.TargetCommand = child;
+            argIndex++;
         }
 
-        if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-'))
+        if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-') && args[0] != "/?" && !args[0].StartsWith("/?=", StringComparison.Ordinal))
         {
             if (!IsExemptRootPositional(rootCommand, args[0]))
             {
-                var zeroMatchSuggestion = DidYouMean.FindBestMatch(
+                var zeroMatchSuggestion = DidYouMean.SuggestSubcommand(
                     args[0],
-                    DidYouMean.SubCommandCandidates(rootCommand.Children.Keys));
+                    rootCommand.Children.Keys);
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
             }
         }
 
+        if (result.TargetCommand.IsRoot && result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // First bare pre-sentinel token after path globals that is not an exact
+            // child is a command miss, even without a suggestion. Help/version
+            // tokens stay on their own paths; only a leading bare miss is gated
+            // here, so later help-forward stays reachable.
+            var missSentinelIndex = Array.IndexOf(args, "--");
+            var missEnd = missSentinelIndex < 0 ? args.Length : missSentinelIndex;
+            var missToken = argIndex < missEnd ? args[argIndex] : null;
+            // "/?=" forms are never command misses; they stay misuse errors downstream.
+            var missIsBareNonChild = missToken != null && !missToken.StartsWith('-') && missToken != "/?" && !missToken.StartsWith("/?=", StringComparison.Ordinal) && !HelpVersionGateway.IsHelpToken(missToken) && !HelpVersionGateway.IsVersionToken(missToken) && result.TargetCommand.FindChild(missToken) == null;
+            if (missIsBareNonChild)
+            {
+                var missSuggestion = DidYouMean.SuggestSubcommand(missToken!, result.TargetCommand.Children.Keys);
+                throw new CommandException(
+                    DidYouMean.WithSuggestion($"No command found for '{missToken}'", missSuggestion), 2, CommandErrorKind.UnknownCommand);
+            }
+        }
+
+        if ((!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0) || IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
+        {
+            // Trailing misses report before help-forward, mirroring the
+            // leading-miss gate; hits/flag tails fall through to routing.
+            if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex) && ClassifyHelpTrailingMiss(result.TargetCommand, args, argIndex) is { } leadingHelpMiss)
+                throw leadingHelpMiss;
+            // First misuse token wins; then =-form, unknown.
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: false, includeBareValuedGate: false);
+        }
+
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // #558; see docs/advanced.md help-precedence: a mistyped subcommand plus
-            // --help is still an error (exit 2), not a help request — same as a mistyped
-            // top-level command. Skip ShowHelp and fall through to RequiresSubcommand below.
+            // Mistyped subcommand plus --help is still an error, not a help request.
             var surplusSentinelIndex = Array.IndexOf(args, "--");
             var hasSurplusPathToken = argIndex < args.Length
                 && !args[argIndex].StartsWith('-')
+                && args[argIndex] != "/?"
                 && (surplusSentinelIndex < 0 || argIndex < surplusSentinelIndex)
                 && result.TargetCommand.FindChild(args[argIndex]) == null;
             if ((result.TargetCommand.IsRoot || argIndex > 0) && !hasSurplusPathToken && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
             {
+                var helpTarget = ResolveHelpTargetCommand(result.TargetCommand, args, argIndex);
+                if (helpTarget != null)
+                {
+                    result.TargetCommand = helpTarget;
+                    result.ShowHelp = true;
+                    return result;
+                }
+                var trailingMiss = ClassifyNamedParentHelpMiss(result.TargetCommand, args, argIndex);
+                if (trailingMiss != null)
+                    throw trailingMiss;
+            }
+        }
+
+        if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
+        {
+            // Unknown option or version-misuse plus --version is still an error, never a version request.
+            // First misuse token wins; then =-form, unknown.
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: false, includeBareValuedGate: false);
+        }
+
+        if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
+        {
+            // Version beats help on abstract paths, so it short-circuits before the help probe.
+            result.ShowVersion = true;
+            return result;
+        }
+
+        if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
+        {
+            var helpTarget = ResolveHelpTargetCommand(result.TargetCommand, args, argIndex);
+            if (helpTarget != null)
+            {
+                result.TargetCommand = helpTarget;
                 result.ShowHelp = true;
                 return result;
             }
@@ -66,44 +229,18 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // #586: an unknown option or invalid flag literal plus --version is still an error (exit 2), not a version request.
-            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
-        }
-
-        if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
-        {
-            result.ShowVersion = true;
-            return result;
-        }
-
-        if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex))
-        {
-            result.ShowHelp = true;
-            return result;
-        }
-
-        if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
-        {
-            var abstractHelpMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
-                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
-            if (abstractHelpMisuse != null)
-                throw HelpMisuseError(abstractHelpMisuse, result.TargetCommand.FullCommandName);
-            ThrowOnInvalidFlagLiteralPreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnBareValuedPreSentinelOption(result.TargetCommand, args, argIndex);
+            // First misuse token wins; then =-form, space gate, unknown, bare-valued.
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: true, includeBareValuedGate: true);
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = result.TargetCommand.IsRoot ? "" : result.TargetCommand.FullCommandName;
             var baseMessage = $"'{result.TargetCommand.DisplayName}' requires a subcommand. Available subcommands: {availableSubcommands}";
             string? subcommandSuggestion = null;
             var sentinelIndex = Array.IndexOf(args, "--");
-            if (argIndex < args.Length && !args[argIndex].StartsWith('-') && (sentinelIndex < 0 || argIndex < sentinelIndex))
+            if (argIndex < args.Length && !args[argIndex].StartsWith('-') && args[argIndex] != "/?" && (sentinelIndex < 0 || argIndex < sentinelIndex))
             {
-                subcommandSuggestion = DidYouMean.FindBestMatch(
+                subcommandSuggestion = DidYouMean.SuggestSubcommand(
                     args[argIndex],
-                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
-                if (string.Equals(subcommandSuggestion, args[argIndex], StringComparison.Ordinal))
-                    subcommandSuggestion = null;
+                    result.TargetCommand.Children.Keys);
                 if (subcommandSuggestion != null
                     && !args.Skip(argIndex).Any(HelpVersionGateway.IsHelpToken))
                     throw new CommandException(
@@ -122,17 +259,7 @@ internal sealed class ArgumentParser
         return result;
     }
 
-    /// <summary>
-    /// Parses options and arguments from the command line.
-    /// A pre-<c>--</c> version request (<see cref="HelpVersionGateway.RequestedVersion"/>,
-    /// bare token or <c>V</c>-cluster, with no pre-<c>--</c> help token, per
-    /// <see cref="HelpVersionGateway.RequestedHelp"/>) makes eager
-    /// <see cref="CommandErrorKind.InvalidValue"/> throws version-tolerant:
-    /// the offending token is skipped with <c>ShowVersion</c> set so the
-    /// post-parse version gate still fires (exit 0), mirroring deferred
-    /// values that validate after the gate. Unknown options/commands still
-    /// throw (exit 2).
-    /// </summary>
+    /// <summary>Parses options/arguments at the start index into the result.</summary>
     private static void ParseOptionsAndArguments(string[] args, int startIndex, ParseResult result)
     {
         var allOptions = result.TargetCommand.AllOptions;
@@ -141,8 +268,9 @@ internal sealed class ArgumentParser
         var argumentIndex = 0;
         var separatorSeen = false;
         var tail = args[startIndex..];
+        var helpWins = HelpVersionGateway.RequestedHelp(tail);
         var versionWins = HelpVersionGateway.RequestedVersion(tail)
-            && !HelpVersionGateway.RequestedHelp(tail);
+            && !helpWins;
 
         for (int i = startIndex; i < args.Length; i++)
         {
@@ -183,6 +311,23 @@ internal sealed class ArgumentParser
                 continue;
             }
 
+            if (IsVersionEqualsOrNegatedToken(arg, allOptions))
+            {
+                if (versionWins)
+                {
+                    result.ShowVersion = true;
+                    continue;
+                }
+
+                throw VersionMisuseError(arg, result.TargetCommand.FullCommandName);
+            }
+
+            var valuedNotLastProbe = FindValuedNotLastToken(allOptions, arg);
+            if (valuedNotLastProbe.HasValue)
+                throw new CommandException(
+                    $"Option '-{valuedNotLastProbe.Value}' requires a value and must be last in a combined short cluster; use '-{valuedNotLastProbe.Value} <value>', '-{valuedNotLastProbe.Value}=<value>', or place it last.",
+                    2, CommandErrorKind.InvalidValue, result.TargetCommand.FullCommandName);
+
             SubCommandOptionInfo? matchedOption = null;
             if (!IsNumericValue(arg))
                 matchedOption = allOptions.FirstOrDefault(o => o.MatchesArgument(arg));
@@ -193,15 +338,37 @@ internal sealed class ArgumentParser
                 string? value;
                 try
                 {
+                    if (matchedOption.IsFlag && IsBareFlagToken(matchedOption, arg) && nextArg != null && SubCommandOptionInfo.IsBooleanValue(nextArg))
+                    {
+                        var spaceNegated = matchedOption.SupportsNegation && matchedOption.NegatedLongName != null && arg == matchedOption.NegatedLongName;
+                        string spaceDisplay;
+                        if (spaceNegated)
+                            spaceDisplay = matchedOption.NegatedLongName!;
+                        else if (matchedOption.LongName != null)
+                            spaceDisplay = $"--{matchedOption.LongName}";
+                        else
+                            spaceDisplay = $"-{matchedOption.ShortName}";
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(spaceDisplay, nextArg, matchedOption.IsSecret, isFlag: true, positiveLongName: matchedOption.LongName, isNegated: spaceNegated), 2, CommandErrorKind.InvalidValue);
+                    }
                     value = matchedOption.ExtractValue(arg, consumableNext);
+                }
+                catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && helpWins)
+                {
+                    // Empty =-forms are never forgiven; surface them stamped.
+                    if (DanglingValuedOptionPolicy.IsEmptyEqualsForm(matchedOption, arg))
+                        throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
+                    result.ShowHelp = true;
+                    continue;
                 }
                 catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && versionWins)
                 {
+                    // Pre--- version request outranks eager value errors; let the version gate fire.
                     result.ShowVersion = true;
                     continue;
                 }
                 catch (CommandException ex) when (ex.CommandName is null)
                 {
+                    // Option ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
                     throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
                 }
 
@@ -216,11 +383,22 @@ internal sealed class ArgumentParser
             {
                 if (arg.StartsWith("--no-", StringComparison.Ordinal) && arg.Contains('='))
                 {
+                    if (helpWins)
+                    {
+                        var helpProbeName = arg[..arg.IndexOf('=')];
+                        var helpProbeBase = helpProbeName["--no-".Length..];
+                        if (SubCommandOptionInfo.FindNoValueBase(allOptions, helpProbeBase) != null)
+                        {
+                            result.ShowHelp = true;
+                            continue;
+                        }
+                    }
+
                     if (versionWins)
                     {
                         var probeName = arg[..arg.IndexOf('=')];
                         var probeBase = probeName["--no-".Length..];
-                        if (SubCommandOptionInfo.FindNoValueBase(allOptions, probeBase) != null || probeBase.Length == 0)
+                        if (SubCommandOptionInfo.FindNoValueBase(allOptions, probeBase) != null)
                         {
                             result.ShowVersion = true;
                             continue;
@@ -232,10 +410,10 @@ internal sealed class ArgumentParser
                     var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
                     var noValueCommandName = result.TargetCommand.FullCommandName;
                     if (resolved != null)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, noValueCommandName);
                     if (name.Length == "--no-".Length)
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, noValueCommandName);
-                    var noValueSuggestion = DidYouMean.FindBestMatch(
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, noValueCommandName);
+                    var noValueSuggestion = DidYouMean.SuggestBlamedToken(
                         name,
                         DidYouMean.OptionCandidates(allOptions));
                     throw new CommandException(
@@ -250,11 +428,27 @@ internal sealed class ArgumentParser
                     continue;
                 }
 
+                if (arg.StartsWith("--no-", StringComparison.Ordinal) && !arg.Contains('='))
+                {
+                    var resolvedBare = SubCommandOptionInfo.FindNoValueBase(allOptions, arg["--no-".Length..]);
+                    if (resolvedBare != null && !resolvedBare.IsFlag)
+                    {
+                        if (versionWins)
+                        {
+                            result.ShowVersion = true;
+                            continue;
+                        }
+
+                        var bareCommandName = result.TargetCommand.FullCommandName;
+                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(arg, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, bareCommandName);
+                    }
+                }
+
                 var unknownName = arg;
                 var unknownEquals = unknownName.IndexOf('=');
                 if (unknownEquals >= 0)
                     unknownName = unknownName[..unknownEquals];
-                var optionSuggestion = DidYouMean.FindBestMatch(
+                var optionSuggestion = DidYouMean.SuggestBlamedToken(
                     unknownName,
                     DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
@@ -277,11 +471,9 @@ internal sealed class ArgumentParser
             }
             else
             {
-                var subcommandSuggestion = DidYouMean.FindBestMatch(
+                var subcommandSuggestion = DidYouMean.SuggestSubcommand(
                     argumentValue,
-                    DidYouMean.SubCommandCandidates(result.TargetCommand.Children.Keys));
-                if (string.Equals(subcommandSuggestion, argumentValue, StringComparison.Ordinal))
-                    subcommandSuggestion = null;
+                    result.TargetCommand.Children.Keys);
                 var surplusMessage = subcommandSuggestion != null
                     ? $"Unknown subcommand '{argumentValue}'"
                     : $"Unexpected argument '{argumentValue}'";
@@ -291,28 +483,67 @@ internal sealed class ArgumentParser
         }
     }
 
-    /// <summary>
-    /// Records one parsed <c>-o</c> / <c>--option</c> occurrence. Scalars and
-    /// valued flags resolve last-wins (overwrite); collections accumulate.
-    /// Bare bool flags stay idempotent.
-    /// </summary>
+    /// <summary>Records one parsed option occurrence into the result.</summary>
     private static void AddParsedOptionValue(ParseResult result, SubCommandOptionInfo matchedOption, string? value, string arg, string? nextArg)
     {
         result.AddOptionValue(matchedOption, value);
     }
 
-    /// <summary>
-    /// Expands a combined short cluster (<c>-abc</c>): each leading flag binds
-    /// <c>true</c>; the last short takes the attached remainder as its value
-    /// (<c>-abdvalue</c> binds <c>Data=value</c>). A <c>-h</c>/<c>-V</c> char wins
-    /// as help/version even mid-cluster. An unknown char reports only the
-    /// failing char as <see cref="CommandErrorKind.UnknownOption"/> (exit 2).
-    /// Returns false when the token is not a splittable cluster.
-    /// </summary>
+    /// <summary>Expands a combined short cluster during the path walk so cluster spellings route like long forms.</summary>
+    private static bool TryConsumeClusterInWalk(ParseResult result, string[] args, ref int argIndex)
+    {
+        var token = args[argIndex];
+        var scopedOptions = result.TargetCommand.AllOptions.ToList();
+        if (!token.StartsWith("--", StringComparison.Ordinal))
+        {
+            var knownShorts = new HashSet<char>(scopedOptions.Where(o => o.ShortName.HasValue).Select(o => o.ShortName!.Value));
+            foreach (var letter in token[1..])
+            {
+                if (letter == 'h' || letter == 'V' || letter == '-' || knownShorts.Contains(letter))
+                    continue;
+                var leafOwned = OptionScopeAuthority.FindLeafOwnedOption(result.TargetCommand, $"-{letter}");
+                if (leafOwned?.ShortName.HasValue == true && knownShorts.Add(leafOwned.ShortName.Value))
+                    scopedOptions.Add(leafOwned);
+            }
+        }
+        var savedShowHelp = result.ShowHelp;
+        var savedShowVersion = result.ShowVersion;
+        var savedOptions = result.OptionValues.ToDictionary(kvp => kvp.Key, kvp => new List<string>(kvp.Value));
+        var savedBare = new HashSet<string>(result.BareOptionOccurrences, StringComparer.Ordinal);
+        var savedValued = new Dictionary<string, int>(result.ValuedOptionOccurrenceCounts, StringComparer.Ordinal);
+        var nextArg = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+        try
+        {
+            if (!TryHandleCombinedShortCluster(token, nextArg, scopedOptions, result, out var consumedNext))
+                return false;
+            argIndex++;
+            if (consumedNext)
+                argIndex++;
+            return true;
+        }
+        catch (CommandException)
+        {
+            result.ShowHelp = savedShowHelp;
+            result.ShowVersion = savedShowVersion;
+            result.OptionValues.Clear();
+            foreach (var (option, values) in savedOptions)
+                result.OptionValues.Add(option, values);
+            result.BareOptionOccurrences.Clear();
+            result.BareOptionOccurrences.UnionWith(savedBare);
+            result.ValuedOptionOccurrenceCounts.Clear();
+            foreach (var (key, count) in savedValued)
+                result.ValuedOptionOccurrenceCounts.Add(key, count);
+            return false;
+        }
+    }
+
+    /// <summary>Expands a combined short cluster into occurrences; returns false when not splittable.</summary>
     private static bool TryHandleCombinedShortCluster(string arg, string? nextArg, List<SubCommandOptionInfo> allOptions, ParseResult result, out bool consumedNext)
     {
         consumedNext = false;
 
+        if (SingleDashPolicy.IsReservedWord(arg))
+            return false;
         if (arg.Length <= 2 || !arg.StartsWith('-') || arg.StartsWith("--", StringComparison.Ordinal) || arg.Contains('=') || IsNumericValue(arg))
             return false;
 
@@ -333,10 +564,34 @@ internal sealed class ArgumentParser
                 continue;
 
             if (!byShort.TryGetValue(letter, out var member))
+            {
+                if (!ClusterContainsValuedShort(letters, byShort))
+                {
+                    var nameOnly = arg;
+                    var equals = nameOnly.IndexOf('=');
+                    if (equals >= 0)
+                        nameOnly = nameOnly[..equals];
+                    var fullTokenSuggestion = DidYouMean.SuggestBlamedToken(
+                        nameOnly,
+                        DidYouMean.OptionCandidates(allOptions));
+                    if (fullTokenSuggestion != null
+                        && string.Equals(DidYouMean.Normalize(fullTokenSuggestion), DidYouMean.Normalize(nameOnly), StringComparison.Ordinal))
+                        throw new CommandException(
+                            DidYouMean.WithSuggestion($"Unknown option: {nameOnly}", fullTokenSuggestion), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
+                }
+
                 throw new CommandException(SecretRedaction.UnknownClusterCharMessage(arg, 1 + k), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
+            }
 
             if (!member.IsFlag)
+            {
+                var violating = FindValuedNotLastLetter(letters, byShort);
+                if (violating.HasValue)
+                    throw new CommandException(
+                        $"Option '-{violating.Value}' requires a value and must be last in a combined short cluster; use '-{violating.Value} <value>', '-{violating.Value}=<value>', or place it last.",
+                        2, CommandErrorKind.InvalidValue, result.TargetCommand.FullCommandName);
                 break;
+            }
         }
 
         for (var k = 0; k < letters.Length; k++)
@@ -389,6 +644,43 @@ internal sealed class ArgumentParser
         return true;
     }
 
+    /// <summary>Whether any known short in the letters owns a value.</summary>
+    private static bool ClusterContainsValuedShort(string letters, Dictionary<char, SubCommandOptionInfo> byShort)
+    {
+        foreach (var letter in letters)
+        {
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (byShort.TryGetValue(letter, out var member) && !member.IsFlag)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>First valued short whose remainder is exactly a known short; null when none.</summary>
+    private static char? FindValuedNotLastLetter(string letters, Dictionary<char, SubCommandOptionInfo> byShort)
+    {
+        for (var k = 0; k < letters.Length; k++)
+        {
+            var letter = letters[k];
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (!byShort.TryGetValue(letter, out var member))
+                return null;
+            if (member.IsFlag)
+                continue;
+            var remainder = letters[(k + 1)..];
+            if (remainder.Length == 1
+                && (remainder[0] == 'h' || remainder[0] == 'V' || byShort.ContainsKey(remainder[0])))
+                return letter;
+            return null;
+        }
+
+        return null;
+    }
+
+    /// <summary>Re-attaches the command name to cluster-extracted errors.</summary>
     private static string? ExtractClusterValue(SubCommandOptionInfo member, string token, string? next, ParseResult result)
     {
         try
@@ -397,13 +689,12 @@ internal sealed class ArgumentParser
         }
         catch (CommandException ex) when (ex.CommandName is null)
         {
+            // Cluster ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
             throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, result.TargetCommand.FullCommandName);
         }
     }
 
-    /// <summary>
-    /// Adds an argument value to the parse result
-    /// </summary>
+    /// <summary>Appends a positional value into the result.</summary>
     private static void AddArgumentValue(ParseResult result, SubCommandArgumentInfo argument, string value)
     {
         if (!result.ArgumentValues.ContainsKey(argument))
@@ -412,6 +703,7 @@ internal sealed class ArgumentParser
         result.ArgumentValues[argument].Add(value);
     }
 
+    /// <summary>Whether the value parses as a negative number (consumable value, not a flag).</summary>
     private static bool IsNumericValue(string value)
     {
         if (string.IsNullOrEmpty(value) || !value.StartsWith('-') || value.Length < 2)
@@ -424,37 +716,51 @@ internal sealed class ArgumentParser
         return double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
     }
 
-    /// <summary>
-    /// Reject-by-default neighbor gate: any dash-led non-numeric token is
-    /// flag-looking, known or unknown, including <c>--help</c>/<c>-h</c>,
-    /// <c>--version</c>/<c>-V</c>, and the <c>--</c> separator. Only numeric
-    /// neighbors (<c>-5</c>) and plain words pass as consumable values.
-    /// </summary>
+    /// <summary>Whether the token is flag-looking: dash-led and non-numeric.</summary>
     private static bool IsFlagLookingToken(string token) =>
         token.StartsWith('-') && !IsNumericValue(token);
 
-    /// <summary>
-    /// Scan the pre-<c>--</c> leftovers on an abstract command for
-    /// a known flag in in-token <c>=</c>-form whose literal is invalid (e.g.
-    /// <c>--verbose=banana</c>). The literal check uses
-    /// <see cref="SubCommandOptionInfo.ExtractValue"/>, which throws
-    /// <see cref="CommandErrorKind.InvalidValue"/> naming the option plus the
-    /// valid literals with the secret-aware check. Scope is
-    /// <c>target.AllOptions</c> through <see cref="SubCommandOptionInfo.MatchesArgument"/>.
-    /// Flags plus in-token <c>=</c> only: bare tokens, valued options,
-    /// unknown tokens, numerics, help/version tokens, and the
-/// <c>--no-</c> prefix are skipped; valid literals continue
-/// to <c>RequiresSubcommand</c>.
-    /// Runs after the reserved-misuse scan and before the
-    /// unknown-option scan, so an invalid literal beats both
-    /// <c>RequiresSubcommand</c> and <c>UnknownOption</c>. Post-separator
-    /// tokens stay silent for <c>RequiresSubcommand</c>.
-    /// </summary>
-    private static void ThrowOnInvalidFlagLiteralPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    /// <summary>Exclusive end index of the pre-separator scan window.</summary>
+    private static int PreSentinelEnd(string[] args)
+    {
+        var sentinelIndex = Array.IndexOf(args, "--");
+        return sentinelIndex < 0 ? args.Length : sentinelIndex;
+    }
+
+    /// <summary>First reserved misuse token in the pre-separator window, else null.</summary>
+    private static string? FindFirstPreSentinelMisuseToken(SubCommandInfo target, string[] args, int argIndex)
+    {
+        return args.Skip(argIndex).TakeWhile(t => t != "--")
+            .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, target.AllOptions) || IsVersionEqualsOrNegatedToken(t, target.AllOptions));
+    }
+
+    /// <summary>Throws the misuse error naming the token, with the command name attached.</summary>
+    private static void ThrowOnReservedMisuseToken(SubCommandInfo target, string token)
+    {
+        throw IsHelpEqualsOrNegatedToken(token, target.AllOptions)
+            ? HelpMisuseError(token, target.FullCommandName)
+            : VersionMisuseError(token, target.FullCommandName);
+    }
+
+    /// <summary>Runs the ordered pre-separator error scans: misuse, =-form, space gate, unknown, bare-valued.</summary>
+    private static void ThrowOnOrderedPreSentinelErrors(SubCommandInfo target, string[] args, int argIndex, bool includeSpaceGate, bool includeBareValuedGate)
+    {
+        var misuseToken = FindFirstPreSentinelMisuseToken(target, args, argIndex);
+        if (misuseToken != null)
+            ThrowOnReservedMisuseToken(target, misuseToken);
+        ThrowOnFlagEqualsPreSentinelOption(target, args, argIndex);
+        if (includeSpaceGate)
+            ThrowOnFlagSpacePreSentinelOption(target, args, argIndex);
+        ThrowOnUnknownPreSentinelOption(target, args, argIndex);
+        if (includeBareValuedGate)
+            ThrowOnBareValuedPreSentinelOption(target, args, argIndex);
+    }
+
+    /// <summary>Rejects any =-form flag occurrence on an abstract path via the bare-only gate.</summary>
+    private static void ThrowOnFlagEqualsPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
-        var sentinelIndex = Array.IndexOf(args, "--");
-        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var end = PreSentinelEnd(args);
         for (var i = argIndex; i < end; i++)
         {
             var token = args[i];
@@ -475,31 +781,54 @@ internal sealed class ArgumentParser
             }
             catch (CommandException ex) when (ex.CommandName is null)
             {
+                // Flag ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
                 throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
             }
         }
     }
 
-    /// <summary>
-    /// Scan the pre-<c>--</c> leftovers on an abstract command for
-    /// the first dash-led non-numeric token that matches no known option
-    /// (<see cref="SubCommandOptionInfo.MatchesArgument"/>, including combined
-    /// short clusters with the same reachability as
-    /// <see cref="ParseOptionsAndArguments"/>). Help/version tokens already
-    /// returned above, so any remaining match here is an unmatched option:
-    /// throw <see cref="CommandErrorKind.UnknownOption"/> with a name-only
-    /// message (strip any <c>=value</c> suffix) and a did-you-mean
-    /// option hint. The bare <c>--</c> itself ends the scan;
-    /// post-separator tokens stay silent for RequiresSubcommand.
-    /// The reserved help-word scan runs before this method at the
-    /// invocation point, so <c>--help=x</c>/<c>-h=x</c>/<c>--no-help</c> report
-    /// InvalidValue, never UnknownOption here.
-    /// </summary>
+    /// <summary>Rejects a bare flag followed by a boolean word on an abstract path via the bare-only gate.</summary>
+    private static void ThrowOnFlagSpacePreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var allOptions = target.AllOptions;
+        var end = PreSentinelEnd(args);
+        for (var i = argIndex; i < end; i++)
+        {
+            var token = args[i];
+            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
+                continue;
+            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+                continue;
+            if (IsClusterToken(allOptions, token))
+                continue;
+            var matched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+            if (matched == null || !matched.IsFlag || !IsBareFlagToken(matched, token))
+                continue;
+            if (i + 1 >= end)
+                continue;
+            var next = args[i + 1];
+            if (!SubCommandOptionInfo.IsBooleanValue(next))
+                continue;
+            var spaceNegated = matched.SupportsNegation && matched.NegatedLongName != null && token == matched.NegatedLongName;
+            string spaceDisplay;
+            if (spaceNegated)
+                spaceDisplay = matched.NegatedLongName!;
+            else if (matched.LongName != null)
+                spaceDisplay = $"--{matched.LongName}";
+            else
+                spaceDisplay = $"-{matched.ShortName}";
+            throw new CommandException(SecretRedaction.NoValueAcceptedMessage(spaceDisplay, next, matched.IsSecret, isFlag: true, positiveLongName: matched.LongName, isNegated: spaceNegated), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+        }
+    }
+
+    /// <summary>Throws on the first unknown pre-separator option on an abstract path.</summary>
     private static void ThrowOnUnknownPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
-        var sentinelIndex = Array.IndexOf(args, "--");
-        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var end = PreSentinelEnd(args);
+        var tail = args[argIndex..];
+        var versionWins = HelpVersionGateway.RequestedVersion(tail)
+            && !HelpVersionGateway.RequestedHelp(tail);
         for (var i = argIndex; i < end; i++)
         {
             var token = args[i];
@@ -509,27 +838,82 @@ internal sealed class ArgumentParser
                 continue;
             if (allOptions.Any(o => o.MatchesArgument(token))
                 && !(token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('=')))
+            {
+                if (token.Contains('='))
+                {
+                    var equalsOption = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+                    if (equalsOption != null && !equalsOption.IsFlag)
+                    {
+                        try
+                        {
+                            equalsOption.ExtractValue(token, null);
+                        }
+                        catch (CommandException ex) when (ex.CommandName is null)
+                        {
+                            throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
+                        }
+                    }
+                }
                 continue;
+            }
+            var valuedNotLast = FindValuedNotLastToken(allOptions, token);
+            if (valuedNotLast.HasValue)
+                throw new CommandException(
+                    $"Option '-{valuedNotLast.Value}' requires a value and must be last in a combined short cluster; use '-{valuedNotLast.Value} <value>', '-{valuedNotLast.Value}=<value>', or place it last.",
+                    2, CommandErrorKind.InvalidValue, target.FullCommandName);
             if (IsClusterToken(allOptions, token))
                 continue;
             if (token.StartsWith("--no-", StringComparison.Ordinal) && token.Contains('='))
             {
+                if (versionWins)
+                {
+                    var noProbeName = token[..token.IndexOf('=')];
+                    var noProbeBase = noProbeName["--no-".Length..];
+                    if (SubCommandOptionInfo.FindNoValueBase(allOptions, noProbeBase) != null || noProbeBase.Length == 0)
+                        continue;
+                }
+
                 var name = token[..token.IndexOf('=')];
                 var rejected = token[(token.IndexOf('=') + 1)..];
                 var resolved = SubCommandOptionInfo.FindNoValueBase(allOptions, name["--no-".Length..]);
                 if (resolved != null)
-                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, resolved.IsSecret, isFlag: resolved.IsFlag, positiveLongName: resolved.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
                 if (name.Length == "--no-".Length)
-                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
-                var noValueSuggestion = DidYouMean.FindBestMatch(name, DidYouMean.OptionCandidates(allOptions));
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(name, rejected, isSecret: true, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                var noValueSuggestion = DidYouMean.SuggestBlamedToken(name, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion($"Unknown option: {name}", noValueSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+            }
+            if (token.StartsWith("--no-", StringComparison.Ordinal) && !token.Contains('='))
+            {
+                var resolvedBare = SubCommandOptionInfo.FindNoValueBase(allOptions, token["--no-".Length..]);
+                if (resolvedBare != null && !resolvedBare.IsFlag)
+                {
+                    if (versionWins)
+                        continue;
+                    throw new CommandException(SecretRedaction.NoValueAcceptedMessage(token, string.Empty, resolvedBare.IsSecret, isFlag: false, positiveLongName: resolvedBare.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
+                }
             }
             var clusterFailing = FindUnknownClusterCharIndex(allOptions, token);
             if (clusterFailing >= 0)
             {
+                if (!ClusterContainsValuedShortOption(allOptions, token))
+                {
+                    var fullNameOnly = token;
+                    var fullEquals = fullNameOnly.IndexOf('=');
+                    if (fullEquals >= 0)
+                        fullNameOnly = fullNameOnly[..fullEquals];
+                    var fullSuggestion = DidYouMean.SuggestBlamedToken(
+                        fullNameOnly,
+                        DidYouMean.OptionCandidates(allOptions));
+                    if (fullSuggestion != null
+                        && string.Equals(DidYouMean.Normalize(fullSuggestion), DidYouMean.Normalize(fullNameOnly), StringComparison.Ordinal))
+                        throw new CommandException(
+                            DidYouMean.WithSuggestion($"Unknown option: {fullNameOnly}", fullSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+                }
+
                 var clusterFragment = $"-{token[clusterFailing]}";
-                var clusterSuggestion = DidYouMean.FindBestMatch(clusterFragment, DidYouMean.OptionCandidates(allOptions));
+                var clusterSuggestion = DidYouMean.SuggestBlamedToken(clusterFragment, DidYouMean.OptionCandidates(allOptions));
                 throw new CommandException(
                     DidYouMean.WithSuggestion(SecretRedaction.UnknownClusterCharMessage(token, clusterFailing), clusterSuggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
             }
@@ -537,45 +921,31 @@ internal sealed class ArgumentParser
             var equals = unknownName.IndexOf('=');
             if (equals >= 0)
                 unknownName = unknownName[..equals];
-            var suggestion = DidYouMean.FindBestMatch(unknownName, DidYouMean.OptionCandidates(allOptions));
+            var suggestion = DidYouMean.SuggestBlamedToken(unknownName, DidYouMean.OptionCandidates(allOptions));
+            var footerCommandName = target.FullCommandName;
+            for (var j = i + 1; j < end; j++)
+            {
+                var trailing = args[j];
+                if (trailing.StartsWith('-'))
+                    continue;
+                if (HelpVersionGateway.IsHelpToken(trailing) || HelpVersionGateway.IsVersionToken(trailing))
+                    continue;
+                if (target.FindChild(trailing) is { } typedChild)
+                {
+                    footerCommandName = typedChild.FullCommandName;
+                    break;
+                }
+            }
             throw new CommandException(
-                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
+                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, footerCommandName);
         }
     }
 
-    /// <summary>
-    /// Scan the pre-<c>--</c> leftovers on an abstract command for
-    /// a valued option in bare form whose neighbor cannot supply
-    /// its value. A bare token (exact <c>--long</c>/<c>-s</c> match, no
-    /// <c>=</c>, no attached short remainder) matched by
-    /// <see cref="SubCommandOptionInfo.MatchesArgument"/> with an
-    /// unconsumable neighbor — end of pre-sentinel input or a
-    /// flag-looking next token under <see cref="IsFlagLookingToken"/>
-    /// (the same consumability rule as
-    /// <see cref="ParseOptionsAndArguments"/>) — would extract a null
-    /// value in normal parsing, and <see cref="ParameterValidator"/>
-    /// reports each bare valued occurrence as missing by itself,
-    /// regardless of env. Throw
-    /// <see cref="CommandErrorKind.MissingRequired"/> naming the option,
-    /// mirroring the validator message (<c>Missing required option</c>
-    /// for required, <c>Missing value for option</c> for optional),
-    /// instead of letting the
-    /// <c>RequiresSubcommand</c> fallback mask it. Runs after the
-    /// invalid-literal and unknown scans so <c>InvalidValue</c> and
-    /// <c>UnknownOption</c> keep precedence (unknown-first); equals-forms,
-    /// attached remainders, flags, numerics, help/version tokens, cluster
-    /// tokens, and post-separator tokens stay silent for
-    /// <c>RequiresSubcommand</c>. A bare repeat of an already-satisfied
-    /// optional valued option stays silent too (record-then-filter over the
-    /// pre-sentinel range, canonical key, so either order converges with
-    /// <see cref="ParameterValidator"/>); required repeats still throw.
-    /// Peek only: consumes nothing.
-    /// </summary>
+    /// <summary>Throws on a bare valued option with no consumable neighbor on an abstract path.</summary>
     private static void ThrowOnBareValuedPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
-        var sentinelIndex = Array.IndexOf(args, "--");
-        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var end = PreSentinelEnd(args);
         var satisfiedKeys = new HashSet<string>(StringComparer.Ordinal);
         for (var i = argIndex; i < end; i++)
         {
@@ -588,7 +958,17 @@ internal sealed class ArgumentParser
             {
                 var equalsMatched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
                 if (equalsMatched != null && !equalsMatched.IsFlag)
+                {
                     satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(equalsMatched));
+                    try
+                    {
+                        equalsMatched.ExtractValue(token, null);
+                    }
+                    catch (CommandException ex) when (ex.CommandName is null)
+                    {
+                        throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
+                    }
+                }
                 continue;
             }
             if (IsClusterToken(allOptions, token))
@@ -600,7 +980,7 @@ internal sealed class ArgumentParser
             var seen = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
             if (seen == null || seen.IsFlag)
                 continue;
-            if (!IsBareValuedToken(seen, token))
+            if (!DanglingValuedOptionPolicy.IsBareForm(seen, token))
             {
                 satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(seen));
                 continue;
@@ -623,7 +1003,7 @@ internal sealed class ArgumentParser
             var matched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
             if (matched == null || matched.IsFlag)
                 continue;
-            if (!IsBareValuedToken(matched, token))
+            if (!DanglingValuedOptionPolicy.IsBareForm(matched, token))
                 continue;
             var next = i + 1 < end ? args[i + 1] : null;
             if (next != null && !IsFlagLookingToken(next))
@@ -637,6 +1017,7 @@ internal sealed class ArgumentParser
         }
     }
 
+    /// <summary>Records a valued short's satisfaction for the token.</summary>
     private static void RecordClusterSatisfaction(List<SubCommandOptionInfo> allOptions, string token, string? next, HashSet<string> satisfiedKeys)
     {
         var byShort = new Dictionary<char, SubCommandOptionInfo>();
@@ -662,6 +1043,19 @@ internal sealed class ArgumentParser
         }
     }
 
+    /// <summary>Whether the token is the exact bare form of the flag option.</summary>
+    private static bool IsBareFlagToken(SubCommandOptionInfo option, string token)
+    {
+        if (option.LongName != null && token == $"--{option.LongName}")
+            return true;
+        if (option.ShortName.HasValue && token == $"-{option.ShortName}")
+            return true;
+        if (option.SupportsNegation && option.NegatedLongName != null && token == option.NegatedLongName)
+            return true;
+        return false;
+    }
+
+    /// <summary>Whether the token is the exact bare form of the valued option.</summary>
     private static bool IsBareValuedToken(SubCommandOptionInfo option, string token)
     {
         if (option.LongName != null && token == $"--{option.LongName}")
@@ -671,15 +1065,11 @@ internal sealed class ArgumentParser
         return false;
     }
 
-    /// <summary>
-    /// Covers combined-short-cluster reachability in
-    /// <see cref="TryHandleCombinedShortCluster"/>: a bare multi-char single-dash
-    /// token with no <c>=</c> whose every short resolves (reserved <c>h</c>/<c>V</c>
-    /// shorts included, valued shorts allowed since the last one takes
-    /// the remainder/next-token as its value) is a known token, not unknown.
-    /// </summary>
+    /// <summary>Whether the token is a splittable combined short cluster. Reserved-word gate lives at <see cref="SingleDashPolicy.IsReservedWord"/>.</summary>
     private static bool IsClusterToken(List<SubCommandOptionInfo> allOptions, string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return false;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
             return false;
         if (!allOptions.Any(o => o.ShortName.HasValue))
@@ -703,8 +1093,11 @@ internal sealed class ArgumentParser
         return true;
     }
 
+    /// <summary>Index of the first unknown char in the token, or -1 when splittable.</summary>
     private static int FindUnknownClusterCharIndex(List<SubCommandOptionInfo> allOptions, string token)
     {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return -1;
         if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
             return -1;
         if (!allOptions.Any(o => o.ShortName.HasValue))
@@ -729,6 +1122,64 @@ internal sealed class ArgumentParser
         return -1;
     }
 
+    /// <summary>Valued-not-last probe for the token; returns the offending short letter.</summary>
+    private static char? FindValuedNotLastToken(List<SubCommandOptionInfo> allOptions, string token)
+    {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return null;
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || token.Contains('=') || IsNumericValue(token))
+            return null;
+        if (!allOptions.Any(o => o.ShortName.HasValue))
+            return null;
+        var byShort = new Dictionary<char, SubCommandOptionInfo>();
+        foreach (var option in allOptions)
+        {
+            if (option.ShortName.HasValue && !byShort.ContainsKey(option.ShortName.Value))
+                byShort.Add(option.ShortName.Value, option);
+        }
+        var letters = token[1..];
+        return FindValuedNotLastLetter(letters, byShort);
+    }
+
+    /// <summary>Whether the token contains a valued short, so reports stay failing-char-only.</summary>
+    private static bool ClusterContainsValuedShortOption(List<SubCommandOptionInfo> allOptions, string token)
+    {
+        if (SingleDashPolicy.IsReservedWord(token))
+            return false;
+        if (token.Length <= 2 || !token.StartsWith('-') || token.StartsWith("--", StringComparison.Ordinal) || IsNumericValue(token))
+            return false;
+        var nameOnly = token;
+        var equals = nameOnly.IndexOf('=');
+        if (equals >= 0)
+            nameOnly = nameOnly[..equals];
+        var letters = nameOnly[1..];
+        var byShort = new HashSet<char>();
+        var valued = new HashSet<char>();
+        foreach (var option in allOptions)
+        {
+            if (!option.ShortName.HasValue)
+                continue;
+            byShort.Add(option.ShortName.Value);
+            if (!option.IsFlag)
+                valued.Add(option.ShortName.Value);
+        }
+        foreach (var letter in letters)
+        {
+            if (letter == 'h' || letter == 'V')
+                continue;
+            if (valued.Contains(letter))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether the root accepts the leading token as a positional instead of an error.</summary>
+    /// <remarks>
+    /// The tie/silence probe routes through the subcommand emit gate on
+    /// purpose: a near-miss leaf name keeps its suggestion downstream, while
+    /// a tied or exact-known token returns null here and binds positionally.
+    /// </remarks>
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
     {
         if (!rootCommand.IsRoot || !rootCommand.HasImplementation)
@@ -741,23 +1192,84 @@ internal sealed class ArgumentParser
             return true;
         if (rootCommand.FindChild(token) != null)
             return false;
-        return DidYouMean.FindBestMatch(
+        return DidYouMean.SuggestSubcommand(
             token,
-            DidYouMean.SubCommandCandidates(rootCommand.Children.Keys)) == null;
+            rootCommand.Children.Keys) == null;
     }
 
-    /// <summary>
-    /// Concrete-root help-first probe: the root command merged with a
-    /// <c>MainCommand</c> implementation (<see cref="SubCommandInfo.HasImplementation"/>)
-    /// skips the abstract help-first branch, so a leading bare help token would
-    /// fall into <see cref="ParseOptionsAndArguments"/> and lose to trailing
-    /// tokens (surplus arguments, unknown options) before help renders. Fires
-    /// only for a leading bare help token (<see cref="HelpVersionGateway.IsHelpToken"/>)
-    /// at the root scope: <c>=</c>-forms, negations, post-separator tokens,
-    /// and non-leading help stay on the normal parse path. Yields to a
-    /// pre-separator version token, mirroring the abstract branch where the
-    /// version check runs before the help check (version beats help).
-    /// </summary>
+    /// <summary>Miss behind a leading help token: bare non-child word, else null.</summary>
+    private static CommandException? ClassifyHelpTrailingMiss(SubCommandInfo target, string[] args, int argIndex)
+    {
+        if (!target.IsRoot || !target.HasImplementation || target.Children.Count == 0)
+            return null;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        var missToken = i < end ? args[i] : null;
+        if (missToken == null || missToken.StartsWith('-') || missToken == "/?" || missToken.StartsWith("/?=", StringComparison.Ordinal))
+            return null;
+        if (target.FindChild(missToken) != null)
+            return null;
+        var suggestion = DidYouMean.SuggestSubcommand(missToken, target.Children.Keys);
+        return new CommandException(
+            DidYouMean.WithSuggestion($"No command found for '{missToken}'", suggestion), 2, CommandErrorKind.UnknownCommand);
+    }
+
+    /// <summary>Miss after a named parent's help token: first unmatched bare word, else null.</summary>
+    private static CommandException? ClassifyNamedParentHelpMiss(SubCommandInfo target, string[] args, int argIndex)
+    {
+        if (target.IsRoot || target.HasImplementation || target.Children.Count == 0)
+            return null;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        while (i < end && target.FindChild(args[i]) != null)
+            i++;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        var missToken = i < end ? args[i] : null;
+        if (missToken == null || missToken.StartsWith('-') || missToken == "/?" || missToken.StartsWith("/?=", StringComparison.Ordinal))
+            return null;
+        if (target.FindChild(missToken) != null)
+            return null;
+        var suggestion = DidYouMean.SuggestSubcommand(missToken, target.Children.Keys);
+        if (suggestion == null)
+            return null;
+        return new CommandException(
+            DidYouMean.WithSuggestion($"Unknown subcommand '{missToken}'", suggestion), 2, CommandErrorKind.UnknownCommand, target.FullCommandName);
+    }
+
+    /// <summary>Resolves which command a pre-separator help token renders help for.</summary>
+    private static SubCommandInfo? ResolveHelpTargetCommand(SubCommandInfo target, string[] args, int argIndex)
+    {
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var i = argIndex;
+        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+            i++;
+        if (i >= end)
+            return target;
+        if (args[i].StartsWith('-') || args[i] == "/?")
+            return target;
+        var current = target;
+        var resolved = false;
+        while (i < end && !args[i].StartsWith('-') && args[i] != "/?")
+        {
+            var child = current.FindChild(args[i]);
+            if (child == null)
+                break;
+            current = child;
+            resolved = true;
+            i++;
+        }
+        return resolved ? current : null;
+    }
+
+    /// <summary>Whether a leading bare help token fires early on a concrete root.</summary>
     private static bool IsConcreteRootLeadingHelp(SubCommandInfo target, string[] args, int argIndex)
     {
         return target.IsRoot
@@ -767,19 +1279,7 @@ internal sealed class ArgumentParser
             && !args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken);
     }
 
-    /// <summary>
-    /// Reserved help-word gate: <c>--help=&lt;anything&gt;</c> (including
-    /// empty), <c>-h=&lt;anything&gt;</c> (including empty), bare
-    /// <c>--no-help</c>, and <c>--no-help=&lt;anything&gt;</c>. Ordinal and
-    /// anchored on <c>=</c>/exact: bare <c>--help</c>/<c>-h</c> stay real help
-    /// (handled by <see cref="HelpVersionGateway.IsHelpToken"/>), lookalikes
-    /// (<c>--helpful</c>, <c>--HELP=x</c>) never match, clusters without
-    /// <c>=</c> (e.g. <c>-hfalse</c>) never match, and post-separator tokens
-    /// never reach this gate. The synthetic bool help node must not shadow a
-    /// real <c>-h</c> owner for <c>=</c>-forms: when some non-help option owns
-    /// short <c>'h'</c> (e.g. <c>serve --host</c>), <c>-h=</c> tokens belong
-    /// to that option and are left to normal parsing.
-    /// </summary>
+    /// <summary>Whether the token is a reserved help-word misuse form.</summary>
     private static bool IsHelpEqualsOrNegatedToken(string token, List<SubCommandOptionInfo> allOptions)
     {
         if (token.StartsWith("--help=", StringComparison.Ordinal))
@@ -792,6 +1292,12 @@ internal sealed class ArgumentParser
             return !hasRealShortHOwner;
         }
 
+        if (token.StartsWith("-?=", StringComparison.Ordinal))
+            return true;
+
+        if (token.StartsWith("/?=", StringComparison.Ordinal))
+            return true;
+
         if (string.Equals(token, "--no-help", StringComparison.Ordinal)
             || token.StartsWith("--no-help=", StringComparison.Ordinal))
             return true;
@@ -799,34 +1305,82 @@ internal sealed class ArgumentParser
         return false;
     }
 
-    /// <summary>
-    /// Usage error for reserved help-word misuse: exit 2
-    /// <see cref="CommandErrorKind.InvalidValue"/> with the per-command name
-    /// attached (as in the <c>ExtractValue</c> rethrow above).
-    /// <c>=</c>-forms reuse the secret-aware helpers with
-    /// <c>isSecret:false</c>; bare <c>--no-help</c> uses a dedicated message
-    /// (never <c>NoValueAcceptedMessage</c> with an empty value).
-    /// </summary>
+    /// <summary>Usage error for reserved help-word misuse; throws exit 2 with the command name.</summary>
     private static CommandException HelpMisuseError(string token, string commandName)
     {
         if (token.StartsWith("--help=", StringComparison.Ordinal))
         {
-            var literal = token["--help=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "--help", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["--help=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--help", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("-h=", StringComparison.Ordinal))
         {
-            var literal = token["-h=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-h", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["-h=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("-h", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("-?=", StringComparison.Ordinal))
+        {
+            var rejected = token["-?=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("-?", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("/?=", StringComparison.Ordinal))
+        {
+            var rejected = token["/?=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("/?", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("--no-help=", StringComparison.Ordinal))
         {
             var rejected = token["--no-help=".Length..];
-            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-help", rejected, isSecret: false, isFlag: false), 2, CommandErrorKind.InvalidValue, commandName);
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-help", rejected, isSecret: false, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         return new CommandException("Option '--no-help' is not valid. Use '--help' to show help.", 2, CommandErrorKind.InvalidValue, commandName);
+    }
+
+    /// <summary>Whether the token is a reserved version-word misuse form.</summary>
+    private static bool IsVersionEqualsOrNegatedToken(string token, List<SubCommandOptionInfo> allOptions)
+    {
+        if (token.StartsWith("--version=", StringComparison.Ordinal))
+            return true;
+
+        if (token.StartsWith("-V=", StringComparison.Ordinal))
+        {
+            var hasRealShortVOwner = allOptions.Any(o => o.ShortName == 'V');
+            return !hasRealShortVOwner;
+        }
+
+        if (string.Equals(token, "--no-version", StringComparison.Ordinal)
+            || token.StartsWith("--no-version=", StringComparison.Ordinal))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>Usage error for reserved version-word misuse; throws exit 2 with the command name.</summary>
+    private static CommandException VersionMisuseError(string token, string commandName)
+    {
+        if (token.StartsWith("--version=", StringComparison.Ordinal))
+        {
+            var rejected = token["--version=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--version", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("-V=", StringComparison.Ordinal))
+        {
+            var rejected = token["-V=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("-V", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        if (token.StartsWith("--no-version=", StringComparison.Ordinal))
+        {
+            var rejected = token["--no-version=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--no-version", rejected, isSecret: false, isFlag: false, isNegated: true), 2, CommandErrorKind.InvalidValue, commandName);
+        }
+
+        return new CommandException("Option '--no-version' is not valid. Use '--version' to show version.", 2, CommandErrorKind.InvalidValue, commandName);
     }
 }

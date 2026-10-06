@@ -10,10 +10,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// pre-separator tokens stay on the abstract branch of <c>ArgumentParser</c>.
 /// An optional valued option that already consumed a value (separated form,
 /// <c>=</c>-form, attached short remainder, or either alias form) keeps the
-/// first value and succeeds, so a later bare occurrence of the same option
-/// falls through to <c>RequiresSubcommand</c> (exit 2) instead of reporting
-/// <c>Missing value for option</c> — matching the concrete-root validator,
-/// which skips satisfied optional bare occurrences. A required valued option
+/// first value, so a later bare occurrence of the same option reports
+/// <c>Missing value for option</c> (exit 2) — matching the single-bare and
+/// concrete-root paths, where the starved bare occurrence is deferred to the
+/// Missing-value scan. A required valued option
 /// repeated bare after a value still reports <c>MissingRequired</c>.
 /// Single bare occurrences, unknown-first, help precedence, and the
 /// environment-variable behavior keep their existing paths.
@@ -66,72 +66,67 @@ public sealed class AbstractRootSatisfiedRepeatTests
     }
 
     [Fact]
-    public async Task OptionalSatisfiedThenBareWithFlagNeighbor_FallsThroughToRequiresSubcommand()
+    public async Task OptionalSatisfiedThenBareWithFlagNeighbor_ReportsMissingValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--output", "x", "--output", "--verbose"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("'<root>' requires a subcommand", error);
-        Assert.Contains("Available subcommands: greet", error);
-        Assert.DoesNotContain("Missing value for option", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
+        Assert.Contains("Missing value for option: --output", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task OptionalSatisfiedThenTrailingBare_FallsThroughToRequiresSubcommand()
+    public async Task OptionalSatisfiedThenTrailingBare_ReportsMissingValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--output", "x", "--output"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("'<root>' requires a subcommand", error);
-        Assert.Contains("Available subcommands: greet", error);
-        Assert.DoesNotContain("Missing value for option", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
+        Assert.Contains("Missing value for option: --output", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task OptionalEqualsSatisfiedThenBare_FallsThroughToRequiresSubcommand()
+    public async Task OptionalEqualsSatisfiedThenBare_ReportsMissingValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--output=x", "--output", "--verbose"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("'<root>' requires a subcommand", error);
-        Assert.Contains("Available subcommands: greet", error);
-        Assert.DoesNotContain("Missing value for option", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
+        Assert.Contains("Missing value for option: --output", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task OptionalAttachedSatisfiedThenBare_FallsThroughToRequiresSubcommand()
+    public async Task OptionalAttachedSatisfiedThenBare_ReportsMissingValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["-ox", "--outalias", "--verbose"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("'<root>' requires a subcommand", error);
-        Assert.Contains("Available subcommands: greet", error);
-        Assert.DoesNotContain("Missing value for option", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
+        Assert.Contains("Missing value for option: -o, --outalias", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task OptionalAliasSatisfiedThenBare_FallsThroughToRequiresSubcommand()
+    public async Task OptionalAliasSatisfiedThenBare_ReportsMissingValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--outalias", "x", "-o", "--verbose"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("'<root>' requires a subcommand", error);
-        Assert.Contains("Available subcommands: greet", error);
-        Assert.DoesNotContain("Missing value for option", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
+        Assert.Contains("Missing value for option: -o, --outalias", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task OptionalSatisfiedThenBareWithEnvironmentSet_FallsThroughToRequiresSubcommand()
+    public async Task OptionalSatisfiedThenBareWithEnvironmentSet_ReportsMissingValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(
             CreateBuilder,
@@ -141,10 +136,9 @@ public sealed class AbstractRootSatisfiedRepeatTests
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.DoesNotContain("env-output.txt", error);
-        Assert.Contains("'<root>' requires a subcommand", error);
-        Assert.Contains("Available subcommands: greet", error);
-        Assert.DoesNotContain("Missing value for option", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
+        Assert.Contains("Missing value for option: --output", error);
+        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
@@ -220,13 +214,13 @@ public sealed class AbstractRootSatisfiedRepeatTests
     }
 
     [Fact]
-    public async Task ConcreteRoot_SatisfiedThenBare_KeepsFirstValue()
+    public async Task ConcreteRoot_SatisfiedThenBare_ReportsMissing()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateConcreteBuilder, ["--output", "x", "--output", "--verbose"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Output: x", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Missing value for option: --output", error);
     }
 
     private static ApplicationBuilder CreateBuilder()

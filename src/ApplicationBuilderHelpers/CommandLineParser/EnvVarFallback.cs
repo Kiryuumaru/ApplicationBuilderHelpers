@@ -3,21 +3,13 @@ using System;
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
-/// Applies environment-variable fallback for options, with exact
-/// single-read semantics:
-/// a single lookup whose value is both guarded on null-or-whitespace and used.
+/// Applies environment-variable fallback for options.
 /// </summary>
 internal static class EnvVarFallback
 {
     /// <summary>
     /// Applies the fallback for a single option when no explicit value was provided.
     /// </summary>
-    /// <param name="result">Parse result to append to.</param>
-    /// <param name="option">Option that may declare an environment variable.</param>
-    /// <param name="requiredOnly">
-    /// When true, only options marked <see cref="SubCommandOptionInfo.IsRequired"/> are considered.
-    /// </param>
-    /// <returns>True when a value was applied from the environment.</returns>
     internal static bool Apply(ParseResult result, SubCommandOptionInfo option, bool requiredOnly)
     {
         if (requiredOnly && !option.IsRequired)
@@ -33,7 +25,7 @@ internal static class EnvVarFallback
         if (string.IsNullOrWhiteSpace(envValue))
             return false;
 
-        result.AddOptionValue(option, envValue);
+        result.AddOptionValue(option, envValue, isExplicit: false);
         return true;
     }
 }

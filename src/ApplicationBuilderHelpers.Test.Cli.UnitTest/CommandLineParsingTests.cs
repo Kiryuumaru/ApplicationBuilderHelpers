@@ -111,48 +111,54 @@ public class CommandLineParsingTests : CliTestBase
     public async Task Boolean_With_True_Value()
     {
         var result = await Runner.RunAsync("test", "target", "--diag=true", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: True");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Fact]
     public async Task Boolean_With_False_Value()
     {
         var result = await Runner.RunAsync("test", "target", "--diag=false", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: False");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Fact]
     public async Task Boolean_With_Equals_True()
     {
         var result = await Runner.RunAsync("test", "target", "--diag=true", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: True");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Fact]
     public async Task Boolean_With_Equals_False()
     {
         var result = await Runner.RunAsync("test", "target", "--diag=false", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: False");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Fact]
     public async Task Boolean_With_Yes_Value()
     {
         var result = await Runner.RunAsync("test", "target", "--diag=yes", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: True");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Fact]
     public async Task Boolean_With_No_Value()
     {
         var result = await Runner.RunAsync("test", "target", "--diag=no", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: False");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Fact]

@@ -24,6 +24,9 @@ public sealed class CompletionProbeTests
         [CommandOption("strategy", Description = "Deployment strategy.", FromAmong = ["blue-green", "rolling", "recreate"])]
         public string Strategy { get; set; } = "rolling";
 
+        [CommandOption("verbose", Description = "Verbose output.")]
+        public bool Verbose { get; set; }
+
         [CommandOption("secret-token", Description = "Secret token.", FromAmong = ["alpha", "beta"], Secret = true)]
         public string? SecretToken { get; set; }
 
@@ -79,6 +82,22 @@ public sealed class CompletionProbeTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("--strategy", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Complete_DashPrefix_IncludesFlagNegationOnly()
+    {
+        var line = "compl-test compldeploy --";
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["complete", "--position", line.Length.ToString(), line]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--strategy", output);
+        Assert.Contains("--verbose", output);
+        Assert.Contains("--no-verbose", output);
+        Assert.DoesNotContain("--no-strategy", output);
+        Assert.DoesNotContain("--no-help", output);
+        Assert.DoesNotContain("--no-version", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 

@@ -6,6 +6,14 @@ Includes a sample **WeatherForecast** feature to demonstrate the end-to-end flow
 
 ## Quick Start
 
+Copied this folder? Rename before you build (full checklist was in `templates/README.md` before you copied):
+1. Rename the solution file to your app name.
+2. Rename the project namespaces to your app name.
+3. Search for leftover `ApplicationBuilderHelpersTemplate` text and `sampleapp` names, then replace them.
+4. Update `README.md`, `LICENSE.txt`, and `.csproj` metadata.
+
+> This copy travels alone. The rename steps above are the full list. Keep this file as your guide.
+
 ```bash
 dotnet build
 dotnet run --project src/Presentation.Cli

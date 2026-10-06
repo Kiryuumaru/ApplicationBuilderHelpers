@@ -1,33 +1,14 @@
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.ParserTypes;
 using System;
 using System.Globalization;
 using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 
-/// <summary>
-/// Single scalar conversion shared by options and arguments:
-/// raw CLI text in, converted value out, with convert-then-compare
-/// <c>FromAmong</c> validation applied after conversion.
-/// </summary>
 internal static class TypeConversion
 {
-    /// <summary>
-    /// Converts raw CLI text to <paramref name="targetType"/> and validates the
-    /// converted value against <paramref name="fromAmong"/> when provided.
-    /// Order: null passthrough, exact registry match, nullable unwrap, string,
-    /// enum, then <see cref="System.Convert.ChangeType(object?, Type)"/> for
-    /// unknown types only. Failures throw through <see cref="ConversionErrors"/>.
-    /// </summary>
-    /// <param name="raw">The raw CLI text, or null when no value was supplied.</param>
-    /// <param name="targetType">The type to convert to.</param>
-    /// <param name="isCaseSensitive">Whether enum parsing and allowed-values comparison are case sensitive.</param>
-    /// <param name="fromAmong">Allowed values, compared after conversion; null or empty skips validation.</param>
-    /// <param name="displayName">Display name including kind prefix, e.g. <c>"option '--mode'"</c> or <c>"argument 'level'"</c>.</param>
-    /// <param name="typeParsers">The registered type parser collection.</param>
-    /// <param name="isSecret">Whether the target option/argument is secret (redact the value in errors).</param>
-    /// <param name="isArgument">True when converting an argument (selects the argument NotAmong template).</param>
     internal static object? Convert(
         string? raw,
         Type targetType,
@@ -49,6 +30,7 @@ internal static class TypeConversion
         }
         catch (CommandException)
         {
+            // Textual FromAmong hit still reports NotAmong (exit 2) so equivalent representations name the allowed set.
             if (raw is not null && fromAmong is not null && fromAmong.Length > 0 && !RawMatchesAllowed(raw, isCaseSensitive, fromAmong))
             {
                 throw ConversionErrors.NotAmong(raw, displayName, string.Join(", ", fromAmong.Select(entry => entry?.ToString())), isSecret, isArgument);
@@ -58,19 +40,19 @@ internal static class TypeConversion
         }
 
         ValidateFromAmong(raw, converted, targetType, isCaseSensitive, fromAmong, displayName, typeParsers, isSecret, isArgument);
+        if (raw is not null && fromAmong is not null && fromAmong.Length > 0
+            && (Nullable.GetUnderlyingType(targetType) ?? targetType) == typeof(string))
+        {
+            string? canonical = FindCanonicalStringValue(raw, isCaseSensitive, fromAmong);
+            if (canonical is not null)
+            {
+                return canonical;
+            }
+        }
+
         return converted;
     }
 
-    /// <summary>
-    /// Option-shaped overload: pulls target type, case sensitivity, allowed
-    /// values, and secrecy from <paramref name="option"/> (<see cref="SubCommandOptionInfo.PropertyType"/>,
-    /// <see cref="SubCommandOptionInfo.IsCaseSensitive"/>, <see cref="SubCommandOptionInfo.ValidValues"/>,
-    /// <see cref="SubCommandOptionInfo.IsSecret"/>).
-    /// </summary>
-    /// <param name="raw">The raw CLI text, or null when no value was supplied.</param>
-    /// <param name="option">The option providing conversion and validation settings.</param>
-    /// <param name="displayName">Display name including kind prefix, e.g. <c>"option '--mode'"</c>.</param>
-    /// <param name="typeParsers">The registered type parser collection.</param>
     internal static object? Convert(
         string? raw,
         SubCommandOptionInfo option,
@@ -81,10 +63,6 @@ internal static class TypeConversion
         return Convert(raw, option.PropertyType, option.IsCaseSensitive, option.ValidValues, displayName, typeParsers, option.IsSecret, isArgument: false);
     }
 
-    /// <summary>
-    /// Argument-shaped overload: pulls target type, case sensitivity, allowed
-    /// values, and secrecy from <paramref name="argument"/>.
-    /// </summary>
     internal static object? Convert(
         string? raw,
         SubCommandArgumentInfo argument,
@@ -137,7 +115,7 @@ internal static class TypeConversion
                 return enumValue;
             }
 
-            throw ConversionErrors.InvalidValue(raw, displayName, null, isSecret, targetType.Name);
+            throw ConversionErrors.InvalidValue(raw, displayName, ParserErrorHints.EnumAllowedValues(targetType), isSecret, targetType.Name);
         }
 
         try
@@ -146,21 +124,37 @@ internal static class TypeConversion
         }
         catch (Exception)
         {
+            // ChangeType throws across numeric/format/overflow shapes: normalize to InvalidValue (exit 2).
             throw ConversionErrors.InvalidValue(raw, displayName, $"Invalid format for value '{raw}' of type {targetType.FullName}", isSecret, targetType.Name);
         }
     }
 
-    /// <summary>
-    /// Raw string-membership fast path: checks <paramref name="raw"/> against the
-    /// allowed display strings (<c>entry?.ToString()</c>) using
-    /// <paramref name="isCaseSensitive"/> casing. Used only when conversion has
-    /// already failed: a raw value matching no allowed display string reports
-    /// <c>NotAmong</c> so unparseable enum input still lists allowed values,
-    /// while equivalent representations (<c>02</c> vs <c>2</c>, <c>0</c> vs
-    /// <c>Red</c>, <c>1:00:00</c> vs <c>01:00:00</c>) keep their
-    /// convert-then-compare acceptances because their conversions succeed and
-    /// never reach this path.
-    /// </summary>
+    private static string? FindCanonicalStringValue(string raw, bool isCaseSensitive, object[] fromAmong)
+    {
+        foreach (object? entry in fromAmong)
+        {
+            if (string.Equals(entry?.ToString(), raw, StringComparison.Ordinal))
+            {
+                return entry?.ToString();
+            }
+        }
+
+        if (isCaseSensitive)
+        {
+            return null;
+        }
+
+        foreach (object? entry in fromAmong)
+        {
+            if (string.Equals(entry?.ToString(), raw, StringComparison.OrdinalIgnoreCase))
+            {
+                return entry?.ToString();
+            }
+        }
+
+        return null;
+    }
+
     private static bool RawMatchesAllowed(string raw, bool isCaseSensitive, object[] fromAmong)
     {
         StringComparison comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
@@ -234,6 +228,7 @@ internal static class TypeConversion
                     }
                     catch (Exception)
                     {
+                        // Unconvertible allowed entry cannot match: skip it rather than failing the whole check.
                         continue;
                     }
                 }
@@ -254,6 +249,7 @@ internal static class TypeConversion
                             }
                             catch (Exception)
                             {
+                                // Numeric entry outside the enum range cannot match: skip it.
                                 continue;
                             }
                         }
@@ -274,6 +270,7 @@ internal static class TypeConversion
                         }
                         catch (Exception)
                         {
+                            // Allowed entry that cannot convert to the target type cannot match: skip it.
                             continue;
                         }
 
@@ -284,6 +281,7 @@ internal static class TypeConversion
                         }
                         catch (Exception)
                         {
+                            // Lossy narrowing would compare unequal anyway: skip it.
                             continue;
                         }
 

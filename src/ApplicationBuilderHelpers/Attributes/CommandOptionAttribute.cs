@@ -3,16 +3,16 @@
 namespace ApplicationBuilderHelpers.Attributes;
 
 /// <summary>
-/// Attribute to define command line options for properties.
+/// Declares a named-option binding for one command property.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]
 public class CommandOptionAttribute : Attribute
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommandOptionAttribute"/> class with a short term and a term.
+    /// Declares an option reachable by both short and long flags.
     /// </summary>
-    /// <param name="shortTerm">The short term for the command option.</param>
-    /// <param name="term">The term for the command option.</param>
+    /// <param name="shortTerm">The single-character short flag (e.g. <c>v</c> for <c>-v</c>).</param>
+    /// <param name="term">The long flag name (e.g. <c>"verbose"</c> for <c>--verbose</c>).</param>
     public CommandOptionAttribute(char shortTerm, string term)
     {
         ShortTerm = shortTerm;
@@ -20,9 +20,9 @@ public class CommandOptionAttribute : Attribute
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommandOptionAttribute"/> class with a short term.
+    /// Declares a short-only option; see the canonical overload for the short-plus-long form.
     /// </summary>
-    /// <param name="shortTerm">The short term for the command option.</param>
+    /// <param name="shortTerm">The single-character short flag (e.g. <c>v</c> for <c>-v</c>).</param>
     public CommandOptionAttribute(char shortTerm)
     {
         ShortTerm = shortTerm;
@@ -30,9 +30,9 @@ public class CommandOptionAttribute : Attribute
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommandOptionAttribute"/> class with a term.
+    /// Declares a long-only option, except a single-letter long also answers its single-dash alias unless reserved; see the canonical overload for the short-plus-long form.
     /// </summary>
-    /// <param name="term">The term for the command option.</param>
+    /// <param name="term">The long flag name (e.g. <c>"verbose"</c> for <c>--verbose</c>).</param>
     public CommandOptionAttribute(string term)
     {
         ShortTerm = null;
@@ -40,43 +40,42 @@ public class CommandOptionAttribute : Attribute
     }
 
     /// <summary>
-    /// Gets or sets the term for the command option.
+    /// Gets or sets the long flag name; null (default) exposes the short flag only.
     /// </summary>
     public string? Term { get; set; }
 
     /// <summary>
-    /// Gets or sets the short term for the command option.
+    /// Gets or sets the single-character short flag; null (default) exposes the long flag only, except a single-letter long also answers its single-dash alias.
     /// </summary>
     public char? ShortTerm { get; set; }
 
     /// <summary>
-    /// Gets or sets the environment variable for the command option.
+    /// Gets or sets the environment variable fallback name; null (default) disables env fallback.
     /// </summary>
     public string? EnvironmentVariable { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether the command option is required.
+    /// Gets or sets whether omission fails binding; true reports <c>MissingRequired</c> with exit 2.
     /// </summary>
     public bool Required { get; set; }
 
     /// <summary>
-    /// Gets or sets the description for the command option.
+    /// Gets or sets the help text shown for the option.
     /// </summary>
     public string? Description { get; set; }
 
     /// <summary>
-    /// Gets or sets the possible values for the command option.
+    /// Gets or sets the allowed values; empty (default) accepts any convertible value.
     /// </summary>
     public object[] FromAmong { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets a value indicating whether the possible values for the command option are case sensitive.
+    /// Gets or sets whether <c>FromAmong</c> matching is ordinal; true requires exact case.
     /// </summary>
     public bool CaseSensitive { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets a value indicating whether the command option value is a secret.
-    /// Secret values are redacted as [REDACTED] in help defaults and omit the provided value in error messages.
+    /// Gets or sets whether the value is secret; true never echoes the value.
     /// </summary>
     public bool Secret { get; set; } = false;
 }

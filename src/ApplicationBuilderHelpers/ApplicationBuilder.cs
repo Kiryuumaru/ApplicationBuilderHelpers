@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace ApplicationBuilderHelpers;
 
 /// <summary>
-/// Represents a builder for managing application dependencies and running the configured application.
+/// Fluent entry point that registers commands, dependencies, and type parsers, then runs the matched command.
 /// </summary>
 public class ApplicationBuilder : ICommandBuilder
 {
@@ -23,89 +23,67 @@ public class ApplicationBuilder : ICommandBuilder
     int? ICommandBuilder.HelpWidth { get; set; } = null;
     int? ICommandBuilder.HelpBorderWidth { get; set; } = null;
     IConsoleTheme? ICommandBuilder.Theme { get; set; } = DefaultConsoleTheme.Instance;
+    bool ICommandBuilder.RejectDuplicateOptions { get; set; }
     List<TypedCommandHolder> ICommandBuilder.Commands { get; } = [];
     List<IApplicationDependency> IApplicationDependencyCollection.ApplicationDependencies { get; } = [];
     Dictionary<Type, ICommandTypeParser> ICommandTypeParserCollection.TypeParsers { get; } = [];
 
     private readonly CommandLineParser.CommandReflectionCache _reflectionCache = new();
 
-    /// <summary>
-    /// Number of descriptor builds performed by the reflection cache (observed by tests).
-    /// </summary>
     internal int ReflectionBuildCount => _reflectionCache.BuildCount;
 
     /// <summary>
-    /// Sets the console theme for CLI help output using the specified theme type.
+    /// Installs the given theme type as the help-output theme and returns this builder.
     /// </summary>
-    /// <typeparam name="TConsoleTheme">The type of console theme that implements <see cref="IConsoleTheme"/>.</typeparam>
-    /// <returns>The current <see cref="ApplicationBuilder"/> instance.</returns>
+    /// <typeparam name="TConsoleTheme">The theme type to instantiate.</typeparam>
+    /// <returns>This builder.</returns>
     public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TConsoleTheme>()
         where TConsoleTheme : IConsoleTheme
         => ICommandBuilderExtensions.SetTheme<TConsoleTheme, ApplicationBuilder>(this);
 
     /// <summary>
-    /// Sets the console theme for CLI help output using the provided theme instance.
+    /// Installs the supplied theme instance as the help-output theme and returns this builder.
     /// </summary>
-    /// <typeparam name="TConsoleTheme">The type of console theme that implements <see cref="IConsoleTheme"/>.</typeparam>
-    /// <param name="consoleTheme">The console theme instance to use for CLI help output.</param>
-    /// <returns>The current <see cref="ApplicationBuilder"/> instance.</returns>
+    /// <typeparam name="TConsoleTheme">The theme instance type.</typeparam>
+    /// <param name="consoleTheme">The theme instance to install.</param>
+    /// <returns>This builder.</returns>
     public ApplicationBuilder SetTheme<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TConsoleTheme>(TConsoleTheme consoleTheme)
         where TConsoleTheme : IConsoleTheme
         => ICommandBuilderExtensions.SetTheme(this, consoleTheme);
 
     /// <summary>
-    /// Adds a command of the specified type to the application builder.
+    /// Registers a command type so its name routes to a fresh per-run instance, and returns this builder.
     /// </summary>
-    /// <typeparam name="TCommand">The type of command that implements <see cref="ICommand"/>.</typeparam>
-    /// <returns>The current <see cref="ApplicationBuilder"/> instance.</returns>
+    /// <typeparam name="TCommand">The command type to construct per run.</typeparam>
+    /// <returns>This builder.</returns>
     public ApplicationBuilder AddCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TCommand>()
         where TCommand : ICommand
         => ICommandBuilderExtensions.AddCommand<TCommand, ApplicationBuilder>(this);
 
     /// <summary>
-    /// Adds an application dependency of the specified type to the application builder.
+    /// Registers a dependency module appended to the host pipeline, and returns this builder.
     /// </summary>
-    /// <typeparam name="TApplicationDependency">The type of application dependency that implements <see cref="IApplicationDependency"/>.</typeparam>
-    /// <returns>The current <see cref="ApplicationBuilder"/> instance.</returns>
+    /// <typeparam name="TApplicationDependency">The dependency type to construct.</typeparam>
+    /// <returns>This builder.</returns>
     public ApplicationBuilder AddApplication<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TApplicationDependency>()
         where TApplicationDependency : IApplicationDependency
         => IApplicationDependencyCollectionExtensions.AddApplication<TApplicationDependency, ApplicationBuilder>(this);
 
     /// <summary>
-    /// Adds a command type parser of the specified type to the application builder for parsing command-line arguments.
+    /// Registers a custom value parser keyed by its handled type, and returns this builder.
     /// </summary>
-    /// <typeparam name="TCommandTypeParser">The type of command type parser that implements <see cref="ICommandTypeParser"/>.</typeparam>
-    /// <returns>The current <see cref="ApplicationBuilder"/> instance.</returns>
+    /// <typeparam name="TCommandTypeParser">The parser type to construct.</typeparam>
+    /// <returns>This builder.</returns>
     public ApplicationBuilder AddCommandTypeParser<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TCommandTypeParser>()
         where TCommandTypeParser : ICommandTypeParser
         => ICommandTypeParserCollectionExtensions.AddCommandTypeParser<TCommandTypeParser, ApplicationBuilder>(this);
 
     /// <summary>
-    /// Asynchronously runs the configured application by parsing command-line arguments and executing the appropriate command.
+    /// Parses the given arguments and runs the matched command to an exit code.
     /// </summary>
-    /// <param name="args">The command-line arguments passed to the application. These arguments are parsed to determine which command to execute and what parameters to pass to it.</param>
-    /// <param name="cancellationToken">A cancellation token that can be used to request cancellation of the operation. When cancellation is requested, the method will stop the running command.</param>
-    /// <returns>
-    /// A task that represents the asynchronous operation. The task result contains an integer exit code:
-    /// <list type="bullet">
-    /// <item><description>0 - Success: The command executed successfully, or help, version, or completion was shown</description></item>
-    /// <item><description>2 - Usage error: An unknown option, missing required value, or invalid value was reported</description></item>
-    /// <item><description>130 - Cancellation: Execution was canceled with the cancellation token or Ctrl+C (128 + SIGINT)</description></item>
-    /// <item><description>1 or custom - Fault: An unexpected error occurred (exit 1), or the command threw <see cref="Exceptions.CommandException"/> with a custom exit code</description></item>
-    /// </list>
-    /// </returns>
-    /// <remarks>
-    /// Main entry point for running the configured application:
-    /// <list type="number">
-    /// <item><description>Creates a command-line parser with the current application builder configuration</description></item>
-    /// <item><description>Parses the provided command-line arguments to identify the target command</description></item>
-    /// <item><description>Validates command arguments and options</description></item>
-    /// <item><description>Executes the identified command with the parsed parameters</description></item>
-    /// <item><description>Returns an appropriate exit code based on the execution result</description></item>
-    /// </list>
-    /// The method respects the cancellation token and will terminate execution when cancellation is requested.
-    /// Usage failures return exit code 2; unexpected faults return exit code 1.
-    /// </remarks>
+    /// <param name="args">The command-line arguments to parse.</param>
+    /// <param name="cancellationToken">Token requesting cancellation.</param>
+    /// <returns>Exit code: 0 success/help/version/completion, 2 usage error, 130 cancellation, 1 or custom fault.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="args"/> is null.</exception>
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
@@ -115,9 +93,9 @@ public class ApplicationBuilder : ICommandBuilder
     }
 
     /// <summary>
-    /// Creates a new instance of the <see cref="ApplicationBuilder"/> class.
+    /// Creates an empty builder with the built-in parsers pre-registered.
     /// </summary>
-    /// <returns>A new instance of the <see cref="ApplicationBuilder"/> class.</returns>
+    /// <returns>A new builder instance.</returns>
     public static ApplicationBuilder Create()
     {
         return new ApplicationBuilder();

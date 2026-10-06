@@ -81,11 +81,16 @@ public sealed class DuplicateShortNameAnalyzer : DiagnosticAnalyzer
                 if (attribute is null)
                     continue;
 
-                if (!TryReadShortTerm(attribute, out var shortName) || shortName is null)
+                if (!TryReadShortTerm(attribute, out var shortName))
                     continue;
 
                 var term = ReadTerm(attribute);
                 var canonicalKey = term ?? property.Name.ToLowerInvariant();
+                if (shortName is null && canonicalKey.Length == 1)
+                    shortName = canonicalKey[0];
+                if (shortName is null)
+                    continue;
+
                 var displayName = $"-{shortName.Value}, --{canonicalKey}";
                 var location = attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
                     ?? property.Locations.FirstOrDefault();

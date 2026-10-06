@@ -20,7 +20,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=false");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'false' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'false'. Use bare '--help'.");
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=true");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'true' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'true'. Use bare '--help'.");
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'x'. Use bare '--help'.");
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value '' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value. Use bare '--help'.");
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=False");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'False' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'False'. Use bare '--help'.");
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=TRUE");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'TRUE' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'TRUE'. Use bare '--help'.");
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-h=false");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'false' for option '-h'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-h' does not accept a value 'false'. Use bare '-h'.");
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-h=true");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'true' for option '-h'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-h' does not accept a value 'true'. Use bare '-h'.");
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-h=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '-h'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-h' does not accept a value 'x'. Use bare '-h'.");
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-h=");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value '' for option '-h'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-h' does not accept a value. Use bare '-h'.");
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--verbose", "--help=false");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'false' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'false'. Use bare '--help'.");
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=false", "--verbose");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'false' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'false'. Use bare '--help'.");
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=false", "--nope");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'false' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'false'. Use bare '--help'.");
     }
 
     [Fact]
@@ -262,7 +262,7 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("serve", "-h=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '-h'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-h' does not accept a value 'x'. Use bare '-h'.");
     }
 
     [Fact]
@@ -271,6 +271,6 @@ public class HelpReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("config", "--help=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'x'. Use bare '--help'.");
     }
 }

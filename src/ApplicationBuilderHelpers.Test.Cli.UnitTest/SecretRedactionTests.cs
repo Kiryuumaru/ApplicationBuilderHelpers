@@ -446,6 +446,40 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
+    public async Task SecretFromAmongOptionHelp_ShowsCandidatesBesideRedactedDefault()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secchoice", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--mode", output);
+        Assert.Contains("Default: [REDACTED]", output);
+        Assert.Contains("Possible values: json, xml", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task SecretFromAmongArgumentHelp_ShowsCandidates()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secchoicearg", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("mode", output);
+        Assert.Contains("Possible values: json, xml", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task PlainFromAmongOptionHelp_ShowsCandidates()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["plainchoice", "--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--mode", output);
+        Assert.Contains("Possible values: json, xml", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
     public async Task SecretOption_InvalidAllowedValue_OmitsValueKeepsValidList()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secchoice", "--mode", "bogus"]);
@@ -526,24 +560,34 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
-    public async Task SecretFlag_InvalidLiteral_OmitsLiteral()
+    public async Task SecretFlag_InvalidLiteral_ReportsBareOnlyRedacted()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--secure=maybe"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value provided for option '--secure'.", error);
+        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
         Assert.DoesNotContain("maybe", error);
     }
 
     [Fact]
-    public async Task PlainFlag_InvalidLiteral_EchoesLiteral()
+    public async Task PlainFlag_InvalidLiteral_ReportsBareOnly()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--open=maybe"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value 'maybe' for option '--open'.", error);
+        Assert.Contains("Option '--open' does not accept a value 'maybe'. Use bare '--open'", error);
+    }
+
+    [Fact]
+    public async Task SecretFlag_EmptyLiteral_ReportsBareOnlyRedacted()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--secure="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
     }
 
     [Fact]
@@ -639,14 +683,14 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
-    public async Task ValuedOption_BareNegation_ReportsUnknown()
+    public async Task ValuedOption_BareNegation_ReportsBoolOnlyGuidance()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["sechelp", "--no-secret-token"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: --no-secret-token", error);
-        Assert.DoesNotContain("does not accept", error);
+        Assert.Contains("Option '--no-secret-token' does not accept a value. Negation applies to boolean flags only; omit '--no-secret-token' or use '--secret-token=<value>'.", error);
+        Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]

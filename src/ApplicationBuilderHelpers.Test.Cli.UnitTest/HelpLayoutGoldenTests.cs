@@ -72,7 +72,8 @@ public sealed class HelpLayoutGoldenTests
             nest              Commands for nest
 
         GLOBAL OPTIONS:
-            -h, --help        Show help information
+            -h, --help, -?    Show help information
+                              Also -? /? bare
             -V, --version     Show version information
 
         Run 'golden-test <command> --help' for more information on specific commands.
@@ -88,19 +89,20 @@ public sealed class HelpLayoutGoldenTests
         Deploy the application to the target environment.
 
         OPTIONS (command):
-            -f, --format <STRING>  Output format for the deployment report.
-                                   Possible values: table, json, yaml
-                                   Environment variable: GOLDEN_FORMAT
-                                   Default: table
-            --dry-run              Preview the deployment without applying any changes.
-                                   Default: False
+            -f, --format <STRING>    Output format for the deployment report.
+                                     Possible values: table, json, yaml
+                                     Environment variable: GOLDEN_FORMAT
+                                     Default: table
+            --dry-run, --no-dry-run  Preview the deployment without applying any changes.
+                                     Default: False
 
         ARGUMENTS:
-            <target>               Deployment target environment.
+            <target>                 Deployment target environment.
 
         GLOBAL OPTIONS:
-            -h, --help             Show help information
-            -V, --version          Show version information
+            -h, --help, -?           Show help information
+                                     Also -? /? bare
+            -V, --version            Show version information
 
         """ + "\n";
 
@@ -119,19 +121,30 @@ public sealed class HelpLayoutGoldenTests
             Possible values: table, json, yaml
             Environment variable: GOLDEN_FORMAT
             Default: table
-            --dry-run         Preview the deployment without
-                              applying any
-                              changes.
-                              Default: False
+            --dry-run, --no-dry-run
+        Preview the deployment without applying any changes.
+            Default: False
 
         ARGUMENTS:
             <target>          Deployment target environment.
 
         GLOBAL OPTIONS:
-            -h, --help        Show help information
+            -h, --help, -?    Show help information
+                              Also -? /? bare
             -V, --version     Show version information
 
         """ + "\n";
+
+    [Fact]
+    public async Task Help_Row_Documents_Bare_Question_Aliases()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(120), ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Contains("-h, --help, -?", Normalize(output));
+        Assert.Contains("Also -? /? bare", Normalize(output));
+    }
 
     [Fact]
     public async Task GlobalHelp_AtDefaultWidth_MatchesGolden()
@@ -175,6 +188,44 @@ public sealed class HelpLayoutGoldenTests
     }
 
     [Fact]
+    public async Task GlobalHelp_BelowMinimumWidth_FloorsToMinimum()
+    {
+        var (floorExitCode, floorOutput, floorError) = await RunCapturedAsync(CreateBuilder(60), ["--help"]);
+        var (narrowExitCode, narrowOutput, narrowError) = await RunCapturedAsync(CreateBuilder(10), ["--help"]);
+
+        Assert.Equal(0, floorExitCode);
+        Assert.Equal(0, narrowExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(floorError), $"Expected empty stderr but got: {floorError}");
+        Assert.True(string.IsNullOrWhiteSpace(narrowError), $"Expected empty stderr but got: {narrowError}");
+        var floorNormalized = Normalize(floorOutput);
+        var narrowNormalized = Normalize(narrowOutput);
+        Assert.Equal(floorNormalized, narrowNormalized);
+        Assert.Contains("USAGE", narrowNormalized);
+        Assert.All(
+            narrowNormalized.Split('\n'),
+            line => Assert.True(line.Length <= 60, $"Line exceeds width 60 ({line.Length}): {line}"));
+    }
+
+    [Fact]
+    public async Task CommandHelp_BelowMinimumWidth_FloorsToMinimum()
+    {
+        var (floorExitCode, floorOutput, floorError) = await RunCapturedAsync(CreateBuilder(60), ["deploy", "--help"]);
+        var (narrowExitCode, narrowOutput, narrowError) = await RunCapturedAsync(CreateBuilder(10), ["deploy", "--help"]);
+
+        Assert.Equal(0, floorExitCode);
+        Assert.Equal(0, narrowExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(floorError), $"Expected empty stderr but got: {floorError}");
+        Assert.True(string.IsNullOrWhiteSpace(narrowError), $"Expected empty stderr but got: {narrowError}");
+        var floorNormalized = Normalize(floorOutput);
+        var narrowNormalized = Normalize(narrowOutput);
+        Assert.Equal(floorNormalized, narrowNormalized);
+        Assert.Equal(Normalize(CommandHelpAt60), narrowNormalized);
+        Assert.All(
+            narrowNormalized.Split('\n'),
+            line => Assert.True(line.Length <= 60, $"Line exceeds width 60 ({line.Length}): {line}"));
+    }
+
+    [Fact]
     public async Task GlobalHelp_SectionsShareSingleLeftColumnWidth()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(120), ["--help"]);
@@ -214,19 +265,19 @@ public sealed class HelpLayoutGoldenTests
                 continue;
             }
 
-            var firstSpace = body.IndexOf(' ');
-            if (firstSpace < 0)
+            var separator = body.IndexOf("  ", StringComparison.Ordinal);
+            if (separator < 0)
             {
                 continue;
             }
 
-            var descriptionStart = firstSpace;
+            var descriptionStart = separator;
             while (descriptionStart < body.Length && body[descriptionStart] == ' ')
             {
                 descriptionStart++;
             }
 
-            if (descriptionStart - firstSpace < 2 || descriptionStart >= body.Length)
+            if (descriptionStart >= body.Length)
             {
                 continue;
             }

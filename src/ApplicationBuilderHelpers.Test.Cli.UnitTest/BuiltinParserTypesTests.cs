@@ -51,8 +51,9 @@ public class BuiltinParserTypesTests : CliTestBase
     public async Task Boolean_Parser_True_Values(string trueValue)
     {
         var result = await Runner.RunAsync("test", "target", $"--diag={trueValue}", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: True");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Theory]
@@ -69,8 +70,9 @@ public class BuiltinParserTypesTests : CliTestBase
     public async Task Boolean_Parser_False_Values(string falseValue)
     {
         var result = await Runner.RunAsync("test", "target", $"--diag={falseValue}", "-v");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: False");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     [Fact]
@@ -91,7 +93,7 @@ public class BuiltinParserTypesTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", $"--diag={invalidValue}");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value");
+        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
     }
 
     #endregion
@@ -118,15 +120,35 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("abc")]
     [InlineData("12.34")]
     [InlineData("12abc")]
-    [InlineData("")]
-    [InlineData("2147483648")]
-    [InlineData("-2147483649")]
     [InlineData("12 34")]
     public async Task Integer_Parser_Invalid_Values(string invalidValue)
     {
         var result = await Runner.RunAsync("test", "target", $"--timeout={invalidValue}");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value");
+        CliTestAssertions.AssertErrorContains(result, "Expected a whole number between -2147483648 and 2147483647.");
+    }
+
+    [Theory]
+    [InlineData("2147483648")]
+    [InlineData("-2147483649")]
+    public async Task Integer_Parser_Out_Of_Range_Values(string invalidValue)
+    {
+        var result = await Runner.RunAsync("test", "target", $"--timeout={invalidValue}");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, $"Value '{invalidValue}' is out of range for Int32.");
+        CliTestAssertions.AssertErrorContains(result, "Expected a whole number between -2147483648 and 2147483647.");
+    }
+
+    [Fact]
+    public async Task Integer_Parser_Empty_Value_Reports_Hint()
+    {
+        var result = await Runner.RunAsync("test", "target", "--timeout=");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid value '' for option '--timeout'");
+        CliTestAssertions.AssertErrorContains(result, "Expected a whole number between -2147483648 and 2147483647.");
     }
 
     #endregion
@@ -172,7 +194,6 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("abc")]
     [InlineData("12.34.56")]
     [InlineData("12abc")]
-    [InlineData("")]
     [InlineData("12 34")]
     [InlineData("not-a-number")]
     public async Task Double_Parser_Invalid_Values(string invalidValue)
@@ -180,6 +201,17 @@ public class BuiltinParserTypesTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", $"--coverage-threshold={invalidValue}");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Invalid Double value");
+        CliTestAssertions.AssertErrorContains(result, "Expected a number (for example '1.5').");
+    }
+
+    [Fact]
+    public async Task Double_Parser_Empty_Value_Reports_Hint()
+    {
+        var result = await Runner.RunAsync("test", "target", "--coverage-threshold=");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid value '' for option '--coverage-threshold'");
+        CliTestAssertions.AssertErrorContains(result, "Expected a number (for example '1.5').");
     }
 
     #endregion
@@ -220,7 +252,7 @@ public class BuiltinParserTypesTests : CliTestBase
             "--config=test.json",
             "--timeout=300",
             "--coverage-threshold=85.5",
-            "--diag=true",
+            "--diag",
             "--seed=12345",
             "-v");
 
@@ -235,7 +267,7 @@ public class BuiltinParserTypesTests : CliTestBase
     [Theory]
     [InlineData("--timeout=invalid", "Invalid Int32 value")]
     [InlineData("--coverage-threshold=invalid", "Invalid Double value")]
-    [InlineData("--diag=invalid", "Invalid Boolean value")]
+    [InlineData("--diag=invalid", "does not accept a value")]
     public async Task Type_Parser_Error_Messages_Are_Consistent(string args, string expectedError)
     {
         var result = await Runner.RunAsync("test", "target", args);
@@ -303,7 +335,7 @@ public class BuiltinParserTypesTests : CliTestBase
         {
             "--timeout=300",
             "--coverage-threshold=85.5",
-            "--diag=true",
+            "--diag",
             "--seed=12345",
             "--config=performance-test.json",
             "-v"

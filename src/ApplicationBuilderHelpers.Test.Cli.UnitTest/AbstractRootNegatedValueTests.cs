@@ -112,7 +112,7 @@ public sealed class AbstractRootNegatedValueTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--no-verbose' does not accept a value ''. Use bare '--no-verbose' to set the flag to 'false'.", error);
+        Assert.Contains("Option '--no-verbose' does not accept a value. Use bare '--no-verbose' to set the flag to 'false'.", error);
         Assert.DoesNotContain("requires a subcommand", error);
         Assert.Contains("Run 'negated-abstract-test --help' for more information on available commands and options.", error);
     }

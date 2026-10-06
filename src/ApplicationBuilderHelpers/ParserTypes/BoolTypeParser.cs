@@ -5,8 +5,10 @@ using System;
 
 namespace ApplicationBuilderHelpers.ParserTypes;
 
+/// <summary>Parses CLI text into a <see cref="bool"/> flag (true/yes/on/1, false/no/off/0, case-insensitive; null/empty binds true); failure surfaces as InvalidValue, exit 2.</summary>
 internal class BoolTypeParser : CommandTypeParser<bool>
 {
+    /// <summary>Converts CLI text to the target value.</summary>
     public override bool ParseValue(string? value, out string? validateError)
     {
         if (string.IsNullOrEmpty(value))

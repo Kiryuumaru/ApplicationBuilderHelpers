@@ -5,10 +5,10 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Central secret redaction for help text and error messages.
-/// Secret values never echo the provided value; help keeps the Default: label
-/// with a masked value, and errors keep the option/argument name plus the
-/// valid-values list. Exit codes are unchanged by redaction.
 /// </summary>
+/// <remarks>
+/// Secret values are never echoed.
+/// </remarks>
 internal static class SecretRedaction
 {
     /// <summary>
@@ -17,7 +17,7 @@ internal static class SecretRedaction
     public const string Mask = "[REDACTED]";
 
     /// <summary>
-    /// Whether a default value should be masked (secret and non-empty).
+    /// Whether a default value should be masked.
     /// </summary>
     public static bool ShouldMaskDefault(object? value, bool isSecret)
     {
@@ -35,7 +35,7 @@ internal static class SecretRedaction
     }
 
     /// <summary>
-    /// Display text for a default value: the mask when secret and non-empty, otherwise the raw value.
+    /// Display text for a default value.
     /// </summary>
     public static string? GetDefaultDisplay(object? value, bool isSecret)
     {
@@ -48,6 +48,9 @@ internal static class SecretRedaction
     /// <summary>
     /// Error message for an option value rejected by the valid-values list.
     /// </summary>
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
     public static string InvalidOptionValueMessage(string providedValue, string displayName, string validValuesString, bool isSecret)
     {
         if (isSecret)
@@ -63,6 +66,9 @@ internal static class SecretRedaction
     /// <summary>
     /// Error message for an argument value rejected by the valid-values list.
     /// </summary>
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
     public static string InvalidArgumentValueMessage(string providedValue, string displayName, string validValuesString, bool isSecret)
     {
         if (isSecret)
@@ -78,6 +84,9 @@ internal static class SecretRedaction
     /// <summary>
     /// Error message for a value that fails type conversion.
     /// </summary>
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
     public static string InvalidFormatMessage(string providedValue, string targetTypeName, bool isSecret)
     {
         if (isSecret)
@@ -89,6 +98,9 @@ internal static class SecretRedaction
     /// <summary>
     /// Error message for an argument value that fails type conversion or parsing.
     /// </summary>
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
     public static string InvalidArgumentFormatMessage(string providedValue, string displayName, string targetTypeName, bool isSecret)
     {
         if (isSecret)
@@ -100,6 +112,9 @@ internal static class SecretRedaction
     /// <summary>
     /// Error message for an invalid boolean flag literal.
     /// </summary>
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
     public static string InvalidFlagLiteralMessage(string providedLiteral, string displayName, bool isSecret)
     {
         const string expected = "Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'";
@@ -111,17 +126,27 @@ internal static class SecretRedaction
     }
 
     /// <summary>
-    /// Error message for a --no-&lt;name&gt;=value occurrence, which never accepts a value.
-    /// Boolean flags keep the bare-form remedy; non-boolean options never prescribe
-    /// bare --no-&lt;name&gt; (it would itself reject as Unknown option) and instead
-    /// prescribe omitting the option or using --&lt;base&gt;=&lt;value&gt; as a
-    /// value-free template. Secret values are never echoed.
+    /// Error message for a --no-&lt;name&gt;=value occurrence.
     /// </summary>
-    public static string NoValueAcceptedMessage(string optionName, string rejectedValue, bool isSecret, bool isFlag, string? positiveLongName = null)
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
+    public static string NoValueAcceptedMessage(string optionName, string rejectedValue, bool isSecret, bool isFlag, bool isNegated, string? positiveLongName = null)
     {
         if (isFlag)
         {
-            if (isSecret)
+            if (!isNegated)
+            {
+                var negatedHint = positiveLongName != null ? $" (or '--no-{positiveLongName}' for false)" : string.Empty;
+                if (isSecret || string.IsNullOrEmpty(rejectedValue))
+                {
+                    return $"Option '{optionName}' does not accept a value. Use bare '{optionName}'{negatedHint}.";
+                }
+
+                return $"Option '{optionName}' does not accept a value '{rejectedValue}'. Use bare '{optionName}'{negatedHint}.";
+            }
+
+            if (isSecret || string.IsNullOrEmpty(rejectedValue))
             {
                 return $"Option '{optionName}' does not accept a value. Use bare '{optionName}' to set the flag to 'false'.";
             }
@@ -130,7 +155,7 @@ internal static class SecretRedaction
         }
 
         var positive = positiveLongName != null ? $" or use '--{positiveLongName}=<value>'" : string.Empty;
-        if (isSecret)
+        if (isSecret || string.IsNullOrEmpty(rejectedValue))
         {
             return $"Option '{optionName}' does not accept a value. Negation applies to boolean flags only; omit '{optionName}'{positive}.";
         }
@@ -140,16 +165,19 @@ internal static class SecretRedaction
 
     /// <summary>
     /// Error message for an unknown char in a combined short cluster.
-    /// Names the failing char only (<c>-X</c>), never the whole-token
-    /// remainder, which may carry an attached secret value.
     /// </summary>
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
     public static string UnknownClusterCharMessage(string token, int failingIndex) =>
         $"Unknown option: -{token[failingIndex]}";
 
     /// <summary>
     /// Redacts the provided value out of a type-parser error string when secret.
-    /// Non-secret errors pass through unchanged.
     /// </summary>
+    /// <remarks>
+    /// Secret values are never echoed.
+    /// </remarks>
     public static string? RedactParserError(string? parserError, string? providedValue, bool isSecret)
     {
         if (!isSecret || parserError == null)
@@ -165,9 +193,7 @@ internal static class SecretRedaction
     }
 
     /// <summary>
-    /// Case-insensitive redaction check: scans for the same quote-wrapped
-    /// containment with an OrdinalIgnoreCase scan so case variants of the
-    /// provided value redact too. Exact-case matches are already replaced.
+    /// Redacts remaining case variants of the provided value.
     /// </summary>
     private static string ReplaceQuotedCaseInsensitive(string text, string providedValue)
     {

@@ -10,10 +10,13 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// a bare value binds a childless concrete root's positional without requiring
 /// the <c>--</c> separator, the separator form keeps binding, an exact leaf
-/// name still routes to the leaf, a near-miss leaf name still errors with a
-/// suggestion instead of binding, a distant value binds the mixed root
-/// positional, root positionals render in global help but never in leaf help,
-/// help/version and dash tokens keep precedence, and surplus still exits 2.
+/// name still routes to the leaf, leaf-name misses (near or far) error as
+/// unknown commands instead of binding, leading global/leaf help keeps
+/// forwarding on leaf hits while near and far misses exit 2 with
+/// <c>No command found</c>, a childless root still
+/// binds a bare value, root positionals render in global help but never in
+/// leaf help, help/version and dash tokens keep precedence, and surplus
+/// still exits 2.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -37,6 +40,9 @@ public sealed class RootPositionalBindingTests
     [Command(description: "Mixed verification root.")]
     public sealed class MixedRootCommand : Command
     {
+        [CommandOption("verbose", Description = "Verbose flag.")]
+        public bool Verbose { get; set; }
+
         [CommandArgument("name", Description = "Root name value.", Position = 0)]
         public string? Name { get; set; }
 
@@ -50,9 +56,12 @@ public sealed class RootPositionalBindingTests
     [Command("mixedleaf", "Runs the mixed leaf.")]
     public sealed class MixedLeafCommand : Command
     {
+        [CommandOption("verbose", Description = "Verbose flag.")]
+        public bool Verbose { get; set; }
+
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
         {
-            Console.WriteLine("mixed leaf ran");
+            Console.WriteLine($"mixed leaf verbose:{Verbose}");
             return ValueTask.CompletedTask;
         }
     }
@@ -83,7 +92,17 @@ public sealed class RootPositionalBindingTests
         var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["mixedleaf"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("mixed leaf ran", output);
+        Assert.Contains("mixed leaf verbose:False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task MixedRoot_Help_BeforeLeaf_ForwardsToLeafHelp()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--help", "mixedleaf"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Runs the mixed leaf.", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
@@ -94,17 +113,83 @@ public sealed class RootPositionalBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("mixedleef", error);
+        Assert.Contains("No command found for 'mixedleef'", error);
         Assert.Contains("Did you mean", error);
     }
 
     [Fact]
-    public async Task MixedRoot_DistantValue_BindsRootPositional()
+    public async Task MixedRoot_DistantValue_RejectsUnknownCommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["Alice"]);
 
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'Alice'", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task MixedRoot_FarMissLeafName_RejectsWithoutSuggestion()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["zzzz"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'zzzz'", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task MixedRoot_GlobalVerbose_BeforeMiss_RejectsUnknownCommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--verbose", "zzzz"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'zzzz'", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task MixedRoot_Help_BeforeNearMiss_RejectsWithSuggestion()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--help", "mixedleef"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'mixedleef'", error);
+        Assert.Contains("Did you mean", error);
+        Assert.Contains("mixedleaf", error);
+    }
+
+    [Fact]
+    public async Task MixedRoot_Help_BeforeMiss_RejectsUnknownCommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--help", "zzzz"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'zzzz'", error);
+        Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Fact]
+    public async Task MixedRoot_GlobalVerbose_BeforeLeaf_RunsLeaf()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--verbose", "mixedleaf"]);
+
         Assert.Equal(0, exitCode);
-        Assert.Contains("mixed root:Alice", output);
+        Assert.Contains("mixed leaf verbose:True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task MixedRoot_LeafPlacedVerbose_RunsLeaf()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["mixedleaf", "--verbose"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("mixed leaf verbose:True", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 

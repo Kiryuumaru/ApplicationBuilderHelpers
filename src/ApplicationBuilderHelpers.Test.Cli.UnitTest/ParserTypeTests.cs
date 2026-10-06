@@ -88,13 +88,14 @@ public sealed class ParserTypeTests
     [InlineData("Yes")]
     [InlineData("on")]
     [InlineData("1")]
-    public async Task Boolean_TrueSynonyms_BindTrue(string input)
+    public async Task Boolean_TrueSynonyms_RejectBareOnly(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", $"--flag={input}"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Flag: True", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--flag' does not accept a value", error);
+        Assert.Contains($"'{input}'", error);
     }
 
     [Theory]
@@ -103,13 +104,14 @@ public sealed class ParserTypeTests
     [InlineData("No")]
     [InlineData("off")]
     [InlineData("0")]
-    public async Task Boolean_FalseSynonyms_BindFalse(string input)
+    public async Task Boolean_FalseSynonyms_RejectBareOnly(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", $"--flag={input}"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("Flag: False", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Option '--flag' does not accept a value", error);
+        Assert.Contains($"'{input}'", error);
     }
 
     [Fact]
@@ -132,7 +134,7 @@ public sealed class ParserTypeTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Boolean value", error);
+        Assert.Contains("does not accept a value", error);
     }
 
     [Fact]
@@ -161,15 +163,15 @@ public sealed class ParserTypeTests
     }
 
     [Theory]
-    [InlineData("--byte-val=256", "Invalid Byte value")]
-    [InlineData("--byte-val=-1", "Invalid Byte value")]
-    [InlineData("--byte-val=", "Invalid Byte value")]
-    [InlineData("--sbyte-val=128", "Invalid SByte value")]
-    [InlineData("--short-val=32768", "Invalid Int16 value")]
-    [InlineData("--ushort-val=65536", "Invalid UInt16 value")]
-    [InlineData("--uint-val=-1", "Invalid UInt32 value")]
-    [InlineData("--ulong-val=-1", "Invalid UInt64 value")]
-    [InlineData("--long-val=9223372036854775808", "Invalid Int64 value")]
+    [InlineData("--byte-val=256", "Value '256' is out of range for Byte. Expected a whole number between 0 and 255.")]
+    [InlineData("--byte-val=-1", "Value '-1' is out of range for Byte. Expected a whole number between 0 and 255.")]
+    [InlineData("--byte-val=", "Invalid value '' for option '--byte-val': Expected a whole number between 0 and 255.")]
+    [InlineData("--sbyte-val=128", "Value '128' is out of range for SByte. Expected a whole number between -128 and 127.")]
+    [InlineData("--short-val=32768", "Value '32768' is out of range for Int16. Expected a whole number between -32768 and 32767.")]
+    [InlineData("--ushort-val=65536", "Value '65536' is out of range for UInt16. Expected a whole number between 0 and 65535.")]
+    [InlineData("--uint-val=-1", "Value '-1' is out of range for UInt32. Expected a whole number between 0 and 4294967295.")]
+    [InlineData("--ulong-val=-1", "Value '-1' is out of range for UInt64. Expected a whole number between 0 and 18446744073709551615.")]
+    [InlineData("--long-val=9223372036854775808", "Value '9223372036854775808' is out of range for Int64. Expected a whole number between -9223372036854775808 and 9223372036854775807.")]
     public async Task IntegerTypes_OverflowOrEmpty_ReportsError(string option, string expectedError)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);
@@ -193,9 +195,9 @@ public sealed class ParserTypeTests
     }
 
     [Theory]
-    [InlineData("--char-val=", "Invalid Char value")]
-    [InlineData("--char-val=ab", "Invalid Char value")]
-    [InlineData("--char-val=12", "Invalid Char value")]
+    [InlineData("--char-val=", "Invalid value '' for option '--char-val': Expected a single character.")]
+    [InlineData("--char-val=ab", "Invalid Char value: 'ab'. Expected a single character.")]
+    [InlineData("--char-val=12", "Invalid Char value: '12'. Expected a single character.")]
     public async Task Char_InvalidValue_ReportsError(string option, string expectedError)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);
@@ -223,10 +225,10 @@ public sealed class ParserTypeTests
     }
 
     [Theory]
-    [InlineData("--float-val=abc", "Invalid Single value")]
-    [InlineData("--float-val=", "Invalid Single value")]
-    [InlineData("--double-val=not-a-number", "Invalid Double value")]
-    [InlineData("--decimal-val=12.34.56", "Invalid Decimal value")]
+    [InlineData("--float-val=abc", "Invalid Single value: 'abc'. Expected a number (for example '1.5').")]
+    [InlineData("--float-val=", "Invalid value '' for option '--float-val': Expected a number (for example '1.5').")]
+    [InlineData("--double-val=not-a-number", "Invalid Double value: 'not-a-number'. Expected a number (for example '1.5').")]
+    [InlineData("--decimal-val=12.34.56", "Invalid Decimal value: '12.34.56'. Expected a decimal number (for example '123.45').")]
     public async Task FloatingTypes_InvalidValue_ReportsError(string option, string expectedError)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);
@@ -252,8 +254,8 @@ public sealed class ParserTypeTests
     }
 
     [Theory]
-    [InlineData("--date-val=not-a-date", "Invalid DateTime value")]
-    [InlineData("--offset-val=not-an-offset", "Invalid DateTimeOffset value")]
+    [InlineData("--date-val=not-a-date", "Invalid DateTime value: 'not-a-date'. Expected a date and time (for example '2024-01-15' or '2024-01-15 13:30:00').")]
+    [InlineData("--offset-val=not-an-offset", "Invalid DateTimeOffset value: 'not-an-offset'. Expected a date and time with an offset (for example '2024-01-15 13:30:00 +02:00').")]
     public async Task DateTypes_InvalidValue_ReportsError(string option, string expectedError)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", option]);

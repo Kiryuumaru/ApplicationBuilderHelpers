@@ -7,19 +7,12 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-/// <summary>
-/// Pre-parse completion handler reading <c>complete</c> and
-/// <c>completions script|install|uninstall</c> directly from the raw args before any
-/// help/parse/registered-command handling, so user-registered commands
-/// with those names never run.
-/// </summary>
+/// <summary>Completion pre-parse gate: answers shell completion before anything else runs.</summary>
 internal sealed class CompletionGateway(
     ICommandBuilder commandBuilder,
     ConsoleOutput consoleOutput)
 {
-    /// <summary>
-    /// Pre-parse completion check. Returns true when handled (exit with <paramref name="exitCode"/>).
-    /// </summary>
+    /// <summary>Pre-parse completion check; true means handled with exit <paramref name="exitCode"/>.</summary>
     internal bool TryHandle(SubCommandInfo? rootCommand, string[] args, out int exitCode)
     {
         exitCode = 0;
@@ -56,6 +49,7 @@ internal sealed class CompletionGateway(
         return false;
     }
 
+    /// <summary>Handles the <c>complete</c> probe: parses position and prints candidates.</summary>
     private void HandleCompleteProbe(SubCommandInfo? rootCommand, string[] rest)
     {
         try
@@ -95,15 +89,20 @@ internal sealed class CompletionGateway(
             position = Math.Max(0, Math.Min(position, commandline.Length));
 
             var (probeArgs, partial) = SplitCompletionPrefix(commandline, position);
+            if (partial.StartsWith("@", StringComparison.Ordinal) && !partial.StartsWith("@@", StringComparison.Ordinal))
+                return;
+            probeArgs = ResponseFileExpander.Expand(probeArgs);
             var candidates = CompletionEngine.Complete(rootCommand, probeArgs, partial);
             foreach (var candidate in candidates)
                 consoleOutput.WriteLine(candidate);
         }
         catch
         {
+            // TAB completion never throws; faults yield no candidates.
         }
     }
 
+    /// <summary>Handles <c>completions install</c>; usage errors exit 2, I/O faults exit 1.</summary>
     private int HandleCompletionInstall(string[] rest)
     {
         string? shellOption = null;
@@ -157,6 +156,7 @@ internal sealed class CompletionGateway(
         }
     }
 
+    /// <summary>Handles <c>completions uninstall</c>; usage errors exit 2, I/O faults exit 1.</summary>
     private int HandleCompletionUninstall(string[] rest)
     {
         string? shellOption = null;
@@ -205,6 +205,7 @@ internal sealed class CompletionGateway(
         }
     }
 
+    /// <summary>Handles <c>completions script</c>; unknown shells exit 2.</summary>
     private int HandleCompletionScript(string shell)
     {
         if (!CompletionInstaller.TryCanonicalizeShell(shell, out var canonical))
@@ -234,6 +235,7 @@ internal sealed class CompletionGateway(
         }
     }
 
+    /// <summary>Resolves the target shell from the flag or the environment.</summary>
     private bool TryResolveShell(string? shellOption, out string canonical)
     {
         var shell = shellOption ?? CompletionInstaller.DetectShellFromEnvironment();
@@ -248,6 +250,7 @@ internal sealed class CompletionGateway(
         return true;
     }
 
+    /// <summary>Slices the command line at the cursor into probe args plus the partial token.</summary>
     private static (string[] Args, string Partial) SplitCompletionPrefix(string commandline, int position)
     {
         var prefix = commandline[..position];
@@ -265,48 +268,6 @@ internal sealed class CompletionGateway(
         return (withoutExe[..^1], withoutExe[^1]);
     }
 
-    private static List<string> TokenizeCompletionPrefix(string prefix)
-    {
-        var tokens = new List<string>();
-        var current = new System.Text.StringBuilder();
-        char? quote = null;
-        var hasToken = false;
-
-        for (var i = 0; i < prefix.Length; i++)
-        {
-            var c = prefix[i];
-            if (quote.HasValue)
-            {
-                if (c == quote.Value)
-                    quote = null;
-                else
-                    current.Append(c);
-                hasToken = true;
-            }
-            else if (c == '"' || c == '\'')
-            {
-                quote = c;
-                hasToken = true;
-            }
-            else if (char.IsWhiteSpace(c))
-            {
-                if (hasToken)
-                {
-                    tokens.Add(current.ToString());
-                    current.Clear();
-                    hasToken = false;
-                }
-            }
-            else
-            {
-                current.Append(c);
-                hasToken = true;
-            }
-        }
-
-        if (hasToken)
-            tokens.Add(current.ToString());
-
-        return tokens;
-    }
+    /// <summary>Tokenizes the pre-cursor prefix via the shared command-line splitter.</summary>
+    private static List<string> TokenizeCompletionPrefix(string prefix) => CommandLineTokenizer.Tokenize(prefix);
 }
