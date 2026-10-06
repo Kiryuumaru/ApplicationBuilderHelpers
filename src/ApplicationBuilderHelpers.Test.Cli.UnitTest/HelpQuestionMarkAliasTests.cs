@@ -111,7 +111,7 @@ public class HelpQuestionMarkAliasTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-?=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '-?'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-?' does not accept a value 'x'. Use bare '-?'.");
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class HelpQuestionMarkAliasTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "/?=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '/?'");
+        CliTestAssertions.AssertErrorContains(result, "Option '/?' does not accept a value 'x'. Use bare '/?'.");
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class HelpQuestionMarkAliasTests : CliTestBase
         var result = await Runner.RunAsync("config", "-?=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '-?'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-?' does not accept a value 'x'. Use bare '-?'.");
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public class HelpQuestionMarkAliasTests : CliTestBase
         var result = await Runner.RunAsync("config", "/?=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '/?'");
+        CliTestAssertions.AssertErrorContains(result, "Option '/?' does not accept a value 'x'. Use bare '/?'.");
     }
 
     [Fact]

@@ -21,7 +21,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=false");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'false' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'false'. Use bare '--version'.");
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=true");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'true' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'true'. Use bare '--version'.");
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
         CliTestAssertions.AssertErrorContains(result, "for more information");
         CliTestAssertions.AssertErrorContains(result, "to show version information");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
@@ -51,7 +51,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value '' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value. Use bare '--version'.");
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=FALSE");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'FALSE' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'FALSE'. Use bare '--version'.");
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=TRUE");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'TRUE' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'TRUE'. Use bare '--version'.");
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-V=false");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'false' for option '-V'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-V' does not accept a value 'false'. Use bare '-V'.");
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-V=true");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'true' for option '-V'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-V' does not accept a value 'true'. Use bare '-V'.");
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-V=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '-V'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-V' does not accept a value 'x'. Use bare '-V'.");
         CliTestAssertions.AssertErrorContains(result, "for more information");
         CliTestAssertions.AssertErrorContains(result, "to show version information");
     }
@@ -107,7 +107,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "-V=");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value '' for option '-V'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-V' does not accept a value. Use bare '-V'.");
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--verbose", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=x", "--verbose");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=x", "--nope");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
     }
 
     [Fact]
@@ -279,7 +279,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
         CliTestAssertions.AssertErrorContains(result, "for more information on available commands and options");
         CliTestAssertions.AssertErrorContains(result, "to show version information");
     }
@@ -290,7 +290,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("config", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
         CliTestAssertions.AssertErrorContains(result, "for more information on specific command options");
         CliTestAssertions.AssertErrorContains(result, "to show version information");
     }
@@ -301,7 +301,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("config", "--bogus", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("serve", "-V=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '-V'");
+        CliTestAssertions.AssertErrorContains(result, "Option '-V' does not accept a value 'x'. Use bare '-V'.");
     }
 
     [Fact]
@@ -319,7 +319,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("required-test", "mytarget", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
     }
 
     [Fact]
@@ -356,7 +356,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
         CliTestAssertions.AssertErrorContains(result, "to show version information");
     }
 
@@ -366,7 +366,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=x", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'x'. Use bare '--help'.");
     }
 
     [Fact]
@@ -375,7 +375,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--version=x", "--help=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
     }
 
     [Fact]
@@ -384,7 +384,7 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("config", "--help=x", "--version=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'x'. Use bare '--help'.");
     }
 
     [Fact]
@@ -393,6 +393,6 @@ public class VersionReservedValueTests : CliTestBase
         var result = await Runner.RunAsync("config", "--version=x", "--help=x");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'x' for option '--version'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--version' does not accept a value 'x'. Use bare '--version'.");
     }
 }

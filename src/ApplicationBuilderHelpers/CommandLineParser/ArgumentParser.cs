@@ -170,12 +170,8 @@ internal sealed class ArgumentParser
             // leading-miss gate; hits/flag tails fall through to routing.
             if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex) && ClassifyHelpTrailingMiss(result.TargetCommand, args, argIndex) is { } leadingHelpMiss)
                 throw leadingHelpMiss;
-            var helpOrderMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
-                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
-            if (helpOrderMisuse != null)
-                throw IsHelpEqualsOrNegatedToken(helpOrderMisuse, result.TargetCommand.AllOptions) ? HelpMisuseError(helpOrderMisuse, result.TargetCommand.FullCommandName) : VersionMisuseError(helpOrderMisuse, result.TargetCommand.FullCommandName);
-            ThrowOnFlagEqualsPreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
+            // First misuse token wins; then =-form, unknown.
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: false, includeBareValuedGate: false);
         }
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
@@ -205,14 +201,8 @@ internal sealed class ArgumentParser
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
             // Unknown option or version-misuse plus --version is still an error, never a version request.
-            var abstractEarlyMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
-                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
-            if (abstractEarlyMisuse != null)
-                throw IsHelpEqualsOrNegatedToken(abstractEarlyMisuse, result.TargetCommand.AllOptions)
-                    ? HelpMisuseError(abstractEarlyMisuse, result.TargetCommand.FullCommandName)
-                    : VersionMisuseError(abstractEarlyMisuse, result.TargetCommand.FullCommandName);
-            ThrowOnFlagEqualsPreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
+            // First misuse token wins; then =-form, unknown.
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: false, includeBareValuedGate: false);
         }
 
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
@@ -235,17 +225,8 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // First misuse token wins.
-            var abstractMisuse = args.Skip(argIndex).TakeWhile(t => t != "--")
-                .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, result.TargetCommand.AllOptions) || IsVersionEqualsOrNegatedToken(t, result.TargetCommand.AllOptions));
-            if (abstractMisuse != null)
-                throw IsHelpEqualsOrNegatedToken(abstractMisuse, result.TargetCommand.AllOptions)
-                    ? HelpMisuseError(abstractMisuse, result.TargetCommand.FullCommandName)
-                    : VersionMisuseError(abstractMisuse, result.TargetCommand.FullCommandName);
-            ThrowOnFlagEqualsPreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnFlagSpacePreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnUnknownPreSentinelOption(result.TargetCommand, args, argIndex);
-            ThrowOnBareValuedPreSentinelOption(result.TargetCommand, args, argIndex);
+            // First misuse token wins; then =-form, space gate, unknown, bare-valued.
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: true, includeBareValuedGate: true);
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = result.TargetCommand.IsRoot ? "" : result.TargetCommand.FullCommandName;
             var baseMessage = $"'{result.TargetCommand.DisplayName}' requires a subcommand. Available subcommands: {availableSubcommands}";
@@ -687,12 +668,47 @@ internal sealed class ArgumentParser
     private static bool IsFlagLookingToken(string token) =>
         token.StartsWith('-') && !IsNumericValue(token);
 
+    /// <summary>Exclusive end index of the pre-separator scan window.</summary>
+    private static int PreSentinelEnd(string[] args)
+    {
+        var sentinelIndex = Array.IndexOf(args, "--");
+        return sentinelIndex < 0 ? args.Length : sentinelIndex;
+    }
+
+    /// <summary>First reserved misuse token in the pre-separator window, else null.</summary>
+    private static string? FindFirstPreSentinelMisuseToken(SubCommandInfo target, string[] args, int argIndex)
+    {
+        return args.Skip(argIndex).TakeWhile(t => t != "--")
+            .FirstOrDefault(t => IsHelpEqualsOrNegatedToken(t, target.AllOptions) || IsVersionEqualsOrNegatedToken(t, target.AllOptions));
+    }
+
+    /// <summary>Throws the misuse error naming the token, with the command name attached.</summary>
+    private static void ThrowOnReservedMisuseToken(SubCommandInfo target, string token)
+    {
+        throw IsHelpEqualsOrNegatedToken(token, target.AllOptions)
+            ? HelpMisuseError(token, target.FullCommandName)
+            : VersionMisuseError(token, target.FullCommandName);
+    }
+
+    /// <summary>Runs the ordered pre-separator error scans: misuse, =-form, space gate, unknown, bare-valued.</summary>
+    private static void ThrowOnOrderedPreSentinelErrors(SubCommandInfo target, string[] args, int argIndex, bool includeSpaceGate, bool includeBareValuedGate)
+    {
+        var misuseToken = FindFirstPreSentinelMisuseToken(target, args, argIndex);
+        if (misuseToken != null)
+            ThrowOnReservedMisuseToken(target, misuseToken);
+        ThrowOnFlagEqualsPreSentinelOption(target, args, argIndex);
+        if (includeSpaceGate)
+            ThrowOnFlagSpacePreSentinelOption(target, args, argIndex);
+        ThrowOnUnknownPreSentinelOption(target, args, argIndex);
+        if (includeBareValuedGate)
+            ThrowOnBareValuedPreSentinelOption(target, args, argIndex);
+    }
+
     /// <summary>Rejects any =-form flag occurrence on an abstract path via the bare-only gate.</summary>
     private static void ThrowOnFlagEqualsPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
-        var sentinelIndex = Array.IndexOf(args, "--");
-        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var end = PreSentinelEnd(args);
         for (var i = argIndex; i < end; i++)
         {
             var token = args[i];
@@ -723,8 +739,7 @@ internal sealed class ArgumentParser
     private static void ThrowOnFlagSpacePreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
-        var sentinelIndex = Array.IndexOf(args, "--");
-        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var end = PreSentinelEnd(args);
         for (var i = argIndex; i < end; i++)
         {
             var token = args[i];
@@ -758,8 +773,7 @@ internal sealed class ArgumentParser
     private static void ThrowOnUnknownPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
-        var sentinelIndex = Array.IndexOf(args, "--");
-        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var end = PreSentinelEnd(args);
         var tail = args[argIndex..];
         var versionWins = HelpVersionGateway.RequestedVersion(tail)
             && !HelpVersionGateway.RequestedHelp(tail);
@@ -879,8 +893,7 @@ internal sealed class ArgumentParser
     private static void ThrowOnBareValuedPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
-        var sentinelIndex = Array.IndexOf(args, "--");
-        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        var end = PreSentinelEnd(args);
         var satisfiedKeys = new HashSet<string>(StringComparer.Ordinal);
         for (var i = argIndex; i < end; i++)
         {
@@ -1245,26 +1258,26 @@ internal sealed class ArgumentParser
     {
         if (token.StartsWith("--help=", StringComparison.Ordinal))
         {
-            var literal = token["--help=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "--help", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["--help=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--help", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("-h=", StringComparison.Ordinal))
         {
-            var literal = token["-h=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-h", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["-h=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("-h", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("-?=", StringComparison.Ordinal))
         {
-            var literal = token["-?=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-?", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["-?=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("-?", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("/?=", StringComparison.Ordinal))
         {
-            var literal = token["/?=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "/?", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["/?=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("/?", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("--no-help=", StringComparison.Ordinal))
@@ -1300,14 +1313,14 @@ internal sealed class ArgumentParser
     {
         if (token.StartsWith("--version=", StringComparison.Ordinal))
         {
-            var literal = token["--version=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "--version", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["--version=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("--version", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("-V=", StringComparison.Ordinal))
         {
-            var literal = token["-V=".Length..];
-            return new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, "-V", isSecret: false), 2, CommandErrorKind.InvalidValue, commandName);
+            var rejected = token["-V=".Length..];
+            return new CommandException(SecretRedaction.NoValueAcceptedMessage("-V", rejected, isSecret: false, isFlag: true, isNegated: false), 2, CommandErrorKind.InvalidValue, commandName);
         }
 
         if (token.StartsWith("--no-version=", StringComparison.Ordinal))

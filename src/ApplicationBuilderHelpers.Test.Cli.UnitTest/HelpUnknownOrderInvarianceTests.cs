@@ -83,7 +83,7 @@ public class HelpUnknownOrderInvarianceTests : CliTestBase
         var result = await Runner.RunAsync("test", "mytarget", "--help=true");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'true' for option '--help'");
+        CliTestAssertions.AssertErrorContains(result, "Option '--help' does not accept a value 'true'. Use bare '--help'.");
         CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
         CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
