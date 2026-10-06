@@ -27,6 +27,7 @@ Each step runs on every registered module before the next step starts. Steps 1â€
 
 ```csharp
 using ApplicationBuilderHelpers;
+using ApplicationBuilderHelpers.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
