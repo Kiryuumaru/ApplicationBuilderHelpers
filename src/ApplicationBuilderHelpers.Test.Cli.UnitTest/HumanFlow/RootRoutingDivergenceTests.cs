@@ -6,7 +6,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest.HumanFlow;
 /// Leading bare <c>--help</c> at the concrete root (MainCommand merged at
 /// root) routes a valid trailing subcommand to its help: <c>--help test</c>
 /// renders target help (exit 0). A bogus bare word errors (exit 2) and
-/// <c>--help --bogus</c> reports the unknown option (exit 2).
+/// <c>--help --bogus</c> reports the unknown option (exit 2). A bare word
+/// after a resolved help path errors (exit 2) instead of showing help.
 /// Leaf help routing with a trailing value is preserved.
 /// </summary>
 public class RootRoutingDivergenceTests : CliTestBase
@@ -60,6 +61,17 @@ public class RootRoutingDivergenceTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --bogus");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
+    }
+
+    [Fact]
+    public async Task ConcreteRoot_Help_WithHitPlusExtra_Errors()
+    {
+        var result = await Runner.RunAsync("--help", "config", "extra");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'extra'");
         CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
         CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
     }

@@ -6,7 +6,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Tests that unknown-option errors beat bare <c>--help</c> regardless of
 /// argument order or command path: concrete root, abstract grouping, and
 /// leaf commands all report the unknown option (exit 2) instead of showing
-/// help. Misused <c>--help</c> value forms stay invalid values (exit 2) and
+/// help. A bare word after a resolved abstract help path errors (exit 2)
+/// instead of showing help. Misused <c>--help</c> value forms stay invalid values (exit 2) and
 /// the <c>--</c> separator keeps blocking help.
 /// </summary>
 public class HelpUnknownOrderInvarianceTests : CliTestBase
@@ -40,6 +41,17 @@ public class HelpUnknownOrderInvarianceTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
         CliTestAssertions.AssertErrorContains(result, "Unknown option: --bogus");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
+    }
+
+    [Fact]
+    public async Task AbstractGrouping_Help_WithHitPlusExtra_Errors()
+    {
+        var result = await Runner.RunAsync("config", "--help", "get", "extra");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'extra'");
         CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
         CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
     }
