@@ -17,7 +17,10 @@ internal class IntTypeParser : CommandTypeParser<int>
             return result;
         }
 
-        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        string hint = ParserErrorHints.WholeNumberRange(int.MinValue, int.MaxValue);
+        validateError = ParserErrorHints.IsWholeNumber(value)
+            ? ParserErrorHints.OutOfRange(Type, value, hint)
+            : ParserErrorHints.Shape(Type, value, hint);
         return default;
     }
 }

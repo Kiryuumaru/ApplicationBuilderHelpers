@@ -17,7 +17,10 @@ internal class LongTypeParser : CommandTypeParser<long>
             return result;
         }
 
-        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        string hint = ParserErrorHints.WholeNumberRange(long.MinValue, long.MaxValue);
+        validateError = ParserErrorHints.IsWholeNumber(value)
+            ? ParserErrorHints.OutOfRange(Type, value, hint)
+            : ParserErrorHints.Shape(Type, value, hint);
         return default;
     }
 }

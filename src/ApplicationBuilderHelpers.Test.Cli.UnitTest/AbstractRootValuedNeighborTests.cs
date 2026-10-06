@@ -214,7 +214,8 @@ public sealed class AbstractRootValuedNeighborTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Int32 value: ''", error);
+        Assert.Contains("Invalid value '' for option '--retry-count'", error);
+        Assert.Contains("Expected a whole number between -2147483648 and 2147483647.", error);
         Assert.DoesNotContain("requires a subcommand", error);
     }
 

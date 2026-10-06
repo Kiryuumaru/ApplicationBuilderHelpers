@@ -2,6 +2,7 @@
 using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.ParserTypes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -319,7 +320,7 @@ internal class SubCommandOptionInfo
             return;
         Type effectiveType = IsCollection && ElementType is not null ? ElementType : PropertyType;
         effectiveType = Nullable.GetUnderlyingType(effectiveType) ?? effectiveType;
-        string? reason = effectiveType.IsEnum ? null : $"Invalid {effectiveType.Name} value: '{literal}'. Expected a valid {effectiveType.Name}.";
+        string? reason = effectiveType.IsEnum ? ParserErrorHints.EnumAllowedValues(effectiveType) : ParserErrorHints.HintFor(effectiveType);
         throw ConversionErrors.InvalidValue(literal, $"option '--{LongName ?? ShortName?.ToString()}'", reason, IsSecret, effectiveType.Name);
     }
 

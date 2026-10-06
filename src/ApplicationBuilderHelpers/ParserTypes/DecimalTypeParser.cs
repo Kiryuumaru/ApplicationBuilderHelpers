@@ -17,7 +17,18 @@ internal class DecimalTypeParser : CommandTypeParser<decimal>
             return result;
         }
 
-        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        if (decimal.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _))
+        {
+            validateError = ParserErrorHints.Shape(Type, value, ParserErrorHints.DecimalWithoutExponent);
+        }
+        else if (ParserErrorHints.IsNumeric(value))
+        {
+            validateError = ParserErrorHints.OutOfRange(Type, value, ParserErrorHints.DecimalNumber);
+        }
+        else
+        {
+            validateError = ParserErrorHints.Shape(Type, value, ParserErrorHints.DecimalNumber);
+        }
         return default;
     }
 }

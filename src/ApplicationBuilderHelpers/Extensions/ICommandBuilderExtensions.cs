@@ -1,4 +1,5 @@
-﻿using ApplicationBuilderHelpers.Interfaces;
+﻿using ApplicationBuilderHelpers.CommandLineParser;
+using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Diagnostics.CodeAnalysis;
 
@@ -71,19 +72,18 @@ public static class ICommandBuilderExtensions
         return commandBuilder;
     }
 
-    /// <summary>Stores the help width; unset renders at 120 columns, values below 60 render at 60.</summary>
+    /// <summary>Stores the help width; unset renders at the <see cref="HelpWidths.Default"/> default, values are floored to <see cref="HelpWidths.Minimum"/> and capped at <see cref="HelpWidths.Maximum"/>.</summary>
     /// <typeparam name="TICommandBuilder">The command builder type.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
-    /// <param name="helpWidth">The width; must be positive. Values below 60 render at 60.</param>
+    /// <param name="helpWidth">The width; must be within the range accepted by <see cref="HelpWidths"/>.</param>
     /// <returns>The command builder instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="commandBuilder"/> is null.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="helpWidth"/> is not positive.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="helpWidth"/> is outside the range accepted by <see cref="HelpWidths"/>.</exception>
     public static TICommandBuilder SetHelpWidth<TICommandBuilder>(this TICommandBuilder commandBuilder, int helpWidth)
         where TICommandBuilder : ICommandBuilder
     {
         ArgumentNullException.ThrowIfNull(commandBuilder);
-        if (helpWidth <= 0)
-            throw new ArgumentOutOfRangeException(nameof(helpWidth), "Help width must be positive.");
+        HelpWidths.ThrowIfOutOfRange(helpWidth);
 
         commandBuilder.HelpWidth = helpWidth;
         return commandBuilder;

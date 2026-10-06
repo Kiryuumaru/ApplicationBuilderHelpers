@@ -130,7 +130,8 @@ public sealed class AbsolutePathAndLifetimeTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid AbsolutePath value: ''.", error);
+        Assert.Contains("Invalid value '' for option '--path'", error);
+        Assert.Contains("Expected an absolute path (for example '/tmp/output').", error);
     }
 
     [Fact]

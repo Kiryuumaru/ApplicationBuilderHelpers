@@ -17,7 +17,7 @@ internal class DateOnlyTypeParser : CommandTypeParser<DateOnly>
             return result;
         }
 
-        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        validateError = ParserErrorHints.Shape(Type, value, ParserErrorHints.DateOnlyValue);
         return default;
     }
 }

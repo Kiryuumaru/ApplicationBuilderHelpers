@@ -47,13 +47,13 @@ return await ApplicationBuilder.Create()
 | `SetExecutableTitle(title)` | Set the title shown in help headers |
 | `SetExecutableDescription(description)` | Set the description shown in help |
 | `SetExecutableVersion(version)` | Set the version printed by `--version` |
-| `SetHelpWidth(width)` | Set help width; needs a positive number |
+| `SetHelpWidth(width)` | Set help width; needs a number from 1 to 1024 |
 | `SetHelpBorderWidth(width)` | Set help padding; `0` removes it |
 | `RunAsync(args, cancellationToken)` | Parse and run; returns the exit code |
 
 All four `SetExecutable*` setters are optional. When you skip them, the library reads your entry assembly instead. Passing `null` throws. `RunAsync` throws when `args` is `null`.
 
-Help renders at 120 columns when you skip `SetHelpWidth`. Values below 60 render at 60.
+Help renders at 120 columns when you skip `SetHelpWidth`. Values below 60 render at 60, values above 1024 render at 1024.
 
 ## Define Commands
 

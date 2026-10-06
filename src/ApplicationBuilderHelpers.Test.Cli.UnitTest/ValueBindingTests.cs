@@ -851,7 +851,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid Guid value: ''", error);
+        Assert.Contains("Invalid value '' for option '--correlation'", error);
+        Assert.Contains("Expected a GUID (for example '3f2504e0-4f89-11d3-9a0c-0305e82c3301').", error);
     }
 
     [Fact]
@@ -861,7 +862,8 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid DateTime value: ''", error);
+        Assert.Contains("Invalid value '' for option '--not-before'", error);
+        Assert.Contains("Expected a date and time (for example '2024-01-15' or '2024-01-15 13:30:00').", error);
     }
 
     [Fact]
