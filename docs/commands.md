@@ -224,7 +224,7 @@ public string? DestPath { get; set; }
 
 Typing `""` counts as supplied and binds as `""` for text. It satisfies `Required`; only omission fails `Required`. Check with `string.IsNullOrEmpty`, not `== null`. Need non-empty text? Guard it in code (see Options above).
 
-Arguments belong to one command only. A root positional stays hidden from subcommands. It binds a bare word only when the root has no children; with children the miss check runs first and a bare non-child word fails as `No command found` (exit `2`). A surplus word on a leaf fails with `Unexpected argument` (exit `2`).
+Arguments belong to one command only. A root positional stays hidden from subcommands. It binds a bare word when the root has no children; with children a far miss (no suggestion) still binds the root positional (exit `0`), while a near miss fails first as `No command found` (exit `2`). A surplus word on a leaf fails with `Unexpected argument` (exit `2`).
 
 ## Get Services in a Command
 

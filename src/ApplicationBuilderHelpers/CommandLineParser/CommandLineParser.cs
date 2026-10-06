@@ -76,8 +76,7 @@ internal class CommandLineParser
                 parseResult.ShowHelp = false;
 
             var forgiveness = HelpVersionGateway.DecideValidationForgiveness(parseResult, args);
-            if (forgiveness != HelpVersionGateway.HelpVersionForgiveness.NoForgive
-                && !_binder.HasAllowedValueViolation(parseResult))
+            if (forgiveness != HelpVersionGateway.HelpVersionForgiveness.NoForgive)
             {
                 if (forgiveness == HelpVersionGateway.HelpVersionForgiveness.ForgiveHelp)
                 {

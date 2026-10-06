@@ -160,7 +160,7 @@ internal sealed class ArgumentParser
             var missToken = argIndex < missEnd ? args[argIndex] : null;
             // "/?=" forms are never command misses; they stay misuse errors downstream.
             var missIsBareNonChild = missToken != null && !missToken.StartsWith('-') && missToken != "/?" && !missToken.StartsWith("/?=", StringComparison.Ordinal) && !HelpVersionGateway.IsHelpToken(missToken) && !HelpVersionGateway.IsVersionToken(missToken) && result.TargetCommand.FindChild(missToken) == null;
-            if (missIsBareNonChild)
+            if (missIsBareNonChild && !IsExemptRootPositional(result.TargetCommand, missToken!))
             {
                 var missSuggestion = DidYouMean.SuggestSubcommand(missToken!, result.TargetCommand.Children.Keys);
                 throw new CommandException(
@@ -505,6 +505,30 @@ internal sealed class ArgumentParser
                 if (leafOwned?.ShortName.HasValue == true && knownShorts.Add(leafOwned.ShortName.Value))
                     scopedOptions.Add(leafOwned);
             }
+        }
+        var followingToken = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+        var childToken = followingToken;
+        var lastLetter = token.Length > 1 ? token[^1] : '\0';
+        var lastValued = scopedOptions.FirstOrDefault(o => o.ShortName.HasValue && o.ShortName.Value == lastLetter && !o.IsFlag);
+        if (lastValued != null && followingToken != null && !IsFlagLookingToken(followingToken))
+            childToken = argIndex + 2 < args.Length ? args[argIndex + 2] : null;
+        var followingChild = childToken != null && !childToken.StartsWith('-') && childToken != "--" && childToken != "/?"
+            ? result.TargetCommand.FindChild(childToken)
+            : null;
+        if (followingChild == null)
+            return false;
+        var scopedByShort = scopedOptions.Where(o => o.ShortName.HasValue).GroupBy(o => o.ShortName!.Value).ToDictionary(g => g.Key, g => g.First());
+        var followingKeys = new HashSet<string>(followingChild.AllOptions.Select(ParseResult.GetCanonicalOptionKey), StringComparer.Ordinal);
+        foreach (var letter in token[1..])
+        {
+            if (letter == 'h' || letter == 'V' || letter == '-')
+                continue;
+            if (!scopedByShort.TryGetValue(letter, out var member))
+                return false;
+            if (!followingKeys.Contains(ParseResult.GetCanonicalOptionKey(member)))
+                return false;
+            if (!member.IsFlag)
+                break;
         }
         var savedShowHelp = result.ShowHelp;
         var savedShowVersion = result.ShowVersion;
@@ -1176,9 +1200,8 @@ internal sealed class ArgumentParser
 
     /// <summary>Whether the root accepts the leading token as a positional instead of an error.</summary>
     /// <remarks>
-    /// The tie/silence probe routes through the subcommand emit gate on
-    /// purpose: a near-miss leaf name keeps its suggestion downstream, while
-    /// a tied or exact-known token returns null here and binds positionally.
+    /// A far miss (no suggestion) binds positionally while a near miss stays
+    /// loud, so distance ties stay silent as plain unknown-token errors.
     /// </remarks>
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
     {
@@ -1188,8 +1211,6 @@ internal sealed class ArgumentParser
             return false;
         if (!rootCommand.AllArguments.Any(a => a.CanAcceptValueAtPosition(0)))
             return false;
-        if (rootCommand.Children.Count == 0)
-            return true;
         if (rootCommand.FindChild(token) != null)
             return false;
         return DidYouMean.SuggestSubcommand(
