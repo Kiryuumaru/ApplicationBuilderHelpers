@@ -17,7 +17,7 @@ internal class DoubleTypeParser : CommandTypeParser<double>
             return result;
         }
 
-        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        validateError = ParserErrorHints.Shape(Type, value, ParserErrorHints.FloatingPointNumber);
         return default;
     }
 }

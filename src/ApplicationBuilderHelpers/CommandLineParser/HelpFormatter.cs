@@ -21,11 +21,11 @@ internal class HelpFormatter(
     private HelpLayoutRenderer? _layoutRenderer;
     private HelpLayoutRenderer LayoutRenderer => _layoutRenderer ??= new(ConsoleOutput);
 
-    /// <summary>Renders global help at the default 120 width (floored at 60).</summary>
+    /// <summary>Renders global help at the <see cref="HelpWidths.Default"/> default width.</summary>
     public void ShowGlobalHelp()
     {
         var theme = _commandBuilder.Theme;
-        var helpWidth = _commandBuilder.HelpWidth ?? 120;
+        var helpWidth = _commandBuilder.HelpWidth ?? HelpWidths.Default;
 
         var model = _contentProvider.BuildGlobalModel();
         LayoutRenderer.Render(model, theme, helpWidth);
@@ -35,7 +35,7 @@ internal class HelpFormatter(
     public void ShowCommandHelp(SubCommandInfo commandInfo)
     {
         var theme = _commandBuilder.Theme;
-        var helpWidth = _commandBuilder.HelpWidth ?? 120;
+        var helpWidth = _commandBuilder.HelpWidth ?? HelpWidths.Default;
 
         var model = commandInfo.IsRoot
             ? _contentProvider.BuildGlobalModel()

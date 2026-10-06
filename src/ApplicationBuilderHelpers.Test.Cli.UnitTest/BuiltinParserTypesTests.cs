@@ -120,15 +120,35 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("abc")]
     [InlineData("12.34")]
     [InlineData("12abc")]
-    [InlineData("")]
-    [InlineData("2147483648")]
-    [InlineData("-2147483649")]
     [InlineData("12 34")]
     public async Task Integer_Parser_Invalid_Values(string invalidValue)
     {
         var result = await Runner.RunAsync("test", "target", $"--timeout={invalidValue}");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value");
+        CliTestAssertions.AssertErrorContains(result, "Expected a whole number between -2147483648 and 2147483647.");
+    }
+
+    [Theory]
+    [InlineData("2147483648")]
+    [InlineData("-2147483649")]
+    public async Task Integer_Parser_Out_Of_Range_Values(string invalidValue)
+    {
+        var result = await Runner.RunAsync("test", "target", $"--timeout={invalidValue}");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, $"Value '{invalidValue}' is out of range for Int32.");
+        CliTestAssertions.AssertErrorContains(result, "Expected a whole number between -2147483648 and 2147483647.");
+    }
+
+    [Fact]
+    public async Task Integer_Parser_Empty_Value_Reports_Hint()
+    {
+        var result = await Runner.RunAsync("test", "target", "--timeout=");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid value '' for option '--timeout'");
+        CliTestAssertions.AssertErrorContains(result, "Expected a whole number between -2147483648 and 2147483647.");
     }
 
     #endregion
@@ -174,7 +194,6 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("abc")]
     [InlineData("12.34.56")]
     [InlineData("12abc")]
-    [InlineData("")]
     [InlineData("12 34")]
     [InlineData("not-a-number")]
     public async Task Double_Parser_Invalid_Values(string invalidValue)
@@ -182,6 +201,17 @@ public class BuiltinParserTypesTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", $"--coverage-threshold={invalidValue}");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertErrorContains(result, "Invalid Double value");
+        CliTestAssertions.AssertErrorContains(result, "Expected a number (for example '1.5').");
+    }
+
+    [Fact]
+    public async Task Double_Parser_Empty_Value_Reports_Hint()
+    {
+        var result = await Runner.RunAsync("test", "target", "--coverage-threshold=");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Invalid value '' for option '--coverage-threshold'");
+        CliTestAssertions.AssertErrorContains(result, "Expected a number (for example '1.5').");
     }
 
     #endregion

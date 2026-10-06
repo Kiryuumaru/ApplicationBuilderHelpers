@@ -17,7 +17,7 @@ internal class FileInfoTypeParser : CommandTypeParser<FileInfo>
             return new FileInfo(value);
         }
 
-        validateError = $"Invalid {Type.Name} value: '{value}'. Expected a valid {Type.Name}.";
+        validateError = ParserErrorHints.Shape(Type, value, ParserErrorHints.FilePathValue);
         return default;
     }
 

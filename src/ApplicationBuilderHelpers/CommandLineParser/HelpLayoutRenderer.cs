@@ -12,10 +12,10 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 {
     private readonly ConsoleOutput _consoleOutput = consoleOutput;
 
-    /// <summary>Renders the model at the given width; values below 60 are floored to 60.</summary>
+    /// <summary>Renders the model at the given width; values are floored to <see cref="HelpWidths.Minimum"/> and capped at <see cref="HelpWidths.Maximum"/>.</summary>
     internal void Render(HelpModel model, IConsoleTheme? theme, int helpWidth)
     {
-        helpWidth = Math.Max(helpWidth, 60);
+        helpWidth = HelpWidths.Clamp(helpWidth);
 
         WriteColored(model.TitleLine, theme?.HeaderColor);
         _consoleOutput.WriteLine();
@@ -96,7 +96,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         const int MinLeftColumnWidth = 20;
         const int MaxLeftColumnWidth = 35;
 
-        var effectiveWidth = Math.Max(totalWidth, 60);
+        var effectiveWidth = Math.Max(totalWidth, HelpWidths.Minimum);
         var maxAllowedLeftWidth = effectiveWidth - 40;
 
         var leftColumnWidth = Math.Min(Math.Max(maxLeftWidth, MinLeftColumnWidth),

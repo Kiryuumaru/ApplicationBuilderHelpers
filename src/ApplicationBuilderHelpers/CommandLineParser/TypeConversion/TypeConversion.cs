@@ -1,5 +1,6 @@
 using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Interfaces;
+using ApplicationBuilderHelpers.ParserTypes;
 using System;
 using System.Globalization;
 using System.Linq;
@@ -114,7 +115,7 @@ internal static class TypeConversion
                 return enumValue;
             }
 
-            throw ConversionErrors.InvalidValue(raw, displayName, null, isSecret, targetType.Name);
+            throw ConversionErrors.InvalidValue(raw, displayName, ParserErrorHints.EnumAllowedValues(targetType), isSecret, targetType.Name);
         }
 
         try

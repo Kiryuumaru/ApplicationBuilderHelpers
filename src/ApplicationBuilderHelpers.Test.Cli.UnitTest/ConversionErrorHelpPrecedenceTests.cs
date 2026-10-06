@@ -306,7 +306,8 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", "--timeout=", "--help");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Invalid Int32 value: ''");
+        CliTestAssertions.AssertErrorContains(result, "Invalid value '' for option '--timeout'");
+        CliTestAssertions.AssertErrorContains(result, "Expected a whole number between -2147483648 and 2147483647.");
         CliTestAssertions.AssertErrorContains(result, "Run 'test --version' to show version information.");
     }
 

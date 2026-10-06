@@ -303,7 +303,8 @@ public sealed class TypePipelineScalarMatrixTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Invalid FileInfo value", error);
+        Assert.Contains("Invalid value '' for option '--input-file'", error);
+        Assert.Contains("Expected a non-empty file path.", error);
     }
 
 
