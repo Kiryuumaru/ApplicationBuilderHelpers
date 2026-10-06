@@ -56,6 +56,37 @@ public class CurrencyTypeParser : CommandTypeParser<Currency>
 
 On failure, return `null` and set `validateError` to the reason. That reason appears in the `InvalidValue` error (exit 2).
 
+The `?` spellings above suit class targets. If your type is a struct, drop the `?`.
+
+```csharp
+using ApplicationBuilderHelpers.Abstracts;
+using System.Globalization;
+
+public class DurationTypeParser : CommandTypeParser<Duration>
+{
+    public override Duration ParseValue(string? value, out string? validateError)
+    {
+        validateError = null;
+        if (string.IsNullOrEmpty(value))
+        {
+            validateError = "Duration value cannot be empty";
+            return default;
+        }
+        if (Duration.TryParse(value, CultureInfo.InvariantCulture, out var result))
+            return result;
+        validateError = $"'{value}' is not a valid duration";
+        return default;
+    }
+
+    public override string? GetStringValue(Duration value)
+    {
+        return value.ToString();
+    }
+}
+```
+
+On failure, return `default` and set `validateError`. The `?` overrides do not compile for struct targets.
+
 ## The Full-Control Way: Implement `ICommandTypeParser`
 
 Implement the interface directly when you need control over defaults and collection storage:
