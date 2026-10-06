@@ -92,7 +92,7 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values (enums fill this in automatically) |
 | `CaseSensitive` | Match `FromAmong` values with exact case; does NOT affect option NAME matching (names always match exactly) |
-| `Secret` | Never print the value; help shows `[REDACTED]` |
+| `Secret` | Never print the value; optional-option help always shows `Default: [REDACTED]` to signal secrecy, not that a default exists. The allowed-values list still shows — `[REDACTED]` may be one of the listed values |
 
 Do not declare your own `-h` or `-V`. They belong to `--help` and `--version` and fail the build. `-?` and `/?` are also reserved as bare-token help aliases on every OS; quote them on Unix shells (`'-?'`, `'/?'`) so the shell does not glob them.
 

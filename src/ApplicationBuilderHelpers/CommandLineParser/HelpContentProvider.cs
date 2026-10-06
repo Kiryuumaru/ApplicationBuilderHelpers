@@ -377,9 +377,16 @@ internal sealed class HelpContentProvider(
 
         if (!option.IsRequired && option.LongName != "help" && option.LongName != "version")
         {
-            var defaultValue = GetOptionDefaultValue(option);
-            if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-                parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, option.IsSecret)}");
+            if (option.IsSecret)
+            {
+                parts.Add($"Default: {SecretRedaction.Mask}");
+            }
+            else
+            {
+                var defaultValue = GetOptionDefaultValue(option);
+                if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
+                    parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, isSecret: false)}");
+            }
         }
 
         return string.Join("\n", parts);
