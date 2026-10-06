@@ -4,10 +4,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// Tests for the help/version validation gate: conversion failures stay forgiven
-/// beside <c>--help</c>/<c>--version</c>, but allowed-value (<c>FromAmong</c>)
-/// violations report exit 2 even when help or version is present, while valid
-/// values keep help and the bare-help, bare-valued-option, version, and
-/// missing-required carve-outs are preserved.
+/// beside <c>--help</c>/<c>--version</c> kind-blind, so allowed-value
+/// (<c>FromAmong</c>) violations show help or version (exit 0) when help or
+/// version is present, while valid values keep help and the bare-help,
+/// bare-valued-option, version, and missing-required carve-outs are preserved.
 /// Per-element collection conversion failures are pinned in-process by
 /// <c>TypePipelineScalarMatrixTests</c>; this class pins the
 /// collection-valid-with-help preservation through the help-with-values path.
@@ -55,27 +55,25 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Trailing_Help_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Trailing_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=yaml", "--help");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Leading_Help_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Leading_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("test", "target", "--help", "--output-format=yaml");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
@@ -98,164 +96,148 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Constrained_Argument_Invalid_Value_With_Trailing_Help_Reports_Allowed_Values()
+    public async Task Constrained_Argument_Invalid_Value_With_Trailing_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("plugin", "bogus", "--help");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'bogus' is not valid for argument 'action'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Listing installed plugins");
     }
 
     [Fact]
-    public async Task Constrained_Argument_Invalid_Value_With_Leading_Help_Reports_Allowed_Values()
+    public async Task Constrained_Argument_Invalid_Value_With_Leading_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("plugin", "--help", "bogus");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'bogus' is not valid for argument 'action'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Listing installed plugins");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Trailing_Version_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Trailing_Version_Shows_Version()
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=yaml", "--version");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Leading_Version_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Leading_Version_Shows_Version()
     {
         var result = await Runner.RunAsync("test", "target", "--version", "--output-format=yaml");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Argument_Invalid_Value_With_Trailing_Version_Reports_Allowed_Values()
+    public async Task Constrained_Argument_Invalid_Value_With_Trailing_Version_Shows_Version()
     {
         var result = await Runner.RunAsync("plugin", "bogus", "--version");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'bogus' is not valid for argument 'action'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Listing installed plugins");
     }
 
     [Fact]
-    public async Task Constrained_Argument_Invalid_Value_With_Leading_Version_Reports_Allowed_Values()
+    public async Task Constrained_Argument_Invalid_Value_With_Leading_Version_Shows_Version()
     {
         var result = await Runner.RunAsync("plugin", "--version", "bogus");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'bogus' is not valid for argument 'action'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Listing installed plugins");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Trailing_Short_Help_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Trailing_Short_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=yaml", "-h");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Leading_Short_Help_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Leading_Short_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("test", "target", "-h", "--output-format=yaml");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Trailing_Short_Version_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Trailing_Short_Version_Shows_Version()
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=yaml", "-V");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Leading_Short_Version_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Leading_Short_Version_Shows_Version()
     {
         var result = await Runner.RunAsync("test", "target", "-V", "--output-format=yaml");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Help_And_Version_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Help_And_Version_Shows_Help()
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=yaml", "--help", "--version");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Invalid_Value_With_Version_And_Help_Reports_Allowed_Values()
+    public async Task Constrained_Option_Invalid_Value_With_Version_And_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=yaml", "--version", "--help");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]
-    public async Task Constrained_Option_Repeated_Last_Invalid_Value_With_Help_Reports_Allowed_Values()
+    public async Task Constrained_Option_Repeated_Last_Invalid_Value_With_Help_Shows_Help()
     {
         var result = await Runner.RunAsync("test", "target", "--output-format=json", "--output-format=yaml", "--help");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Value 'yaml' is not valid for option '--output-format'");
-        CliTestAssertions.AssertErrorContains(result, "Must be one of:");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
-        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertNoError(result);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
     }
 
     [Fact]

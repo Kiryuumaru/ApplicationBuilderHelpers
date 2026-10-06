@@ -145,7 +145,7 @@ ties stay silent with the plain unknown-token error (exit `2`), and
 same-first-letter matches at distance 3-4 only suggest for long tokens.
 Cluster fragments report the failing char only (`Unknown option: -z`).
 
-A concrete root with its own run reports a leading bare miss as `No command found`, with a pointer only when close. A bare miss behind leading help tokens reports `No command found` before forwarding; only a hit forwards to target help. A named grouping parent keeps `Unknown subcommand` wording for a near miss behind its help token, while a far miss keeps the subcommand list.
+A concrete root with its own run binds a leading bare far miss (no suggestion) to its positional (exit `0`) and reports a near miss as `No command found`, with a pointer only when close. A bare miss behind leading help tokens reports `No command found` before forwarding; only a hit forwards to target help. A named grouping parent keeps `Unknown subcommand` wording for a near miss behind its help token, while a far miss keeps the subcommand list.
 
 Reserved `--help`/`--version` always compete in option ranking: `--versoin` suggests
 `--version`, and `--ver` suggests `--version` over `--verbose` on an exact
@@ -203,9 +203,9 @@ On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob
 One gate decides help/version forgiveness before any validation:
 
 1. Bare `--help` (or `-h`, `-?`, `/?`) shows help before any checks.
-2. Help or version with its flag present skips all validation (so `--help` beats a missing required option), except an invalid `FromAmong` value and a dangling valued option beside help still fail (exit `2`).
+2. Help or version with its flag present skips all validation (so `--help` beats a missing required option); deferred conversion errors stay forgiven kind-blind, except a dangling valued option beside help still fails (exit `2`).
 3. Help beats version when both appear.
-4. Unknown, misuse, requires-subcommand, and invalid-literal errors still beat both; an invalid `FromAmong` value beats both the same way.
+4. Unknown, misuse, requires-subcommand, and invalid-literal errors still beat both.
 
 A dangling valued option (bare `--config` with no value beside help) clears help and exits `2`; a typed bare scalar fails even with its environment variable set — env rescues only omitted options, and collections with merged values stay exempt. An empty `=`-form on a non-string option fails as `InvalidValue` (exit `2`); string options still bind empty (and satisfy `Required`; reject emptiness in code when you need non-empty). Other `=`-form value errors stay forgiven beside help. `-help` and `-version` are exact-only full-token unknown options with a did-you-mean pointer, never clusters; neither requests help or version, so both footer hints survive. Global help with no subcommands prints no `<command>` footer.
 
