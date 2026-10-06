@@ -111,6 +111,15 @@ public sealed class DidYouMeanFailClosedTests
     }
 
     [Fact]
+    public async Task Uppercase_H_Hints_Lowercase_Help_Short()
+    {
+        var (exitCode, _, error) = await RunCapturedAsync(["deploy", "-H", "prod"]);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: -H", error);
+        Assert.Contains("Did you mean '-h'?", error);
+    }
+
+    [Fact]
     public async Task Leaf_Surplus_Tie_Stays_Silent_With_Proper_Error()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["config", "xet"]);

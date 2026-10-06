@@ -72,7 +72,8 @@ public sealed class HelpLayoutGoldenTests
             nest              Commands for nest
 
         GLOBAL OPTIONS:
-            -h, --help        Show help information
+            -h, --help, -?    Show help information
+                              Also -? /? bare
             -V, --version     Show version information
 
         Run 'golden-test <command> --help' for more information on specific commands.
@@ -99,7 +100,8 @@ public sealed class HelpLayoutGoldenTests
             <target>                 Deployment target environment.
 
         GLOBAL OPTIONS:
-            -h, --help               Show help information
+            -h, --help, -?           Show help information
+                                     Also -? /? bare
             -V, --version            Show version information
 
         """ + "\n";
@@ -127,10 +129,22 @@ public sealed class HelpLayoutGoldenTests
             <target>          Deployment target environment.
 
         GLOBAL OPTIONS:
-            -h, --help        Show help information
+            -h, --help, -?    Show help information
+                              Also -? /? bare
             -V, --version     Show version information
 
         """ + "\n";
+
+    [Fact]
+    public async Task Help_Row_Documents_Bare_Question_Aliases()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder(120), ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Contains("-h, --help, -?", Normalize(output));
+        Assert.Contains("Also -? /? bare", Normalize(output));
+    }
 
     [Fact]
     public async Task GlobalHelp_AtDefaultWidth_MatchesGolden()

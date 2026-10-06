@@ -347,6 +347,8 @@ internal sealed class HelpContentProvider(
 
     private static string BuildOptionSignature(SubCommandOptionInfo option)
     {
+        if (string.Equals(option.LongName, "help", StringComparison.Ordinal))
+            return "    -h, --help, -?";
         return "    " + option.GetSignature();
     }
 
@@ -357,6 +359,11 @@ internal sealed class HelpContentProvider(
         if (!string.IsNullOrEmpty(option.Description))
         {
             parts.Add(option.Description);
+        }
+
+        if (string.Equals(option.LongName, "help", StringComparison.Ordinal))
+        {
+            parts.Add("Also -? /? bare");
         }
 
         if (option.IsRequired)

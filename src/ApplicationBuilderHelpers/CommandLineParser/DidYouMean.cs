@@ -72,8 +72,12 @@ internal static class DidYouMean
     }
 
     /// <summary>Option emit gate: single owner for option-token suggestions.</summary>
-    internal static string? SuggestBlamedToken(string input, IEnumerable<(string Key, string Display)> candidates) =>
-        SuggestCore(input, candidates);
+    internal static string? SuggestBlamedToken(string input, IEnumerable<(string Key, string Display)> candidates)
+    {
+        if (string.Equals(input, "-H", StringComparison.Ordinal))
+            return "-h";
+        return SuggestCore(input, candidates);
+    }
 
     /// <summary>Subcommand emit gate: single owner for subcommand-name suggestions.</summary>
     internal static string? SuggestSubcommand(string input, IEnumerable<string> childNames)
