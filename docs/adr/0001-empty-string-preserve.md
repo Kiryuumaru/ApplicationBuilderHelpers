@@ -64,7 +64,9 @@ the least-surprise behavior.
   opt-in strict follow-up, not to required-field validation.
 - Env-var fallback remains null-or-whitespace-guarded, so `APP_X=""`
   behaves as unset while `--opt ""` binds `""` — documented in
-  `docs/commands.md` Arguments section.
+  `docs/commands.md` Arguments section. Omitted (missing or blank env)
+  fails `Required`; a supplied empty still satisfies it. Reject empty
+  text with a guard in code (`string.IsNullOrEmpty`), not with `Required`.
 - **Breaking change**: consumers that relied on `""` arriving as `null`
   (e.g. `== null` sentinels) must migrate to `string.IsNullOrEmpty` —
   an explicitly supplied `""` now binds as `""`, never `null`.

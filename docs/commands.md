@@ -88,8 +88,8 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | Setting | What it does |
 |---|---|
 | `Description` | Help text |
-| `EnvironmentVariable` | Env var used when the flag is not typed |
-| `Required` | Fail with exit `2` when not supplied |
+| `EnvironmentVariable` | Env var used when the flag is omitted (blank counts as omitted) |
+| `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values (enums fill this in automatically) |
 | `CaseSensitive` | Match `FromAmong` values with exact case; does NOT affect option NAME matching (names always match exactly) |
 | `Secret` | Never print the value; help shows `[REDACTED]` |
@@ -100,7 +100,20 @@ Two options in one command must not share a short flag. If a shared base class d
 
 ### Env Var Fallback
 
-When you set `EnvironmentVariable` and the user types no flag, the env value fills the option. A typed flag always beats env. Empty env counts as unset. Env never rescues a flag typed with no value — it covers omitted options only.
+When you set `EnvironmentVariable` and the user types no flag, the env value fills the option. A typed flag always beats env. Empty or whitespace-only env counts as unset. Env never rescues a flag typed with no value — it covers omitted options only.
+
+### Required Means Present, Not Non-Empty
+
+`Required` checks presence only. Typing `--name ""` or `""` supplies a value, so it passes `Required` and binds as `""`. Only omission fails `Required` with exit `2`. To reject empty text, guard it in code:
+
+```csharp
+using ApplicationBuilderHelpers.Exceptions;
+
+if (string.IsNullOrEmpty(Name))
+    throw new CommandException("Name must not be empty.", exitCode: 2);
+```
+
+Omitted means no value exists (env blank or missing counts as omitted). Empty means a zero-length value was supplied.
 
 ### Allowed Values
 
@@ -204,12 +217,12 @@ public string? DestPath { get; set; }
 | `Name` | Display name in help |
 | `Position` | Which positional word (starts at `0`) |
 | `Description` | Help text |
-| `Required` | Fail with exit `2` when not supplied |
+| `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values |
 | `CaseSensitive` | Match values with exact case; does NOT affect argument NAME matching |
 | `Secret` | Never print the value |
 
-Typing `""` counts as supplied and binds as `""` for text. Check with `string.IsNullOrEmpty`, not `== null`.
+Typing `""` counts as supplied and binds as `""` for text. It satisfies `Required`; only omission fails `Required`. Check with `string.IsNullOrEmpty`, not `== null`. Need non-empty text? Guard it in code (see Options above).
 
 Arguments belong to one command only. A root positional stays hidden from subcommands. It binds a bare word only when the root has no children; with children the miss check runs first and a bare non-child word fails as `No command found` (exit `2`). A surplus word on a leaf fails with `Unexpected argument` (exit `2`).
 
