@@ -7,9 +7,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <summary>
 /// In-process guards for the global-option initializer gate over inherited options.
 /// Options declared on a shared base report the base as their declaring type, so the
-/// gate cannot resolve a single registration holder when two leaves derive from it
-/// and keeps the option local. An option whose getter cannot be read likewise keeps
-/// the option local instead of faulting.
+/// gate compares the initializer default across the derived holders: a shared
+/// base (abstract or concrete) with agreeing defaults promotes, while divergent
+/// or unreadable defaults stay local. An option whose getter cannot be read
+/// likewise keeps the option local instead of faulting.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -108,8 +109,40 @@ public sealed class InheritedInitializerGateTests
         }
     }
 
+    public class SharedConcreteBase : Command
+    {
+        [CommandOption("unified", Description = "Unified value.")]
+        public string Unified { get; set; } = "unified-default";
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"unified base:{Unified}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("sharedconcrete alpha", "First leaf inheriting the shared concrete base option.")]
+    public sealed class ConcreteBaseAlphaCommand : SharedConcreteBase
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"unified alpha:{Unified}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("sharedconcrete beta", "Second leaf inheriting the shared concrete base option.")]
+    public sealed class ConcreteBaseBetaCommand : SharedConcreteBase
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"unified beta:{Unified}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Fact]
-    public async Task IdenticalBaseInitializer_StaysLocal()
+    public async Task IdenticalBaseInitializer_Promotes()
     {
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder().AddCommand<IdenticalBaseAlphaCommand>().AddCommand<IdenticalBaseBetaCommand>(),
@@ -117,7 +150,8 @@ public sealed class InheritedInitializerGateTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("GLOBAL OPTIONS:", output);
-        Assert.DoesNotContain("--format", output);
+        Assert.Contains("--format", output);
+        Assert.Contains("Default: table", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
 
         var (alphaCode, alphaOutput, alphaError) = await RunCapturedAsync(
@@ -170,6 +204,20 @@ public sealed class InheritedInitializerGateTests
         Assert.Contains("Default: divergent-default", betaOutput);
         Assert.DoesNotContain("Default: base-default", betaOutput);
         Assert.True(string.IsNullOrWhiteSpace(betaError), $"Expected empty stderr but got: {betaError}");
+    }
+
+    [Fact]
+    public async Task SharedConcreteBaseInitializer_Promotes()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<ConcreteBaseAlphaCommand>().AddCommand<ConcreteBaseBetaCommand>(),
+            ["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("GLOBAL OPTIONS:", output);
+        Assert.Contains("--unified", output);
+        Assert.Contains("Default: unified-default", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]

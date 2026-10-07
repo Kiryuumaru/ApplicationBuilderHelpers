@@ -334,7 +334,7 @@ internal sealed class CommandHierarchyBuilder(
 
         var holder = FindHolder(declaringType);
         if (holder is null)
-            return InitializerValuesUnreadable.Value;
+            return ReadSharedBaseValue(declaringType, option.Property);
 
         if (holder.TryGetInitializerDefault(option.Property, out var snapshot))
             return snapshot;
@@ -373,6 +373,72 @@ internal sealed class CommandHierarchyBuilder(
         }
 
         return match;
+    }
+
+    private object? ReadSharedBaseValue(Type declaringType, System.Reflection.PropertyInfo optionProperty)
+    {
+        // A base that is itself a command owns the option on its node, so only pure shared bases promote.
+        if (declaringType.IsAbstract && declaringType.GetCustomAttribute<Attributes.CommandAttribute>() is not null)
+            return InitializerValuesUnreadable.Value;
+
+        var seen = false;
+        object? agreed = null;
+        foreach (var holder in commandBuilder.Commands)
+        {
+            if (!declaringType.IsAssignableFrom(holder.CommandType))
+                continue;
+
+            var holderProperty = ResolveHolderProperty(holder, optionProperty);
+            if (holderProperty is null)
+                return InitializerValuesUnreadable.Value;
+
+            object? candidate;
+            if (holder.TryGetInitializerDefault(holderProperty, out var snapshot))
+            {
+                candidate = snapshot;
+            }
+            else if (holder.IsInstanceRegistration)
+            {
+                return InitializerValuesUnreadable.Value;
+            }
+            else
+            {
+                try
+                {
+                    candidate = holderProperty.GetValue(holder.Command);
+                }
+                catch
+                {
+                    return InitializerValuesUnreadable.Value;
+                }
+            }
+
+            if (!seen)
+            {
+                agreed = Models.InitializerValueEquality.CloneIfArray(candidate);
+                seen = true;
+                continue;
+            }
+
+            if (!Models.InitializerValueEquality.ValuesEqual(agreed, candidate))
+                return InitializerValuesUnreadable.Value;
+        }
+
+        return seen ? agreed : InitializerValuesUnreadable.Value;
+    }
+
+    private static System.Reflection.PropertyInfo? ResolveHolderProperty(Models.TypedCommandHolder holder, System.Reflection.PropertyInfo optionProperty)
+    {
+        if (holder.CommandType == optionProperty.DeclaringType)
+            return optionProperty;
+
+        var resolved = holder.CommandType.GetProperty(
+            optionProperty.Name,
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (resolved is null || resolved.DeclaringType != optionProperty.DeclaringType)
+            return null;
+
+        return resolved;
     }
 
     private static bool ArraysEqual(object[]? arr1, object[]? arr2)
