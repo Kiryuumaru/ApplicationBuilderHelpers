@@ -42,15 +42,28 @@ internal sealed class ArgumentParser
                     // A current-owned token followed by a child that cannot bind it stays unknown.
                     if (ownedMatches.Count == 1 && ReferenceEquals(pathMatched, ownedMatches[0]))
                     {
+                        // Skip the probe value and bankable globals; a following child that cannot bind the probe keeps it unknown.
                         var probe = ownedMatches[0];
-                        var isBareValued = !probe.IsFlag && DanglingValuedOptionPolicy.IsBareForm(probe, token);
-                        var probeNext = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
-                        var childToken = isBareValued && probeNext != null && !IsFlagLookingToken(probeNext)
-                            ? argIndex + 2 < args.Length ? args[argIndex + 2] : null
-                            : probeNext;
-                        var followingChild = childToken != null && !childToken.StartsWith('-') && childToken != "--" && childToken != "/?"
-                            ? result.TargetCommand.FindChild(childToken)
-                            : null;
+                        var scan = argIndex + 1;
+                        if (!probe.IsFlag && DanglingValuedOptionPolicy.IsBareForm(probe, token)
+                            && scan < args.Length && !IsFlagLookingToken(args[scan]))
+                            scan++;
+                        while (scan < args.Length)
+                        {
+                            var ahead = args[scan];
+                            if (ahead == "--" || HelpVersionGateway.IsHelpToken(ahead) || HelpVersionGateway.IsVersionToken(ahead))
+                                break;
+                            if (pathGlobals.Values.FirstOrDefault(o => o.MatchesArgument(ahead)) is not { } aheadGlobal)
+                                break;
+                            scan++;
+                            if (!aheadGlobal.IsFlag && DanglingValuedOptionPolicy.IsBareForm(aheadGlobal, ahead)
+                                && scan < args.Length && !IsFlagLookingToken(args[scan]))
+                                scan++;
+                        }
+                        SubCommandInfo? followingChild = null;
+                        var childToken = scan < args.Length ? args[scan] : null;
+                        if (childToken != null && !childToken.StartsWith('-') && childToken != "--" && childToken != "/?")
+                            followingChild = result.TargetCommand.FindChild(childToken);
                         if (followingChild != null && !OptionScopeAuthority.OwnsOption(followingChild, probe))
                         {
                             result.TargetCommand = followingChild;
