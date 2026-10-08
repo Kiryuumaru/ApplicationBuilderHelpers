@@ -88,7 +88,7 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | Setting | What it does |
 |---|---|
 | `Description` | Help text |
-| `EnvironmentVariable` | Env var used when the flag is omitted (blank counts as omitted) |
+| `EnvironmentVariable` | Env var used when a valued option is omitted (flags never consult env; blank counts as omitted) |
 | `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values (enums fill this in automatically) |
 | `CaseSensitive` | Match `FromAmong` values with exact case; does NOT affect option NAME matching (names always match exactly) |
@@ -100,7 +100,7 @@ Two options in one command must not share a short flag. If a shared base class d
 
 ### Env Var Fallback
 
-When you set `EnvironmentVariable` and the user types no flag, the env value fills the option. A typed flag always beats env. Empty or whitespace-only env counts as unset. Env never rescues a flag typed with no value — it covers omitted options only.
+When you set `EnvironmentVariable` and the user omits a valued option, the env value fills the option. A typed valued option always beats env. Flags are bare-only and never consult env. Empty or whitespace-only env counts as unset. Env rescues omitted valued options only.
 
 ### Required Means Present, Not Non-Empty
 
@@ -127,7 +127,7 @@ Values compare after converting the typed text to your property type. So `02` ma
 ### How Typing Works
 
 - Bare flags never eat the next word. `--verbose` means `true`. `--no-verbose` means `false`.
-- An option typed with no value never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted options only.
+- An option typed with no value never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted valued options only. Flags are bare-only and never consult env.
 - A flag with `=` never works (exit `2`). Use bare `--verbose` or `--no-verbose`.
 - `--no-<name>` works only on `bool` flags and means `false`. `--no-<name>=value` never works.
 - Words after the first bare `--` are always positional. `--` itself is swallowed.
@@ -224,7 +224,7 @@ public string? DestPath { get; set; }
 
 Typing `""` counts as supplied and binds as `""` for text. It satisfies `Required`; only omission fails `Required`. Check with `string.IsNullOrEmpty`, not `== null`. Need non-empty text? Guard it in code (see Options above).
 
-Arguments belong to one command only. A root positional stays hidden from subcommands. It binds a bare word when the root has no children; with children a far miss (no suggestion) still binds the root positional (exit `0`), while a near miss fails first as `No command found` (exit `2`). A surplus word on a leaf fails with `Unexpected argument` (exit `2`).
+Arguments belong to one command only. A root positional stays hidden from subcommands. It binds a bare word only when the root has no children; with children any bare non-child word fails as `No command found` (exit `2`). A surplus word on a leaf fails with `Unexpected argument` (exit `2`).
 
 ## Get Services in a Command
 
@@ -335,7 +335,7 @@ The library answers shell TAB probes before help and parsing. A command named `c
 
 Host lifetime messages never reach stdout. They write to stderr or stay silent.
 
-Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted options. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a miss behind leading help tokens reports `No command found` before forwarding and only hits forward to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
+Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted valued options; flags never consult env. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a miss behind leading help tokens reports `No command found` before forwarding and only hits forward to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
 
 Bad shell names and install errors exit `2` on stderr. File errors exit `1` on stderr. Bare `completions` falls through to normal parsing.
 

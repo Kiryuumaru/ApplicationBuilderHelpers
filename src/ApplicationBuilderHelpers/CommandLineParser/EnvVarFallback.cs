@@ -12,6 +12,9 @@ internal static class EnvVarFallback
     /// </summary>
     internal static bool Apply(ParseResult result, SubCommandOptionInfo option, bool requiredOnly)
     {
+        if (option.IsFlag)
+            return false;
+
         if (requiredOnly && !option.IsRequired)
             return false;
 

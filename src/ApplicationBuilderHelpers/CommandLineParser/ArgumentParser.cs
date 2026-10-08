@@ -531,15 +531,17 @@ internal sealed class ArgumentParser
         if (followingChild == null)
             return false;
         var scopedByShort = scopedOptions.Where(o => o.ShortName.HasValue).GroupBy(o => o.ShortName!.Value).ToDictionary(g => g.Key, g => g.First());
-        var followingKeys = new HashSet<string>(followingChild.AllOptions.Select(ParseResult.GetCanonicalOptionKey), StringComparer.Ordinal);
         foreach (var letter in token[1..])
         {
             if (letter == 'h' || letter == 'V' || letter == '-')
                 continue;
             if (!scopedByShort.TryGetValue(letter, out var member))
                 return false;
-            if (!followingKeys.Contains(ParseResult.GetCanonicalOptionKey(member)))
+            if (!OptionScopeAuthority.OwnsOption(followingChild, member))
+            {
+                result.TargetCommand = followingChild;
                 return false;
+            }
             if (!member.IsFlag)
                 break;
         }
@@ -1213,8 +1215,9 @@ internal sealed class ArgumentParser
 
     /// <summary>Whether the root accepts the leading token as a positional instead of an error.</summary>
     /// <remarks>
-    /// A far miss (no suggestion) binds positionally while a near miss stays
-    /// loud, so distance ties stay silent as plain unknown-token errors.
+    /// Childless-only: a root positional binds a bare word only when the
+    /// root has no children. On a mixed root every bare non-child word is a
+    /// miss regardless of suggestion distance.
     /// </remarks>
     private static bool IsExemptRootPositional(SubCommandInfo rootCommand, string token)
     {
@@ -1222,13 +1225,15 @@ internal sealed class ArgumentParser
             return false;
         if (token.StartsWith('-'))
             return false;
+        if (token == "--" || token == "/?" || token.StartsWith("/?=", StringComparison.Ordinal))
+            return false;
+        if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
+            return false;
         if (!rootCommand.AllArguments.Any(a => a.CanAcceptValueAtPosition(0)))
             return false;
         if (rootCommand.FindChild(token) != null)
             return false;
-        return DidYouMean.SuggestSubcommand(
-            token,
-            rootCommand.Children.Keys) == null;
+        return rootCommand.Children.Count == 0;
     }
 
     /// <summary>Miss behind a leading help token: bare non-child word, else null.</summary>

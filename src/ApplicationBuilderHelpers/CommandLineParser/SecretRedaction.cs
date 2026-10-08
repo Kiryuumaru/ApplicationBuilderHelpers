@@ -110,22 +110,6 @@ internal static class SecretRedaction
     }
 
     /// <summary>
-    /// Error message for an invalid boolean flag literal.
-    /// </summary>
-    /// <remarks>
-    /// Secret values are never echoed.
-    /// </remarks>
-    public static string InvalidFlagLiteralMessage(string providedLiteral, string displayName, bool isSecret)
-    {
-        const string expected = "Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'";
-
-        if (isSecret)
-            return $"Invalid Boolean value provided for option '{displayName}'. {expected}";
-
-        return $"Invalid Boolean value '{providedLiteral}' for option '{displayName}'. {expected}";
-    }
-
-    /// <summary>
     /// Error message for a --no-&lt;name&gt;=value occurrence.
     /// </summary>
     /// <remarks>

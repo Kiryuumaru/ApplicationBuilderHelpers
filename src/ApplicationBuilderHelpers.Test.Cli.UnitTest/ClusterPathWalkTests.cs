@@ -61,6 +61,16 @@ public sealed class ClusterPathWalkTests
         }
     }
 
+    [Command("beta", "Runs the beta leaf.")]
+    public sealed class BetaLeafCommand : Command
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine("beta");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Fact]
     public async Task SpaceValuedCluster_BeforeLeaf_RoutesToLeaf()
     {
@@ -127,6 +137,17 @@ public sealed class ClusterPathWalkTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
+    [Fact]
+    public async Task UnownedCluster_BeforeLeaf_StaysUnknownOnLeaf()
+    {
+        var (exitCode, output, error) = await RunCapturedDisagreeAsync(["-vc", "5", "beta"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Unknown option: -v", error);
+        Assert.Contains("beta --help", error);
+    }
+
     private static ApplicationBuilder CreateBuilder()
     {
         return ApplicationBuilder.Create()
@@ -147,6 +168,18 @@ public sealed class ClusterPathWalkTests
             .SetExecutableVersion("9.9.9")
             .AddCommand<LeafOnlyWalkRootCommand>()
             .AddCommand<SlowLeafCommand>();
+    }
+
+    private static ApplicationBuilder CreateDisagreeBuilder()
+    {
+        return ApplicationBuilder.Create()
+            .SetExecutableName("cluster-walk-test")
+            .SetExecutableTitle("Cluster Walk Test")
+            .SetExecutableDescription("Cluster path-walk verification CLI.")
+            .SetExecutableVersion("9.9.9")
+            .AddCommand<ClusterWalkRootCommand>()
+            .AddCommand<SlowLeafCommand>()
+            .AddCommand<BetaLeafCommand>();
     }
 
     private static async Task<(int ExitCode, string Output, string Error)> RunCapturedAsync(string[] args)
@@ -193,6 +226,36 @@ public sealed class ClusterPathWalkTests
             try
             {
                 var exitCode = await CreateLeafOnlyBuilder().RunAsync(args);
+                outWriter.Flush();
+                errorWriter.Flush();
+                return (exitCode, outWriter.ToString(), errorWriter.ToString());
+            }
+            finally
+            {
+                Console.SetOut(originalOut);
+                Console.SetError(originalError);
+            }
+        }
+        finally
+        {
+            ConsoleGate.Release();
+        }
+    }
+
+    private static async Task<(int ExitCode, string Output, string Error)> RunCapturedDisagreeAsync(string[] args)
+    {
+        await ConsoleGate.WaitAsync();
+        try
+        {
+            var originalOut = Console.Out;
+            var originalError = Console.Error;
+            using var outWriter = new StringWriter();
+            using var errorWriter = new StringWriter();
+            Console.SetOut(outWriter);
+            Console.SetError(errorWriter);
+            try
+            {
+                var exitCode = await CreateDisagreeBuilder().RunAsync(args);
                 outWriter.Flush();
                 errorWriter.Flush();
                 return (exitCode, outWriter.ToString(), errorWriter.ToString());
