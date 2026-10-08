@@ -39,3 +39,8 @@ token is present.
 - Pinned by `RootPositionalBindingTests.MixedRoot_Help_BeforeNearMiss_RejectsWithSuggestion`
   plus `DeployInterleavedOptionTests.Two_Help_BeforeNearMiss_ReportsUnknownSubcommand`
   and `Two_Help_BeforeHit_ForwardsToLeafHelp`.
+
+> **Rename note (2026-10-08):** `DeployInterleavedOptionTests` was renamed to
+> `DeployPreChildOptionTests` (`src/ApplicationBuilderHelpers.Test.Cli.UnitTest/DeployPreChildOptionTests.cs:8`;
+> pinning test now at `:294`). The decision body above is frozen history; read
+> the old class name as the new one.
