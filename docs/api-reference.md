@@ -111,13 +111,13 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | Setting | What it does |
 |---|---|
 | `Description` | Help text |
-| `EnvironmentVariable` | Env var used when the flag is omitted (blank counts as omitted) |
+| `EnvironmentVariable` | Env var used when a valued option is omitted (flags never consult env; blank counts as omitted) |
 | `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
 | `FromAmong` | Only accept these values |
 | `CaseSensitive` | Match `FromAmong` with exact case; does NOT affect option NAME matching (names always match exactly) |
 | `Secret` | Never print the value; optional-option help always shows `Default: [REDACTED]` to signal secrecy, not that a default exists. The allowed-values list still shows — `[REDACTED]` may be one of the listed values |
 
-A typed flag always beats the env fallback. Env covers omitted options only. Do not declare your own `-h` or `-V`; they belong to help and version. See [Commands](commands.md) for typing rules.
+A typed valued option always beats the env fallback. Flags are bare-only and never consult env. Env covers omitted valued options only. Do not declare your own `-h` or `-V`; they belong to help and version. See [Commands](commands.md) for typing rules.
 
 ### `[CommandArgument]`
 

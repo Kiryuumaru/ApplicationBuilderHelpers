@@ -19,14 +19,14 @@ Use `@ref:OtherKey` when one setting should copy another. See [Configuration](do
 
 See [Commands](docs/commands.md).
 
-- **Supplied**: You typed the option, even as `""`. A non-blank env fallback also counts.
-- **Missing**: You typed nothing and no usable fallback exists. Required inputs then fail with exit `2`.
+- **Supplied**: You typed the option, even as `""`. A non-blank env fallback also counts for valued options; flags are bare-only and never consult env.
+- **Missing**: You typed nothing and no usable fallback exists for a valued option. Required inputs then fail with exit `2`. Flags never consult env, so an omitted required flag is always missing.
 - **Blank env**: An empty or whitespace-only env fallback counts as unset, never as supplied.
 - **Empty string**: Typing `""` counts as supplied, so it satisfies `Required`. Only an omitted value fails `Required`. It binds as `""` for text. Named `bool` flags reject it. Other types follow their own parser. Need non-empty text? Guard it yourself with `string.IsNullOrEmpty`.
 - **Omitted**: You supplied nothing, so an optional input keeps its starting value in code.
 - **Trailing bare repeat**: A value-taking option typed with no usable next word (for example `--tag` after `--tag=a`). Required inputs fail. Optional inputs keep the earlier value, or fail when no earlier value exists.
 - **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On a concrete root (own run plus children) only a hit behind leading help forwards to target help: any miss reports `No command found` first. On a named grouping parent a near miss behind its help token reports `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.
-- **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands. A root positional binds a bare word when the root has no children; with children a far miss (no suggestion) still binds the root positional (exit `0`), while a near miss fails as `No command found` (exit `2`).
+- **Command-name text**: The name in `[Command("deploy prod")]`. Groups separated by spaces become subcommands. A root positional binds a bare word only when the root has no children; with children any bare non-child word fails as `No command found` (exit `2`).
 - **Response file**: A text file of command-line words, referenced as `@path`. Words splice in before parsing.
 - **Expansion fault**: A bad `@file` reference (missing, unreadable, over limits, cycle, lone `@`). It exits `1`.
 - **Escaped `@`**: `@@x` means literal `@x`. An `@` inside a word stays literal.

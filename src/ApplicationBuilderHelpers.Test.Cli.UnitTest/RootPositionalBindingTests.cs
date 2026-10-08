@@ -10,8 +10,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// a bare value binds a childless concrete root's positional without requiring
 /// the <c>--</c> separator, the separator form keeps binding, an exact leaf
-/// name still routes to the leaf, a far miss (no suggestion) binds the mixed
-/// root positional (exit 0) while a near miss errors as unknown command,
+/// name still routes to the leaf, any bare non-child word on a mixed root
+/// errors as unknown command (exit 2) regardless of suggestion distance,
 /// leading global/leaf help keeps forwarding on leaf hits while misses behind
 /// help exit 2 with <c>No command found</c>, a childless root still
 /// binds a bare value, root positionals render in global help but never in
@@ -118,33 +118,36 @@ public sealed class RootPositionalBindingTests
     }
 
     [Fact]
-    public async Task MixedRoot_DistantValue_BindsPositional()
+    public async Task MixedRoot_DistantValue_RejectsUnknownCommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["Alice"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("mixed root:Alice", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'Alice'", error);
+        Assert.DoesNotContain("Did you mean", error);
     }
 
     [Fact]
-    public async Task MixedRoot_FarMissLeafName_BindsPositional()
+    public async Task MixedRoot_FarMissLeafName_RejectsUnknownCommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["zzzz"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("mixed root:zzzz", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'zzzz'", error);
+        Assert.DoesNotContain("Did you mean", error);
     }
 
     [Fact]
-    public async Task MixedRoot_GlobalVerbose_BeforeMiss_BindsPositional()
+    public async Task MixedRoot_GlobalVerbose_BeforeMiss_RejectsUnknownCommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--verbose", "zzzz"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("mixed root:zzzz", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'zzzz'", error);
+        Assert.DoesNotContain("Did you mean", error);
     }
 
     [Fact]
@@ -198,6 +201,27 @@ public sealed class RootPositionalBindingTests
         Assert.Equal(0, exitCode);
         Assert.Contains("mixed root:mixedleaf", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task MixedRoot_SentinelMissValue_BindsPositional()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["--", "zzzz"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("mixed root:zzzz", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task MixedRoot_FarMissWithTrailingValue_RejectsFirstToken()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateMixedBuilder, ["zzzz", "extra"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("No command found for 'zzzz'", error);
+        Assert.DoesNotContain("Did you mean", error);
     }
 
     [Fact]

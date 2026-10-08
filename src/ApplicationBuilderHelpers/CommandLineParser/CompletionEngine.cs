@@ -42,6 +42,8 @@ internal static class CompletionEngine
                 var namePart = partial[..equals];
                 var valuePrefix = partial[(equals + 1)..];
                 var option = FindOption(target.AllOptions, namePart);
+                if (option?.IsFlag == true)
+                    return [];
                 return CompleteValidValues(option?.ValidValues, option?.IsSecret == true, valuePrefix, partial[..(equals + 1)]);
             }
 

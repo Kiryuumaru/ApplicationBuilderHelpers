@@ -145,7 +145,7 @@ ties stay silent with the plain unknown-token error (exit `2`), and
 same-first-letter matches at distance 3-4 only suggest for long tokens.
 Cluster fragments report the failing char only (`Unknown option: -z`).
 
-A concrete root with its own run binds a leading bare far miss (no suggestion) to its positional (exit `0`) and reports a near miss as `No command found`, with a pointer only when close. A bare miss behind leading help tokens reports `No command found` before forwarding; only a hit forwards to target help. A named grouping parent keeps `Unknown subcommand` wording for a near miss behind its help token, while a far miss keeps the subcommand list.
+A concrete root with its own run reports any leading bare non-child word as `No command found` (exit `2`), with a pointer only when close; only a childless root binds a bare word positionally. A bare miss behind leading help tokens reports `No command found` before forwarding; only a hit forwards to target help. A named grouping parent keeps `Unknown subcommand` wording for a near miss behind its help token, while a far miss keeps the subcommand list.
 
 Reserved `--help`/`--version` always compete in option ranking: `--versoin` suggests
 `--version`, and `--ver` suggests `--version` over `--verbose` on an exact
@@ -207,7 +207,7 @@ One gate decides help/version forgiveness before any validation:
 3. Help beats version when both appear.
 4. Unknown, misuse, requires-subcommand, and invalid-literal errors still beat both.
 
-A dangling valued option (bare `--config` with no value beside help) clears help and exits `2`; a typed bare scalar fails even with its environment variable set — env rescues only omitted options, and collections with merged values stay exempt. An empty `=`-form on a non-string option fails as `InvalidValue` (exit `2`); string options still bind empty (and satisfy `Required`; reject emptiness in code when you need non-empty). Other `=`-form value errors stay forgiven beside help. `-help` and `-version` are exact-only full-token unknown options with a did-you-mean pointer, never clusters; neither requests help or version, so both footer hints survive. Global help with no subcommands prints no `<command>` footer.
+A dangling valued option (bare `--config` with no value beside help) clears help and exits `2`; a typed bare scalar fails even with its environment variable set — env rescues only omitted valued options, and collections with merged values stay exempt. An empty `=`-form on a non-string option fails as `InvalidValue` (exit `2`); string options still bind empty (and satisfy `Required`; reject emptiness in code when you need non-empty). Other `=`-form value errors stay forgiven beside help. `-help` and `-version` are exact-only full-token unknown options with a did-you-mean pointer, never clusters; neither requests help or version, so both footer hints survive. Global help with no subcommands prints no `<command>` footer.
 
 Help never hides typos. `bogus --help` reports an unknown command (exit 2). On a concrete root with its own run, a miss behind leading help reports `No command found` before forwarding and only a hit forwards to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. `--help=<anything>` fails as `does not accept a value` (`InvalidValue`, exit 2), never help, and `-h=<anything>`, `-?=<anything>` / `/?=<anything>`, `--version=<anything>`, `-V=<anything>` fail the same way with their own token named. `--` ends option matching and blocks help: `-- --help` stays exit 2, and `-- -?` / `-- /?` stay positional.
 
@@ -215,12 +215,12 @@ Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE
 
 ## Global Options
 
-Declare an option identically on every command and it becomes one shared global: one value in every scope. A repeated scalar takes the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2, `Duplicate option: <display-name>`). Collections stay exempt and accumulate. Flags stay exempt. Values from the environment stay exempt. An explicit flag beats the environment-variable fallback, which covers omitted options only. Option names always match exactly (`Ordinal`). `CaseSensitive` affects `FromAmong` values only; it never affects names. Type a prefix or shorthand and the parser reports `Unknown option` (exit `2`).
+Declare an option identically on every command and it becomes one shared global: one value in every scope. A repeated scalar takes the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2, `Duplicate option: <display-name>`). Collections stay exempt and accumulate. Flags stay exempt. Values from the environment stay exempt. Flags are bare-only and never consult the environment-variable fallback; env covers omitted valued options only. Option names always match exactly (`Ordinal`). `CaseSensitive` affects `FromAmong` values only; it never affects names. Type a prefix or shorthand and the parser reports `Unknown option` (exit `2`).
 
 ## Tokenizer Behavior
 
 The full typing rules live in [Commands](commands.md#how-typing-works). Short version:
 
 - Bare flags never eat the next word. A flag with `=` never works (exit `2`).
-- A bare valued option never steals a flag-looking word. A trailing bare repeat of a valued scalar fails as missing (exit `2`), even with env set or a prior value. Env covers omitted options only.
+- A bare valued option never steals a flag-looking word. A trailing bare repeat of a valued scalar fails as missing (exit `2`), even with env set or a prior value. Env covers omitted valued options only. Flags are bare-only and never consult env.
 - One splitter parses response files and completion prefixes. It strips `"` and `'` quotes. Any whitespace splits, including newlines. Files have no comments. Response-file rules and limits live in [Commands](commands.md#response-files-file).
