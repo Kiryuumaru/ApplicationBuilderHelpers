@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 [Collection("ConsoleDecoupling")]
-public sealed class DeployInterleavedOptionTests
+public sealed class DeployPreChildOptionTests
 {
     private static readonly SemaphoreSlim ConsoleGate = new(1, 1);
 
@@ -141,11 +141,12 @@ public sealed class DeployInterleavedOptionTests
     }
 
     [Fact]
-    public async Task Two_DistinctInterleavedFlag_ReachesLeaf()
+    public async Task Two_DistinctPreChildFlag_StaysUnknown()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--force", "prod"]);
-        Assert.Equal(0, exitCode);
-        Assert.Contains("deploy prod:True", output);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: --force", error);
+        Assert.Contains("Run 'verify634 deploy --help' for more information on specific command options.", error);
     }
 
     [Fact]
@@ -162,7 +163,7 @@ public sealed class DeployInterleavedOptionTests
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--force", "staging"]);
         Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --force", error);
-        Assert.Contains("Run 'verify634 deploy staging --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'verify634 deploy --help' for more information on specific command options.", error);
     }
 
     [Fact]
@@ -184,7 +185,7 @@ public sealed class DeployInterleavedOptionTests
     }
 
     [Fact]
-    public async Task Three_SiblingSameShape_KeepsTypedFooter()
+    public async Task Three_SiblingSameShape_KeepsParentFooter()
     {
         static ApplicationBuilder CreateThree()
         {
@@ -201,7 +202,7 @@ public sealed class DeployInterleavedOptionTests
         var (exitCode, output, error) = await RunCapturedAsync(CreateThree, ["deploy", "--force", "staging"]);
         Assert.Equal(2, exitCode);
         Assert.Contains("Unknown option: --force", error);
-        Assert.Contains("Run 'verify634 deploy staging --help' for more information on specific command options.", error);
+        Assert.Contains("Run 'verify634 deploy --help' for more information on specific command options.", error);
     }
 
     [Fact]
@@ -221,7 +222,7 @@ public sealed class DeployInterleavedOptionTests
     }
 
     [Fact]
-    public async Task Two_ValuedLeafOwned_Interleaved_BindsValue()
+    public async Task Single_PromotedGlobalValued_PreChild_BindsValue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(
             () => ApplicationBuilder.Create()
@@ -247,23 +248,25 @@ public sealed class DeployInterleavedOptionTests
     }
 
     [Fact]
-    public async Task TwoSharedValue_ValuedInterleavedSpaceForm_BindsValue()
+    public async Task TwoSharedValue_ValuedPreChildSpaceForm_StaysUnknown()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwoSharedValue, ["deploy", "--config", "v", "prod-east"]);
-        Assert.Equal(0, exitCode);
-        Assert.Contains("deploy prod-east:v", output);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: --config", error);
+        Assert.Contains("Run 'verify634 deploy --help' for more information on specific command options.", error);
     }
 
     [Fact]
-    public async Task TwoSharedValue_ValuedInterleavedEqualsForm_BindsValue()
+    public async Task TwoSharedValue_ValuedPreChildEqualsForm_StaysUnknown()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwoSharedValue, ["deploy", "--config=v", "prod-east"]);
-        Assert.Equal(0, exitCode);
-        Assert.Contains("deploy prod-east:v", output);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: --config", error);
+        Assert.Contains("Run 'verify634 deploy --help' for more information on specific command options.", error);
     }
 
     [Fact]
-    public async Task TwoSharedValue_ValuedInterleaved_WrongChild_StaysUnknown()
+    public async Task TwoSharedValue_ValuedPreChild_WrongChild_StaysUnknown()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwoSharedValue, ["deploy", "--config", "v", "unknownchild"]);
         Assert.Equal(2, exitCode);
@@ -279,11 +282,12 @@ public sealed class DeployInterleavedOptionTests
     }
 
     [Fact]
-    public async Task Two_LeafFlag_BeforeHelp_ReachesHelp()
+    public async Task Two_LeafFlag_BeforeHelp_StaysUnknown()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateTwo, ["deploy", "--force", "--help"]);
-        Assert.Equal(0, exitCode);
-        Assert.Contains("USAGE", output);
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unknown option: --force", error);
+        Assert.Contains("Run 'verify634 --version' to show version information.", error);
     }
 
     [Fact]

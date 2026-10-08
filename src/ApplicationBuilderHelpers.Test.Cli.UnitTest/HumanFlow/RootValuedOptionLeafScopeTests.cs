@@ -86,6 +86,20 @@ public class RootValuedOptionLeafScopeTests : CliTestBase
     }
 
     [Fact]
+    public async Task AttachedShortForm_BeforeNonOwningLeaf_ReportsNameOnlyWithoutValue()
+    {
+        const string secret = "SuperSecretZ9";
+        var result = await Runner.RunAsync($"-c{secret}", "enum-test");
+
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unknown option: -c");
+        Assert.DoesNotContain(secret, result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain($"-c{secret}", result.StandardError, StringComparison.Ordinal);
+        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+    }
+
+    [Fact]
     public async Task FlagOption_BeforeNonOwningLeaf_ReportsUnknownOption()
     {
         var result = await Runner.RunAsync("--quiet", "enum-test");
