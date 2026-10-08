@@ -138,14 +138,19 @@ public sealed class ClusterPathWalkTests
     }
 
     [Fact]
-    public async Task UnownedCluster_BeforeLeaf_StaysUnknownOnLeaf()
+    public async Task OwnedCluster_BeforeUnowningLeaf_ReportsSurplusChild()
     {
+        // Nuke re-pin (rebase onto #688): with no look-ahead the walk never
+        // leaves the root, so a root-owned cluster binds at the root and the
+        // following leaf word is surplus — even when that leaf owns neither
+        // letter. The pre-nuke "Unknown option on the leaf" expectation
+        // depended on TryConsumeClusterInWalk, which the nuke deletes.
         var (exitCode, output, error) = await RunCapturedDisagreeAsync(["-vc", "5", "beta"]);
 
         Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'beta'", error);
+        Assert.Contains("Run 'cluster-walk-test --help' for more information on available commands and options.", error);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: -v", error);
-        Assert.Contains("beta --help", error);
     }
 
     private static ApplicationBuilder CreateBuilder()
