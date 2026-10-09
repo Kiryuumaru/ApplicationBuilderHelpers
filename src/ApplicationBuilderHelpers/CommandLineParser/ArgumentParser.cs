@@ -1180,9 +1180,10 @@ internal sealed class ArgumentParser
         if (resolved && i < end)
         {
             var breaker = args[i];
-            // A bare word after a resolved help path is a typo, never help context; fail like leaf surplus.
+            // A bare word after a resolved help path errors only when the node offers no bindable positional slot; otherwise forgive as positional context and show help.
             if (!breaker.StartsWith('-') && breaker != "/?" && !breaker.StartsWith("/?=", StringComparison.Ordinal)
-                && !HelpVersionGateway.IsHelpToken(breaker) && !HelpVersionGateway.IsVersionToken(breaker))
+                && !HelpVersionGateway.IsHelpToken(breaker) && !HelpVersionGateway.IsVersionToken(breaker)
+                && !current.AllArguments.Any(a => a.CanAcceptValueAtPosition(0)))
             {
                 var surplusSuggestion = DidYouMean.SuggestSubcommand(breaker, current.Children.Keys);
                 var surplusMessage = surplusSuggestion != null

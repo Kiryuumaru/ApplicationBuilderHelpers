@@ -6,8 +6,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Tests that unknown-option errors beat bare <c>--help</c> regardless of
 /// argument order or command path: concrete root, abstract grouping, and
 /// leaf commands all report the unknown option (exit 2) instead of showing
-/// help. A bare word after a resolved abstract help path errors (exit 2)
-/// instead of showing help. Misused <c>--help</c> value forms stay invalid values (exit 2) and
+/// help. A bare word after a resolved help path errors (exit 2) only when
+/// the resolved node offers no bindable positional slot; otherwise it is
+/// forgiven as positional context and leaf help shows (exit 0).
+/// Misused <c>--help</c> value forms stay invalid values (exit 2) and
 /// the <c>--</c> separator keeps blocking help.
 /// </summary>
 public class HelpUnknownOrderInvarianceTests : CliTestBase
@@ -46,13 +48,15 @@ public class HelpUnknownOrderInvarianceTests : CliTestBase
     }
 
     [Fact]
-    public async Task AbstractGrouping_Help_WithHitPlusExtra_Errors()
+    public async Task AbstractGrouping_Help_WithHitPlusExtra_ShowsLeafHelp()
     {
+        // Leaf 'config get' offers a [key] positional slot, so the trailing
+        // bare word is forgiven as positional context and leaf help shows.
         var result = await Runner.RunAsync("config", "--help", "get", "extra");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'extra'");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputContains(result, "Get configuration values");
         CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
     }
 

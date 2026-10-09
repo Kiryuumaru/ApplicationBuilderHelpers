@@ -7,7 +7,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest.HumanFlow;
 /// root) routes a valid trailing subcommand to its help: <c>--help test</c>
 /// renders target help (exit 0). A bogus bare word errors (exit 2) and
 /// <c>--help --bogus</c> reports the unknown option (exit 2). A bare word
-/// after a resolved help path errors (exit 2) instead of showing help.
+/// after a resolved help path errors (exit 2) only when the resolved node
+/// offers no bindable positional slot; otherwise leaf help shows (exit 0).
 /// Leaf help routing with a trailing value is preserved.
 /// </summary>
 public class RootRoutingDivergenceTests : CliTestBase
@@ -69,6 +70,28 @@ public class RootRoutingDivergenceTests : CliTestBase
     public async Task ConcreteRoot_Help_WithHitPlusExtra_Errors()
     {
         var result = await Runner.RunAsync("--help", "config", "extra");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'extra'");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
+    }
+
+    [Fact]
+    public async Task ConcreteRoot_Help_WithSlotLeafPlusSurplus_ShowsLeafHelp()
+    {
+        var result = await Runner.RunAsync("--help", "deploy", "prod");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputContains(result, "Deploy applications");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
+    }
+
+    [Fact]
+    public async Task ConcreteRoot_Help_WithSlotlessLeafPlusSurplus_Errors()
+    {
+        var result = await Runner.RunAsync("--help", "serve", "extra");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
         CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'extra'");
