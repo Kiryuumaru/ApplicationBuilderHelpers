@@ -115,7 +115,7 @@ public sealed class ValidationPrecedenceTests
             new Dictionary<string, string?> { [ModeVariable] = "JSON", [CountVariable] = null });
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Mode: json", output);
+        Assert.Contains("Mode: JSON", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 

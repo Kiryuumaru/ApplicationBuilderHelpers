@@ -8,10 +8,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Path-walk cluster routing guards.
 /// Pins through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point
-/// that a combined short cluster ahead of a subcommand routes like its long-form
-/// spelling: a space-separated valued cluster, a repeated flag cluster, and an
-/// attached-value cluster ahead of the <c>slow</c> leaf all reach the leaf with
-/// the cluster values bound, and the same cluster after the leaf keeps binding.
+/// that a combined short cluster ahead of a subcommand binds at the current
+/// node only: with no look-ahead, a cluster the target node does not own ends
+/// the walk, so the pending leaf word becomes surplus (<c>Unexpected
+/// argument</c>, exit 2). The same cluster after the leaf keeps binding.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -72,36 +72,36 @@ public sealed class ClusterPathWalkTests
     }
 
     [Fact]
-    public async Task SpaceValuedCluster_BeforeLeaf_RoutesToLeaf()
+    public async Task SpaceValuedCluster_BeforeLeaf_ReportsSurplusChild()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["-vc", "5", "slow"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("slow:True:5", output);
-        Assert.DoesNotContain("root:", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'slow'", error);
+        Assert.Contains("Run 'cluster-walk-test --help' for more information on available commands and options.", error);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
     }
 
     [Fact]
-    public async Task RepeatedFlagCluster_BeforeLeaf_RoutesToLeaf()
+    public async Task RepeatedFlagCluster_BeforeLeaf_ReportsSurplusChild()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["-vv", "slow"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("slow:True:0", output);
-        Assert.DoesNotContain("root:", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'slow'", error);
+        Assert.Contains("Run 'cluster-walk-test --help' for more information on available commands and options.", error);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
     }
 
     [Fact]
-    public async Task AttachedValuedCluster_BeforeLeaf_RoutesToLeaf()
+    public async Task AttachedValuedCluster_BeforeLeaf_ReportsSurplusChild()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["-vc5", "slow"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("slow:True:5", output);
-        Assert.DoesNotContain("root:", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'slow'", error);
+        Assert.Contains("Run 'cluster-walk-test --help' for more information on available commands and options.", error);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
     }
 
     [Fact]
@@ -116,36 +116,41 @@ public sealed class ClusterPathWalkTests
     }
 
     [Fact]
-    public async Task LeafOwnedCluster_BeforeLeaf_RoutesToLeaf()
+    public async Task PreChildCluster_BeforeLeaf_ReportsSurplusChild()
     {
         var (exitCode, output, error) = await RunCapturedLeafOnlyAsync(["-vc", "5", "slow"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("slow:True:5", output);
-        Assert.DoesNotContain("leafroot", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'slow'", error);
+        Assert.Contains("Run 'cluster-walk-test --help' for more information on available commands and options.", error);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
     }
 
     [Fact]
-    public async Task LeafOwnedAttachedCluster_BeforeLeaf_RoutesToLeaf()
+    public async Task PreChildAttachedCluster_BeforeLeaf_ReportsSurplusChild()
     {
         var (exitCode, output, error) = await RunCapturedLeafOnlyAsync(["-vc5", "slow"]);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("slow:True:5", output);
-        Assert.DoesNotContain("leafroot", output);
-        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+        Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'slow'", error);
+        Assert.Contains("Run 'cluster-walk-test --help' for more information on available commands and options.", error);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
     }
 
     [Fact]
-    public async Task UnownedCluster_BeforeLeaf_StaysUnknownOnLeaf()
+    public async Task OwnedCluster_BeforeUnowningLeaf_ReportsSurplusChild()
     {
+        // Nuke re-pin (rebase onto #688): with no look-ahead the walk never
+        // leaves the root, so a root-owned cluster binds at the root and the
+        // following leaf word is surplus — even when that leaf owns neither
+        // letter. The pre-nuke "Unknown option on the leaf" expectation
+        // depended on TryConsumeClusterInWalk, which the nuke deletes.
         var (exitCode, output, error) = await RunCapturedDisagreeAsync(["-vc", "5", "beta"]);
 
         Assert.Equal(2, exitCode);
+        Assert.Contains("Unexpected argument 'beta'", error);
+        Assert.Contains("Run 'cluster-walk-test --help' for more information on available commands and options.", error);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: -v", error);
-        Assert.Contains("beta --help", error);
     }
 
     private static ApplicationBuilder CreateBuilder()

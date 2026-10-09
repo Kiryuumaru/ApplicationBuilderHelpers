@@ -499,7 +499,7 @@ public sealed class ValueBindingTests
         var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--mode=JSON"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Mode: json", output);
+        Assert.Contains("Mode: JSON", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
@@ -509,7 +509,7 @@ public sealed class ValueBindingTests
         var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--mode=jSoN"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Mode: json", output);
+        Assert.Contains("Mode: jSoN", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
@@ -623,7 +623,7 @@ public sealed class ValueBindingTests
         var (exitCode, output, error) = await RunCapturedAsync(["bindchoice", "--formats=JSON", "--formats=Xml"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Formats: json,xml", output);
+        Assert.Contains("Formats: JSON,Xml", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
@@ -931,7 +931,7 @@ public sealed class ValueBindingTests
         var (exitCode, output, error) = await RunCapturedAsync(["bindargs", "Alice", "3", "HIGH"]);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Level: high", output);
+        Assert.Contains("Level: HIGH", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 

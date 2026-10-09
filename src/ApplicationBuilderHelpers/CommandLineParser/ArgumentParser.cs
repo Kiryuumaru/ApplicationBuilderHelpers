@@ -28,97 +28,12 @@ internal sealed class ArgumentParser
             {
                 if (IsNumericValue(token) || HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
                     break;
-                // Current node before descendants: globals, then options bindable here, then one unambiguous leaf owner.
-                // A leaf-owned probe only binds ahead of the child that owns it; any current-node
-                // match blocks the probe so a following wrong child keeps the token unknown.
+                // Current node only: globals, then options bindable here. No descendant look-ahead.
                 var ownedMatches = OptionScopeAuthority.FindOwnedMatches(result.TargetCommand, token);
                 SubCommandOptionInfo? pathMatched = pathGlobals.Values.FirstOrDefault(o => o.MatchesArgument(token));
                 if (pathMatched == null && ownedMatches.Count == 1)
                     pathMatched = ownedMatches[0];
-                if (pathMatched != null || ownedMatches.Count > 0)
-                {
-                    if (pathMatched == null || ownedMatches.Count > 1)
-                        break;
-                    // A current-owned token followed by a child that cannot bind it stays unknown.
-                    if (ownedMatches.Count == 1 && ReferenceEquals(pathMatched, ownedMatches[0]))
-                    {
-                        // Skip the probe value and bankable globals; a following child that cannot bind the probe keeps it unknown.
-                        var probe = ownedMatches[0];
-                        var scan = argIndex + 1;
-                        if (!probe.IsFlag && DanglingValuedOptionPolicy.IsBareForm(probe, token)
-                            && scan < args.Length && !IsFlagLookingToken(args[scan]))
-                            scan++;
-                        while (scan < args.Length)
-                        {
-                            var ahead = args[scan];
-                            if (ahead == "--" || HelpVersionGateway.IsHelpToken(ahead) || HelpVersionGateway.IsVersionToken(ahead))
-                                break;
-                            if (pathGlobals.Values.FirstOrDefault(o => o.MatchesArgument(ahead)) is not { } aheadGlobal)
-                                break;
-                            scan++;
-                            if (!aheadGlobal.IsFlag && DanglingValuedOptionPolicy.IsBareForm(aheadGlobal, ahead)
-                                && scan < args.Length && !IsFlagLookingToken(args[scan]))
-                                scan++;
-                        }
-                        SubCommandInfo? followingChild = null;
-                        var childToken = scan < args.Length ? args[scan] : null;
-                        if (childToken != null && !childToken.StartsWith('-') && childToken != "--" && childToken != "/?")
-                            followingChild = result.TargetCommand.FindChild(childToken);
-                        if (followingChild != null && !OptionScopeAuthority.OwnsOption(followingChild, probe))
-                        {
-                            result.TargetCommand = followingChild;
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    var nextToken = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
-                    var leafOwner = OptionScopeAuthority.FindLeafOwnedOption(result.TargetCommand, token);
-                    if (leafOwner == null)
-                    {
-                        if (TryConsumeClusterInWalk(result, args, ref argIndex))
-                            continue;
-                        break;
-                    }
-                    if (nextToken != null && (HelpVersionGateway.IsHelpToken(nextToken) || HelpVersionGateway.IsVersionToken(nextToken)))
-                    {
-                        pathMatched = leafOwner;
-                    }
-                    else
-                    {
-                        // A bare valued probe's neighbor is its value, so the owning child follows the value.
-                        var isBareValuedProbe = !leafOwner.IsFlag && DanglingValuedOptionPolicy.IsBareForm(leafOwner, token)
-                            && nextToken != null && !IsFlagLookingToken(nextToken);
-                        if (isBareValuedProbe)
-                        {
-                            var childToken = argIndex + 2 < args.Length ? args[argIndex + 2] : null;
-                            if (childToken != null && (HelpVersionGateway.IsHelpToken(childToken) || HelpVersionGateway.IsVersionToken(childToken)))
-                            {
-                                pathMatched = leafOwner;
-                            }
-                            else
-                            {
-                                var childAfterValue = childToken != null && !childToken.StartsWith('-')
-                                    ? result.TargetCommand.FindChild(childToken)
-                                    : null;
-                                if (childAfterValue == null || !OptionScopeAuthority.OwnsOption(childAfterValue, leafOwner))
-                                    break;
-                                pathMatched = leafOwner;
-                            }
-                        }
-                        else
-                        {
-                            var nextChild = nextToken != null && !nextToken.StartsWith('-')
-                                ? result.TargetCommand.FindChild(nextToken)
-                                : null;
-                            if (nextChild == null || !OptionScopeAuthority.OwnsOption(nextChild, leafOwner))
-                                break;
-                            pathMatched = leafOwner;
-                        }
-                    }
-                }
-                if (pathMatched == null)
+                if (pathMatched == null || ownedMatches.Count > 1)
                     break;
                 var rawNext = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
                 if (pathMatched.IsFlag && IsBareFlagToken(pathMatched, token) && rawNext != null && SubCommandOptionInfo.IsBooleanValue(rawNext))
@@ -149,6 +64,8 @@ internal sealed class ArgumentParser
             result.TargetCommand = child;
             argIndex++;
         }
+
+        ThrowOnUnbindablePathOption(result, args, argIndex, pathGlobals);
 
         if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-') && args[0] != "/?" && !args[0].StartsWith("/?=", StringComparison.Ordinal))
         {
@@ -502,80 +419,6 @@ internal sealed class ArgumentParser
         result.AddOptionValue(matchedOption, value);
     }
 
-    /// <summary>Expands a combined short cluster during the path walk so cluster spellings route like long forms.</summary>
-    private static bool TryConsumeClusterInWalk(ParseResult result, string[] args, ref int argIndex)
-    {
-        var token = args[argIndex];
-        var scopedOptions = result.TargetCommand.AllOptions.ToList();
-        if (!token.StartsWith("--", StringComparison.Ordinal))
-        {
-            var knownShorts = new HashSet<char>(scopedOptions.Where(o => o.ShortName.HasValue).Select(o => o.ShortName!.Value));
-            foreach (var letter in token[1..])
-            {
-                if (letter == 'h' || letter == 'V' || letter == '-' || knownShorts.Contains(letter))
-                    continue;
-                var leafOwned = OptionScopeAuthority.FindLeafOwnedOption(result.TargetCommand, $"-{letter}");
-                if (leafOwned?.ShortName.HasValue == true && knownShorts.Add(leafOwned.ShortName.Value))
-                    scopedOptions.Add(leafOwned);
-            }
-        }
-        var followingToken = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
-        var childToken = followingToken;
-        var lastLetter = token.Length > 1 ? token[^1] : '\0';
-        var lastValued = scopedOptions.FirstOrDefault(o => o.ShortName.HasValue && o.ShortName.Value == lastLetter && !o.IsFlag);
-        if (lastValued != null && followingToken != null && !IsFlagLookingToken(followingToken))
-            childToken = argIndex + 2 < args.Length ? args[argIndex + 2] : null;
-        var followingChild = childToken != null && !childToken.StartsWith('-') && childToken != "--" && childToken != "/?"
-            ? result.TargetCommand.FindChild(childToken)
-            : null;
-        if (followingChild == null)
-            return false;
-        var scopedByShort = scopedOptions.Where(o => o.ShortName.HasValue).GroupBy(o => o.ShortName!.Value).ToDictionary(g => g.Key, g => g.First());
-        foreach (var letter in token[1..])
-        {
-            if (letter == 'h' || letter == 'V' || letter == '-')
-                continue;
-            if (!scopedByShort.TryGetValue(letter, out var member))
-                return false;
-            if (!OptionScopeAuthority.OwnsOption(followingChild, member))
-            {
-                result.TargetCommand = followingChild;
-                return false;
-            }
-            if (!member.IsFlag)
-                break;
-        }
-        var savedShowHelp = result.ShowHelp;
-        var savedShowVersion = result.ShowVersion;
-        var savedOptions = result.OptionValues.ToDictionary(kvp => kvp.Key, kvp => new List<string>(kvp.Value));
-        var savedBare = new HashSet<string>(result.BareOptionOccurrences, StringComparer.Ordinal);
-        var savedValued = new Dictionary<string, int>(result.ValuedOptionOccurrenceCounts, StringComparer.Ordinal);
-        var nextArg = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
-        try
-        {
-            if (!TryHandleCombinedShortCluster(token, nextArg, scopedOptions, result, out var consumedNext))
-                return false;
-            argIndex++;
-            if (consumedNext)
-                argIndex++;
-            return true;
-        }
-        catch (CommandException)
-        {
-            result.ShowHelp = savedShowHelp;
-            result.ShowVersion = savedShowVersion;
-            result.OptionValues.Clear();
-            foreach (var (option, values) in savedOptions)
-                result.OptionValues.Add(option, values);
-            result.BareOptionOccurrences.Clear();
-            result.BareOptionOccurrences.UnionWith(savedBare);
-            result.ValuedOptionOccurrenceCounts.Clear();
-            foreach (var (key, count) in savedValued)
-                result.ValuedOptionOccurrenceCounts.Add(key, count);
-            return false;
-        }
-    }
-
     /// <summary>Expands a combined short cluster into occurrences; returns false when not splittable.</summary>
     private static bool TryHandleCombinedShortCluster(string arg, string? nextArg, List<SubCommandOptionInfo> allOptions, ParseResult result, out bool consumedNext)
     {
@@ -740,6 +583,59 @@ internal sealed class ArgumentParser
             result.ArgumentValues[argument] = [];
 
         result.ArgumentValues[argument].Add(value);
+    }
+
+    /// <summary>Rejects a walk-bound option the final target cannot bind. Globals and owned or bindable inherited options pass; root-owned locals walked past do not.</summary>
+    private static void ThrowOnUnbindablePathOption(ParseResult result, string[] args, int argIndex, IReadOnlyDictionary<string, SubCommandOptionInfo> pathGlobals)
+    {
+        if (result.OptionValues.Count == 0 || result.TargetCommand.IsRoot)
+            return;
+        var sentinelIndex = Array.IndexOf(args, "--");
+        var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
+        foreach (var storedOption in result.OptionValues.Keys.ToList())
+        {
+            if (storedOption.IsGlobal)
+                continue;
+            var key = ParseResult.GetCanonicalOptionKey(storedOption);
+            if (pathGlobals.TryGetValue(key, out var global) && ReferenceEquals(global, storedOption))
+                continue;
+            var targetMatches = result.TargetCommand.AllOptions
+                .Where(o => string.Equals(ParseResult.GetCanonicalOptionKey(o), key, StringComparison.Ordinal))
+                .ToList();
+            if (targetMatches.Count != 0)
+                continue;
+            var blamed = FindWalkedToken(args, Math.Min(argIndex, end), storedOption)
+                ?? (storedOption.LongName != null ? $"--{storedOption.LongName}" : $"-{storedOption.ShortName}");
+            var blamedName = blamed;
+            var equals = blamedName.IndexOf('=');
+            if (equals >= 0)
+                blamedName = blamedName[..equals];
+            if (storedOption.ShortName.HasValue && !storedOption.IsFlag
+                && blamedName.StartsWith($"-{storedOption.ShortName}", StringComparison.Ordinal)
+                && blamedName.Length > 2)
+                blamedName = $"-{storedOption.ShortName}";
+            var suggestion = DidYouMean.SuggestBlamedToken(
+                blamedName,
+                DidYouMean.OptionCandidates(result.TargetCommand.AllOptions));
+            throw new CommandException(
+                DidYouMean.WithSuggestion($"Unknown option: {blamedName}", suggestion), 2, CommandErrorKind.UnknownOption, result.TargetCommand.FullCommandName);
+        }
+    }
+
+    /// <summary>First walked token matching the stored option; the consumed value never blames.</summary>
+    private static string? FindWalkedToken(string[] args, int end, SubCommandOptionInfo storedOption)
+    {
+        for (var i = 0; i < end; i++)
+        {
+            if (!args[i].StartsWith('-'))
+                continue;
+            if (HelpVersionGateway.IsHelpToken(args[i]) || HelpVersionGateway.IsVersionToken(args[i]))
+                continue;
+            if (storedOption.MatchesArgument(args[i]))
+                return args[i];
+        }
+
+        return null;
     }
 
     /// <summary>Whether the value parses as a negative number (consumable value, not a flag).</summary>
@@ -961,22 +857,8 @@ internal sealed class ArgumentParser
             if (equals >= 0)
                 unknownName = unknownName[..equals];
             var suggestion = DidYouMean.SuggestBlamedToken(unknownName, DidYouMean.OptionCandidates(allOptions));
-            var footerCommandName = target.FullCommandName;
-            for (var j = i + 1; j < end; j++)
-            {
-                var trailing = args[j];
-                if (trailing.StartsWith('-'))
-                    continue;
-                if (HelpVersionGateway.IsHelpToken(trailing) || HelpVersionGateway.IsVersionToken(trailing))
-                    continue;
-                if (target.FindChild(trailing) is { } typedChild)
-                {
-                    footerCommandName = typedChild.FullCommandName;
-                    break;
-                }
-            }
             throw new CommandException(
-                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, footerCommandName);
+                DidYouMean.WithSuggestion($"Unknown option: {unknownName}", suggestion), 2, CommandErrorKind.UnknownOption, target.FullCommandName);
         }
     }
 
@@ -1090,16 +972,6 @@ internal sealed class ArgumentParser
         if (option.ShortName.HasValue && token == $"-{option.ShortName}")
             return true;
         if (option.SupportsNegation && option.NegatedLongName != null && token == option.NegatedLongName)
-            return true;
-        return false;
-    }
-
-    /// <summary>Whether the token is the exact bare form of the valued option.</summary>
-    private static bool IsBareValuedToken(SubCommandOptionInfo option, string token)
-    {
-        if (option.LongName != null && token == $"--{option.LongName}")
-            return true;
-        if (option.ShortName.HasValue && token == $"-{option.ShortName}")
             return true;
         return false;
     }

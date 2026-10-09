@@ -40,15 +40,6 @@ internal static class TypeConversion
         }
 
         ValidateFromAmong(raw, converted, targetType, isCaseSensitive, fromAmong, displayName, typeParsers, isSecret, isArgument);
-        if (raw is not null && fromAmong is not null && fromAmong.Length > 0
-            && (Nullable.GetUnderlyingType(targetType) ?? targetType) == typeof(string))
-        {
-            string? canonical = FindCanonicalStringValue(raw, isCaseSensitive, fromAmong);
-            if (canonical is not null)
-            {
-                return canonical;
-            }
-        }
 
         return converted;
     }
@@ -127,32 +118,6 @@ internal static class TypeConversion
             // ChangeType throws across numeric/format/overflow shapes: normalize to InvalidValue (exit 2).
             throw ConversionErrors.InvalidValue(raw, displayName, $"Invalid format for value '{raw}' of type {targetType.FullName}", isSecret, targetType.Name);
         }
-    }
-
-    private static string? FindCanonicalStringValue(string raw, bool isCaseSensitive, object[] fromAmong)
-    {
-        foreach (object? entry in fromAmong)
-        {
-            if (string.Equals(entry?.ToString(), raw, StringComparison.Ordinal))
-            {
-                return entry?.ToString();
-            }
-        }
-
-        if (isCaseSensitive)
-        {
-            return null;
-        }
-
-        foreach (object? entry in fromAmong)
-        {
-            if (string.Equals(entry?.ToString(), raw, StringComparison.OrdinalIgnoreCase))
-            {
-                return entry?.ToString();
-            }
-        }
-
-        return null;
     }
 
     private static bool RawMatchesAllowed(string raw, bool isCaseSensitive, object[] fromAmong)
