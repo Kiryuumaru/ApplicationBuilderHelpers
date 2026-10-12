@@ -5,11 +5,11 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Positional boolean narrowing tests for the CLI parser.
+/// Positional boolean tests for the CLI parser.
 /// Exercises boolean positional binding through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
-/// only true/false (case-insensitive) bind; synonyms and other literals
-/// report InvalidValue (exit 2) naming the expected spellings.
+/// true/yes/on/1 bind true and false/no/off/0 bind false (case-insensitive);
+/// other literals report InvalidValue (exit 2) naming the expected spellings.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -35,6 +35,13 @@ public sealed class BooleanPositionalNarrowingTests
     [InlineData("true")]
     [InlineData("True")]
     [InlineData("TRUE")]
+    [InlineData("yes")]
+    [InlineData("Yes")]
+    [InlineData("YES")]
+    [InlineData("on")]
+    [InlineData("On")]
+    [InlineData("ON")]
+    [InlineData("1")]
     public async Task Argument_Boolean_TrueValues_BindTrue(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["boolnarrow", input]);
@@ -48,6 +55,13 @@ public sealed class BooleanPositionalNarrowingTests
     [InlineData("false")]
     [InlineData("False")]
     [InlineData("FALSE")]
+    [InlineData("no")]
+    [InlineData("No")]
+    [InlineData("NO")]
+    [InlineData("off")]
+    [InlineData("Off")]
+    [InlineData("OFF")]
+    [InlineData("0")]
     public async Task Argument_Boolean_FalseValues_BindFalse(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["boolnarrow", input]);
@@ -58,14 +72,6 @@ public sealed class BooleanPositionalNarrowingTests
     }
 
     [Theory]
-    [InlineData("yes")]
-    [InlineData("no")]
-    [InlineData("Yes")]
-    [InlineData("No")]
-    [InlineData("on")]
-    [InlineData("off")]
-    [InlineData("1")]
-    [InlineData("0")]
     [InlineData("maybe")]
     [InlineData("2")]
     public async Task Argument_Boolean_Synonyms_Reject(string input)
@@ -75,7 +81,7 @@ public sealed class BooleanPositionalNarrowingTests
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains($"Invalid value '{input}' for argument 'flag'", error);
-        Assert.Contains("Expected 'true' or 'false'", error);
+        Assert.Contains("Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
     }
 
     private static ApplicationBuilder CreateBuilder()
