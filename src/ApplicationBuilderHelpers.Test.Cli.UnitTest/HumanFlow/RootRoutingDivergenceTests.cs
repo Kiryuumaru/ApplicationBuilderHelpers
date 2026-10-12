@@ -7,8 +7,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest.HumanFlow;
 /// root) routes a valid trailing subcommand to its help: <c>--help test</c>
 /// renders target help (exit 0). A bogus bare word errors (exit 2) and
 /// <c>--help --bogus</c> reports the unknown option (exit 2). A bare word
-/// after a resolved help path errors (exit 2) only when the resolved node
-/// offers no bindable positional slot; otherwise leaf help shows (exit 0).
+/// after a resolved help path is a typo, never help context, and errors
+/// (exit 2) uniformly, whether or not the leaf offers positional slots.
 /// Leaf help routing with a trailing value is preserved.
 /// </summary>
 public class RootRoutingDivergenceTests : CliTestBase
@@ -78,13 +78,46 @@ public class RootRoutingDivergenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task ConcreteRoot_Help_WithSlotLeafPlusSurplus_ShowsLeafHelp()
+    public async Task ConcreteRoot_Help_WithLeafSlotPlusSurplus_Errors()
     {
         var result = await Runner.RunAsync("--help", "deploy", "prod");
-        CliTestAssertions.AssertSuccess(result);
-        CliTestAssertions.AssertExitCode(result, 0);
-        CliTestAssertions.AssertOutputContains(result, "USAGE:");
-        CliTestAssertions.AssertOutputContains(result, "Deploy applications");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'prod'");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
+    }
+
+    [Fact]
+    public async Task ConcreteRoot_Help_WithLeafSlotPlusTypo_Errors()
+    {
+        var result = await Runner.RunAsync("--help", "deploy", "porod");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'porod'");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
+    }
+
+    [Fact]
+    public async Task ConcreteRoot_Help_WithLeafSlotPlusTwoSurplus_Errors()
+    {
+        var result = await Runner.RunAsync("--help", "deploy", "prod", "extra2");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'prod'");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
+    }
+
+    [Fact]
+    public async Task ConcreteRoot_Help_WithConfigSetPlusSurplus_Errors()
+    {
+        var result = await Runner.RunAsync("--help", "config", "set", "mykey", "myval", "extra3");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Unexpected argument 'mykey'");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
         CliTestAssertions.AssertOutputDoesNotContain(result, "COMMANDS:");
     }
 
