@@ -560,34 +560,34 @@ public sealed class SecretRedactionTests
     }
 
     [Fact]
-    public async Task SecretFlag_InvalidLiteral_ReportsBareOnlyRedacted()
+    public async Task SecretFlag_InvalidLiteral_ReportsInvalidBooleanRedacted()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--secure=maybe"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
+        Assert.Contains("Invalid Boolean value provided for option '--secure'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("maybe", error);
     }
 
     [Fact]
-    public async Task PlainFlag_InvalidLiteral_ReportsBareOnly()
+    public async Task PlainFlag_InvalidLiteral_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--open=maybe"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--open' does not accept a value 'maybe'. Use bare '--open'", error);
+        Assert.Contains("Invalid Boolean value 'maybe' for option '--open'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
     }
 
     [Fact]
-    public async Task SecretFlag_EmptyLiteral_ReportsBareOnlyRedacted()
+    public async Task SecretFlag_EmptyLiteral_ReportsInvalidBooleanRedacted()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["secflag", "--secure="]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
+        Assert.Contains("Invalid Boolean value provided for option '--secure'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
     }
 
     [Fact]

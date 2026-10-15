@@ -8,9 +8,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Tokenizer behavior tests for the CLI parser.
 /// Pins the frozen set through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
-/// bare flags, <c>=</c>-form flag rejection, space-form flag rejection,
-/// the <c>--</c> separator, negative positionals, combined short flags,
-/// <c>--no-</c> negation, and bare-flag repetition.
+/// bare flags, <c>=</c>-form flag value binding, space-form flag value
+/// binding, the <c>--</c> separator, negative positionals, combined short
+/// flags, <c>--no-</c> negation, and bare-flag repetition.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -62,69 +62,58 @@ public sealed class TokenizerTruthTableTests
     }
 
     [Theory]
-    [InlineData("true")]
-    [InlineData("TRUE")]
-    [InlineData("yes")]
-    [InlineData("YES")]
-    [InlineData("on")]
-    [InlineData("ON")]
-    [InlineData("1")]
-    public async Task EqualsForm_TrueLiterals_RejectBareOnly(string literal)
+    [InlineData("true", true)]
+    [InlineData("TRUE", true)]
+    [InlineData("yes", true)]
+    [InlineData("YES", true)]
+    [InlineData("on", true)]
+    [InlineData("ON", true)]
+    [InlineData("1", true)]
+    public async Task EqualsForm_TrueLiterals_BindTrue(string literal, bool expected)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", $"--verbose={literal}"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value", error);
-        Assert.Contains($"'{literal}'", error);
-        Assert.Contains("Use bare '--verbose'", error);
-        Assert.Contains("--no-verbose", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"Verbose: {expected}", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Theory]
-    [InlineData("false")]
-    [InlineData("FALSE")]
-    [InlineData("no")]
-    [InlineData("NO")]
-    [InlineData("off")]
-    [InlineData("OFF")]
-    [InlineData("0")]
-    public async Task EqualsForm_FalseLiterals_RejectBareOnly(string literal)
+    [InlineData("false", false)]
+    [InlineData("FALSE", false)]
+    [InlineData("no", false)]
+    [InlineData("NO", false)]
+    [InlineData("off", false)]
+    [InlineData("OFF", false)]
+    [InlineData("0", false)]
+    public async Task EqualsForm_FalseLiterals_BindFalse(string literal, bool expected)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", $"--verbose={literal}"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value", error);
-        Assert.Contains($"'{literal}'", error);
-        Assert.Contains("Use bare '--verbose'", error);
-        Assert.Contains("--no-verbose", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"Verbose: {expected}", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task EqualsForm_InvalidLiteral_ReportsValueError()
+    public async Task EqualsForm_InvalidLiteral_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", "--verbose=maybe"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'maybe'", error);
-        Assert.Contains("Use bare '--verbose'", error);
+        Assert.Contains("Invalid Boolean value 'maybe' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]
-    public async Task SpaceSeparatedBooleanWord_RejectsBareOnly()
+    public async Task SpaceSeparatedBooleanWord_BindsLiteral()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["tok", "--verbose", "off"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'off'", error);
-        Assert.Contains("Use bare '--verbose'", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]

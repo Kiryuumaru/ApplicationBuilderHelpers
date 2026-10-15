@@ -88,14 +88,13 @@ public sealed class ParserTypeTests
     [InlineData("Yes")]
     [InlineData("on")]
     [InlineData("1")]
-    public async Task Boolean_TrueSynonyms_RejectBareOnly(string input)
+    public async Task Boolean_TrueSynonyms_BindTrue(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", $"--flag={input}"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--flag' does not accept a value", error);
-        Assert.Contains($"'{input}'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Flag: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Theory]
@@ -104,14 +103,13 @@ public sealed class ParserTypeTests
     [InlineData("No")]
     [InlineData("off")]
     [InlineData("0")]
-    public async Task Boolean_FalseSynonyms_RejectBareOnly(string input)
+    public async Task Boolean_FalseSynonyms_BindFalse(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["numprobe", $"--flag={input}"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--flag' does not accept a value", error);
-        Assert.Contains($"'{input}'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Flag: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -134,7 +132,7 @@ public sealed class ParserTypeTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("does not accept a value", error);
+        Assert.Contains($"Invalid Boolean value '{input}' for option '--flag'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
     }
 
     [Fact]

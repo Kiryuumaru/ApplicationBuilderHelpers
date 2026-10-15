@@ -257,7 +257,7 @@ public class HelpVersionPrecedenceTests : CliTestBase
         var result = await Runner.RunAsync("config", "--quiet=banana", "--version");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Option '--quiet' does not accept a value 'banana'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'banana' for option '--quiet'");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
     }
 
@@ -267,7 +267,7 @@ public class HelpVersionPrecedenceTests : CliTestBase
         var result = await Runner.RunAsync("config", "--version", "--quiet=banana");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Option '--quiet' does not accept a value 'banana'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'banana' for option '--quiet'");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
     }
 }

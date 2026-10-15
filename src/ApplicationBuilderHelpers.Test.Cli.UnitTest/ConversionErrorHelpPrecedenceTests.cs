@@ -416,7 +416,7 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", "--verbose=maybe", "--", "--version");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Option '--verbose' does not accept a value 'maybe'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'maybe' for option '--verbose'");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
     }
 
@@ -426,7 +426,7 @@ public class ConversionErrorHelpPrecedenceTests : CliTestBase
         var result = await Runner.RunAsync("test", "target", "--verbose=maybe");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Option '--verbose' does not accept a value 'maybe'");
+        CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'maybe' for option '--verbose'");
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
     }
 

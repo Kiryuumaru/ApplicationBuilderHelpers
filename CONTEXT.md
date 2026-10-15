@@ -19,10 +19,11 @@ Use `@ref:OtherKey` when one setting should copy another. See [Configuration](do
 
 See [Commands](docs/commands.md).
 
-- **Supplied**: You typed the option, even as `""`. A non-blank env fallback also counts for valued options; flags are bare-only and never consult env.
+- **Supplied**: You typed the option, even as `""`. A non-blank env fallback also counts for valued options; flags never consult env.
 - **Missing**: You typed nothing and no usable fallback exists for a valued option. Required inputs then fail with exit `2`. Flags never consult env, so an omitted required flag is always missing.
 - **Blank env**: An empty or whitespace-only env fallback counts as unset, never as supplied.
 - **Empty string**: Typing `""` counts as supplied, so it satisfies `Required`. Only an omitted value fails `Required`. It binds as `""` for text. Named `bool` flags reject it. Other types follow their own parser. Need non-empty text? Guard it yourself with `string.IsNullOrEmpty`.
+- **Boolean flag value**: A `bool`/`bool?` option binds bare (`--verbose` is `true`, `--no-verbose` is `false`), in-token (`--verbose=off`), or beside a valid boolean literal (`--verbose off`). Literals match `true`/`false`/`yes`/`no`/`on`/`off`/`1`/`0` case-insensitively. An invalid or empty `=`-literal fails (exit `2`). A non-literal next word stays positional. Negation stays bare-only.
 - **Omitted**: You supplied nothing, so an optional input keeps its starting value in code.
 - **Trailing bare repeat**: A value-taking option typed with no usable next word (for example `--tag` after `--tag=a`). Required inputs fail. Optional inputs keep the earlier value, or fail when no earlier value exists.
 - **Help**: `--help`, `-h`, `-?`, or `/?` before `--` usually shows help with exit `0`. Bad values still fail with exit `2`. On a concrete root (own run plus children) only a hit behind leading help forwards to target help: any miss reports `No command found` first. On a named grouping parent a near miss behind its help token reports `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. On Unix shells quote the `?` aliases (`'-?'`, `'/?'`) so the shell does not glob them.

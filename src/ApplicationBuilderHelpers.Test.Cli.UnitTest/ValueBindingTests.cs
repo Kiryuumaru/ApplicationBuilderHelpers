@@ -324,14 +324,13 @@ public sealed class ValueBindingTests
     [InlineData("yes")]
     [InlineData("on")]
     [InlineData("1")]
-    public async Task Scalar_Boolean_TrueSynonyms_RejectBareOnly(string input)
+    public async Task Scalar_Boolean_TrueSynonyms_BindTrue(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", $"--verbose={input}"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value", error);
-        Assert.Contains($"'{input}'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Theory]
@@ -339,14 +338,13 @@ public sealed class ValueBindingTests
     [InlineData("No")]
     [InlineData("off")]
     [InlineData("0")]
-    public async Task Scalar_Boolean_FalseSynonyms_RejectBareOnly(string input)
+    public async Task Scalar_Boolean_FalseSynonyms_BindFalse(string input)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", $"--verbose={input}"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value", error);
-        Assert.Contains($"'{input}'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -366,7 +364,7 @@ public sealed class ValueBindingTests
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'maybe'", error);
+        Assert.Contains("Invalid Boolean value 'maybe' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
     }
 
     [Fact]
@@ -835,13 +833,13 @@ public sealed class ValueBindingTests
     }
 
     [Fact]
-    public async Task Scalar_Boolean_EmptyValue_Rejected()
+    public async Task Scalar_Boolean_EmptyValue_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bindprobe", "--verbose="]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value. Use bare '--verbose'", error);
+        Assert.Contains("Invalid Boolean value '' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
     }
 
     [Fact]

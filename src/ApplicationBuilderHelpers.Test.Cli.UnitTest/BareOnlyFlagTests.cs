@@ -5,14 +5,14 @@ using Microsoft.Extensions.Hosting;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Bare-only flag tests for the CLI parser.
-/// Pins the frozen contract through the public
+/// Flag value-form tests for the CLI parser.
+/// Pins the restored contract through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
-/// every <c>=</c>-form on a flag fails (exit 2) with the bare-only text,
-/// a bare flag followed by a boolean-looking word fails at the option,
-/// a non-boolean neighbor stays positional, negation and secret redaction
-/// keep their branches, nullable flags agree, and post-separator tokens
-/// stay positional.
+/// a flag binds every valid boolean literal in <c>=</c>-form and in
+/// space-form, an invalid <c>=</c>-literal (including empty) fails (exit 2)
+/// with the invalid-boolean text, a bare flag followed by a non-boolean word
+/// keeps the word positional, negation and secret redaction keep their
+/// branches, nullable flags agree, and post-separator tokens stay positional.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -55,84 +55,74 @@ public sealed class BareOnlyFlagTests
     }
 
     [Fact]
-    public async Task EqualsTrueForm_Rejects()
+    public async Task EqualsTrueForm_BindsTrue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "--verbose=true"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
-        Assert.Contains("--no-verbose", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task EqualsFalseForm_Rejects()
+    public async Task EqualsFalseForm_BindsFalse()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "--verbose=false"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'false'. Use bare '--verbose'", error);
-        Assert.Contains("--no-verbose", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task EqualsOffForm_Rejects()
+    public async Task EqualsOffForm_BindsFalse()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "--verbose=off"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'off'. Use bare '--verbose'", error);
-        Assert.Contains("--no-verbose", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task EqualsEmptyForm_Rejects()
+    public async Task EqualsEmptyForm_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "--verbose="]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value. Use bare '--verbose'", error);
-        Assert.Contains("--no-verbose", error);
+        Assert.Contains("Invalid Boolean value '' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]
-    public async Task ShortEqualsForm_Rejects()
+    public async Task ShortEqualsForm_BindsTrue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "-v=true"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task SpaceSeparatedFalseWord_Rejects()
+    public async Task SpaceSeparatedFalseWord_BindsFalse()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "--verbose", "false"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'false'. Use bare '--verbose'", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task SpaceSeparatedOne_Rejects()
+    public async Task SpaceSeparatedOneWord_BindsTrue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "--verbose", "1"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value '1'. Use bare '--verbose'", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -158,26 +148,25 @@ public sealed class BareOnlyFlagTests
     }
 
     [Fact]
-    public async Task SecretEqualsForm_Redacted()
+    public async Task SecretEqualsForm_ReportsInvalidBooleanRedacted()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["bareprobe", "--secure=s3cr3t-leak"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
+        Assert.Contains("Invalid Boolean value provided for option '--secure'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("s3cr3t-leak", error);
         Assert.DoesNotContain("Unknown option", error);
     }
 
     [Fact]
-    public async Task NullableEqualsForm_Rejects()
+    public async Task NullableEqualsForm_BindsTrue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["barenull", "--verbose=true"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
