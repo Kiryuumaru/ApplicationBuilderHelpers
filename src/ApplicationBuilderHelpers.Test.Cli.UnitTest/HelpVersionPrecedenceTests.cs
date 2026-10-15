@@ -3,11 +3,12 @@ using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Tests for help/version flag precedence: a bare valued option never consumes
-/// a flag-looking neighbor, so the neighbor binds or
+/// Tests for help/version flag precedence: a bare optional valued option never
+/// consumes a flag-looking neighbor, so the neighbor binds or
 /// errors on its own merits while the valued option falls back to the
-/// trailing-bare missing sentinel (env fallback or MissingRequired), and help
-/// never masks path errors.
+/// trailing-bare missing sentinel (env fallback or MissingRequired); a bare
+/// required valued option consumes the neighbor as its value instead, and
+/// help never masks path errors.
 /// </summary>
 public class HelpVersionPrecedenceTests : CliTestBase
 {
@@ -40,12 +41,14 @@ public class HelpVersionPrecedenceTests : CliTestBase
     }
 
     [Fact]
-    public async Task Required_Valued_Option_With_Flag_Neighbor_Reports_Missing()
+    public async Task Required_Valued_Option_Consumes_Flag_Neighbor_As_Value()
     {
         var result = await Runner.RunAsync("required-test", "mytarget", "--name", "--force", "--email", "e@x.com");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Missing required option: -n, --name");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "Name: --force");
+        CliTestAssertions.AssertOutputContains(result, "Force: False");
+        CliTestAssertions.AssertNoError(result);
     }
 
     [Fact]

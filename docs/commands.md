@@ -130,7 +130,8 @@ Values compare after converting the typed text to your property type. So `02` ma
 - `--verbose=<literal>` binds the literal. Literals match case-insensitively: `true`/`false`/`yes`/`no`/`on`/`off`/`1`/`0`. An invalid literal fails as `InvalidValue` (exit `2`). Empty `--verbose=` fails the same way.
 - `--verbose <literal>` binds only a valid boolean literal. A non-literal next word stays positional: `--verbose Alice` binds `true` and leaves `Alice` positional.
 - `-v=true` and `-v true` bind like the long forms. Attached `-vtrue` never binds as a boolean; it follows the cluster path.
-- An option typed with no value never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted valued options only. Flags never consult env.
+- An optional valued option never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted valued options only. Flags are bare-only and never consult env.
+- A required valued option takes the next word as its value even when it looks like a flag (`--name --force` binds `--force`). It never takes the `--` separator: `--name --` still fails as missing (exit `2`).
 - `--no-<name>` works only on `bool` flags and means `false`. Negation stays bare-only. `--no-<name>=<anything>` fails (exit `2`). `--no-<name>` followed by a boolean word fails the same way.
 - Words after the first bare `--` are always positional. `--` itself is swallowed.
 - Negative numbers (`-5`) count as positional. Reach a digit short with `-1=value` or after `--`.
@@ -338,7 +339,7 @@ The library answers shell TAB probes before help and parsing. A command named `c
 
 Host lifetime messages never reach stdout. They write to stderr or stay silent.
 
-Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option fails as missing even with env set. Env rescues only omitted valued options; flags never consult env. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a miss behind leading help tokens reports `No command found` before forwarding and only hits forward to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
+Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option left with no value fails as missing even with env set. Env rescues only omitted valued options; flags never consult env. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a miss behind leading help tokens reports `No command found` before forwarding and only hits forward to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
 
 Bad shell names and install errors exit `2` on stderr. File errors exit `1` on stderr. Bare `completions` falls through to normal parsing.
 

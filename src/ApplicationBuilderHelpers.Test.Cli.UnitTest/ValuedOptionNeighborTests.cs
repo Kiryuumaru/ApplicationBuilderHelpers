@@ -3,11 +3,12 @@ using ApplicationBuilderHelpers.Test.Cli.UnitTest.TestFramework;
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
-/// Tests for bare valued-option neighbor handling (reject-by-default): a bare
-/// valued option never consumes a flag-looking neighbor. The neighbor binds or
-/// errors on its own merits while the valued option falls back to the
-/// trailing-bare missing sentinel (environment fallback or MissingRequired).
-/// In-token forms (=-form, compact) and numeric neighbors still bind as values.
+/// Tests for valued-option neighbor handling: a REQUIRED valued option
+/// consumes its next token unconditionally — even a flag-looking neighbor —
+/// while an OPTIONAL valued option keeps the fail-closed guard and reports
+/// a missing value instead of consuming the neighbor. The <c>--</c>
+/// separator is never consumed as a value; in-token forms (=-form, compact)
+/// and numeric neighbors still bind as values.
 /// </summary>
 public class ValuedOptionNeighborTests : CliTestBase
 {
@@ -22,22 +23,64 @@ public class ValuedOptionNeighborTests : CliTestBase
     }
 
     [Fact]
-    public async Task Valued_Option_With_Unknown_Neighbor_Errors_On_Neighbor()
+    public async Task Required_Valued_Option_Consumes_Unknown_Neighbor_As_Value()
     {
-        var result = await Runner.RunAsync("test", "target", "--filter", "--force");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "Unknown option");
-        CliTestAssertions.AssertOutputDoesNotContain(result, "filter=\"--force\"");
+        var result = await Runner.RunAsync("required-test", "mytarget", "--email", "j@x.com", "--name", "--nope");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "Name: --nope");
+        CliTestAssertions.AssertOutputContains(result, "Force: False");
+        CliTestAssertions.AssertNoError(result);
     }
 
     [Fact]
-    public async Task Required_Valued_Option_With_Flag_Neighbor_Reports_Missing()
+    public async Task Required_Valued_Option_Consumes_Flag_Neighbor_As_Value()
     {
         var result = await Runner.RunAsync("required-test", "mytarget", "--email", "j@x.com", "--name", "--force");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "Name: --force");
+        CliTestAssertions.AssertOutputContains(result, "Force: False");
+        CliTestAssertions.AssertNoError(result);
+    }
+
+    [Fact]
+    public async Task Optional_Valued_Option_With_Flag_Neighbor_Still_Reports_Missing_Value()
+    {
+        var result = await Runner.RunAsync("test", "target", "--config", "--parallel");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing value for option: -c, --config");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "config=\"--parallel\"");
+    }
+
+    [Fact]
+    public async Task Required_Valued_Option_At_End_Still_Reports_Missing()
+    {
+        var result = await Runner.RunAsync("required-test", "mytarget", "--email", "j@x.com", "--name");
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
         CliTestAssertions.AssertErrorContains(result, "Missing required option: -n, --name");
+    }
+
+    [Fact]
+    public async Task Required_Valued_Option_Does_Not_Consume_Separator()
+    {
+        var result = await Runner.RunAsync("required-test", "mytarget", "--email", "j@x.com", "--name", "--");
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "Missing required option: -n, --name");
+    }
+
+    [Fact]
+    public async Task Required_Valued_Option_Equals_Form_Binds_Flag_Looking_Value()
+    {
+        var result = await Runner.RunAsync("required-test", "mytarget", "--email", "j@x.com", "--name=--force");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "Name: --force");
+        CliTestAssertions.AssertOutputContains(result, "Force: False");
+        CliTestAssertions.AssertNoError(result);
     }
 
     [Fact]

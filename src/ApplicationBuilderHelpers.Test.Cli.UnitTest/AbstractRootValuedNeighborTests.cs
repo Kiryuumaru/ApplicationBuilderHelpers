@@ -8,9 +8,11 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Tests for starved valued options on the abstract-root path: a CLI
 /// that registers only leaf subcommands has no root implementation, so
 /// pre-separator tokens stay on the abstract branch of <c>ArgumentParser</c>.
-/// A root-visible (globally promoted) required valued option left bare — with
-/// a flag-looking neighbor or trailing — reports <c>MissingRequired</c>
-/// (exit 2) naming the option, never <c>RequiresSubcommand</c>; an optional
+/// A root-visible (globally promoted) required valued option left bare with
+/// the <c>--</c> separator or trailing reports <c>MissingRequired</c>
+/// (exit 2) naming the option, never <c>RequiresSubcommand</c>; a bare
+/// required valued option with any other neighbor consumes that neighbor as
+/// its value and falls through to <c>RequiresSubcommand</c>; an optional
 /// valued option left bare the same way reports <c>Missing value for
 /// option</c> (exit 2), even with its environment variable set; in-token
 /// <c>=</c>-forms, numeric neighbors,
@@ -49,9 +51,51 @@ public sealed class AbstractRootValuedNeighborTests
     }
 
     [Fact]
-    public async Task RequiredValued_WithFlagNeighbor_ReportsMissing()
+    public async Task RequiredValued_FlagNeighbor_Consumed_RequiresSubcommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--config", "--verbose"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+        Assert.DoesNotContain("Missing required option", error);
+        Assert.DoesNotContain("Unknown option", error);
+        Assert.Contains("Run 'valued-neighbor-abstract-test --help' to see available commands and options.", error);
+    }
+
+    [Fact]
+    public async Task RequiredValued_ConsumesFlagNeighbor_FallsThroughToRequiresSubcommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--config", "--verbose"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+        Assert.DoesNotContain("Missing required option", error);
+        Assert.DoesNotContain("Unknown option", error);
+        Assert.Contains("Run 'valued-neighbor-abstract-test --help' to see available commands and options.", error);
+    }
+
+    [Fact]
+    public async Task RequiredValued_ConsumesUnknownNeighbor_FallsThroughToRequiresSubcommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--config", "--bogus"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+        Assert.DoesNotContain("Missing required option", error);
+        Assert.DoesNotContain("Unknown option", error);
+        Assert.Contains("Run 'valued-neighbor-abstract-test --help' to see available commands and options.", error);
+    }
+
+    [Fact]
+    public async Task RequiredValued_WithSeparatorNeighbor_ReportsMissing()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--config", "--"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
@@ -96,16 +140,17 @@ public sealed class AbstractRootValuedNeighborTests
     }
 
     [Fact]
-    public async Task UnknownNeighbor_ErrorsOnNeighbor()
+    public async Task RequiredValued_UnknownNeighbor_ConsumedAsValue_RequiresSubcommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--config", "--bogus"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Unknown option: --bogus", error);
-        Assert.DoesNotContain("requires a subcommand", error);
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
         Assert.DoesNotContain("Missing required option", error);
-        Assert.Contains("Run 'valued-neighbor-abstract-test --help' for more information on available commands and options.", error);
+        Assert.DoesNotContain("Unknown option", error);
+        Assert.Contains("Run 'valued-neighbor-abstract-test --help' to see available commands and options.", error);
     }
 
     [Fact]
