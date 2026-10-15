@@ -251,8 +251,9 @@ internal class SubCommandOptionInfo
         {
             var literal = argument[$"--{LongName}=".Length..];
             if (IsFlag)
-                throw new CommandException(SecretRedaction.NoValueAcceptedMessage($"--{LongName}", literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
-            ThrowOnEmptyEqualsLiteral(literal);
+                ValidateFlagLiteral(literal);
+            else
+                ThrowOnEmptyEqualsLiteral(literal);
             return literal;
         }
 
@@ -260,11 +261,9 @@ internal class SubCommandOptionInfo
         {
             var literal = argument[$"-{ShortName}=".Length..];
             if (IsFlag)
-            {
-                var display = LongName != null ? $"--{LongName}" : $"-{ShortName}";
-                throw new CommandException(SecretRedaction.NoValueAcceptedMessage(display, literal, IsSecret, isFlag: true, positiveLongName: LongName, isNegated: false), 2, CommandErrorKind.InvalidValue);
-            }
-            ThrowOnEmptyEqualsLiteral(literal);
+                ValidateFlagLiteral(literal);
+            else
+                ThrowOnEmptyEqualsLiteral(literal);
             return literal;
         }
 
@@ -322,6 +321,13 @@ internal class SubCommandOptionInfo
         effectiveType = Nullable.GetUnderlyingType(effectiveType) ?? effectiveType;
         string? reason = effectiveType.IsEnum ? ParserErrorHints.EnumAllowedValues(effectiveType) : ParserErrorHints.HintFor(effectiveType);
         throw ConversionErrors.InvalidValue(literal, $"option '--{LongName ?? ShortName?.ToString()}'", reason, IsSecret, effectiveType.Name);
+    }
+
+    private void ValidateFlagLiteral(string literal)
+    {
+        // Secret literal never echoes; exit 2 InvalidValue.
+        if (!IsBooleanValue(literal))
+            throw new CommandException(SecretRedaction.InvalidFlagLiteralMessage(literal, $"--{LongName ?? ShortName?.ToString()}", IsSecret), 2, CommandErrorKind.InvalidValue);
     }
 
     public override string ToString()

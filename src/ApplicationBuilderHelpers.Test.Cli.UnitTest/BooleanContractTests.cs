@@ -9,11 +9,11 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// Pins the agreed boolean surface through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point:
 /// positional booleans bind the 8 spellings (case-insensitive) and reject
-/// anything else with the 8-spelling text; bool flags are bare-only so bare
-/// <c>--verbose</c> binds true and bare <c>--no-verbose</c> binds false while
-/// every <c>=</c>-form and boolean-word space form fails (exit 2) without
-/// binding or leaking; the short flag agrees; and <c>--no-</c> negation only
-/// ever applies to bool flags.
+/// anything else with the 8-spelling text; bool flags bind bare forms and
+/// valid value forms (<c>=</c>-form always, space-form for boolean words)
+/// while invalid <c>=</c>-literals fail (exit 2) with the invalid-boolean
+/// text; the short flag agrees; and <c>--no-</c> negation only ever applies
+/// to bool flags.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -128,12 +128,32 @@ public sealed class BooleanContractTests
     }
 
     [Theory]
-    [InlineData("--verbose=true", "Option '--verbose' does not accept a value 'true'. Use bare '--verbose'")]
-    [InlineData("--verbose=off", "Option '--verbose' does not accept a value 'off'. Use bare '--verbose'")]
-    [InlineData("--verbose=maybe", "Option '--verbose' does not accept a value 'maybe'. Use bare '--verbose'")]
+    [InlineData("--verbose=true", true)]
+    [InlineData("--verbose=off", false)]
+    public async Task Flag_EqualsForm_BindsLiteral(string token, bool expected)
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["contractflag", token]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"Verbose: {expected}", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Flag_EqualsInvalidLiteral_ReportsInvalidBoolean()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["contractflag", "--verbose=maybe"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid Boolean value 'maybe' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
+        Assert.DoesNotContain("Unknown option", error);
+    }
+
+    [Theory]
     [InlineData("--no-verbose=x", "Option '--no-verbose' does not accept a value 'x'. Use bare '--no-verbose' to set the flag to 'false'.")]
     [InlineData("--no-verbose=true", "Option '--no-verbose' does not accept a value 'true'. Use bare '--no-verbose' to set the flag to 'false'.")]
-    public async Task Flag_EqualsForm_Rejects(string token, string expected)
+    public async Task Flag_NegatedEqualsForm_Rejects(string token, string expected)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["contractflag", token]);
 
@@ -144,17 +164,15 @@ public sealed class BooleanContractTests
     }
 
     [Theory]
-    [InlineData("off")]
-    [InlineData("true")]
-    public async Task Flag_SpaceWord_Rejects(string word)
+    [InlineData("off", false)]
+    [InlineData("true", true)]
+    public async Task Flag_SpaceWord_BindsLiteral(string word, bool expected)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["contractflag", "--verbose", word]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.DoesNotContain("Verbose:", output);
-        Assert.Contains($"Option '--verbose' does not accept a value '{word}'. Use bare '--verbose'", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"Verbose: {expected}", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -179,29 +197,25 @@ public sealed class BooleanContractTests
     }
 
     [Theory]
-    [InlineData("-v=true")]
-    [InlineData("-v=off")]
-    public async Task Short_EqualsForm_Rejects(string token)
+    [InlineData("-v=true", true)]
+    [InlineData("-v=off", false)]
+    public async Task Short_EqualsForm_BindsLiteral(string token, bool expected)
     {
         var (exitCode, output, error) = await RunCapturedAsync(["contractflag", token]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.DoesNotContain("Verbose:", output);
-        Assert.Contains("Option '--verbose' does not accept a value", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"Verbose: {expected}", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task Short_SpaceWord_Rejects()
+    public async Task Short_SpaceWord_BindsLiteral()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["contractflag", "-v", "off"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.DoesNotContain("Verbose:", output);
-        Assert.Contains("Option '--verbose' does not accept a value 'off'. Use bare '--verbose'", error);
-        Assert.DoesNotContain("Unknown option", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]

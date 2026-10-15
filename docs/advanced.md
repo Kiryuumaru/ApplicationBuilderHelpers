@@ -215,12 +215,12 @@ Value placeholders (`<STRING>`, `<NUMBER>`, `<DATE>`, `<FILE>`, `<DIR>`, `<VALUE
 
 ## Global Options
 
-Declare an option identically on every command and it becomes one shared global: one value in every scope. A repeated scalar takes the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2, `Duplicate option: <display-name>`). Collections stay exempt and accumulate. Flags stay exempt. Values from the environment stay exempt. Flags are bare-only and never consult the environment-variable fallback; env covers omitted valued options only. Option names always match exactly (`Ordinal`). `CaseSensitive` affects `FromAmong` values only; it never affects names. Type a prefix or shorthand and the parser reports `Unknown option` (exit `2`).
+Declare an option identically on every command and it becomes one shared global: one value in every scope. A repeated scalar takes the last value. Turn on strict mode with `SetRejectDuplicateOptions(true)` and a repeated scalar valued option fails as `DuplicateOption` (exit 2, `Duplicate option: <display-name>`). Collections stay exempt and accumulate. Flags stay exempt. Values from the environment stay exempt. Flags never consult the environment-variable fallback; env covers omitted valued options only. Option names always match exactly (`Ordinal`). `CaseSensitive` affects `FromAmong` values only; it never affects names. Type a prefix or shorthand and the parser reports `Unknown option` (exit `2`).
 
 ## Tokenizer Behavior
 
 The full typing rules live in [Commands](commands.md#how-typing-works). Short version:
 
-- Bare flags never eat the next word. A flag with `=` never works (exit `2`).
-- A bare valued option never steals a flag-looking word. A trailing bare repeat of a valued scalar fails as missing (exit `2`), even with env set or a prior value. Env covers omitted valued options only. Flags are bare-only and never consult env.
+- Bare `--verbose` means `true`; bare `--no-verbose` means `false`. `--verbose=<literal>` binds `true`/`false`/`yes`/`no`/`on`/`off`/`1`/`0` case-insensitively; an invalid or empty literal fails as `InvalidValue` (exit `2`). `--verbose <literal>` binds only a valid boolean literal; a non-literal next word stays positional. Negation stays bare-only: `--no-<name>=<anything>` and a boolean word after `--no-<name>` both fail (exit `2`).
+- A bare valued option never steals a flag-looking word. A trailing bare repeat of a valued scalar fails as missing (exit `2`), even with env set or a prior value. Env covers omitted valued options only. Flags never consult env.
 - One splitter parses response files and completion prefixes. It strips `"` and `'` quotes. Any whitespace splits, including newlines. Files have no comments. Response-file rules and limits live in [Commands](commands.md#response-files-file).

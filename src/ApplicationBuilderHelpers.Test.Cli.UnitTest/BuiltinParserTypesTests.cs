@@ -48,12 +48,11 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("On")]
     [InlineData("ON")]
     [InlineData("1")]
-    public async Task Boolean_Parser_True_Values(string trueValue)
+    public async Task Boolean_Parser_True_Values_BindTrue(string trueValue)
     {
         var result = await Runner.RunAsync("test", "target", $"--diag={trueValue}", "-v");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: True");
     }
 
     [Theory]
@@ -67,12 +66,11 @@ public class BuiltinParserTypesTests : CliTestBase
     [InlineData("Off")]
     [InlineData("OFF")]
     [InlineData("0")]
-    public async Task Boolean_Parser_False_Values(string falseValue)
+    public async Task Boolean_Parser_False_Values_BindFalse(string falseValue)
     {
         var result = await Runner.RunAsync("test", "target", $"--diag={falseValue}", "-v");
-        CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertExitCode(result, 2);
-        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertOutputContains(result, "Diagnostic Mode: False");
     }
 
     [Fact]
@@ -93,7 +91,9 @@ public class BuiltinParserTypesTests : CliTestBase
     {
         var result = await Runner.RunAsync("test", "target", $"--diag={invalidValue}");
         CliTestAssertions.AssertFailure(result);
-        CliTestAssertions.AssertErrorContains(result, "does not accept a value");
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, $"Invalid Boolean value '{invalidValue}' for option '--diag'");
+        CliTestAssertions.AssertErrorContains(result, "Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'");
     }
 
     #endregion
@@ -267,7 +267,7 @@ public class BuiltinParserTypesTests : CliTestBase
     [Theory]
     [InlineData("--timeout=invalid", "Invalid Int32 value")]
     [InlineData("--coverage-threshold=invalid", "Invalid Double value")]
-    [InlineData("--diag=invalid", "does not accept a value")]
+    [InlineData("--diag=invalid", "Invalid Boolean value 'invalid' for option '--diag'")]
     public async Task Type_Parser_Error_Messages_Are_Consistent(string args, string expectedError)
     {
         var result = await Runner.RunAsync("test", "target", args);

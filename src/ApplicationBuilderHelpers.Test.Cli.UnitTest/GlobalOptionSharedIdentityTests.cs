@@ -271,15 +271,15 @@ public sealed class GlobalOptionSharedIdentityTests
     }
 
     [Fact]
-    public async Task ValuedFlagRepeat_ReportsBareOnly()
+    public async Task ValuedFlagRepeat_LastValueWins()
     {
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder().AddCommand<ValuedFlagLastWinsCommand>(),
             ["valuedflag", "--verbose=true", "--verbose=false"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]

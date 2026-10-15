@@ -100,7 +100,7 @@ Two options in one command must not share a short flag. If a shared base class d
 
 ### Env Var Fallback
 
-When you set `EnvironmentVariable` and the user omits a valued option, the env value fills the option. A typed valued option always beats env. Flags are bare-only and never consult env. Empty or whitespace-only env counts as unset. Env rescues omitted valued options only.
+When you set `EnvironmentVariable` and the user omits a valued option, the env value fills the option. A typed valued option always beats env. Flags never consult env. Empty or whitespace-only env counts as unset. Env rescues omitted valued options only.
 
 ### Required Means Present, Not Non-Empty
 
@@ -126,11 +126,12 @@ Values compare after converting the typed text to your property type. So `02` ma
 
 ### How Typing Works
 
-- Bare flags never eat the next word. `--verbose` means `true`. `--no-verbose` means `false`.
-- A boolean word after a bare flag fails (exit `2`). `--verbose off` never binds.
-- An option typed with no value never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted valued options only. Flags are bare-only and never consult env.
-- A flag with `=` never works (exit `2`). Use bare `--verbose` or `--no-verbose`.
-- `--no-<name>` works only on `bool` flags and means `false`. `--no-<name>=value` never works.
+- Bare `--verbose` means `true`. Bare `--no-verbose` means `false`.
+- `--verbose=<literal>` binds the literal. Literals match case-insensitively: `true`/`false`/`yes`/`no`/`on`/`off`/`1`/`0`. An invalid literal fails as `InvalidValue` (exit `2`). Empty `--verbose=` fails the same way.
+- `--verbose <literal>` binds only a valid boolean literal. A non-literal next word stays positional: `--verbose Alice` binds `true` and leaves `Alice` positional.
+- `-v=true` and `-v true` bind like the long forms. Attached `-vtrue` never binds as a boolean; it follows the cluster path.
+- An option typed with no value never steals a flag-looking word. It fails as missing (exit `2`). A trailing bare repeat of a valued scalar fails the same way, even with env set or a prior value. Env covers omitted valued options only. Flags never consult env.
+- `--no-<name>` works only on `bool` flags and means `false`. Negation stays bare-only. `--no-<name>=<anything>` fails (exit `2`). `--no-<name>` followed by a boolean word fails the same way.
 - Words after the first bare `--` are always positional. `--` itself is swallowed.
 - Negative numbers (`-5`) count as positional. Reach a digit short with `-1=value` or after `--`.
 - Grouped shorts (`-abc`) expand left to right. A valued short followed by exactly one known short fails as ambiguous (exit `2`); use `-n value`, `-n=value`, or place it last. Any other trailing characters glue as its value (`-nAlice` binds `n="Alice"`). `-h` and `-V` win mid-group. `-?` and `/?` never expand: `-?` is a bare help token and `-v?` reports `Unknown option: -?`. `-help` and `-version` never expand either (exact tokens only): each reports `Unknown option` with a did-you-mean pointer.

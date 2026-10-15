@@ -6,12 +6,12 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// In-process duplicate-option tests for the CLI parser.
-/// Default keeps last-wins for scalar repeats; strict mode via
+/// Default keeps last-wins for scalar repeats (flags included: valued flag
+/// repeats bind in order and the last occurrence wins); strict mode via
 /// <c>SetRejectDuplicateOptions(true)</c> rejects scalar repeats with
 /// <c>Duplicate option: &lt;display-name&gt;</c> (exit 2) while arrays,
-/// bare flags, and environment-supplied values stay exempt. Any
-/// <c>=</c>-form on a flag is rejected by the bare-only gate before
-/// duplicate handling runs.
+/// bare flags, and environment-supplied values stay exempt. Flag repeats
+/// stay exempt in both modes since flags never count as valued occurrences.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -115,13 +115,33 @@ public sealed class DuplicateOptionTests
     }
 
     [Fact]
-    public async Task FlagOption_RepeatedValue_ReportsBareOnly()
+    public async Task FlagOption_RepeatedValue_LastWins()
     {
         var (exitCode, output, error) = await RunCapturedAsync(["dupflag", "--verbose=true", "--verbose=false"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task FlagOption_RepeatedValue_ReversedOrder_LastWins()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["dupflag", "--verbose=false", "--verbose=true"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task FlagOption_MixedBareAndValuedRepeat_LastWins()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["dupflag", "--verbose=false", "--verbose"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -179,14 +199,14 @@ public sealed class DuplicateOptionTests
     }
 
     [Fact]
-    public async Task Strict_FlagOption_RepeatedValue_ReportsBareOnly()
+    public async Task Strict_FlagOption_RepeatedValue_StaysAllowed()
     {
         var builder = CreateBuilder().SetRejectDuplicateOptions(true);
         var (exitCode, output, error) = await RunCapturedAsync(builder, ["dupflag", "--verbose=true", "--verbose=false"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]

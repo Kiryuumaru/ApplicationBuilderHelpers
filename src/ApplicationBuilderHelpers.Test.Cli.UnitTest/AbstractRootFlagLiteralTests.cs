@@ -9,13 +9,12 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// abstract-root path: a CLI that registers only leaf
 /// subcommands has no root implementation, so pre-separator tokens stay on
 /// the abstract branch of <c>ArgumentParser</c>. A root-visible (globally
-/// promoted) flag rejects every <c>--verbose=literal</c> form as
-/// <c>InvalidValue</c> (exit 2) with the bare-only text, never as
-/// <c>RequiresSubcommand</c>; bare flags followed by a boolean-looking
-/// word also reject as <c>InvalidValue</c>, while non-boolean neighbors,
-/// valued options, leaf-only bases, and post-separator tokens keep their
-/// existing paths.
-/// Error kinds are pinned via their distinct help footers.
+/// promoted) flag binds every valid <c>--verbose=literal</c> form and falls
+/// through to <c>RequiresSubcommand</c> (exit 2), while invalid literals
+/// report <c>InvalidValue</c> (exit 2) with the invalid-boolean text; bare
+/// flags followed by a boolean word also fall through to
+/// <c>RequiresSubcommand</c>, while non-boolean neighbors, valued options,
+/// leaf-only bases, and post-separator tokens keep their existing paths.
 /// Error kinds are pinned via their distinct help footers.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
@@ -95,25 +94,25 @@ public sealed class AbstractRootFlagLiteralTests
     }
 
     [Fact]
-    public async Task InvalidLiteral_ReportsInvalidValue()
+    public async Task InvalidLiteral_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateSingleLeafBuilder, ["--verbose=banana"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'banana'. Use bare '--verbose'", error);
+        Assert.Contains("Invalid Boolean value 'banana' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("requires a subcommand", error);
         Assert.Contains("Run 'flag-literal-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task EmptyLiteral_ReportsInvalidValue()
+    public async Task EmptyLiteral_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateSingleLeafBuilder, ["--verbose="]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value. Use bare '--verbose'", error);
+        Assert.Contains("Invalid Boolean value '' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("requires a subcommand", error);
         Assert.Contains("Run 'flag-literal-abstract-test --help' for more information on available commands and options.", error);
     }
@@ -127,14 +126,16 @@ public sealed class AbstractRootFlagLiteralTests
     [InlineData("no")]
     [InlineData("1")]
     [InlineData("0")]
-    public async Task ValidLiteral_ReportsInvalidValue(string literal)
+    public async Task ValidLiteral_FallsThroughToRequiresSubcommand(string literal)
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateSingleLeafBuilder, [$"--verbose={literal}"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains($"Option '--verbose' does not accept a value '{literal}'. Use bare '--verbose'", error);
-        Assert.Contains("Run 'flag-literal-abstract-test --help' for more information on available commands and options.", error);
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+        Assert.DoesNotContain("Invalid Boolean value", error);
+        Assert.DoesNotContain("does not accept a value", error);
     }
 
     [Theory]
@@ -142,26 +143,26 @@ public sealed class AbstractRootFlagLiteralTests
     [InlineData("no")]
     [InlineData("Off")]
     [InlineData("false")]
-    public async Task SpaceSeparatedLiteral_ReportsInvalidValue(string literal)
+    public async Task SpaceSeparatedLiteral_BindsOnLeafCommand(string literal)
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateSingleLeafBuilder, ["greet", "--verbose", literal]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains($"Option '--verbose' does not accept a value '{literal}'. Use bare '--verbose'", error);
-        Assert.Contains("Run 'flag-literal-abstract-test greet --help' for more information on specific command options.", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: False", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
-    public async Task SpaceSeparatedLiteral_AbstractPath_ReportsInvalidValue()
+    public async Task SpaceSeparatedLiteral_AbstractPath_FallsThroughToRequiresSubcommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateSingleLeafBuilder, ["--verbose", "off"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'off'. Use bare '--verbose'", error);
-        Assert.DoesNotContain("requires a subcommand", error);
-        Assert.Contains("Run 'flag-literal-abstract-test --help' for more information on available commands and options.", error);
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+        Assert.DoesNotContain("does not accept a value", error);
+        Assert.DoesNotContain("Invalid Boolean value", error);
     }
 
     [Fact]
@@ -187,13 +188,13 @@ public sealed class AbstractRootFlagLiteralTests
     }
 
     [Fact]
-    public async Task NullableBool_EqualsForm_ReportsInvalidValue()
+    public async Task NullableBool_EqualsForm_BindsTrue()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateNullableBuilder, ["nullable", "--verbose=true"]);
 
-        Assert.Equal(2, exitCode);
-        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'true'. Use bare '--verbose'", error);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Verbose: True", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
     [Fact]
@@ -209,26 +210,26 @@ public sealed class AbstractRootFlagLiteralTests
     }
 
     [Fact]
-    public async Task SecretFlag_InvalidLiteral_ReportsBareOnlyRedacted()
+    public async Task SecretFlag_InvalidLiteral_ReportsInvalidBooleanRedacted()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateSingleLeafBuilder, ["--secure=s3cr3t-leak"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--secure' does not accept a value. Use bare '--secure'", error);
+        Assert.Contains("Invalid Boolean value provided for option '--secure'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("s3cr3t-leak", error);
         Assert.DoesNotContain("requires a subcommand", error);
         Assert.Contains("Run 'flag-literal-abstract-test --help' for more information on available commands and options.", error);
     }
 
     [Fact]
-    public async Task ShortForm_InvalidLiteral_ReportsBareOnly()
+    public async Task ShortForm_InvalidLiteral_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateSingleLeafBuilder, ["-v=banana"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'banana'. Use bare '--verbose'", error);
+        Assert.Contains("Invalid Boolean value 'banana' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("requires a subcommand", error);
         Assert.Contains("Run 'flag-literal-abstract-test --help' for more information on available commands and options.", error);
     }
@@ -323,15 +324,39 @@ public sealed class AbstractRootFlagLiteralTests
     }
 
     [Fact]
-    public async Task AbstractPrefix_InvalidLiteral_ReportsBareOnly()
+    public async Task AbstractPrefix_InvalidLiteral_ReportsInvalidBoolean()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateHubBuilder, ["hub", "--verbose=banana"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Option '--verbose' does not accept a value 'banana'. Use bare '--verbose'", error);
+        Assert.Contains("Invalid Boolean value 'banana' for option '--verbose'. Expected 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'", error);
         Assert.DoesNotContain("requires a subcommand", error);
         Assert.Contains("Run 'flag-literal-abstract-test hub --help' for more information on specific command options.", error);
+    }
+
+    [Fact]
+    public async Task AbstractPrefix_ValidLiteral_FallsThroughToRequiresSubcommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateHubBuilder, ["hub", "--verbose=true"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("'hub' requires a subcommand", error);
+        Assert.DoesNotContain("Invalid Boolean value", error);
+        Assert.DoesNotContain("does not accept a value", error);
+    }
+
+    [Fact]
+    public async Task AbstractPrefix_SpaceSeparatedLiteral_FallsThroughToRequiresSubcommand()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(CreateHubBuilder, ["hub", "--verbose", "true"]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("'hub' requires a subcommand", error);
+        Assert.DoesNotContain("Invalid Boolean value", error);
+        Assert.DoesNotContain("does not accept a value", error);
     }
 
     [Command("nullable", "Probes nullable flag equals handling.")]

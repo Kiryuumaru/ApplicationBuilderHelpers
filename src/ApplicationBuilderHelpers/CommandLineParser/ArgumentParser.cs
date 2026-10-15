@@ -37,7 +37,13 @@ internal sealed class ArgumentParser
                     break;
                 var rawNext = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
                 if (pathMatched.IsFlag && IsBareFlagToken(pathMatched, token) && rawNext != null && SubCommandOptionInfo.IsBooleanValue(rawNext))
-                    break;
+                {
+                    if (IsNegatedFlagToken(pathMatched, token))
+                        break;
+                    result.AddOptionValue(pathMatched, rawNext);
+                    argIndex += 2;
+                    continue;
+                }
                 var consumable = argIndex + 1 < args.Length && !IsFlagLookingToken(args[argIndex + 1]) ? args[argIndex + 1] : null;
                 if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable == null)
                     break;
@@ -105,7 +111,7 @@ internal sealed class ArgumentParser
             if (IsConcreteRootLeadingHelp(result.TargetCommand, args, argIndex) && ClassifyHelpTrailingMiss(result.TargetCommand, args, argIndex) is { } leadingHelpMiss)
                 throw leadingHelpMiss;
             // First misuse token wins; then =-form, unknown.
-            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: false, includeBareValuedGate: false);
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeBareValuedGate: false);
         }
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
@@ -136,7 +142,7 @@ internal sealed class ArgumentParser
         {
             // Unknown option or version-misuse plus --version is still an error, never a version request.
             // First misuse token wins; then =-form, unknown.
-            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: false, includeBareValuedGate: false);
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeBareValuedGate: false);
         }
 
         if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
@@ -159,8 +165,8 @@ internal sealed class ArgumentParser
 
         if (!result.TargetCommand.HasImplementation && result.TargetCommand.Children.Count > 0)
         {
-            // First misuse token wins; then =-form, space gate, unknown, bare-valued.
-            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeSpaceGate: true, includeBareValuedGate: true);
+            // First misuse token wins; then =-form, unknown, bare-valued.
+            ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeBareValuedGate: true);
             var availableSubcommands = string.Join(", ", result.TargetCommand.Children.Keys.OrderBy(k => k));
             var commandName = result.TargetCommand.IsRoot ? "" : result.TargetCommand.FullCommandName;
             var baseMessage = $"'{result.TargetCommand.DisplayName}' requires a subcommand. Available subcommands: {availableSubcommands}";
@@ -266,21 +272,23 @@ internal sealed class ArgumentParser
                 var nextArg = i + 1 < args.Length ? args[i + 1] : null;
                 var consumableNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
                 string? value;
+                string? occurrenceNext = consumableNext;
                 try
                 {
                     if (matchedOption.IsFlag && IsBareFlagToken(matchedOption, arg) && nextArg != null && SubCommandOptionInfo.IsBooleanValue(nextArg))
                     {
-                        var spaceNegated = matchedOption.SupportsNegation && matchedOption.NegatedLongName != null && arg == matchedOption.NegatedLongName;
-                        string spaceDisplay;
-                        if (spaceNegated)
-                            spaceDisplay = matchedOption.NegatedLongName!;
-                        else if (matchedOption.LongName != null)
-                            spaceDisplay = $"--{matchedOption.LongName}";
-                        else
-                            spaceDisplay = $"-{matchedOption.ShortName}";
-                        throw new CommandException(SecretRedaction.NoValueAcceptedMessage(spaceDisplay, nextArg, matchedOption.IsSecret, isFlag: true, positiveLongName: matchedOption.LongName, isNegated: spaceNegated), 2, CommandErrorKind.InvalidValue);
+                        if (IsNegatedFlagToken(matchedOption, arg))
+                        {
+                            var spaceNegatedDisplay = matchedOption.NegatedLongName!;
+                            throw new CommandException(SecretRedaction.NoValueAcceptedMessage(spaceNegatedDisplay, nextArg, matchedOption.IsSecret, isFlag: true, positiveLongName: matchedOption.LongName, isNegated: true), 2, CommandErrorKind.InvalidValue);
+                        }
+                        value = nextArg;
+                        occurrenceNext = nextArg;
                     }
-                    value = matchedOption.ExtractValue(arg, consumableNext);
+                    else
+                    {
+                        value = matchedOption.ExtractValue(arg, consumableNext);
+                    }
                 }
                 catch (CommandException ex) when (ex.CommandName is null && ex.Kind == CommandErrorKind.InvalidValue && helpWins)
                 {
@@ -304,10 +312,11 @@ internal sealed class ArgumentParser
 
                 var isInTokenValuedForm = arg.Contains('=')
                     || (matchedOption.ShortName.HasValue && !matchedOption.IsFlag && arg.StartsWith($"-{matchedOption.ShortName}", StringComparison.Ordinal) && arg.Length > 2);
-                if (!matchedOption.IsFlag && !isInTokenValuedForm && consumableNext != null)
+                var isFlagSpaceForm = matchedOption.IsFlag && IsBareFlagToken(matchedOption, arg) && !IsNegatedFlagToken(matchedOption, arg) && nextArg != null && SubCommandOptionInfo.IsBooleanValue(nextArg);
+                if ((!matchedOption.IsFlag && !isInTokenValuedForm && consumableNext != null) || isFlagSpaceForm)
                     i++;
 
-                AddParsedOptionValue(result, matchedOption, value, arg, consumableNext);
+                AddParsedOptionValue(result, matchedOption, value, arg, occurrenceNext);
             }
             else if (arg.StartsWith('-') && !IsNumericValue(arg))
             {
@@ -677,21 +686,19 @@ internal sealed class ArgumentParser
             : VersionMisuseError(token, target.FullCommandName);
     }
 
-    /// <summary>Runs the ordered pre-separator error scans: misuse, =-form, space gate, unknown, bare-valued.</summary>
-    private static void ThrowOnOrderedPreSentinelErrors(SubCommandInfo target, string[] args, int argIndex, bool includeSpaceGate, bool includeBareValuedGate)
+    /// <summary>Runs the ordered pre-separator error scans: misuse, =-form, unknown, bare-valued.</summary>
+    private static void ThrowOnOrderedPreSentinelErrors(SubCommandInfo target, string[] args, int argIndex, bool includeBareValuedGate)
     {
         var misuseToken = FindFirstPreSentinelMisuseToken(target, args, argIndex);
         if (misuseToken != null)
             ThrowOnReservedMisuseToken(target, misuseToken);
         ThrowOnFlagEqualsPreSentinelOption(target, args, argIndex);
-        if (includeSpaceGate)
-            ThrowOnFlagSpacePreSentinelOption(target, args, argIndex);
         ThrowOnUnknownPreSentinelOption(target, args, argIndex);
         if (includeBareValuedGate)
             ThrowOnBareValuedPreSentinelOption(target, args, argIndex);
     }
 
-    /// <summary>Rejects any =-form flag occurrence on an abstract path via the bare-only gate.</summary>
+    /// <summary>Rejects an invalid =-form flag literal on an abstract path; valid literals fall through to RequiresSubcommand.</summary>
     private static void ThrowOnFlagEqualsPreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
     {
         var allOptions = target.AllOptions;
@@ -719,40 +726,6 @@ internal sealed class ArgumentParser
                 // Flag ExtractValue throws nameless; stamp the command name so the footer scopes the hint.
                 throw new CommandException(ex.Message, ex.ExitCode, ex.Kind, target.FullCommandName);
             }
-        }
-    }
-
-    /// <summary>Rejects a bare flag followed by a boolean word on an abstract path via the bare-only gate.</summary>
-    private static void ThrowOnFlagSpacePreSentinelOption(SubCommandInfo target, string[] args, int argIndex)
-    {
-        var allOptions = target.AllOptions;
-        var end = PreSentinelEnd(args);
-        for (var i = argIndex; i < end; i++)
-        {
-            var token = args[i];
-            if (!token.StartsWith('-') || IsNumericValue(token) || token == "--")
-                continue;
-            if (HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
-                continue;
-            if (IsClusterToken(allOptions, token))
-                continue;
-            var matched = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
-            if (matched == null || !matched.IsFlag || !IsBareFlagToken(matched, token))
-                continue;
-            if (i + 1 >= end)
-                continue;
-            var next = args[i + 1];
-            if (!SubCommandOptionInfo.IsBooleanValue(next))
-                continue;
-            var spaceNegated = matched.SupportsNegation && matched.NegatedLongName != null && token == matched.NegatedLongName;
-            string spaceDisplay;
-            if (spaceNegated)
-                spaceDisplay = matched.NegatedLongName!;
-            else if (matched.LongName != null)
-                spaceDisplay = $"--{matched.LongName}";
-            else
-                spaceDisplay = $"-{matched.ShortName}";
-            throw new CommandException(SecretRedaction.NoValueAcceptedMessage(spaceDisplay, next, matched.IsSecret, isFlag: true, positiveLongName: matched.LongName, isNegated: spaceNegated), 2, CommandErrorKind.InvalidValue, target.FullCommandName);
         }
     }
 
@@ -975,6 +948,10 @@ internal sealed class ArgumentParser
             return true;
         return false;
     }
+
+    /// <summary>Whether the token is the negated bare form of the flag option.</summary>
+    private static bool IsNegatedFlagToken(SubCommandOptionInfo option, string token) =>
+        option.SupportsNegation && option.NegatedLongName != null && token == option.NegatedLongName;
 
     /// <summary>Whether the token is a splittable combined short cluster. Reserved-word gate lives at <see cref="SingleDashPolicy.IsReservedWord"/>.</summary>
     private static bool IsClusterToken(List<SubCommandOptionInfo> allOptions, string token)
