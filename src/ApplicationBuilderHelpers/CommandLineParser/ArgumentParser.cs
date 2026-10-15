@@ -44,7 +44,12 @@ internal sealed class ArgumentParser
                     argIndex += 2;
                     continue;
                 }
-                var consumable = argIndex + 1 < args.Length && !IsFlagLookingToken(args[argIndex + 1]) ? args[argIndex + 1] : null;
+                string? consumable;
+                var rawConsumable = argIndex + 1 < args.Length ? args[argIndex + 1] : null;
+                if (!pathMatched.IsFlag && pathMatched.IsRequired && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && rawConsumable != null && rawConsumable != "--" && !HelpVersionGateway.IsHelpToken(rawConsumable) && !HelpVersionGateway.IsVersionToken(rawConsumable))
+                    consumable = rawConsumable;
+                else
+                    consumable = rawConsumable != null && !IsFlagLookingToken(rawConsumable) ? rawConsumable : null;
                 if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable == null)
                     break;
                 if (FindValuedNotLastToken(result.TargetCommand.AllOptions, token).HasValue)
@@ -270,7 +275,11 @@ internal sealed class ArgumentParser
             if (matchedOption != null)
             {
                 var nextArg = i + 1 < args.Length ? args[i + 1] : null;
-                var consumableNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
+                string? consumableNext;
+                if (!matchedOption.IsFlag && matchedOption.IsRequired && DanglingValuedOptionPolicy.IsBareForm(matchedOption, arg) && nextArg != null && nextArg != "--")
+                    consumableNext = nextArg;
+                else
+                    consumableNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
                 string? value;
                 string? occurrenceNext = consumableNext;
                 try
@@ -509,7 +518,11 @@ internal sealed class ArgumentParser
             }
 
             var remainder = arg[(2 + k)..];
-            var consumableClusterNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
+            string? consumableClusterNext;
+            if (!member.IsFlag && member.IsRequired && remainder.Length == 0 && nextArg != null && nextArg != "--")
+                consumableClusterNext = nextArg;
+            else
+                consumableClusterNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
             string? value;
             string occurrenceArg;
             string? occurrenceNext;
@@ -762,6 +775,9 @@ internal sealed class ArgumentParser
                         }
                     }
                 }
+                var consumedBy = allOptions.FirstOrDefault(o => o.MatchesArgument(token));
+                if (consumedBy != null && !consumedBy.IsFlag && consumedBy.IsRequired && DanglingValuedOptionPolicy.IsBareForm(consumedBy, token) && i + 1 < end && args[i + 1] != "--")
+                    i++;
                 continue;
             }
             var valuedNotLast = FindValuedNotLastToken(allOptions, token);
@@ -880,7 +896,7 @@ internal sealed class ArgumentParser
                 continue;
             }
             var seenNext = i + 1 < end ? args[i + 1] : null;
-            if (seenNext != null && !IsFlagLookingToken(seenNext))
+            if (seenNext != null && seenNext != "--" && (seen.IsRequired || !IsFlagLookingToken(seenNext)))
                 satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(seen));
         }
         for (var i = argIndex; i < end; i++)
@@ -900,7 +916,7 @@ internal sealed class ArgumentParser
             if (!DanglingValuedOptionPolicy.IsBareForm(matched, token))
                 continue;
             var next = i + 1 < end ? args[i + 1] : null;
-            if (next != null && !IsFlagLookingToken(next))
+            if (next != null && next != "--" && (matched.IsRequired || !IsFlagLookingToken(next)))
                 continue;
             if (!matched.IsRequired && satisfiedKeys.Contains(ParseResult.GetCanonicalOptionKey(matched)))
                 continue;
@@ -931,7 +947,7 @@ internal sealed class ArgumentParser
             var remainder = token[(2 + k)..];
             if (remainder.Length > 0)
                 satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(member));
-            else if (next != null && !IsFlagLookingToken(next))
+            else if (next != null && next != "--" && (member.IsRequired || !IsFlagLookingToken(next)))
                 satisfiedKeys.Add(ParseResult.GetCanonicalOptionKey(member));
             return;
         }

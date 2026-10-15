@@ -14,7 +14,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <c>Missing value for option</c> (exit 2) — matching the single-bare and
 /// concrete-root paths, where the starved bare occurrence is deferred to the
 /// Missing-value scan. A required valued option
-/// repeated bare after a value still reports <c>MissingRequired</c>.
+/// repeated bare consumes its present non-<c>--</c> neighbor as its value
+/// (no prior-satisfaction exemption — that exemption is optional-only), so
+/// a satisfied-then-bare required repeat with a flag-looking neighbor falls
+/// through to <c>RequiresSubcommand</c>.
 /// Single bare occurrences, unknown-first, help precedence, and the
 /// environment-variable behavior keep their existing paths.
 /// Error kinds are pinned via their distinct help footers.
@@ -142,27 +145,31 @@ public sealed class AbstractRootSatisfiedRepeatTests
     }
 
     [Fact]
-    public async Task RequiredSatisfiedThenBare_StillReportsMissing()
+    public async Task RequiredSatisfiedThenBareWithFlagNeighbor_ConsumesNeighbor_RequiresSubcommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--config", "x", "--config", "--verbose"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Missing required option: --config", error);
-        Assert.DoesNotContain("requires a subcommand", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+        Assert.DoesNotContain("Missing required option", error);
+        Assert.DoesNotContain("Missing value for option", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
     }
 
     [Fact]
-    public async Task RequiredEqualsSatisfiedThenBare_StillReportsMissing()
+    public async Task RequiredEqualsSatisfiedThenBareWithFlagNeighbor_ConsumesNeighbor_RequiresSubcommand()
     {
         var (exitCode, output, error) = await RunCapturedAsync(CreateBuilder, ["--config=x", "--config", "--verbose"]);
 
         Assert.Equal(2, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
-        Assert.Contains("Missing required option: --config", error);
-        Assert.DoesNotContain("requires a subcommand", error);
-        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' for more information on available commands and options.", error);
+        Assert.Contains("'<root>' requires a subcommand", error);
+        Assert.Contains("Available subcommands: greet", error);
+        Assert.DoesNotContain("Missing required option", error);
+        Assert.DoesNotContain("Missing value for option", error);
+        Assert.Contains("Run 'satisfied-repeat-abstract-test --help' to see available commands and options.", error);
     }
 
     [Fact]
