@@ -26,9 +26,10 @@ internal class HelpFormatter(
     {
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? HelpWidths.Default;
+        var helpBorderWidth = _commandBuilder.HelpBorderWidth ?? HelpBorderWidths.Default;
 
         var model = _contentProvider.BuildGlobalModel();
-        LayoutRenderer.Render(model, theme, helpWidth);
+        LayoutRenderer.Render(model: model, theme: theme, helpWidth: helpWidth, helpBorderWidth: helpBorderWidth);
     }
 
     /// <summary>Renders help for the given command (root falls back to global).</summary>
@@ -36,10 +37,11 @@ internal class HelpFormatter(
     {
         var theme = _commandBuilder.Theme;
         var helpWidth = _commandBuilder.HelpWidth ?? HelpWidths.Default;
+        var helpBorderWidth = _commandBuilder.HelpBorderWidth ?? HelpBorderWidths.Default;
 
         var model = commandInfo.IsRoot
             ? _contentProvider.BuildGlobalModel()
             : _contentProvider.BuildCommandModel(commandInfo);
-        LayoutRenderer.Render(model, theme, helpWidth);
+        LayoutRenderer.Render(model: model, theme: theme, helpWidth: helpWidth, helpBorderWidth: helpBorderWidth);
     }
 }

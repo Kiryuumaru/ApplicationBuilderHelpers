@@ -48,7 +48,7 @@ return await ApplicationBuilder.Create()
 | `SetExecutableDescription(description)` | Set the description shown in help |
 | `SetExecutableVersion(version)` | Set the version printed by `--version` |
 | `SetHelpWidth(width)` | Set help width; needs a number from 1 to 1024 |
-| `SetHelpBorderWidth(width)` | Set help padding; `0` removes it |
+| `SetHelpBorderWidth(width)` | Set help column gap; defaults to `2`; `0` removes it |
 | `RunAsync(args, cancellationToken)` | Parse and run; returns the exit code |
 
 All four `SetExecutable*` setters are optional. When you skip them, the library reads your entry assembly instead. Passing `null` throws. `RunAsync` throws when `args` is `null`.
