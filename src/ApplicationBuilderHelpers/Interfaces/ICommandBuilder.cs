@@ -43,7 +43,7 @@ public interface ICommandBuilder : ICommandTypeParserCollection, IApplicationDep
     internal int? HelpWidth { get; set; }
 
     /// <summary>
-    /// Gets or sets the help border width; null (default) uses the theme default.
+    /// Gets or sets the help border width; null (default) renders at the <see cref="CommandLineParser.HelpBorderWidths.Default"/> default, zero removes the padding.
     /// </summary>
     internal int? HelpBorderWidth { get; set; }
 

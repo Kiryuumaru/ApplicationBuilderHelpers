@@ -13,7 +13,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
     private readonly ConsoleOutput _consoleOutput = consoleOutput;
 
     /// <summary>Renders the model at the given width; values are floored to <see cref="HelpWidths.Minimum"/> and capped at <see cref="HelpWidths.Maximum"/>.</summary>
-    internal void Render(HelpModel model, IConsoleTheme? theme, int helpWidth)
+    internal void Render(HelpModel model, IConsoleTheme? theme, int helpWidth, int helpBorderWidth)
     {
         helpWidth = HelpWidths.Clamp(helpWidth);
 
@@ -44,7 +44,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
         foreach (var section in model.Sections)
         {
-            ShowSectionWithFixedLayout(section.Header, section.Entries, optimalLeftColumnWidth, helpWidth, theme,
+            ShowSectionWithFixedLayout(section.Header, section.Entries, optimalLeftColumnWidth, helpWidth, helpBorderWidth, theme,
                 entry => entry.Left,
                 entry => entry.Right);
         }
@@ -55,14 +55,12 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         }
     }
 
-    private void ShowSectionWithFixedLayout<T>(string sectionHeader, List<T> items, int leftColumnWidth, int totalWidth, IConsoleTheme? theme,
+    private void ShowSectionWithFixedLayout<T>(string sectionHeader, List<T> items, int leftColumnWidth, int totalWidth, int helpBorderWidth, IConsoleTheme? theme,
         Func<T, string> getLeftColumn, Func<T, string> getRightColumn)
     {
         if (items.Count == 0) return;
 
         WriteColored(sectionHeader, theme?.HeaderColor);
-
-        const int Padding = 2;
 
         foreach (var item in items)
         {
@@ -77,11 +75,11 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             }
             else
             {
-                var rightColumnWidth = totalWidth - leftColumnWidth - Padding;
+                var rightColumnWidth = totalWidth - leftColumnWidth - helpBorderWidth;
 
                 _consoleOutput.Write(leftColumn);
-                _consoleOutput.Write(new string(' ', leftColumnWidth - leftDisplayWidth + Padding));
-                WriteWrappedText(rightColumn, rightColumnWidth, leftColumnWidth + Padding, theme);
+                _consoleOutput.Write(new string(' ', leftColumnWidth - leftDisplayWidth + helpBorderWidth));
+                WriteWrappedText(rightColumn, rightColumnWidth, leftColumnWidth + helpBorderWidth, theme);
             }
         }
         _consoleOutput.WriteLine();
