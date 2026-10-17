@@ -8,10 +8,10 @@ Use `@ref:OtherKey` when one setting should copy another. See [Configuration](do
 
 - **Reference**: A setting whose value is `@ref:SomeKey`. It copies `SomeKey`.
 - **Chain**: A reference that points to another reference, followed until a plain value is found.
-- **Hop**: One step in that chain.
+- **Hop**: One `@ref:` resolution from a reference to the key it points at.
 - **Final value**: The plain value at the end of the chain.
 - **Circular reference**: A chain that loops back on itself. It fails to resolve.
-- **Too-deep chain**: A chain that visits more than 32 keys. It fails to resolve.
+- **Too-deep chain**: A chain that would need more than 32 `@ref:` hops. It fails to resolve.
 - **Missing or empty key**: A chain that hits a missing or empty setting. It fails to resolve.
 - **Case-insensitive**: Key matching ignores case while following a chain.
 
