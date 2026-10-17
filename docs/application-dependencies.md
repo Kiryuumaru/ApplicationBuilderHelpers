@@ -10,7 +10,7 @@ Use one when two or more commands need the same services or settings. Keep comma
 
 ## Setup Order
 
-Each step runs on every registered module before the next step starts. Steps 1–7 run in turn. Step 8 runs all modules at once:
+Each step runs on every registered module before the next step starts. Within steps 2–7, the command's own entry runs last, after the modules. Steps 1–7 run in turn. Step 8 runs all modules at once:
 
 | Order | Override | Use it to |
 |---|---|---|
@@ -111,8 +111,8 @@ During `Run` your command receives an `ApplicationHost` with:
 
 ## Practical Guidance
 
-- The command's own `AddServices` runs before shared modules. A later registration for the same service wins. So a command can replace a shared default by registering its own.
+- The command's own `AddServices` runs after shared modules. A later registration for the same service wins. So a command can replace a shared default by registering its own.
 - `BuilderPreparation` and `AddServices` run after the default host logging policy, so your logging settings win. See [Advanced Topics](advanced.md#host-logging).
-- In shared modules use `TryAdd*` (`TryAddSingleton`, `TryAddScoped`) when a command may replace the registration. The replacement then stays intentional.
+- In shared modules use `TryAdd*` (`TryAddSingleton`, `TryAddScoped`) when a command may replace the registration. The replacement then stays intentional. In the command, override with plain `Add*`; command-side `TryAdd*` fills only types no module registered. When the host consumes a service as an enumerable (`IHostedService`, `IConfigureOptions`, ...), the command's registration reorders rather than overrides; call `services.RemoveAll<T>()` before re-adding.
 - Prefer the injected `[FromServices]` shim properties inside `Run` (define the shims once; see [Commands](commands.md)). They come from a scope that closes after the run.
 - For extra scoped services inside `Run`, open a scope: `applicationHost.Services.CreateScope()`. Never hold scoped services past the run.

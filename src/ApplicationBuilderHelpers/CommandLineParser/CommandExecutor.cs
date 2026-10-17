@@ -63,11 +63,11 @@ internal sealed class CommandExecutor
                 applicationBuilder.Services.AddSingleton(lifetimeGlobalService);
                 applicationBuilder.Services.AddScoped<LifetimeService>();
 
-                applicationBuilder.ApplicationDependencies.Add(command);
                 foreach (var dependency in _applicationDependencyCollection.ApplicationDependencies)
                 {
                     applicationBuilder.ApplicationDependencies.Add(dependency);
                 }
+                applicationBuilder.ApplicationDependencies.Add(command);
 
                 ApplicationHost applicationHost = applicationBuilder.BuildInternal();
                 applicationHost.ConsoleOutput = _consoleOutput;
