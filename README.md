@@ -37,7 +37,7 @@ Exit codes: `0` means success, `2` means bad input, `1` means failure, `130` mea
 ## How a Run Works
 
 ```text
-Commands → Shared setup → Host build → Services → Your Run method
+Shared setup → Command → Host build → Services → Your Run method
 ```
 
 1. You register commands and shared setup modules.
