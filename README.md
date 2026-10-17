@@ -45,7 +45,7 @@ Shared setup → Command → Host build → Services → Your Run method
 3. The library fills your options, arguments, and services.
 4. Your `Run` method executes.
 
-Full order lives in [Commands](docs/commands.md).
+The full order of the 8 shared setup steps lives in [Application Dependencies](docs/application-dependencies.md#setup-order).
 
 ## Documentation
 

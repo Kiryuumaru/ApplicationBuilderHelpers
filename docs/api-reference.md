@@ -188,8 +188,10 @@ Override only the steps your module owns. Each step runs on every module before 
 | 4 | `AddServices` | Register services |
 | 5 | `AddMiddlewares` | Wire middleware onto the built app |
 | 6 | `AddMappings` | Map endpoints (web apps) |
-| 7 | `RunPreparation` | Quick sync setup before the run |
-| 8 | `RunPreparationAsync` | Async setup before the run (all modules run at once) |
+| 7 | `RunPreparation` | Quick sync setup in the joint run with your command |
+| 8 | `RunPreparationAsync` | Async setup in the joint run with your command (all modules run at once) |
+
+Steps 5–8 run on the host task. The command and the host run together as one joint run.
 
 The command's own hooks run as part of the same pipeline. Full order and replacement guidance live in [Application Dependencies](application-dependencies.md).
 
