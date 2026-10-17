@@ -260,7 +260,7 @@ Write your own by implementing `IConsoleTheme` with 6 colors (`HeaderColor`, `Fl
 
 ### Reuse One Setting Inside Another (`@ref:`)
 
-Point one setting at another key instead of copying the value. Chains can nest (`A` points at `B`, `B` holds the value). Matching ignores case. Chains resolve at most 32 hops. A cycle or missing key fails to resolve instead of looping.
+Point one setting at another key instead of copying the value. Chains can nest (`A` points at `B`, `B` holds the value). Matching ignores case. Chains resolve through up to 32 `@ref:` hops; a chain needing 33 or more fails to resolve. A cycle or missing key fails to resolve instead of looping.
 
 | Method | Use it to |
 |---|---|

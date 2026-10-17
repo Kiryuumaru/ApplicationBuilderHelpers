@@ -16,21 +16,27 @@ public static class ConfigurationExtensions
     /// <returns>True when resolved; otherwise, false.</returns>
     public static bool TryGetRefValue(this IConfiguration configuration, string varName, [NotNullWhen(true)] out string? value)
     {
-        const int maxDepth = 32;
+        const int maxHops = 32; // hops are @ref: dereferences, not keys visited
         HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
         string? varValue = $"@ref:{varName}";
+        int hops = 0;
         while (true)
         {
             if (varValue.StartsWith("@ref:"))
             {
                 varName = varValue[5..];
-                if (!visited.Add(varName) || visited.Count > maxDepth)
+                if (!visited.Add(varName))
                 {
                     value = null;
                     return false;
                 }
                 varValue = configuration[varName];
                 if (varValue == null || string.IsNullOrEmpty(varValue))
+                {
+                    value = null;
+                    return false;
+                }
+                if (varValue.StartsWith("@ref:") && ++hops > maxHops)
                 {
                     value = null;
                     return false;

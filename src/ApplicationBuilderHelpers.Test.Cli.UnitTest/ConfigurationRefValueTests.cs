@@ -172,21 +172,30 @@ public sealed class ConfigurationRefValueTests
     }
 
     [Fact]
-    public void TryGetRefValue_32KeyChainResolvesAnd33KeyChainFails()
+    public void TryGetRefValue_32HopChainResolvesAnd33HopChainFails()
     {
-        IConfiguration insideConfiguration = CreateConfiguration(BuildChain(32));
-        IConfiguration outsideConfiguration = CreateConfiguration(BuildChain(33));
+        // BuildChainWithHops takes a HOP count: one hop is one @ref dereference, so a
+        // chain of N hops spans N + 1 keys (N @ref links + 1 terminal). Docs contract:
+        // "chains resolve through up to 32 @ref: hops; a chain needing 33 or more fails".
+        IConfiguration thirtyOneHopConfiguration = CreateConfiguration(BuildChainWithHops(31));
+        IConfiguration thirtyTwoHopConfiguration = CreateConfiguration(BuildChainWithHops(32));
+        IConfiguration thirtyThreeHopConfiguration = CreateConfiguration(BuildChainWithHops(33));
 
-        var insideFound = insideConfiguration.TryGetRefValue("Key0", out var insideValue);
+        var thirtyOneHopFound = thirtyOneHopConfiguration.TryGetRefValue("Key0", out var thirtyOneHopValue);
 
-        Assert.True(insideFound);
-        Assert.Equal("terminal-value", insideValue);
+        Assert.True(thirtyOneHopFound);
+        Assert.Equal("terminal-value", thirtyOneHopValue);
 
-        var outsideFound = outsideConfiguration.TryGetRefValue("Key0", out var outsideValue);
+        var thirtyTwoHopFound = thirtyTwoHopConfiguration.TryGetRefValue("Key0", out var thirtyTwoHopValue);
 
-        Assert.False(outsideFound);
-        Assert.Null(outsideValue);
-        Assert.Throws<NoConfigValueException>(() => outsideConfiguration.GetRefValue("Key0"));
+        Assert.True(thirtyTwoHopFound);
+        Assert.Equal("terminal-value", thirtyTwoHopValue);
+
+        var thirtyThreeHopFound = thirtyThreeHopConfiguration.TryGetRefValue("Key0", out var thirtyThreeHopValue);
+
+        Assert.False(thirtyThreeHopFound);
+        Assert.Null(thirtyThreeHopValue);
+        Assert.Throws<NoConfigValueException>(() => thirtyThreeHopConfiguration.GetRefValue("Key0"));
     }
 
     [Fact]
@@ -240,14 +249,14 @@ public sealed class ConfigurationRefValueTests
     private static IConfiguration CreateConfiguration(Dictionary<string, string?> values) =>
         new InMemoryConfiguration(values);
 
-    private static Dictionary<string, string?> BuildChain(int visitedCount)
+    private static Dictionary<string, string?> BuildChainWithHops(int hops)
     {
         var values = new Dictionary<string, string?>();
-        for (var i = 0; i < visitedCount - 1; i++)
+        for (var i = 0; i < hops; i++)
         {
             values[$"Key{i}"] = $"@ref:Key{i + 1}";
         }
-        values[$"Key{visitedCount - 1}"] = "terminal-value";
+        values[$"Key{hops}"] = "terminal-value";
         return values;
     }
 

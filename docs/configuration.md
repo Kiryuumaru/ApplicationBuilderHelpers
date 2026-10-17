@@ -156,7 +156,7 @@ if (configuration.TryGetRefValue("ConnectionString", out var resolved))
 }
 ```
 
-References can chain: `"A"` points at `"B"`, `"B"` points at `"C"`, `"C"` holds the real value. Matching ignores case. Chains resolve at most 32 hops. A cycle or a missing key fails to resolve instead of looping.
+References can chain: `"A"` points at `"B"`, `"B"` points at `"C"`, `"C"` holds the real value. Matching ignores case. Chains resolve through up to 32 `@ref:` hops; a chain needing 33 or more fails to resolve. A cycle or a missing key fails to resolve instead of looping.
 
 ## `@ref:` Versus `@file`
 
