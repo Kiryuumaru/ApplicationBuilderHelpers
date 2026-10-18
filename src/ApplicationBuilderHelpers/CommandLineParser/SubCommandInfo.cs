@@ -124,6 +124,13 @@ internal class SubCommandInfo
 
         var childName = child.CommandParts[^1];
         child.Parent = this;
+        if (Children.TryGetValue(childName, out var existing) && existing.Children.Count > 0)
+        {
+            foreach (var grandChild in existing.Children.Values.ToArray())
+            {
+                child.AddChild(grandChild);
+            }
+        }
         Children[childName] = child;
     }
 
