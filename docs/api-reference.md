@@ -53,7 +53,7 @@ return await ApplicationBuilder.Create()
 
 All four `SetExecutable*` setters are optional. When you skip them, the library reads your entry assembly instead. Passing `null` throws. `RunAsync` throws when `args` is `null`.
 
-Help renders at 120 columns when you skip `SetHelpWidth`. Values below 60 render at 60, values above 1024 render at 1024.
+Help renders at 120 columns when you skip `SetHelpWidth`. Values below 60 render at 60.
 
 ## Define Commands
 

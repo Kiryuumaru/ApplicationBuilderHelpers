@@ -42,7 +42,7 @@ ApplicationBuilder.Create()
 
 `SetHelpWidth` needs a number from 1 to 1024. `0`, negatives, and values above 1024 throw `ArgumentOutOfRangeException`.
 
-When you skip it, help renders at 120 columns. Values below 60 render at 60, so two-column help stays readable. Values above 1024 render at 1024.
+When you skip it, help renders at 120 columns. Values below 60 render at 60, so two-column help stays readable.
 
 ## Help Placeholders
 
