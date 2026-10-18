@@ -94,7 +94,7 @@ public class WebCommand : Command<WebApplicationBuilder>
 
 The web sample needs ASP.NET Core packages.
 
-Custom `Command<T>` hosts keep their own logging. The default sink policy below does not apply to them.
+Custom `Command<T>` hosts keep their own logging. The default policy below still applies to them: status messages are suppressed, and `Microsoft.Hosting.Lifetime` is filtered to `Warning` and above. Stream routing stays yours — the plain `Command` base is what sends console logs to stderr; custom hosts keep the console logger's default (stdout).
 
 ## Exit Codes
 
@@ -103,7 +103,7 @@ Custom `Command<T>` hosts keep their own logging. The default sink policy below 
 | `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` (duplicate errors list first, then missing, then invalid-value errors; missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`) | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` | stderr |
-| Cancellation (`CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr) |
+| Cancellation (`CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 
 `RunAsync` returns the exit code as `Task<int>`:
 
@@ -157,7 +157,7 @@ distance + same-initial tie. A strictly closer user option still wins.
 
 Plain `Command` apps keep stdout clean by default. Status messages stay silent. Console logs write to stderr.
 
-To change logging, override `BuilderPreparation` or `AddServices`. Those hooks run after the default policy, so your settings win:
+To change logging, override `BuilderPreparation` or `AddServices`. Those hooks run after the default policy, so your settings win. A filter override must target the default filter's category (`Microsoft.Hosting.Lifetime`) to displace it; a category-less or broader filter cannot:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -169,6 +169,8 @@ public override void BuilderPreparation(ApplicationHostBuilder applicationBuilde
 {
     applicationBuilder.Services.Configure<ConsoleLifetimeOptions>(
         options => options.SuppressStatusMessages = false);
+    applicationBuilder.Builder.Logging.AddFilter(
+        "Microsoft.Hosting.Lifetime", LogLevel.Information);
 }
 
 public override void AddServices(
@@ -180,7 +182,7 @@ public override void AddServices(
 }
 ```
 
-`SuppressStatusMessages = false` restores status lines. `LogToStandardErrorThreshold` picks which levels use stderr.
+The default policy sets two gates: `SuppressStatusMessages = true` and a `Microsoft.Hosting.Lifetime` filter at `Warning`. Relax both to restore status lines. `SuppressStatusMessages = false` alone restores nothing — the filter still blocks the `Information` status lines. `LogToStandardErrorThreshold` picks which levels use stderr.
 
 ## Running Twice and Thread Safety
 

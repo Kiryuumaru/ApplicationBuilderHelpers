@@ -78,10 +78,11 @@ public abstract class Command : Command<HostApplicationBuilder>
 {
     /// <summary>
     /// Builds the default host builder via <c>Host.CreateApplicationBuilder</c>.
-    /// Applies the default sink policy so host lifetime diagnostics never reach stdout:
+    /// Applies the default sink policy so host lifetime diagnostics never reach stdout by default:
     /// ConsoleLifetime status messages are suppressed and the console logger writes
-    /// to stderr. The command registers last, so its <c>BuilderPreparation</c>/<c>AddServices</c>
-    /// hooks run after shared modules and can override shared-module defaults.
+    /// to stderr. The default policy is applied before any <c>BuilderPreparation</c>/<c>AddServices</c>
+    /// hook, so hook-registered settings win. The command registers last, so its hooks
+    /// run after shared modules and can override shared-module defaults.
     /// </summary>
     /// <param name="stoppingToken">Token observing host shutdown during the build.</param>
     /// <returns>The default host application builder.</returns>
