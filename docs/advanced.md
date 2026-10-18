@@ -121,7 +121,7 @@ throw new CommandException("Configuration missing", exitCode: 2);
 
 ## Error Handling
 
-The library catches `CommandException` and returns its exit code. Other unhandled errors propagate. Usage errors and faults print to stderr.
+The library catches `CommandException` and returns its exit code. Other errors thrown while a command runs do not propagate to the caller of `RunAsync`. Errors raised outside the run pipeline (builder configuration calls, e.g. `SetHelpWidth`) are not caught and surface raw. Usage errors and faults print to stderr.
 
 ### Error Footers
 
