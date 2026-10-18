@@ -3,6 +3,7 @@ using ApplicationBuilderHelpers.CommandLineParser;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using ApplicationBuilderHelpers.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Reflection;
 
@@ -15,7 +16,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="CommandExitMapper.ThrowIfExternalAbort"/> throw/no-throw, and
 /// <see cref="CommandShutdownScope"/> Ctrl+C and SIGTERM observation through a capturing
 /// <see cref="IConsoleCancelSignal"/> fake and a SIGTERM fake, with the executor 130 mapping
-/// and the host-wins orchestrator classification.
+/// and the host-wins orchestrator classification for both the host-canceled and the
+/// host-success drain outcomes.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -85,6 +87,30 @@ public sealed class CommandExternalAbortTests
         // Ignores the run token so the host task wins the orchestrator race deterministically.
         protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
             => await Task.Delay(TimeSpan.FromMilliseconds(200));
+    }
+
+    [Command("External abort probe.")]
+    private sealed class HostSuccessNeverSettlingProbeCommand : Command
+    {
+        // Ignores the run token so the host-success drain expires with the command still pending.
+        public static CancellationToken ReleaseToken;
+
+        protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+            => await Task.Delay(Timeout.InfiniteTimeSpan, ReleaseToken);
+    }
+
+    [Command("External abort probe.")]
+    private sealed class HostSuccessSettlingProbeCommand : Command
+    {
+        // Ignores the run token and settles successfully on its own once the host has stopped.
+        protected override async ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            var lifetime = applicationHost.Services.GetRequiredService<IHostApplicationLifetime>();
+            var stopped = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = lifetime.ApplicationStopped.Register(() => stopped.TrySetResult(true));
+            await stopped.Task;
+            await Task.Delay(TimeSpan.FromMilliseconds(500), CancellationToken.None);
+        }
     }
 
     [Theory]
@@ -273,6 +299,64 @@ public sealed class CommandExternalAbortTests
     }
 
     [Fact]
+    public async Task Orchestrator_HostSuccessWithCtrlC_WhenCommandNeverSettles_MapsToExternalCancellation()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        using var host = builder.Build();
+        var applicationHost = new ApplicationHost<HostApplicationBuilder>(builder, host);
+        var command = new HostSuccessNeverSettlingProbeCommand();
+        var commandInfo = SubCommandInfo.FromCommand(typeof(HostSuccessNeverSettlingProbeCommand), command);
+        var lifetime = new LifetimeGlobalService();
+        var signal = new CapturingCancelSignal();
+        var sigterm = new FakeSigtermSignal();
+        using var scope = new CommandShutdownScope(CancellationToken.None, signal, sigterm);
+        using var release = new CancellationTokenSource();
+        HostSuccessNeverSettlingProbeCommand.ReleaseToken = release.Token;
+        Task hostStarted = WaitForHostStartedAsync(applicationHost);
+
+        Task invokeTask = CommandRunOrchestrator.InvokeAsync(command, applicationHost, lifetime, scope, commandInfo);
+        try
+        {
+            await WaitForSignalAsync(hostStarted, "host start");
+            signal.RaiseCtrlC();
+
+            Task bounded = await Task.WhenAny(invokeTask, Task.Delay(TimeSpan.FromSeconds(15)));
+            Assert.Same(invokeTask, bounded);
+
+            await Assert.ThrowsAsync<CommandExecutor.ExternalCancellationException>(() => invokeTask);
+        }
+        finally
+        {
+            release.Cancel();
+        }
+    }
+
+    [Fact]
+    public async Task Orchestrator_HostSuccessWithSigterm_WhenCommandSettlesDuringDrain_MapsToExternalCancellation()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        using var host = builder.Build();
+        var applicationHost = new ApplicationHost<HostApplicationBuilder>(builder, host);
+        var command = new HostSuccessSettlingProbeCommand();
+        var commandInfo = SubCommandInfo.FromCommand(typeof(HostSuccessSettlingProbeCommand), command);
+        var lifetime = new LifetimeGlobalService();
+        var signal = new CapturingCancelSignal();
+        var sigterm = new FakeSigtermSignal();
+        using var scope = new CommandShutdownScope(CancellationToken.None, signal, sigterm);
+        Task hostStarted = WaitForHostStartedAsync(applicationHost);
+
+        Task invokeTask = CommandRunOrchestrator.InvokeAsync(command, applicationHost, lifetime, scope, commandInfo);
+
+        await WaitForSignalAsync(hostStarted, "host start");
+        sigterm.Raise();
+
+        Task bounded = await Task.WhenAny(invokeTask, Task.Delay(TimeSpan.FromSeconds(15)));
+        Assert.Same(invokeTask, bounded);
+
+        await Assert.ThrowsAsync<CommandExecutor.ExternalCancellationException>(() => invokeTask);
+    }
+
+    [Fact]
     public void ShutdownScope_Dispose_UnsubscribesSignalOnce()
     {
         var signal = new CapturingCancelSignal();
@@ -305,6 +389,21 @@ public sealed class CommandExternalAbortTests
             .SetExecutableDescription("External abort verification CLI.")
             .SetExecutableVersion("9.9.9")
             .AddCommand<TCommand, ApplicationBuilder>();
+
+    private static async Task WaitForHostStartedAsync(ApplicationHost<HostApplicationBuilder> applicationHost)
+    {
+        var lifetime = applicationHost.Services.GetRequiredService<IHostApplicationLifetime>();
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = lifetime.ApplicationStarted.Register(() => started.TrySetResult(true));
+        await started.Task;
+    }
+
+    private static async Task WaitForSignalAsync(Task signal, string signalName)
+    {
+        Task bounded = await Task.WhenAny(signal, Task.Delay(TimeSpan.FromSeconds(10)));
+        Assert.True(ReferenceEquals(signal, bounded), $"Timed out waiting for {signalName}.");
+        await signal;
+    }
 
     private static async Task<int> RunCapturedAsync(Func<Task<int>> run)
     {
