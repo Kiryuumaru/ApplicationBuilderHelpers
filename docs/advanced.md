@@ -48,6 +48,8 @@ When the parent has its own `Run`, bare `deploy` runs it. When the parent is onl
 
 Parent help lists children: `myapp deploy --help` shows a `COMMANDS:` section with one row per child (sorted) plus a `<COMMAND> [ARGS...]` usage suffix. A flag before the child name binds at the current node only. It never looks ahead to the leaf. `myapp --config v test` binds `--config` at the root. `myapp deploy --force prod` fails as `Unknown option: --force` (exit `2`) because `deploy` owns no such flag. Globals still pass through before the child name. Type the leaf name first for leaf options: `myapp deploy prod --force` runs the leaf.
 
+Registration order does not affect the sub-command hierarchy: registering a parent after its sub-commands keeps them.
+
 ## Commands Without a Root Name
 
 Register only leaf subcommands and your app has no root command of its own. Running it bare fails with exit 2 and lists subcommands. `--help` still works: `--help greet` shows `greet` help, and bare `--help` shows global help.
