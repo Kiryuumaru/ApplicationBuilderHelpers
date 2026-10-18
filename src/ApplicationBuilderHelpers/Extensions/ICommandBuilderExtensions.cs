@@ -72,7 +72,7 @@ public static class ICommandBuilderExtensions
         return commandBuilder;
     }
 
-    /// <summary>Stores the help width; unset renders at the <see cref="HelpWidths.Default"/> default, values are floored to <see cref="HelpWidths.Minimum"/> and capped at <see cref="HelpWidths.Maximum"/>.</summary>
+    /// <summary>Stores the help width; unset renders at the <see cref="HelpWidths.Default"/> default, values are floored to <see cref="HelpWidths.Minimum"/>.</summary>
     /// <typeparam name="TICommandBuilder">The command builder type.</typeparam>
     /// <param name="commandBuilder">The command builder instance.</param>
     /// <param name="helpWidth">The width; must be within the range accepted by <see cref="HelpWidths"/>.</param>
