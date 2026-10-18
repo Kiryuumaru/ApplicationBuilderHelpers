@@ -26,6 +26,7 @@ All notable changes to this project are documented here. This file follows Keep 
 
 - External cancellation (Ctrl+C / SIGTERM / a canceled outer `CancellationToken`) with a command that does not honor the cancellation now exits `130` (previously `0`), so a canceled run no longer reads as success. Behavior now matches the documented external-cancellation contract (Fixes #737). See `docs/commands.md`.
 - Registering a parent command after its sub-commands no longer drops the existing sub-command subtree: on a collision with a populated node, the incoming node adopts its children instead of replacing them, so every registration order keeps the documented routes and the `COMMANDS:` help section. Same-name childless registrations still last-win. (Fixes #731)
+- Hook-registered host-logging settings now win over the default host-logging policy (Fixes #732). The policy — status-message suppression plus the `Microsoft.Hosting.Lifetime` warning filter — is applied before `BuilderPreparation`/`AddConfigurations`/`AddServices`, so hook overrides take effect; previously the policy was applied last and overrode them. Precedence flip only — host defaults without hooks are unchanged. See `docs/advanced.md#host-logging`.
 
 ## Versions
 

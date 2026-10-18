@@ -8,6 +8,7 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
@@ -149,6 +150,35 @@ public sealed class ApplicationHostTests
         public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
         {
             services.AddHostedService<HostFailureService>();
+        }
+    }
+
+    public sealed class LifetimeOptionsOverrideDependency : ApplicationDependency
+    {
+        public override void BuilderPreparation(ApplicationHostBuilder applicationBuilder)
+        {
+            applicationBuilder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = false);
+        }
+
+        public override void AddServices(ApplicationHostBuilder applicationBuilder, IServiceCollection services)
+        {
+            services.Configure<ConsoleLoggerOptions>(o => o.LogToStandardErrorThreshold = LogLevel.None);
+        }
+    }
+
+    public sealed class LifetimeFilterOverrideDependency : ApplicationDependency
+    {
+        public override void BuilderPreparation(ApplicationHostBuilder applicationBuilder)
+        {
+            applicationBuilder.Builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Information);
+        }
+    }
+
+    public sealed class PostConfigureLifetimeOptionsDependency : ApplicationDependency
+    {
+        public override void BuilderPreparation(ApplicationHostBuilder applicationBuilder)
+        {
+            applicationBuilder.Services.PostConfigure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = false);
         }
     }
 
@@ -379,6 +409,42 @@ public sealed class ApplicationHostTests
             rule => rule.ProviderName is null
                 && rule.CategoryName == "Microsoft.Hosting.Lifetime"
                 && rule.LogLevel == LogLevel.Warning);
+    }
+
+    [Fact]
+    public void BuildInternal_DependencyRegisteredLifetimeOptions_OverrideDefaultPolicy()
+    {
+        var wrapper = new ApplicationHostBuilder<HostApplicationBuilder>(Host.CreateApplicationBuilder());
+        wrapper.AddApplication<LifetimeOptionsOverrideDependency>();
+        using var host = wrapper.BuildInternal().Host;
+
+        var lifetimeOptions = host.Services.GetRequiredService<IOptions<ConsoleLifetimeOptions>>().Value;
+        var consoleOptions = host.Services.GetRequiredService<IOptions<ConsoleLoggerOptions>>().Value;
+        Assert.False(lifetimeOptions.SuppressStatusMessages);
+        Assert.Equal(LogLevel.None, consoleOptions.LogToStandardErrorThreshold);
+    }
+
+    [Fact]
+    public void BuildInternal_DependencyRegisteredLifetimeFilter_WinsOverDefaultPolicy()
+    {
+        var wrapper = new ApplicationHostBuilder<HostApplicationBuilder>(Host.CreateApplicationBuilder());
+        wrapper.AddApplication<LifetimeFilterOverrideDependency>();
+        using var host = wrapper.BuildInternal().Host;
+
+        var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Microsoft.Hosting.Lifetime");
+        Assert.True(logger.IsEnabled(LogLevel.Information));
+        Assert.False(logger.IsEnabled(LogLevel.Debug));
+    }
+
+    [Fact]
+    public void BuildInternal_PostConfigureLifetimeOptions_OverridesDefaultPolicy()
+    {
+        var wrapper = new ApplicationHostBuilder<HostApplicationBuilder>(Host.CreateApplicationBuilder());
+        wrapper.AddApplication<PostConfigureLifetimeOptionsDependency>();
+        using var host = wrapper.BuildInternal().Host;
+
+        var lifetimeOptions = host.Services.GetRequiredService<IOptions<ConsoleLifetimeOptions>>().Value;
+        Assert.False(lifetimeOptions.SuppressStatusMessages);
     }
 
     [Fact]

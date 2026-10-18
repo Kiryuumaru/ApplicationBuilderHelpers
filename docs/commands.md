@@ -334,10 +334,10 @@ The library answers shell TAB probes before help and parsing. A command named `c
 | Completion candidates and shims | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` | stderr |
-| External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr) |
-| Host lifetime diagnostics | — | stderr or suppressed, never stdout |
+| External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
+| Host lifetime diagnostics | — | stderr or suppressed by default (plain `Command` apps) |
 
-Host lifetime messages never reach stdout. They write to stderr or stay silent.
+By default, host lifetime messages never reach stdout in plain `Command` apps. They write to stderr or stay silent; custom `Command<T>` hosts keep the console logger's stdout routing (see [Custom Host Types](advanced.md#custom-host-types)).
 
 Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option left with no value fails as missing even with env set. Env rescues only omitted valued options; flags never consult env. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a miss behind leading help tokens reports `No command found` before forwarding and only hits forward to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
 

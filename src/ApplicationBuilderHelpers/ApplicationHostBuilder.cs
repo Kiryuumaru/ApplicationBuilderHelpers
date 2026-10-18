@@ -60,6 +60,13 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
 
     internal ApplicationHost BuildInternal()
     {
+        // The default policy is applied before the dependency hooks, so hook-registered
+        // settings win. The options flag skips registration of the startup/shutdown
+        // status messages; the filter catches residual Microsoft.Hosting.Lifetime output
+        // while preserving the error channel (Warning and above still flow).
+        Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
+        Builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Warning);
+
         foreach (var applicationDependency in ApplicationDependencies)
         {
             applicationDependency.BuilderPreparation(this);
@@ -72,12 +79,6 @@ public abstract class ApplicationHostBuilder(IHostApplicationBuilder builder, Li
         {
             applicationDependency.AddServices(this, Builder.Services);
         }
-
-        // The options flag skips registration of the startup/shutdown status messages;
-        // the filter catches residual Microsoft.Hosting.Lifetime output while preserving
-        // the error channel (Warning and above still flow).
-        Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
-        Builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Warning);
 
         return Build();
     }
