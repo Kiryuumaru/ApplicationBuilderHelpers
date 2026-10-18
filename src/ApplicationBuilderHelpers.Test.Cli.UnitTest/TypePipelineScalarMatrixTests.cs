@@ -6,7 +6,7 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// Matrix for the type pipeline (single registry,
-/// <see cref="IEnumerable{T}"/> binder, 6 scalars, FromAmong convert-then-compare).
+/// <see cref="IEnumerable{T}"/> binder, 7 scalars, FromAmong convert-then-compare).
 /// Exercises the type pipeline through the public
 /// <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/> entry point.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
@@ -23,7 +23,7 @@ public sealed class TypePipelineScalarMatrixTests
         Blue
     }
 
-    [Command("typematrix", "Probes the six scalar pipeline types.")]
+    [Command("typematrix", "Probes the seven scalar pipeline types.")]
     public sealed class ScalarMatrixCommand : Command
     {
         [CommandOption("delay", Description = "Delay value.")]
@@ -44,6 +44,9 @@ public sealed class TypePipelineScalarMatrixTests
         [CommandOption("input-file", Description = "Input file value.")]
         public FileInfo? InputFile { get; set; }
 
+        [CommandOption("input-directory", Description = "Input directory value.")]
+        public DirectoryInfo? InputDirectory { get; set; }
+
         [CommandOption("maybe-delay", Description = "Optional delay value.")]
         public TimeSpan? MaybeDelay { get; set; }
 
@@ -61,6 +64,9 @@ public sealed class TypePipelineScalarMatrixTests
 
         [CommandOption("maybe-input-file", Description = "Optional input file value.")]
         public FileInfo? MaybeInputFile { get; set; }
+
+        [CommandOption("maybe-input-directory", Description = "Optional input directory value.")]
+        public DirectoryInfo? MaybeInputDirectory { get; set; }
 
         [CommandOption("delays", Description = "Delay values.")]
         public TimeSpan[]? Delays { get; set; }
@@ -80,6 +86,9 @@ public sealed class TypePipelineScalarMatrixTests
         [CommandOption("input-files", Description = "Input file values.")]
         public FileInfo[]? InputFiles { get; set; }
 
+        [CommandOption("input-directories", Description = "Input directory values.")]
+        public DirectoryInfo[]? InputDirectories { get; set; }
+
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
         {
             Console.WriteLine($"Delay: {Delay}");
@@ -88,18 +97,21 @@ public sealed class TypePipelineScalarMatrixTests
             Console.WriteLine($"StartDate: {StartDate:yyyy-MM-dd}");
             Console.WriteLine($"StartTime: {StartTime:HH:mm}");
             Console.WriteLine($"InputFile: {InputFile?.Name ?? "null"}");
+            Console.WriteLine($"InputDirectory: {InputDirectory?.Name ?? "null"}");
             Console.WriteLine($"MaybeDelay: {MaybeDelay?.ToString() ?? "null"}");
             Console.WriteLine($"MaybeEndpoint: {MaybeEndpoint?.ToString() ?? "null"}");
             Console.WriteLine($"MaybeApiVersion: {MaybeApiVersion?.ToString() ?? "null"}");
             Console.WriteLine($"MaybeStartDate: {MaybeStartDate?.ToString("yyyy-MM-dd") ?? "null"}");
             Console.WriteLine($"MaybeStartTime: {MaybeStartTime?.ToString("HH:mm") ?? "null"}");
             Console.WriteLine($"MaybeInputFile: {MaybeInputFile?.Name ?? "null"}");
+            Console.WriteLine($"MaybeInputDirectory: {MaybeInputDirectory?.Name ?? "null"}");
             Console.WriteLine($"Delays: {(Delays is null ? "null" : string.Join(",", Delays))}");
             Console.WriteLine($"Endpoints: {(Endpoints is null ? "null" : string.Join(",", Endpoints.Select(u => u.ToString())))}");
             Console.WriteLine($"ApiVersions: {(ApiVersions is null ? "null" : string.Join(",", ApiVersions.Select(v => v.ToString())))}");
             Console.WriteLine($"StartDates: {(StartDates is null ? "null" : string.Join(",", StartDates.Select(d => d.ToString("yyyy-MM-dd"))))}");
             Console.WriteLine($"StartTimes: {(StartTimes is null ? "null" : string.Join(",", StartTimes.Select(t => t.ToString("HH:mm"))))}");
             Console.WriteLine($"InputFiles: {(InputFiles is null ? "null" : string.Join(",", InputFiles.Select(f => f.Name)))}");
+            Console.WriteLine($"InputDirectories: {(InputDirectories is null ? "null" : string.Join(",", InputDirectories.Select(d => d.Name)))}");
             return ValueTask.CompletedTask;
         }
     }
@@ -245,6 +257,16 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
+    [Fact]
+    public async Task Scalar_DirectoryInfo_Valid_BindsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["typematrix", "--input-directory=data-dir"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("InputDirectory: data-dir", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
 
     [Fact]
     public async Task Scalar_TimeSpan_Invalid_ReportsRegistryError()
@@ -305,6 +327,17 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
         Assert.Contains("Invalid value '' for option '--input-file'", error);
         Assert.Contains("Expected a non-empty file path.", error);
+    }
+
+    [Fact]
+    public async Task Scalar_DirectoryInfo_Invalid_ReportsRegistryError()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["typematrix", "--input-directory="]);
+
+        Assert.Equal(2, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(output), $"Expected empty stdout but got: {output}");
+        Assert.Contains("Invalid value '' for option '--input-directory'", error);
+        Assert.Contains("Expected a valid DirectoryInfo.", error);
     }
 
 
@@ -368,6 +401,16 @@ public sealed class TypePipelineScalarMatrixTests
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
+    [Fact]
+    public async Task Scalar_DirectoryInfo_Nullable_BindsValue()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["typematrix", "--maybe-input-directory=data-dir"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("MaybeInputDirectory: data-dir", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
 
     [Fact]
     public async Task Scalar_TimeSpan_Array_BindsAllValues()
@@ -426,6 +469,16 @@ public sealed class TypePipelineScalarMatrixTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("InputFiles: a.txt,b.txt", output);
+        Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task Scalar_DirectoryInfo_Array_BindsAllValues()
+    {
+        var (exitCode, output, error) = await RunCapturedAsync(["typematrix", "--input-directories=a-dir", "--input-directories=b-dir"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("InputDirectories: a-dir,b-dir", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }
 
@@ -562,6 +615,8 @@ public sealed class TypePipelineScalarMatrixTests
     [InlineData("typematrix", "--start-date=not-a-date")]
     [InlineData("typematrix", "--start-time=not-a-time")]
     [InlineData("typematrix", "--input-file=")]
+    [InlineData("typematrix", "--input-directory=")]
+    [InlineData("typematrix", "--input-directory=   ")]
     public async Task KnownScalars_InvalidValue_NeverFallsThroughToChangeType(string command, string option)
     {
         var (exitCode, output, error) = await RunCapturedAsync([command, option]);

@@ -111,6 +111,7 @@ public class ApplicationBuilder : ICommandBuilder
         AddCommandTypeParser<DateTimeTypeParser>();
         AddCommandTypeParser<DateTimeOffsetTypeParser>();
         AddCommandTypeParser<DecimalTypeParser>();
+        AddCommandTypeParser<DirectoryInfoTypeParser>();
         AddCommandTypeParser<DoubleTypeParser>();
         AddCommandTypeParser<FileInfoTypeParser>();
         AddCommandTypeParser<FloatTypeParser>();

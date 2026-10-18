@@ -4,6 +4,10 @@ All notable changes to this project are documented here. This file follows Keep 
 
 ## [Unreleased]
 
+### Added
+
+- Built-in `DirectoryInfo` parser: options and arguments typed `DirectoryInfo` now bind like `FileInfo` (no existence check) instead of failing with `Invalid format` (exit 2). The built-in parser count moves from 24 to 25. See `docs/custom-type-parsers.md`. (Fixes #735)
+
 ### Changed
 
 - **BREAKING**: The command's dependency entry now runs **last** in the shared setup pipeline, so commands can override shared-module defaults (Fixes #727; major version bump). Shared modules run first; the command's own hooks run after. This flips several behaviors:

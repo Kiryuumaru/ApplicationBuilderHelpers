@@ -30,7 +30,7 @@ return await ApplicationBuilder.Create()
     .RunAsync(args);
 ```
 
-`Create()` returns an empty builder with 24 parsers ready. `RunAsync(args)` parses the arguments, runs the matched command, and returns the exit code.
+`Create()` returns an empty builder with 25 parsers ready. `RunAsync(args)` parses the arguments, runs the matched command, and returns the exit code.
 
 | Method | Use it to |
 |---|---|
@@ -199,7 +199,7 @@ During setup your module receives an `ApplicationHostBuilder` with `Builder` (th
 
 ## Read Option Types
 
-The library ships 24 parsers: `AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`, `DateTime`, `DateTimeOffset`, `decimal`, `double`, `FileInfo`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `TimeOnly`, `TimeSpan`, `uint`, `ulong`, `Uri`, `ushort`, `Version`.
+The library ships 25 parsers: `AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`, `DateTime`, `DateTimeOffset`, `decimal`, `DirectoryInfo`, `double`, `FileInfo`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `TimeOnly`, `TimeSpan`, `uint`, `ulong`, `Uri`, `ushort`, `Version`.
 
 Add a custom parser only for your own domain types. The easy way covers most cases: extend `CommandTypeParser<T>`, override `ParseValue`, and register it once.
 
