@@ -1,6 +1,6 @@
 # Custom Type Parsers
 
-Type parsers convert command-line text into typed option and argument values. The library ships with 24 built-in parsers. Add a custom one when you need your own type.
+Type parsers convert command-line text into typed option and argument values. The library ships with 25 built-in parsers. Add a custom one when you need your own type.
 
 ## When You Need One
 
@@ -171,9 +171,9 @@ Registering a custom parser for an enum type turns off automatic enum-value help
 
 ## Built-in Types
 
-These 24 types already have parsers. You can override any of them by registering your own parser for the same type:
+These 25 types already have parsers. You can override any of them by registering your own parser for the same type:
 
-`AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`, `DateTime`, `DateTimeOffset`, `decimal`, `double`, `FileInfo`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `TimeOnly`, `TimeSpan`, `uint`, `ulong`, `Uri`, `ushort`, `Version`
+`AbsolutePath`, `bool`, `byte`, `char`, `DateOnly`, `DateTime`, `DateTimeOffset`, `decimal`, `DirectoryInfo`, `double`, `FileInfo`, `float`, `Guid`, `int`, `long`, `sbyte`, `short`, `string`, `TimeOnly`, `TimeSpan`, `uint`, `ulong`, `Uri`, `ushort`, `Version`
 
 ## Repeatable Options and Multi-Value Arguments
 
