@@ -18,6 +18,10 @@ All notable changes to this project are documented here. This file follows Keep 
 
 - An explicitly supplied empty string (`""`) binds as `""`, never `null`. Migrate `== null` sentinels to `string.IsNullOrEmpty`. See `docs/commands.md` and `docs/adr/0001-empty-string-preserve.md`.
 
+### Fixed
+
+- External cancellation (Ctrl+C / SIGTERM / a canceled outer `CancellationToken`) with a command that does not honor the cancellation now exits `130` (previously `0`), so a canceled run no longer reads as success. Behavior now matches the documented external-cancellation contract (Fixes #737). See `docs/commands.md`.
+
 ## Versions
 
 Versions are set by the owner. No released versions are recorded here yet.

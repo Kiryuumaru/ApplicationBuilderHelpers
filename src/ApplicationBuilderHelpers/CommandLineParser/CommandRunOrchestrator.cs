@@ -86,6 +86,12 @@ internal static class CommandRunOrchestrator
                     throw new CommandException($"Command '{commandInfo.FullCommandName}' exited with code {hostExitCode}", hostExitCode);
                 }
 
+                if (scope.IsExternalAbortRequested)
+                {
+                    await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync().ConfigureAwait(false);
+                    scope.ThrowIfExternalAbort();
+                }
+
                 return CommandRunOutcome.HostSuccessWithCode;
             }
         }
