@@ -7,8 +7,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// requests kept by grouping nodes. On a command with its own run, a required
 /// valued option consumes a following <c>--help</c>/<c>-h</c>/<c>-?</c>/<c>/?</c>/<c>--version</c>/<c>-V</c>
 /// token as its value, so the consumed token neither shows help nor version;
-/// a grouping node beside a dangling valued option still keeps the five dash
-/// forms as requests. Flag-looking values bind explicitly through the <c>=</c>
+/// a grouping node beside a dangling valued option still keeps all six
+/// request forms (<c>--help</c>, <c>-h</c>, <c>-?</c>, <c>/?</c>, <c>--version</c>,
+/// <c>-V</c>) as requests. Flag-looking values bind explicitly through the <c>=</c>
 /// form, a consumed help token leaves deferred conversion errors unforgiven,
 /// and an empty <c>=</c> form on a string option still satisfies
 /// <c>Required</c>.
@@ -38,6 +39,7 @@ public class ConsumedHelpVersionTokenTests : CliTestBase
     [InlineData("--help")]
     [InlineData("-h")]
     [InlineData("-?")]
+    [InlineData("/?")]
     public async Task GroupingNode_HelpToken_BesideDanglingValuedOption_ShowsHelp(string helpToken)
     {
         var result = await Runner.RunAsync("config", "--format", helpToken);
