@@ -331,7 +331,7 @@ public class CommandException : Exception
 | `1` or custom | Your `CommandException` exit code; unknown failures exit `1` | stderr |
 | `130` | Canceled (Ctrl+C, SIGTERM, or canceled token) | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 
-Shell completion answers before help and parsing. One pre-validation gate forgives help and version: either skips all validation when its flag is present, help beats version, deferred conversion errors stay forgiven kind-blind, and unknown/misuse/requires-subcommand/invalid-literal errors still beat both. A dangling valued option beside help still fails (exit `2`). Usage errors print a footer pointing at the right `--help`. Full help and precedence rules live in [Advanced Topics](advanced.md).
+Shell completion answers before help and parsing. One pre-validation gate forgives help and version: either skips all validation when its request is live, help beats version, deferred conversion errors stay forgiven kind-blind, and unknown/misuse/requires-subcommand/invalid-literal errors still beat both. A dangling valued option beside help still fails on a command with its own run (exit `2`); with a live `--version`/`-V` request also before `--`, that missing-value error is forgiven instead. Usage errors print a footer pointing at the right `--help`. Full help and precedence rules live in [Advanced Topics](advanced.md).
 
 Throw `CommandException` from `Run` to return a custom exit:
 

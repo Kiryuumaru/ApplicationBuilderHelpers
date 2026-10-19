@@ -49,7 +49,7 @@ internal sealed class ArgumentParser
                 if (!pathMatched.IsFlag && pathMatched.IsRequired && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && rawConsumable != null && rawConsumable != "--" && !HelpVersionGateway.IsHelpToken(rawConsumable) && !HelpVersionGateway.IsVersionToken(rawConsumable))
                     consumable = rawConsumable;
                 else
-                    consumable = rawConsumable != null && !IsFlagLookingToken(rawConsumable) ? rawConsumable : null;
+                    consumable = rawConsumable != null && !IsFlagLookingToken(rawConsumable) && !HelpVersionGateway.IsHelpToken(rawConsumable) && !HelpVersionGateway.IsVersionToken(rawConsumable) ? rawConsumable : null;
                 if (!pathMatched.IsFlag && DanglingValuedOptionPolicy.IsBareForm(pathMatched, token) && consumable == null)
                     break;
                 if (FindValuedNotLastToken(result.TargetCommand.AllOptions, token).HasValue)
@@ -279,7 +279,7 @@ internal sealed class ArgumentParser
                 if (!matchedOption.IsFlag && matchedOption.IsRequired && DanglingValuedOptionPolicy.IsBareForm(matchedOption, arg) && nextArg != null && nextArg != "--")
                     consumableNext = nextArg;
                 else
-                    consumableNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
+                    consumableNext = nextArg != null && !IsFlagLookingToken(nextArg) && !HelpVersionGateway.IsHelpToken(nextArg) && !HelpVersionGateway.IsVersionToken(nextArg) ? nextArg : null;
                 string? value;
                 string? occurrenceNext = consumableNext;
                 try
@@ -522,7 +522,7 @@ internal sealed class ArgumentParser
             if (!member.IsFlag && member.IsRequired && remainder.Length == 0 && nextArg != null && nextArg != "--")
                 consumableClusterNext = nextArg;
             else
-                consumableClusterNext = nextArg != null && !IsFlagLookingToken(nextArg) ? nextArg : null;
+                consumableClusterNext = nextArg != null && !IsFlagLookingToken(nextArg) && !HelpVersionGateway.IsHelpToken(nextArg) && !HelpVersionGateway.IsVersionToken(nextArg) ? nextArg : null;
             string? value;
             string occurrenceArg;
             string? occurrenceNext;

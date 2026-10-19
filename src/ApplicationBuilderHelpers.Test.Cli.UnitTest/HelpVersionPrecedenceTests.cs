@@ -7,8 +7,9 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// consumes a flag-looking neighbor, so the neighbor binds or
 /// errors on its own merits while the valued option falls back to the
 /// trailing-bare missing sentinel (env fallback or MissingRequired); a bare
-/// required valued option consumes the neighbor as its value instead, and
-/// help never masks path errors.
+/// required valued option consumes the neighbor as its value instead, help
+/// never masks path errors, and a version flag beside help forgives the
+/// dangling-value error so the command runs with the option unset.
 /// </summary>
 public class HelpVersionPrecedenceTests : CliTestBase
 {
@@ -19,6 +20,32 @@ public class HelpVersionPrecedenceTests : CliTestBase
         CliTestAssertions.AssertSuccess(result);
         CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
         CliTestAssertions.AssertOutputDoesNotContain(result, "Running test on target");
+    }
+
+    [Fact]
+    public async Task Version_Forgives_Missing_Value_Beside_Help()
+    {
+        var result = await Runner.RunAsync("test", "--config", "--help", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "Running test on target");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "config=");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+        CliTestAssertions.AssertNoError(result);
+    }
+
+    [Fact]
+    public async Task Version_Forgives_Missing_Value_Beside_Help_Alias()
+    {
+        var result = await Runner.RunAsync("test", "--config", "/?", "--version");
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "Running test on target");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "config=");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+        CliTestAssertions.AssertNoError(result);
     }
 
     [Fact]
