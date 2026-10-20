@@ -237,7 +237,7 @@ public sealed class CommandExecutionTests
     }
 
     [Fact]
-    public async Task AlreadyCancelledToken_ExitsZeroWithoutFailure()
+    public async Task AlreadyCancelledToken_StillRunsCommandAndMapsToCanceledExitCode()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -245,7 +245,8 @@ public sealed class CommandExecutionTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<SyncCompleteCommand>(), ["execsync"], cts.Token);
 
-        Assert.Equal(0, exitCode);
+        // The synchronous command still runs, but the live external abort wins over its normal return.
+        Assert.Equal(130, exitCode);
         Assert.Contains("sync done", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
     }

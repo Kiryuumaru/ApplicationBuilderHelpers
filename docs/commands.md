@@ -16,7 +16,7 @@ public class BuildCommand : Command
         ApplicationHost<HostApplicationBuilder> applicationHost,
         CancellationToken cancellationToken)
     {
-        // Return normally for success (exit 0).
+        // Return normally for success (exit 0) when no external cancellation is live.
         return ValueTask.CompletedTask;
     }
 }
@@ -334,14 +334,14 @@ The library answers shell TAB probes before help and parsing. A command named `c
 
 | Outcome | Exit code | Stream |
 |---|---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
+| `Run` returns normally (without a live external cancellation; also `--help` / `--version`) | `0` | stdout |
 | Completion candidates and shims | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` | stderr |
 | External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM), including during post-success lifetime cleanup | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 | Host lifetime diagnostics | — | stderr or suppressed by default (plain `Command` apps) |
 
-**Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and completes successfully — including after catching `OperationCanceledException` — `RunAsync` returns `0`. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`. See the [Exit Contract](api-reference.md#exit-contract) for the full route list.
+**Cancellation precedence.** External cancellation wins whenever it is live as the command returns or the host exits `0`: a pre-canceled outer token, Ctrl+C, or SIGTERM makes a command that returns normally exit `130`. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`.
 
 By default, host lifetime messages never reach stdout in plain `Command` apps. They write to stderr or stay silent; custom `Command<T>` hosts keep the console logger's stdout routing (see [Custom Host Types](advanced.md#custom-host-types)).
 

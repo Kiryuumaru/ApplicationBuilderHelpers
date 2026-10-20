@@ -26,7 +26,7 @@ public abstract class Command<[DynamicallyAccessedMembers(DynamicallyAccessedMem
     protected abstract ValueTask<THostApplicationBuilder> ApplicationBuilder(CancellationToken stoppingToken);
 
     /// <summary>
-    /// Runs the command work; a normal return signals success (exit 0).
+    /// Runs the command work; a normal return signals success (exit 0) when no external cancellation is live.
     /// </summary>
     /// <param name="applicationHost">The typed host carrying the built <c>IHost</c> and services.</param>
     /// <param name="cancellationToken">Token observing cooperative cancellation (exit 130).</param>

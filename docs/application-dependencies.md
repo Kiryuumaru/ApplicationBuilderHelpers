@@ -23,7 +23,7 @@ Each step runs on every registered module before the next step starts. Within st
 | 7 | `RunPreparation` | Quick sync setup in the joint run with your command |
 | 8 | `RunPreparationAsync` | Async setup in the joint run with your command (all modules run at once) |
 
-Steps 5–8 run on the host task. The command and the host run together as one joint run. A synchronous command always finishes first; an asynchronous command interleaves with steps 5–8 — a fast one usually completes first, but the order is timing-dependent. Only step 8 can be canceled mid-flight. A successful command cancels the host task and can silently truncate token-honoring step-8 work while the process still exits `0`.
+Steps 5–8 run on the host task. The command and the host run together as one joint run. A synchronous command always finishes first; an asynchronous command interleaves with steps 5–8 — a fast one usually completes first, but the order is timing-dependent. Only step 8 can be canceled mid-flight. A successful command cancels the host task and can silently truncate token-honoring step-8 work while the process still exits `0` when no external cancellation is live.
 
 ## Example
 

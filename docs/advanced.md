@@ -100,12 +100,12 @@ Custom `Command<T>` hosts keep their own logging. The default policy below still
 
 | Outcome | Exit code | Stream |
 |---|---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
+| `Run` returns normally (without a live external cancellation; also `--help` / `--version`) | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` (duplicate errors list first, then missing, then invalid-value errors; missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`) | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` | stderr |
 | Cancellation (`CancellationToken` / Ctrl+C / SIGTERM), including during post-success lifetime cleanup | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 
-**Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and completes successfully — including after catching `OperationCanceledException` — `RunAsync` returns `0`. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`. See the [Exit Contract](api-reference.md#exit-contract) for the full route list.
+**Cancellation precedence.** External cancellation wins whenever it is live as the command returns or the host exits `0`: a pre-canceled outer token, Ctrl+C, or SIGTERM makes a command that returns normally exit `130`. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`.
 
 `RunAsync` returns the exit code as `Task<int>`:
 
