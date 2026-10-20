@@ -28,9 +28,11 @@ Extend `Command`. Override `Run`. Mark the class with `[Command]`.
 
 ```csharp
 [Command(description: "Description only")]          // Runs at the root, no name
-[Command("name")]                                     // Named command
+[Command(name: "name")]                               // Named command
 [Command("name", description: "With description")]    // Named with help text
 ```
+
+A single positional string is the description-only unnamed-root form; use `name:` or the two-argument form to name a command.
 
 Use spaces for subcommands:
 
