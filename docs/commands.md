@@ -337,6 +337,8 @@ The library answers shell TAB probes before help and parsing. A command named `c
 | External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 | Host lifetime diagnostics | — | stderr or suppressed by default (plain `Command` apps) |
 
+**Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and completes successfully — including after catching `OperationCanceledException` — `RunAsync` returns `0`. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`. See the [Exit Contract](api-reference.md#exit-contract) for the full route list.
+
 By default, host lifetime messages never reach stdout in plain `Command` apps. They write to stderr or stay silent; custom `Command<T>` hosts keep the console logger's stdout routing (see [Custom Host Types](advanced.md#custom-host-types)).
 
 Duplicate errors list first, then missing, then invalid-value errors. An explicit bare valued option left with no value fails as missing even with env set. Env rescues only omitted valued options; flags never consult env. Error footers pair a route-relative `--help` hint with a global `--version` hint. A concrete root with its own run reports a leading bare non-child word as `UnknownCommand` before the `RequiresSubcommand` guard; a miss behind leading help tokens reports `No command found` before forwarding and only hits forward to target help. A named grouping parent reports a near miss behind its help token as `Unknown subcommand` with a pointer, while a far miss keeps the subcommand list. Full table lives in [API Reference](api-reference.md). Full help rules live in [Advanced Topics](advanced.md).
@@ -345,4 +347,4 @@ Bad shell names and install errors exit `2` on stderr. File errors exit `1` on s
 
 ## Exit Codes
 
-`0` means success, `2` means bad input, `1` means failure, `130` means canceled. Success answers use stdout. Errors use stderr. Full table lives in [API Reference](api-reference.md). Commands run the 8 shared setup steps in [Application Dependencies](application-dependencies.md).
+`0` means success, `2` means bad input, `1` means failure, `130` means the run was canceled externally. Success answers use stdout. Errors use stderr. Full table lives in [API Reference](api-reference.md). Commands run the 8 shared setup steps in [Application Dependencies](application-dependencies.md).
