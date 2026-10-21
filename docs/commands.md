@@ -305,6 +305,8 @@ Lifetime.ApplicationExitedCallback(() => Console.WriteLine("stopped"));
 
 `Exiting` runs when the command or host stops. `Exited` runs after shutdown. Each phase runs once even when shutdown is signaled twice. On failure only `Exited` runs.
 
+External cancellation maps to exit `130`. A signal or canceled outer token that arrives after `Run` returns normally and before the `Exiting` or `Exited` callbacks complete is recorded: the callbacks still run to completion, then `RunAsync` returns `130`.
+
 ## Register Commands
 
 ```csharp
@@ -336,7 +338,7 @@ The library answers shell TAB probes before help and parsing. A command named `c
 | Completion candidates and shims | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`) or `Run` throwing `CommandException` | `1`, or `ex.ExitCode` | stderr |
-| External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
+| External cancellation (outer `CancellationToken` / Ctrl+C / SIGTERM), including during post-success lifetime cleanup | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 | Host lifetime diagnostics | — | stderr or suppressed by default (plain `Command` apps) |
 
 **Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and completes successfully — including after catching `OperationCanceledException` — `RunAsync` returns `0`. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`. See the [Exit Contract](api-reference.md#exit-contract) for the full route list.

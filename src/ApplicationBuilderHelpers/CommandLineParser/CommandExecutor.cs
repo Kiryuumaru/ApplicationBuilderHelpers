@@ -51,6 +51,7 @@ internal sealed class CommandExecutor
         try
         {
             scope = new CommandShutdownScope(cancellationToken, _cancelSignal, _sigtermSignal);
+            var externalAbortRequestedBeforeRun = scope.IsExternalAbortRequested;
 
             LifetimeGlobalService? lifetimeGlobalService = null;
 
@@ -85,6 +86,11 @@ internal sealed class CommandExecutor
                 finally
                 {
                     await (lifetimeGlobalService?.InvokeApplicationExitedCallbacksAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+                }
+
+                if (!externalAbortRequestedBeforeRun)
+                {
+                    scope.ThrowIfExternalAbort();
                 }
             }
             catch (OperationCanceledException ex) when (ex is not ExternalCancellationException && scope is not null && scope.IsExternalAbortRequested)

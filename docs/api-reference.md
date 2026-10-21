@@ -288,7 +288,7 @@ string connStr = configuration.GetRefValue("ConnectionString");
 | Completion candidates and shims | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` | stderr |
-| Cancellation (`CancellationToken` / Ctrl+C / SIGTERM) | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
+| Cancellation (`CancellationToken` / Ctrl+C / SIGTERM), including during post-success lifetime cleanup | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 | Host lifetime diagnostics | — | stderr or suppressed by default (plain `Command` apps) |
 
 **Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and its task completes successfully — including when it catches `OperationCanceledException` and returns — `RunAsync` returns `0`; the normal-return row above still applies. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request: the command's `Run` or its `ApplicationBuilder` throws `OperationCanceledException` (for example, from `ThrowIfCancellationRequested`), or the command task, or the host task before the command settles, is canceled under that request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`.
@@ -331,7 +331,7 @@ public class CommandException : Exception
 | `0` | Success; also `--help`, `--version`, and completion answers | stdout |
 | `2` | Bad input: unknown option or command, missing required value, bad value, missing subcommand | stderr |
 | `1` or custom | Your `CommandException` exit code; unknown failures exit `1` | stderr |
-| `130` | Canceled (Ctrl+C, SIGTERM, or canceled token) | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
+| `130` | Canceled (Ctrl+C, SIGTERM, or canceled token), including during post-success lifetime cleanup | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 
 **Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and completes successfully — including after catching `OperationCanceledException` — `RunAsync` returns `0`. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`. See the [Exit Contract](#exit-contract) for the full route list.
 
