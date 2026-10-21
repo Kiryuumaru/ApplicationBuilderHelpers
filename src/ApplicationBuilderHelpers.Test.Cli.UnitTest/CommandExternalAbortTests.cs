@@ -6,6 +6,7 @@ using ApplicationBuilderHelpers.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
@@ -110,6 +111,51 @@ public sealed class CommandExternalAbortTests
             using var registration = lifetime.ApplicationStopped.Register(() => stopped.TrySetResult(true));
             await stopped.Task;
             await Task.Delay(TimeSpan.FromMilliseconds(500), CancellationToken.None);
+        }
+    }
+
+    [Command("External abort probe.")]
+    private sealed class ExitingCleanupProbeCommand : Command
+    {
+        public readonly TaskCompletionSource<bool> ExitingStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly TaskCompletionSource<bool> ReleaseExiting = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool ExitingCompleted;
+        public int ExitedCount;
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            var lifetime = applicationHost.Services.GetRequiredService<LifetimeService>();
+            lifetime.ApplicationExitingCallback(async () =>
+            {
+                ExitingStarted.TrySetResult(true);
+                await ReleaseExiting.Task.ConfigureAwait(false);
+                ExitingCompleted = true;
+            });
+            lifetime.ApplicationExitedCallback(() => Interlocked.Increment(ref ExitedCount));
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("External abort probe.")]
+    private sealed class ExitedCleanupProbeCommand : Command
+    {
+        public readonly TaskCompletionSource<bool> ExitedStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly TaskCompletionSource<bool> AbortObserved = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly TaskCompletionSource<bool> ReleaseExited = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool ExitedCompleted;
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            var lifetime = applicationHost.Services.GetRequiredService<LifetimeService>();
+            var runToken = lifetime.CreateCancellationToken();
+            lifetime.ApplicationExitedCallback(async () =>
+            {
+                using var registration = runToken.Register(() => AbortObserved.TrySetResult(true));
+                ExitedStarted.TrySetResult(true);
+                await ReleaseExited.Task.ConfigureAwait(false);
+                ExitedCompleted = true;
+            });
+            return ValueTask.CompletedTask;
         }
     }
 
@@ -357,6 +403,127 @@ public sealed class CommandExternalAbortTests
     }
 
     [Fact]
+    public async Task SigtermDuringExitingCallbacks_CompletesCleanupAndReturnsCanceledExitCode()
+    {
+        var command = new ExitingCleanupProbeCommand();
+        var commandInfo = SubCommandInfo.FromCommand(typeof(ExitingCleanupProbeCommand), command);
+        var signal = new CapturingCancelSignal();
+        var sigterm = new FakeSigtermSignal();
+        var executor = new CommandExecutor(
+            ApplicationBuilder.Create(),
+            new ConsoleOutput(TextWriter.Null, TextWriter.Null),
+            signal,
+            sigterm);
+
+        var exitCode = await RunCapturedAsync(async () =>
+        {
+            Task executeTask = executor.ExecuteCommand(commandInfo, CancellationToken.None);
+
+            await WaitForSignalAsync(command.ExitingStarted.Task, "exiting start");
+            sigterm.Raise();
+            command.ReleaseExiting.TrySetResult(true);
+
+            return await MapExternalAbortExitCodeAsync(executeTask);
+        });
+
+        Assert.Equal(CanceledExitCode, exitCode);
+        Assert.True(command.ExitingCompleted, "Expected the ApplicationExiting callback to complete.");
+        Assert.Equal(1, command.ExitedCount);
+    }
+
+    [Fact]
+    public async Task SigtermDuringExitedCallbacks_CompletesCleanupAndReturnsCanceledExitCode()
+    {
+        var command = new ExitedCleanupProbeCommand();
+        var commandInfo = SubCommandInfo.FromCommand(typeof(ExitedCleanupProbeCommand), command);
+        var signal = new CapturingCancelSignal();
+        var sigterm = new FakeSigtermSignal();
+        var executor = new CommandExecutor(
+            ApplicationBuilder.Create(),
+            new ConsoleOutput(TextWriter.Null, TextWriter.Null),
+            signal,
+            sigterm);
+
+        var exitCode = await RunCapturedAsync(async () =>
+        {
+            Task executeTask = executor.ExecuteCommand(commandInfo, CancellationToken.None);
+
+            await WaitForSignalAsync(command.ExitedStarted.Task, "exited start");
+            sigterm.Raise();
+            await WaitForSignalAsync(command.AbortObserved.Task, "SIGTERM observation");
+            command.ReleaseExited.TrySetResult(true);
+
+            return await MapExternalAbortExitCodeAsync(executeTask);
+        });
+
+        Assert.Equal(CanceledExitCode, exitCode);
+        Assert.True(command.ExitedCompleted, "Expected the ApplicationExited callback to complete.");
+    }
+
+    [Fact]
+    public async Task ExternalAbortDuringExitingCallbacks_RunAsyncReturnsCanceledExitCode()
+    {
+        var command = new ExitingCleanupProbeCommand();
+        var builder = CreateBuilder(command);
+        using var cts = new CancellationTokenSource();
+        Task<int> runTask = RunCapturedAsync(() => builder.RunAsync([], cts.Token));
+        try
+        {
+            await WaitForSignalAsync(command.ExitingStarted.Task, "exiting start");
+            cts.Cancel();
+            command.ReleaseExiting.TrySetResult(true);
+
+            var exitCode = await runTask;
+
+            Assert.Equal(CanceledExitCode, exitCode);
+            Assert.True(command.ExitingCompleted, "Expected the ApplicationExiting callback to complete.");
+            Assert.Equal(1, command.ExitedCount);
+        }
+        finally
+        {
+            cts.Cancel();
+            command.ReleaseExiting.TrySetResult(true);
+            await runTask;
+        }
+    }
+
+    [Fact]
+    public async Task SigtermDuringExitedCallbacks_RunAsyncReturnsCanceledExitCode()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var command = new ExitedCleanupProbeCommand();
+        var builder = CreateBuilder(command);
+        using var sigtermGuard = PosixSignalRegistration.Create(
+            PosixSignal.SIGTERM,
+            static context => { context.Cancel = true; });
+
+        Task<int> runTask = RunCapturedAsync(() => builder.RunAsync([]));
+        try
+        {
+            await WaitForSignalAsync(command.ExitedStarted.Task, "exited start");
+
+            Assert.Equal(0, Kill(Environment.ProcessId, SigtermSignalNumber));
+            await WaitForSignalAsync(command.AbortObserved.Task, "SIGTERM observation");
+
+            command.ReleaseExited.TrySetResult(true);
+
+            var exitCode = await runTask;
+
+            Assert.Equal(CanceledExitCode, exitCode);
+            Assert.True(command.ExitedCompleted, "Expected the ApplicationExited callback to complete.");
+        }
+        finally
+        {
+            command.ReleaseExited.TrySetResult(true);
+            await runTask;
+        }
+    }
+
+    [Fact]
     public void ShutdownScope_Dispose_UnsubscribesSignalOnce()
     {
         var signal = new CapturingCancelSignal();
@@ -383,12 +550,17 @@ public sealed class CommandExternalAbortTests
 
     private static ApplicationBuilder CreateBuilder<TCommand>()
         where TCommand : ICommand, new()
+        => CreateBuilder().AddCommand<TCommand, ApplicationBuilder>();
+
+    private static ApplicationBuilder CreateBuilder(ICommand command)
+        => CreateBuilder().AddCommand<ApplicationBuilder>(command);
+
+    private static ApplicationBuilder CreateBuilder()
         => ApplicationBuilder.Create()
             .SetExecutableName("abort-probe")
             .SetExecutableTitle("Abort Probe")
             .SetExecutableDescription("External abort verification CLI.")
-            .SetExecutableVersion("9.9.9")
-            .AddCommand<TCommand, ApplicationBuilder>();
+            .SetExecutableVersion("9.9.9");
 
     private static async Task WaitForHostStartedAsync(ApplicationHost<HostApplicationBuilder> applicationHost)
     {
@@ -404,6 +576,24 @@ public sealed class CommandExternalAbortTests
         Assert.True(ReferenceEquals(signal, bounded), $"Timed out waiting for {signalName}.");
         await signal;
     }
+
+    private static async Task<int> MapExternalAbortExitCodeAsync(Task executeTask)
+    {
+        try
+        {
+            await executeTask.ConfigureAwait(false);
+            return 0;
+        }
+        catch (CommandExecutor.ExternalCancellationException)
+        {
+            return CanceledExitCode;
+        }
+    }
+
+    private const int SigtermSignalNumber = 15;
+
+    [DllImport("libc", EntryPoint = "kill", SetLastError = true)]
+    private static extern int Kill(int processId, int signal);
 
     private static async Task<int> RunCapturedAsync(Func<Task<int>> run)
     {
