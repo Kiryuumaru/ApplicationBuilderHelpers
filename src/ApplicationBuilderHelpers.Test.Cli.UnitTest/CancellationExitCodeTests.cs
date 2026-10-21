@@ -10,9 +10,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 
 /// <summary>
 /// In-process exit-code coverage for the cancellation contract:
-/// normal return is success (exit 0), <see cref="CommandException"/> carries
-/// the exit code, and cancellation requested via the passed token maps to
-/// 128 + SIGINT (130) while internal shutdown stays success (0).
+/// normal return is success (exit 0) unless a live external abort is pending at the
+/// command-first success branch, which maps to 128 + SIGINT (130);
+/// <see cref="CommandException"/> carries the exit code, and internal shutdown stays
+/// success (0).
 /// Runs against the public <see cref="ApplicationBuilder.RunAsync(string[], CancellationToken)"/>
 /// entry point.
 /// </summary>
@@ -28,6 +29,18 @@ public sealed class CancellationExitCodeTests
     {
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
             => ValueTask.CompletedTask;
+    }
+
+    [Command("Cancellation exit-code probe.")]
+    private sealed class SelfAbortSuccessCommand : Command
+    {
+        public static Action? OnRun;
+
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            OnRun?.Invoke();
+            return ValueTask.CompletedTask;
+        }
     }
 
     [Command("Cancellation exit-code probe.")]
@@ -185,6 +198,23 @@ public sealed class CancellationExitCodeTests
         var exitCode = await RunCapturedAsync(() => CreateBuilder<CancelObservingCommand>().RunAsync([], cts.Token));
 
         Assert.Equal(CanceledExitCode, exitCode);
+    }
+
+    [Fact]
+    public async Task ExternalAbortBeforeCommandReturns_MapsToCanceledExitCode()
+    {
+        using var cts = new CancellationTokenSource();
+        SelfAbortSuccessCommand.OnRun = cts.Cancel;
+        try
+        {
+            var exitCode = await RunCapturedAsync(() => CreateBuilder<SelfAbortSuccessCommand>().RunAsync([], cts.Token));
+
+            Assert.Equal(CanceledExitCode, exitCode);
+        }
+        finally
+        {
+            SelfAbortSuccessCommand.OnRun = null;
+        }
     }
 
     [Fact]

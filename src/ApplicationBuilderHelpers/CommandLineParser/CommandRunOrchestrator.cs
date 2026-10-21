@@ -52,6 +52,11 @@ internal static class CommandRunOrchestrator
                 hostCts.Cancel();
                 // Host shutdown after command success always cancels the host task, so its OCE is expected.
                 try { await hostTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+                if (scope.IsExternalAbortRequested)
+                {
+                    await lifetimeGlobalService.InvokeApplicationExitingCallbacksAsync().ConfigureAwait(false);
+                    scope.ThrowIfExternalAbort();
+                }
                 return CommandRunOutcome.CommandSuccess;
             }
         }

@@ -140,7 +140,7 @@ public sealed class HostRunTests
     }
 
     [Fact]
-    public async Task PrecanceledToken_StillRunsEarlyPreparationMarker()
+    public async Task PrecanceledToken_StillRunsEarlyPreparationMarker_MapsToCanceledExitCode()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -148,7 +148,8 @@ public sealed class HostRunTests
         var (exitCode, output, error) = await RunCapturedAsync(
             () => CreateBuilder<SyncHostRunCommand>().AddApplication<PrecanceledMarker>(), ["hostrunsync"], cts.Token);
 
-        Assert.Equal(0, exitCode);
+        // The marker and command still run, but the live external abort wins over the command's normal return.
+        Assert.Equal(130, exitCode);
         Assert.Contains("precancel prepared", output);
         Assert.Contains("sync hostrun done", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");

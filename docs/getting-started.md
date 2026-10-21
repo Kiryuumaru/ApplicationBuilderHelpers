@@ -52,7 +52,7 @@ What each part does:
 
 - `[Command]` marks the class as a command. With no name it runs at the root.
 - `[CommandArgument]` maps the first typed word to `Name`.
-- `Run` holds your logic. Return normally for success (exit `0`).
+- `Run` holds your logic. Return normally for success (exit `0`) when no external cancellation is live.
 
 To name a command, pass a name: `[Command("greet", description: "Greet with a service")]`. Use spaces for subcommands: `[Command("deploy prod", description: "Deploy to production")]`.
 

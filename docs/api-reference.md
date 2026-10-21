@@ -57,7 +57,7 @@ Help renders at 120 columns when you skip `SetHelpWidth`. Values below 60 render
 
 ## Define Commands
 
-Extend `Command` for console apps. Override `Run` with your logic. Return normally for success (exit `0`).
+Extend `Command` for console apps. Override `Run` with your logic. Return normally for success (exit `0`) when no external cancellation is live.
 
 ```csharp
 using ApplicationBuilderHelpers;
@@ -284,14 +284,14 @@ string connStr = configuration.GetRefValue("ConnectionString");
 
 | Outcome | Exit code | Stream |
 |---|---|---|
-| `Run` returns normally (also `--help` / `--version`) | `0` | stdout |
+| `Run` returns normally (without a live external cancellation; also `--help` / `--version`) | `0` | stdout |
 | Completion candidates and shims | `0` | stdout |
 | Usage error (`UnknownOption`, `MissingRequired`, `RequiresSubcommand`, `InvalidValue`, `UnknownCommand`; `DuplicateOption` only with `SetRejectDuplicateOptions(true)` — repeats otherwise take the last value) | `2` | stderr |
 | Unexpected fault (`Fault`, `NoImplementation`, or `Run` throwing `CommandException` with a custom code) | `1` or `ex.ExitCode` | stderr |
 | Cancellation (`CancellationToken` / Ctrl+C / SIGTERM), including during post-success lifetime cleanup | `130` | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
 | Host lifetime diagnostics | — | stderr or suppressed by default (plain `Command` apps) |
 
-**Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and its task completes successfully — including when it catches `OperationCanceledException` and returns — `RunAsync` returns `0`; the normal-return row above still applies. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request: the command's `Run` or its `ApplicationBuilder` throws `OperationCanceledException` (for example, from `ThrowIfCancellationRequested`), or the command task, or the host task before the command settles, is canceled under that request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`.
+**Cancellation precedence.** External cancellation wins whenever it is live as the command returns or the host exits `0`: a pre-canceled outer token, Ctrl+C, or SIGTERM makes a command that returns normally exit `130`. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`.
 
 Duplicate errors list first, then missing, then invalid-value errors. Missing-only keeps kind `MissingRequired`, duplicate-only keeps kind `DuplicateOption`, any invalid line makes the kind `InvalidValue`. Every help screen lists `-V, --version` under `GLOBAL OPTIONS:`. Usage-error footers pair a route-relative `--help` hint with a global `--version` hint, except when the failing call already contained `--help`/`-h`, when only the `--version` hint survives. `Fault`/`NoImplementation` keep the `--help`-only footer. Response-file expansion faults exit `1` as `Fault` with the `--help`-only footer. Expansion runs before completion, help, and parsing, so a fault beats help. Full rules and limits live in [Commands](commands.md#response-files-file).
 
@@ -324,16 +324,14 @@ public class CommandException : Exception
 
 ## Handle Errors and Exit Codes
 
-`RunAsync` returns the exit code. Return normally from `Run` for success.
+`RunAsync` returns the exit code. Return normally from `Run` for success when no external cancellation is live.
 
 | Code | Meaning | Stream |
 |---|---|---|
-| `0` | Success; also `--help`, `--version`, and completion answers | stdout |
+| `0` | Success (without a live external cancellation); also `--help`, `--version`, and completion answers | stdout |
 | `2` | Bad input: unknown option or command, missing required value, bad value, missing subcommand | stderr |
 | `1` or custom | Your `CommandException` exit code; unknown failures exit `1` | stderr |
 | `130` | Canceled (Ctrl+C, SIGTERM, or canceled token), including during post-success lifetime cleanup | none (shutdown diagnostics use stderr by default in plain `Command` apps) |
-
-**Cancellation precedence.** A pre-canceled token does not by itself decide the exit code. With a pre-canceled outer token, when the command finishes first and completes successfully — including after catching `OperationCanceledException` — `RunAsync` returns `0`. When the host wins first with exit code `0`, an external cancellation request returns `130` even when the command settles normally during the drain or is abandoned at drain expiry. `130` also applies when cancellation propagates under an external request. Without an external cancellation request, an `OperationCanceledException` or internal cancellation exits `0`. Help, version, and completion answers stay `0`. See the [Exit Contract](#exit-contract) for the full route list.
 
 Shell completion answers before help and parsing. One pre-validation gate forgives help and version: either skips all validation when its request is live, help beats version, deferred conversion errors stay forgiven kind-blind, and unknown/misuse/requires-subcommand/invalid-literal errors still beat both. A dangling valued option beside help still fails on a command with its own run (exit `2`); with a live `--version`/`-V` request also before `--`, that missing-value error is forgiven instead. Usage errors print a footer pointing at the right `--help`. Full help and precedence rules live in [Advanced Topics](advanced.md).
 

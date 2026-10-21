@@ -17,8 +17,8 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <see cref="CommandExitMapper.ThrowIfExternalAbort"/> throw/no-throw, and
 /// <see cref="CommandShutdownScope"/> Ctrl+C and SIGTERM observation through a capturing
 /// <see cref="IConsoleCancelSignal"/> fake and a SIGTERM fake, with the executor 130 mapping
-/// and the host-wins orchestrator classification for both the host-canceled and the
-/// host-success drain outcomes.
+/// and the orchestrator classification for the host-wins host-canceled and host-success
+/// drain outcomes plus the command-first success outcome.
 /// Runs in the non-parallel <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -155,6 +155,21 @@ public sealed class CommandExternalAbortTests
                 await ReleaseExited.Task.ConfigureAwait(false);
                 ExitedCompleted = true;
             });
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("External abort probe.")]
+    private sealed class CommandSuccessProbeCommand : Command
+    {
+        private readonly Action _onRun;
+
+        public CommandSuccessProbeCommand(Action onRun) => _onRun = onRun;
+
+        // Raises the abort signal synchronously so the command task settles before the host task exists.
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            _onRun();
             return ValueTask.CompletedTask;
         }
     }
@@ -521,6 +536,52 @@ public sealed class CommandExternalAbortTests
             command.ReleaseExited.TrySetResult(true);
             await runTask;
         }
+    }
+
+    [Fact]
+    public async Task Orchestrator_CommandSuccessWithCtrlC_MapsToExternalCancellation()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        using var host = builder.Build();
+        var applicationHost = new ApplicationHost<HostApplicationBuilder>(builder, host);
+        var signal = new CapturingCancelSignal();
+        var sigterm = new FakeSigtermSignal();
+        using var scope = new CommandShutdownScope(CancellationToken.None, signal, sigterm);
+        var command = new CommandSuccessProbeCommand(signal.RaiseCtrlC);
+        var commandInfo = SubCommandInfo.FromCommand(typeof(CommandSuccessProbeCommand), command);
+        var lifetime = new LifetimeGlobalService();
+        int exitingCount = 0;
+        lifetime.ApplicationExitingCallback(() => Interlocked.Increment(ref exitingCount));
+
+        Task invokeTask = CommandRunOrchestrator.InvokeAsync(command, applicationHost, lifetime, scope, commandInfo);
+        Task bounded = await Task.WhenAny(invokeTask, Task.Delay(TimeSpan.FromSeconds(15)));
+        Assert.Same(invokeTask, bounded);
+
+        await Assert.ThrowsAsync<CommandExecutor.ExternalCancellationException>(() => invokeTask);
+        Assert.Equal(1, exitingCount);
+    }
+
+    [Fact]
+    public async Task Orchestrator_CommandSuccessWithSigterm_MapsToExternalCancellation()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        using var host = builder.Build();
+        var applicationHost = new ApplicationHost<HostApplicationBuilder>(builder, host);
+        var signal = new CapturingCancelSignal();
+        var sigterm = new FakeSigtermSignal();
+        using var scope = new CommandShutdownScope(CancellationToken.None, signal, sigterm);
+        var command = new CommandSuccessProbeCommand(sigterm.Raise);
+        var commandInfo = SubCommandInfo.FromCommand(typeof(CommandSuccessProbeCommand), command);
+        var lifetime = new LifetimeGlobalService();
+        int exitingCount = 0;
+        lifetime.ApplicationExitingCallback(() => Interlocked.Increment(ref exitingCount));
+
+        Task invokeTask = CommandRunOrchestrator.InvokeAsync(command, applicationHost, lifetime, scope, commandInfo);
+        Task bounded = await Task.WhenAny(invokeTask, Task.Delay(TimeSpan.FromSeconds(15)));
+        Assert.Same(invokeTask, bounded);
+
+        await Assert.ThrowsAsync<CommandExecutor.ExternalCancellationException>(() => invokeTask);
+        Assert.Equal(1, exitingCount);
     }
 
     [Fact]
