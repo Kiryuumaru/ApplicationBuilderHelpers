@@ -810,7 +810,7 @@ public sealed class CommandHierarchyTests
         var provider = new HelpContentProvider(
             builder,
             hierarchy.RootCommand,
-            new Dictionary<string, SubCommandInfo>(hierarchy.AllCommands));
+            new OptionDefaultResolver(builder, builder));
         return provider.BuildCommandModel(command);
     }
 

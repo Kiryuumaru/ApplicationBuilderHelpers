@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -15,35 +14,6 @@ internal static class SecretRedaction
     /// Mask shown in place of a secret value.
     /// </summary>
     public const string Mask = "[REDACTED]";
-
-    /// <summary>
-    /// Whether a default value should be masked.
-    /// </summary>
-    public static bool ShouldMaskDefault(object? value, bool isSecret)
-    {
-        if (!isSecret)
-            return false;
-
-        return value switch
-        {
-            null => false,
-            string s => s.Length != 0,
-            Array arr => arr.Length != 0,
-            ICollection collection => collection.Count != 0,
-            _ => true
-        };
-    }
-
-    /// <summary>
-    /// Display text for a default value.
-    /// </summary>
-    public static string? GetDefaultDisplay(object? value, bool isSecret)
-    {
-        if (ShouldMaskDefault(value, isSecret))
-            return Mask;
-
-        return value?.ToString();
-    }
 
     /// <summary>
     /// Error message for an option value rejected by the valid-values list.

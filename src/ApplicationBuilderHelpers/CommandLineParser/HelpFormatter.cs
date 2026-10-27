@@ -1,5 +1,4 @@
 using ApplicationBuilderHelpers.Interfaces;
-using System.Collections.Generic;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -9,11 +8,11 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal class HelpFormatter(
     ICommandBuilder commandBuilder,
     SubCommandInfo? rootCommand,
-    Dictionary<string, SubCommandInfo> allCommands,
+    OptionDefaultResolver defaultResolver,
     ConsoleOutput? consoleOutput = null)
 {
     private readonly ICommandBuilder _commandBuilder = commandBuilder;
-    private readonly HelpContentProvider _contentProvider = new(commandBuilder, rootCommand, allCommands);
+    private readonly HelpContentProvider _contentProvider = new(commandBuilder, rootCommand, defaultResolver);
 
     /// <summary>Console sink help renders through; defaults to the real console.</summary>
     internal ConsoleOutput ConsoleOutput { get; } = consoleOutput ?? new ConsoleOutput();

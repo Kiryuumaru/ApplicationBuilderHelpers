@@ -1,6 +1,6 @@
 # Advanced Topics
 
-Edge cases and power features: nested commands, custom hosts, exit codes, error messages, and shared options. Tokenizer rules live in [Commands](commands.md#how-typing-works). Exits live in [API Reference](api-reference.md#commandexception).
+Edge cases and power features: nested commands, custom hosts, exit codes, error messages, and shared options. Tokenizer rules live in [Commands](commands.md#how-typing-works). Exits live in [API Reference](api-reference.md#handle-errors-and-exit-codes).
 
 ## Sub-Commands
 
@@ -188,7 +188,7 @@ The default policy sets two gates: `SuppressStatusMessages = true` and a `Micros
 
 ## Running Twice and Thread Safety
 
-Each `RunAsync` call rebuilds from your live registrations. Commands registered by type get a fresh instance per run, so values never leak between runs. Commands registered by instance keep their identity. Calls to `AddCommand` or `AddCommandTypeParser` between runs apply on the next run.
+Each `RunAsync` call rebuilds from your live registrations. Commands registered by type get a fresh instance per run, so values never leak between runs. Commands registered by instance keep their identity. On a shared instance, explicit CLI and environment values persist across runs, and parser defaults apply only while the property is untouched and still equals its registration snapshot; help reflects that shared state. See [Commands](commands.md#shared-instances-and-help). Calls to `AddCommand` or `AddCommandTypeParser` between runs apply on the next run.
 
 You can call `RunAsync` again on the same builder. Never mutate the builder or share instance registrations across concurrent runs.
 

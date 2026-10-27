@@ -97,6 +97,15 @@ untouched — `ICommandTypeParser.GetDefaultValue` and
 `CommandTypeParser<T>.GetDefaultValue` remain, and `docs/api-reference.md` /
 `docs/custom-type-parsers.md` references to them stay accurate.
 
+> **Updated by ADR-0023 (#762):** the help-only parser-default fallback above is
+> superseded. Help and binding now share one `OptionDefaultResolver`;
+> `GetDefaultValue` also binds omitted optional valued options, and `GetString`
+> formats the help default. The historical lines above remain as the pre-#762
+> record. Current behavior lives in [Custom Type
+> Parsers](../custom-type-parsers.md#defaults-for-omitted-options) and
+> [Commands](../commands.md#omitted-values-and-parser-defaults), then
+> [ADR-0023](0023-option-parser-defaults.md).
+
 ### Override/hide verdict
 
 Duplicates preserved, no descriptor filter: override/hide members keep their

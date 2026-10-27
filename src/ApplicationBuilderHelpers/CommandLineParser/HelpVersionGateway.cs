@@ -2,7 +2,6 @@ using ApplicationBuilderHelpers.Exceptions;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
-using System.Collections.Generic;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
@@ -11,7 +10,8 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// </summary>
 internal sealed class HelpVersionGateway(
     ICommandBuilder commandBuilder,
-    ConsoleOutput consoleOutput)
+    ConsoleOutput consoleOutput,
+    OptionDefaultResolver defaultResolver)
 {
     /// <summary>Bare global-help request (exactly one help token).</summary>
     internal static bool ShouldShowGlobalHelp(string[] args)
@@ -112,16 +112,16 @@ internal sealed class HelpVersionGateway(
     }
 
     /// <summary>Renders global help for the whole application.</summary>
-    internal void ShowGlobalHelp(SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
+    internal void ShowGlobalHelp(SubCommandInfo? rootCommand)
     {
-        var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, allCommands, consoleOutput);
+        var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, defaultResolver, consoleOutput);
         helpFormatter.ShowGlobalHelp();
     }
 
     /// <summary>Renders help for a single command.</summary>
-    internal void ShowCommandHelp(SubCommandInfo commandInfo, SubCommandInfo? rootCommand, Dictionary<string, SubCommandInfo> allCommands)
+    internal void ShowCommandHelp(SubCommandInfo commandInfo, SubCommandInfo? rootCommand)
     {
-        var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, allCommands, consoleOutput);
+        var helpFormatter = new HelpFormatter(commandBuilder, rootCommand, defaultResolver, consoleOutput);
         helpFormatter.ShowCommandHelp(commandInfo);
     }
 

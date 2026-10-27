@@ -23,8 +23,6 @@ internal sealed class CommandHierarchyBuilder(
 
     public IReadOnlyDictionary<string, SubCommandOptionInfo> GlobalRegistry => _globalRegistry;
 
-    public IReadOnlyDictionary<string, SubCommandInfo> AllCommands => _allCommands;
-
     public void BuildCommandHierarchy()
     {
         RootCommand = new SubCommandInfo
@@ -336,7 +334,8 @@ internal sealed class CommandHierarchyBuilder(
         if (holder is null)
             return ReadSharedBaseValue(declaringType, option.Property);
 
-        if (holder.TryGetInitializerDefault(option.Property, out var snapshot))
+        var holderProperty = CommandReflectionCache.ResolveHolderProperty(holder, option.Property);
+        if (holderProperty is not null && holder.TryGetRegistrationValue(holderProperty, out var snapshot))
             return snapshot;
 
         if (holder.IsInstanceRegistration)
@@ -388,12 +387,12 @@ internal sealed class CommandHierarchyBuilder(
             if (!declaringType.IsAssignableFrom(holder.CommandType))
                 continue;
 
-            var holderProperty = ResolveHolderProperty(holder, optionProperty);
+            var holderProperty = CommandReflectionCache.ResolveHolderProperty(holder, optionProperty);
             if (holderProperty is null)
                 return InitializerValuesUnreadable.Value;
 
             object? candidate;
-            if (holder.TryGetInitializerDefault(holderProperty, out var snapshot))
+            if (holder.TryGetRegistrationValue(holderProperty, out var snapshot))
             {
                 candidate = snapshot;
             }
@@ -425,20 +424,6 @@ internal sealed class CommandHierarchyBuilder(
         }
 
         return seen ? agreed : InitializerValuesUnreadable.Value;
-    }
-
-    private static System.Reflection.PropertyInfo? ResolveHolderProperty(Models.TypedCommandHolder holder, System.Reflection.PropertyInfo optionProperty)
-    {
-        if (holder.CommandType == optionProperty.DeclaringType)
-            return optionProperty;
-
-        var resolved = holder.CommandType.GetProperty(
-            optionProperty.Name,
-            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (resolved is null || resolved.DeclaringType != optionProperty.DeclaringType)
-            return null;
-
-        return resolved;
     }
 
     private static bool ArraysEqual(object[]? arr1, object[]? arr2)
