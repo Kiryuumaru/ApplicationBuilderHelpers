@@ -82,7 +82,7 @@ internal sealed class HelpVersionGateway(
         var helpRequested = RequestedHelp(tail);
         if (result.ShowHelp && helpRequested)
             return HelpVersionForgiveness.ForgiveHelp;
-        if (!result.ShowHelp && result.ShowVersion && RequestedVersion(tail) && !helpRequested)
+        if (!result.ShowHelp && result.ShowVersion && RequestedVersion(tail) && (!helpRequested || result.HelpTokenConsumed))
             return HelpVersionForgiveness.ForgiveVersion;
         return HelpVersionForgiveness.NoForgive;
     }

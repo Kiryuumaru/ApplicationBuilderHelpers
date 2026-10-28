@@ -1,4 +1,4 @@
-# ADR 0023: Parser Defaults for Omitted Options (Option B, #762)
+# ADR 0024: Parser Defaults for Omitted Options (Option B, #762)
 
 **Status**: Accepted (issue #762, Option B).
 

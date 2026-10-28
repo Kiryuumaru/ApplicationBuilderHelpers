@@ -71,15 +71,15 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             if (leftDisplayWidth > leftColumnWidth)
             {
                 _consoleOutput.WriteLine(leftColumn);
-                WriteWrappedText(rightColumn, totalWidth - 4, 4, theme);
+                WriteWrappedText(rightColumn, 0, 4, totalWidth - 4, theme);
             }
             else
             {
-                var rightColumnWidth = totalWidth - leftColumnWidth - helpBorderWidth;
+                var descriptionColumn = leftColumnWidth + helpBorderWidth;
 
                 _consoleOutput.Write(leftColumn);
-                _consoleOutput.Write(new string(' ', leftColumnWidth - leftDisplayWidth + helpBorderWidth));
-                WriteWrappedText(rightColumn, rightColumnWidth, leftColumnWidth + helpBorderWidth, theme);
+                _consoleOutput.Write(new string(' ', descriptionColumn - leftDisplayWidth));
+                WriteWrappedText(rightColumn, descriptionColumn, descriptionColumn, totalWidth, theme);
             }
         }
         _consoleOutput.WriteLine();
@@ -142,22 +142,22 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         return false;
     }
 
-    private void WriteAnnotatedLine(LabelSpec spec, string line, int width, int indent, string indentStr, bool firstLine, IConsoleTheme? theme)
+    private void WriteAnnotatedLine(LabelSpec spec, string line, int lineStartColumn, int firstLineColumn, string indentStr, int maxColumn, IConsoleTheme? theme)
     {
         if (!TrySplitPrefix(line, out var prefix, out var valueText))
         {
-            WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
+            WriteWrappedLine(line, lineStartColumn, indentStr, maxColumn);
             return;
         }
 
         if (spec.CommaPack)
         {
             WriteColoredText(prefix, theme?.SecondaryColor);
-            var currentPos = GetDisplayWidth(prefix);
+            var currentPos = firstLineColumn + GetDisplayWidth(prefix);
 
             if (!string.IsNullOrEmpty(valueText))
             {
-                WriteCommaPackedValues(valueText, width, indent, indentStr, theme, currentPos);
+                WriteCommaPackedValues(valueText, maxColumn, indentStr, theme, currentPos);
             }
         }
         else
@@ -166,7 +166,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         }
     }
 
-    private void WriteCommaPackedValues(string valuesText, int width, int indent, string indentStr, IConsoleTheme? theme, int currentPos)
+    private void WriteCommaPackedValues(string valuesText, int maxColumn, string indentStr, IConsoleTheme? theme, int currentPos)
     {
         var values = valuesText.Split(',').Select(v => v.Trim()).ToArray();
 
@@ -176,7 +176,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             var textToAdd = i == 0 ? $" {value}" : $", {value}";
             var textLength = GetDisplayWidth(textToAdd);
 
-            if (currentPos + textLength < width - 2)
+            if (currentPos + textLength < maxColumn - 2)
             {
                 WriteColoredText(textToAdd, theme?.ParameterColor);
                 currentPos += textLength;
@@ -186,7 +186,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
                 _consoleOutput.WriteLine();
                 _consoleOutput.Write(indentStr);
                 WriteColoredText(value, theme?.ParameterColor);
-                currentPos = indent + GetDisplayWidth(value);
+                currentPos = indentStr.Length + GetDisplayWidth(value);
             }
         }
     }
@@ -197,7 +197,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         WriteColoredText($" {valueText}", theme?.ParameterColor);
     }
 
-    private void WriteWrappedText(string text, int width, int indent, IConsoleTheme? theme)
+    private void WriteWrappedText(string text, int firstLineColumn, int continuationIndent, int maxColumn, IConsoleTheme? theme)
     {
         if (string.IsNullOrEmpty(text))
         {
@@ -206,12 +206,14 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         }
 
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var indentStr = new string(' ', indent);
-        var firstLine = true;
+        var indentStr = new string(' ', continuationIndent);
+        var firstSourceLine = true;
 
         foreach (var line in lines)
         {
-            if (!firstLine)
+            var lineStartColumn = firstSourceLine ? firstLineColumn : continuationIndent;
+
+            if (!firstSourceLine)
             {
                 _consoleOutput.WriteLine();
                 _consoleOutput.Write(indentStr);
@@ -219,30 +221,30 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
             if (TryMatchAnnotated(line, out var spec))
             {
-                WriteAnnotatedLine(spec, line, width, indent, indentStr, firstLine, theme);
+                WriteAnnotatedLine(spec, line, lineStartColumn, firstLineColumn, indentStr, maxColumn, theme);
             }
             else
             {
-                WriteWrappedLine(line, width, firstLine ? 0 : indent, indentStr);
+                WriteWrappedLine(line, lineStartColumn, indentStr, maxColumn);
             }
 
-            firstLine = false;
+            firstSourceLine = false;
         }
 
         _consoleOutput.WriteLine();
     }
 
-    private void WriteWrappedLine(string line, int width, int currentIndent, string indentStr)
+    private void WriteWrappedLine(string line, int startColumn, string indentStr, int maxColumn)
     {
         var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var currentLineLength = currentIndent;
+        var currentLineLength = startColumn;
         var lineStarted = false;
 
         foreach (var word in words)
         {
             var wordLength = GetDisplayWidth(word);
 
-            if (lineStarted && currentLineLength + wordLength + 1 > width)
+            if (lineStarted && currentLineLength + wordLength + 1 > maxColumn)
             {
                 _consoleOutput.WriteLine();
                 _consoleOutput.Write(indentStr);

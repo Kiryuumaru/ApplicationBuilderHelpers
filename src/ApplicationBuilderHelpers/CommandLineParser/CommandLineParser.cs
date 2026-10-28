@@ -72,7 +72,7 @@ internal class CommandLineParser
 
             var parseResult = ParseCommandLine(args);
 
-            if (parseResult.ShowHelp && HasDanglingValuedOption(parseResult))
+            if (parseResult.ShowHelp && HasDanglingValuedOption(parseResult) && !parseResult.VersionSkippedOnPath)
                 parseResult.ShowHelp = false;
 
             var forgiveness = HelpVersionGateway.DecideValidationForgiveness(parseResult, args);

@@ -26,6 +26,16 @@ internal sealed class ArgumentParser
                 break;
             if (token.StartsWith('-'))
             {
+                if (HelpVersionGateway.IsVersionToken(token)
+                    && !result.TargetCommand.HasImplementation
+                    && result.TargetCommand.Children.Count > 0
+                    && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsHelpToken))
+                {
+                    result.ShowVersion = true;
+                    result.VersionSkippedOnPath = true;
+                    argIndex++;
+                    continue;
+                }
                 if (IsNumericValue(token) || HelpVersionGateway.IsHelpToken(token) || HelpVersionGateway.IsVersionToken(token))
                     break;
                 // Current node only: globals, then options bindable here. No descendant look-ahead.
@@ -78,15 +88,23 @@ internal sealed class ArgumentParser
 
         ThrowOnUnbindablePathOption(result, args, argIndex, pathGlobals);
 
-        if (argIndex == 0 && args.Length > 0 && !args[0].StartsWith('-') && args[0] != "/?" && !args[0].StartsWith("/?=", StringComparison.Ordinal))
+        var leadingMissToken = argIndex < args.Length ? args[argIndex] : null;
+        var transparentVersionPrefix = argIndex > 0
+            && result.TargetCommand.IsRoot
+            && args.Take(argIndex).All(HelpVersionGateway.IsVersionToken);
+        if ((argIndex == 0 || transparentVersionPrefix)
+            && leadingMissToken != null
+            && !leadingMissToken.StartsWith('-')
+            && leadingMissToken != "/?"
+            && !leadingMissToken.StartsWith("/?=", StringComparison.Ordinal))
         {
-            if (!IsExemptRootPositional(rootCommand, args[0]))
+            if (!IsExemptRootPositional(rootCommand, leadingMissToken))
             {
                 var zeroMatchSuggestion = DidYouMean.SuggestSubcommand(
-                    args[0],
+                    leadingMissToken,
                     rootCommand.Children.Keys);
                 throw new CommandException(
-                    DidYouMean.WithSuggestion($"No command found for '{args[0]}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
+                    DidYouMean.WithSuggestion($"No command found for '{leadingMissToken}'", zeroMatchSuggestion), 2, CommandErrorKind.UnknownCommand);
             }
         }
 
@@ -150,9 +168,13 @@ internal sealed class ArgumentParser
             ThrowOnOrderedPreSentinelErrors(result.TargetCommand, args, argIndex, includeBareValuedGate: false);
         }
 
-        if (!result.TargetCommand.HasImplementation && args.Skip(argIndex).TakeWhile(t => t != "--").Any(HelpVersionGateway.IsVersionToken))
+        var preSentinelTokens = args.Skip(argIndex).TakeWhile(t => t != "--").ToArray();
+        if (!result.TargetCommand.HasImplementation
+            && preSentinelTokens.Any(HelpVersionGateway.IsVersionToken)
+            && !preSentinelTokens.Any(HelpVersionGateway.IsHelpToken))
         {
-            // Version beats help on abstract paths, so it short-circuits before the help probe.
+            // A lone version request wins on abstract paths; with help present, the
+            // help and miss gates decide before version precedence.
             result.ShowVersion = true;
             return result;
         }
@@ -323,7 +345,11 @@ internal sealed class ArgumentParser
                     || (matchedOption.ShortName.HasValue && !matchedOption.IsFlag && arg.StartsWith($"-{matchedOption.ShortName}", StringComparison.Ordinal) && arg.Length > 2);
                 var isFlagSpaceForm = matchedOption.IsFlag && IsBareFlagToken(matchedOption, arg) && !IsNegatedFlagToken(matchedOption, arg) && nextArg != null && SubCommandOptionInfo.IsBooleanValue(nextArg);
                 if ((!matchedOption.IsFlag && !isInTokenValuedForm && consumableNext != null) || isFlagSpaceForm)
+                {
+                    if (!matchedOption.IsFlag && consumableNext != null && HelpVersionGateway.IsHelpToken(consumableNext))
+                        result.HelpTokenConsumed = true;
                     i++;
+                }
 
                 AddParsedOptionValue(result, matchedOption, value, arg, occurrenceNext);
             }
@@ -538,7 +564,11 @@ internal sealed class ArgumentParser
                 occurrenceArg = $"-{letter}";
                 occurrenceNext = consumableClusterNext;
                 if (consumableClusterNext != null)
+                {
+                    if (HelpVersionGateway.IsHelpToken(consumableClusterNext))
+                        result.HelpTokenConsumed = true;
                     consumedNext = true;
+                }
             }
 
             AddParsedOptionValue(result, member, value, occurrenceArg, occurrenceNext);
@@ -1129,11 +1159,11 @@ internal sealed class ArgumentParser
         var sentinelIndex = Array.IndexOf(args, "--");
         var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
         var i = argIndex;
-        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+        while (i < end && (HelpVersionGateway.IsHelpToken(args[i]) || HelpVersionGateway.IsVersionToken(args[i])))
             i++;
         while (i < end && target.FindChild(args[i]) != null)
             i++;
-        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+        while (i < end && (HelpVersionGateway.IsHelpToken(args[i]) || HelpVersionGateway.IsVersionToken(args[i])))
             i++;
         var missToken = i < end ? args[i] : null;
         if (missToken == null || missToken.StartsWith('-') || missToken == "/?" || missToken.StartsWith("/?=", StringComparison.Ordinal))
@@ -1153,7 +1183,7 @@ internal sealed class ArgumentParser
         var sentinelIndex = Array.IndexOf(args, "--");
         var end = sentinelIndex < 0 ? args.Length : sentinelIndex;
         var i = argIndex;
-        while (i < end && HelpVersionGateway.IsHelpToken(args[i]))
+        while (i < end && (HelpVersionGateway.IsHelpToken(args[i]) || HelpVersionGateway.IsVersionToken(args[i])))
             i++;
         if (i >= end)
             return target;
@@ -1161,8 +1191,15 @@ internal sealed class ArgumentParser
             return target;
         var current = target;
         var resolved = false;
-        while (i < end && !args[i].StartsWith('-') && args[i] != "/?")
+        while (i < end)
         {
+            if (HelpVersionGateway.IsVersionToken(args[i]))
+            {
+                i++;
+                continue;
+            }
+            if (args[i].StartsWith('-') || args[i] == "/?")
+                break;
             var child = current.FindChild(args[i]);
             if (child == null)
                 break;
