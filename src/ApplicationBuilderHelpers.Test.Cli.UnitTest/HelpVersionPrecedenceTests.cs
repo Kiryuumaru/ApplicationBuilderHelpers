@@ -10,6 +10,12 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// required valued option consumes the neighbor as its value instead, help
 /// never masks path errors, and a version flag beside help forgives the
 /// dangling-value error so the command runs with the option unset.
+/// A typo on the abstract <c>config</c> hub that precedes the help/version tail
+/// stays a <c>RequiresSubcommand</c> usage error instead of taking the version
+/// carve-out: both token orders, short and alias forms, help clusters, a single
+/// help token before the typo, and valued-option variants all follow the same
+/// guard. Version-only, help-only, post-separator, and leaf paths keep their
+/// existing outcomes.
 /// </summary>
 public class HelpVersionPrecedenceTests : CliTestBase
 {
@@ -298,6 +304,222 @@ public class HelpVersionPrecedenceTests : CliTestBase
         CliTestAssertions.AssertFailure(result);
         CliTestAssertions.AssertExitCode(result, 2);
         CliTestAssertions.AssertErrorContains(result, "Invalid Boolean value 'banana' for option '--quiet'");
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Theory]
+    [InlineData("--help", "--version")]
+    [InlineData("--version", "--help")]
+    [InlineData("-h", "-V")]
+    [InlineData("-V", "-h")]
+    [InlineData("--help", "-V")]
+    [InlineData("-V", "--help")]
+    [InlineData("-h", "--version")]
+    [InlineData("--version", "-h")]
+    public async Task Group_Typo_With_Help_And_Version_Requires_Subcommand(string first, string second)
+    {
+        var expected = await Runner.RunAsync("config", "bogus", "--help");
+        var result = await Runner.RunAsync("config", "bogus", first, second);
+
+        CliTestAssertions.AssertExitCode(expected, 2);
+        AssertSameResult(expected, result);
+        AssertRequiresSubcommandError(result);
+    }
+
+    [Theory]
+    [InlineData("-?")]
+    [InlineData("/?")]
+    [InlineData("-hV")]
+    public async Task Group_Typo_With_Help_Alias_And_Version_Requires_Subcommand(string helpToken)
+    {
+        var expected = await Runner.RunAsync("config", "bogus", "--help");
+        var result = await Runner.RunAsync("config", "bogus", helpToken, "--version");
+
+        CliTestAssertions.AssertExitCode(expected, 2);
+        AssertSameResult(expected, result);
+        AssertRequiresSubcommandError(result);
+    }
+
+    [Theory]
+    [InlineData("-hV")]
+    [InlineData("-Vh")]
+    public async Task Group_Help_Cluster_With_Version_Requires_Subcommand(string cluster)
+    {
+        var expected = await Runner.RunAsync("config", cluster);
+        var result = await Runner.RunAsync("config", cluster, "--version");
+
+        CliTestAssertions.AssertExitCode(expected, 2);
+        AssertSameResult(expected, result);
+        AssertRequiresSubcommandError(result);
+    }
+
+    [Fact]
+    public async Task Group_Help_Before_Typo_With_Version_Requires_Subcommand()
+    {
+        var expected = await Runner.RunAsync("config", "--help", "bogus");
+        var result = await Runner.RunAsync("config", "--help", "bogus", "--version");
+
+        CliTestAssertions.AssertExitCode(expected, 2);
+        AssertSameResult(expected, result);
+        AssertRequiresSubcommandError(result);
+    }
+
+    [Fact]
+    public async Task Group_Valued_Option_Then_Typo_With_Help_And_Version_Requires_Subcommand()
+    {
+        var expected = await Runner.RunAsync("config", "--format", "json", "bogus", "--help");
+        var result = await Runner.RunAsync("config", "--format", "json", "bogus", "--help", "--version");
+
+        CliTestAssertions.AssertExitCode(expected, 2);
+        AssertSameResult(expected, result);
+        AssertRequiresSubcommandError(result);
+    }
+
+    [Fact]
+    public async Task Group_Valued_Option_Then_Help_And_Typo_With_Version_Requires_Subcommand()
+    {
+        var expected = await Runner.RunAsync("config", "--format", "json", "--help", "bogus");
+        var result = await Runner.RunAsync("config", "--format", "json", "--help", "bogus", "--version");
+
+        CliTestAssertions.AssertExitCode(expected, 2);
+        AssertSameResult(expected, result);
+        AssertRequiresSubcommandError(result);
+    }
+
+    [Fact]
+    public async Task Group_Typo_Requires_Subcommand()
+    {
+        var result = await Runner.RunAsync("config", "bogus");
+
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'config' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: get, set");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --help' to see available subcommands and options.");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version' to show version information.");
+        AssertNoRuntimeFault(result);
+        AssertNoHelpOrVersionOutput(result);
+    }
+
+    [Fact]
+    public async Task Group_Typo_With_Help_Requires_Subcommand()
+    {
+        var result = await Runner.RunAsync("config", "bogus", "--help");
+
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'config' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: get, set");
+        CliTestAssertions.AssertErrorContains(result, "Run 'test --version' to show version information.");
+        Assert.DoesNotContain("Run 'test config --help'", result.StandardError);
+        AssertNoRuntimeFault(result);
+        AssertNoHelpOrVersionOutput(result);
+    }
+
+    [Fact]
+    public async Task Group_Typo_With_Version_Shows_Version()
+    {
+        var result = await Runner.RunAsync("config", "bogus", "--version");
+
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "requires a subcommand");
+        CliTestAssertions.AssertNoError(result);
+    }
+
+    [Theory]
+    [InlineData("--help", "--version")]
+    [InlineData("--version", "--help")]
+    public async Task Group_Help_And_Version_Shows_Help(string first, string second)
+    {
+        var expected = await Runner.RunAsync("config", "--help");
+        var result = await Runner.RunAsync("config", first, second);
+
+        CliTestAssertions.AssertSuccess(expected);
+        AssertSameResult(expected, result);
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputContains(result, "test config");
+        CliTestAssertions.AssertNoError(result);
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Group_Leaf_Help_And_Version_Shows_Leaf_Help()
+    {
+        var expected = await Runner.RunAsync("config", "get", "--help");
+        var result = await Runner.RunAsync("config", "get", "--help", "--version");
+
+        CliTestAssertions.AssertSuccess(expected);
+        AssertSameResult(expected, result);
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputContains(result, "USAGE:");
+        CliTestAssertions.AssertOutputContains(result, "test config get");
+        CliTestAssertions.AssertNoError(result);
+        Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task Group_Typo_After_Separator_With_Help_And_Version_Requires_Subcommand()
+    {
+        var expected = await Runner.RunAsync("config", "bogus");
+        var result = await Runner.RunAsync("config", "bogus", "--", "--help", "--version");
+
+        CliTestAssertions.AssertExitCode(expected, 2);
+        AssertSameResult(expected, result);
+        AssertRequiresSubcommandError(result);
+        CliTestAssertions.AssertErrorContains(result, "Run 'test config --help' to see available subcommands and options.");
+    }
+
+    [Fact]
+    public async Task Group_Version_Before_Separator_Shows_Version()
+    {
+        var expected = await Runner.RunAsync("config", "bogus", "--version");
+        var result = await Runner.RunAsync("config", "bogus", "--version", "--", "--help");
+
+        CliTestAssertions.AssertSuccess(expected);
+        AssertSameResult(expected, result);
+        CliTestAssertions.AssertSuccess(result);
+        CliTestAssertions.AssertExitCode(result, 0);
+        CliTestAssertions.AssertOutputMatches(result, @"\d+\.\d+\.\d+");
+        CliTestAssertions.AssertOutputDoesNotContain(result, "USAGE:");
+        CliTestAssertions.AssertNoError(result);
+    }
+
+    private static void AssertSameResult(CliTestResult expected, CliTestResult result)
+    {
+        Assert.Equal(expected.ExitCode, result.ExitCode);
+        Assert.Equal(expected.StandardOutput, result.StandardOutput);
+        Assert.Equal(expected.StandardError, result.StandardError);
+    }
+
+    private static void AssertRequiresSubcommandError(CliTestResult result)
+    {
+        CliTestAssertions.AssertFailure(result);
+        CliTestAssertions.AssertExitCode(result, 2);
+        CliTestAssertions.AssertErrorContains(result, "'config' requires a subcommand");
+        CliTestAssertions.AssertErrorContains(result, "Available subcommands: get, set");
+        AssertNoRuntimeFault(result);
+        AssertNoHelpOrVersionOutput(result);
+    }
+
+    private static void AssertNoRuntimeFault(CliTestResult result)
+    {
+        Assert.DoesNotContain("Object reference not set", result.CombinedOutput);
+        Assert.DoesNotContain("Non-static method requires a target", result.CombinedOutput);
+        Assert.DoesNotContain("TargetException", result.CombinedOutput);
+        Assert.DoesNotContain("Fault", result.CombinedOutput);
+        Assert.DoesNotContain("Run 'test --help' for more information on available commands and options.", result.CombinedOutput);
+    }
+
+    private static void AssertNoHelpOrVersionOutput(CliTestResult result)
+    {
+        Assert.True(string.IsNullOrWhiteSpace(result.StandardOutput), $"Expected empty stdout but got: {result.StandardOutput}");
+        Assert.DoesNotContain("USAGE:", result.StandardOutput);
         Assert.DoesNotMatch(@"(?m)^\d+\.\d+\.\d+", result.StandardOutput);
     }
 }

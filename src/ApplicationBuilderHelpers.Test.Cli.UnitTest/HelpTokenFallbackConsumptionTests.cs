@@ -14,7 +14,13 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// version token follows. A required option still consumes <c>/?</c> as its
 /// value, the <c>=</c>-form still binds it, and lookalike values
 /// (<c>/?x</c>, <c>/??</c>, <c>/</c>, <c>?</c>, <c>/tmp/x</c>) still bind as
-/// either a required or an optional value. Runs in the non-parallel
+/// either a required or an optional value. A consumed optional value followed
+/// by a typo keeps a live help request on the subcommand guard in either order,
+/// with or without an accompanying version token, while a version-only tail
+/// still shows the version. A required valued option taking a cluster-looking
+/// value likewise counts the full pre-<c>--</c> help window, so a trailing
+/// version token stays a typed subcommand error while the version-only and help
+/// tails keep their outcomes. Runs in the non-parallel
 /// <c>ConsoleDecoupling</c> collection.
 /// </summary>
 [Collection("ConsoleDecoupling")]
@@ -223,6 +229,97 @@ public sealed class HelpTokenFallbackConsumptionTests
         Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
     }
 
+    [Fact]
+    public async Task RequiredGroupingOption_HelpVersionClusterValue_RequiresSubcommand()
+    {
+        var result = await RunCapturedAsync(["grp2", "--name", "-hV"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        Assert.Contains("'grp2' requires a subcommand", result.Error);
+        Assert.Contains("Available subcommands: child", result.Error);
+        AssertNoRuntimeFault(result.Error);
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_HelpVersionClusterValue_WithVersion_RequiresSubcommand()
+    {
+        var control = await RunCapturedAsync(["grp2", "--name", "-hV"]);
+        var result = await RunCapturedAsync(["grp2", "--name", "-hV", "--version"]);
+
+        Assert.Equal(2, result.ExitCode);
+        AssertSameResult(control, result);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        Assert.Contains("'grp2' requires a subcommand", result.Error);
+        Assert.Contains("Available subcommands: child", result.Error);
+        AssertNoRuntimeFault(result.Error);
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_AttachedShortValue_WithVersion_RequiresSubcommand()
+    {
+        var control = await RunCapturedAsync(["grp2", "-nhello"]);
+        var result = await RunCapturedAsync(["grp2", "-nhello", "--version"]);
+
+        Assert.Equal(2, control.ExitCode);
+        Assert.Equal(2, result.ExitCode);
+        AssertSameResult(control, result);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        AssertNoRuntimeFault(result.Error);
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_HelpClusterValue_WithVersion_RequiresSubcommand()
+    {
+        var control = await RunCapturedAsync(["grp2", "--name", "-hx"]);
+        var result = await RunCapturedAsync(["grp2", "--name", "-hx", "--version"]);
+
+        Assert.Equal(2, control.ExitCode);
+        Assert.Equal(2, result.ExitCode);
+        AssertSameResult(control, result);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        AssertNoRuntimeFault(result.Error);
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_HelpClusterLookalikeValue_WithVersion_RequiresSubcommand()
+    {
+        var control = await RunCapturedAsync(["grp2", "--name", "-vhello"]);
+        var result = await RunCapturedAsync(["grp2", "--name", "-vhello", "--version"]);
+
+        Assert.Equal(2, control.ExitCode);
+        Assert.Equal(2, result.ExitCode);
+        AssertSameResult(control, result);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        AssertNoRuntimeFault(result.Error);
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_HelpVersionClusterValue_BeforeSeparator_WithVersion_RequiresSubcommand()
+    {
+        var control = await RunCapturedAsync(["grp2", "--name", "-hV", "--", "--help"]);
+        var result = await RunCapturedAsync(["grp2", "--name", "-hV", "--version", "--", "--help"]);
+
+        Assert.Equal(2, control.ExitCode);
+        Assert.Equal(2, result.ExitCode);
+        AssertSameResult(control, result);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        AssertNoRuntimeFault(result.Error);
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_AttachedShortValue_WithVersion_ShowsVersion()
+    {
+        var expected = await RunCapturedAsync(["grp2", "--version"]);
+        var result = await RunCapturedAsync(["grp2", "--name", "-nValue", "--version"]);
+
+        Assert.Equal(0, result.ExitCode);
+        AssertSameResult(expected, result);
+        Assert.Contains("9.9.9", result.Output);
+        Assert.DoesNotContain("USAGE:", result.Output);
+        Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
+    }
+
     [Theory]
     [InlineData("--version")]
     [InlineData("-V")]
@@ -237,6 +334,58 @@ public sealed class HelpTokenFallbackConsumptionTests
         Assert.Equal(control.Error, result.Error);
         Assert.Contains("9.9.9", result.Output);
         Assert.DoesNotContain("Ran target=", result.Output);
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_EqualsFormHelpClusterValue_WithVersion_ShowsVersion()
+    {
+        var expected = await RunCapturedAsync(["grp2", "--version"]);
+        var result = await RunCapturedAsync(["grp2", "--name=-hV", "--version"]);
+
+        Assert.Equal(0, result.ExitCode);
+        AssertSameResult(expected, result);
+        Assert.Contains("9.9.9", result.Output);
+        Assert.DoesNotContain("USAGE:", result.Output);
+        Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_VersionClusterValue_WithVersion_ShowsVersion()
+    {
+        var expected = await RunCapturedAsync(["grp2", "--version"]);
+        var result = await RunCapturedAsync(["grp2", "--name", "-V", "--version"]);
+
+        Assert.Equal(0, result.ExitCode);
+        AssertSameResult(expected, result);
+        Assert.Contains("9.9.9", result.Output);
+        Assert.DoesNotContain("USAGE:", result.Output);
+        Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_BareHelpToken_WithVersion_ShowsHelp()
+    {
+        var result = await RunCapturedAsync(["grp2", "--name", "--help", "--version"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("USAGE:", result.Output);
+        Assert.Contains("Grouping node with a required option", result.Output);
+        Assert.DoesNotContain("GRP2-CHILD", result.Output);
+        Assert.DoesNotContain("requires a subcommand", result.Error);
+        Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
+    }
+
+    [Fact]
+    public async Task RequiredGroupingOption_HelpVersionClusterValue_WithVersionAndHelp_ShowsHelp()
+    {
+        var result = await RunCapturedAsync(["grp2", "--name", "-hV", "--version", "--help"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("USAGE:", result.Output);
+        Assert.Contains("Grouping node with a required option", result.Output);
+        Assert.DoesNotContain("GRP2-CHILD", result.Output);
+        Assert.DoesNotContain("requires a subcommand", result.Error);
+        Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
     }
 
     [Fact]
@@ -348,6 +497,58 @@ public sealed class HelpTokenFallbackConsumptionTests
     }
 
     [Fact]
+    public async Task GroupingNode_OptionalValuedOption_BeforeTypo_HelpAndVersion_RequiresSubcommand()
+    {
+        var expected = await RunCapturedAsync(["grp", "--fmt", "json", "bogus", "--help"]);
+        var result = await RunCapturedAsync(["grp", "--fmt", "json", "bogus", "--help", "--version"]);
+
+        Assert.Equal(2, expected.ExitCode);
+        Assert.Equal(expected.ExitCode, result.ExitCode);
+        Assert.Equal(expected.Output, result.Output);
+        Assert.Equal(expected.Error, result.Error);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        Assert.Contains("requires a subcommand", result.Error);
+        Assert.Contains("Available subcommands: child", result.Error);
+        Assert.DoesNotContain("Object reference not set", result.Error);
+        Assert.DoesNotContain("Non-static method requires a target", result.Error);
+    }
+
+    [Fact]
+    public async Task GroupingNode_OptionalValuedOption_BeforeHelpAndTypo_Version_RequiresSubcommand()
+    {
+        var expected = await RunCapturedAsync(["grp", "--fmt", "json", "--help", "bogus"]);
+        var result = await RunCapturedAsync(["grp", "--fmt", "json", "--help", "bogus", "--version"]);
+
+        Assert.Equal(2, expected.ExitCode);
+        Assert.Equal(expected.ExitCode, result.ExitCode);
+        Assert.Equal(expected.Output, result.Output);
+        Assert.Equal(expected.Error, result.Error);
+        Assert.True(string.IsNullOrWhiteSpace(result.Output), $"Expected empty stdout but got: {result.Output}");
+        Assert.Contains("requires a subcommand", result.Error);
+        Assert.Contains("Available subcommands: child", result.Error);
+        Assert.DoesNotContain("Object reference not set", result.Error);
+        Assert.DoesNotContain("Non-static method requires a target", result.Error);
+    }
+
+    [Fact]
+    public async Task GroupingNode_OptionalValuedOption_BeforeTypo_WithVersion_ShowsVersion()
+    {
+        var expected = await RunCapturedAsync(["grp", "--version"]);
+        var result = await RunCapturedAsync(["grp", "--fmt", "json", "bogus", "--version"]);
+
+        Assert.Equal(0, expected.ExitCode);
+        Assert.Equal(expected.ExitCode, result.ExitCode);
+        Assert.Equal(expected.Output, result.Output);
+        Assert.Equal(expected.Error, result.Error);
+        Assert.Contains("9.9.9", result.Output);
+        Assert.DoesNotContain("USAGE:", result.Output);
+        Assert.DoesNotContain("requires a subcommand", result.Error);
+        Assert.DoesNotContain("Object reference not set", result.Error);
+        Assert.DoesNotContain("Non-static method requires a target", result.Error);
+        Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
+    }
+
+    [Fact]
     public async Task OptionalValuedOption_HelpTokenBeforeSeparator_ReportsMissingValue()
     {
         var slash = await RunCapturedAsync(["opt", "--config", "/?", "--"]);
@@ -361,6 +562,25 @@ public sealed class HelpTokenFallbackConsumptionTests
         Assert.Equal(dash.ExitCode, slash.ExitCode);
         Assert.Equal(dash.Output, slash.Output);
         Assert.Equal(dash.Error, slash.Error);
+    }
+
+    private static void AssertSameResult(
+        (int ExitCode, string Output, string Error) expected,
+        (int ExitCode, string Output, string Error) result)
+    {
+        Assert.Equal(expected.ExitCode, result.ExitCode);
+        Assert.Equal(expected.Output, result.Output);
+        Assert.Equal(expected.Error, result.Error);
+    }
+
+    private static void AssertNoRuntimeFault(string error)
+    {
+        Assert.DoesNotContain("Non-static method requires a target", error);
+        Assert.DoesNotContain("TargetException", error);
+        Assert.DoesNotContain("Object reference not set", error);
+        Assert.DoesNotContain(
+            "Run 'help-token-fallback-test --help' for more information on available commands and options.",
+            error);
     }
 
     private static ApplicationBuilder CreateBuilder()

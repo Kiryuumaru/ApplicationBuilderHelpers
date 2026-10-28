@@ -12,6 +12,10 @@ namespace ApplicationBuilderHelpers.Test.Cli.UnitTest;
 /// <c>RequiresSubcommand</c>). A near-miss first surplus token instead
 /// reports <c>Unknown subcommand '...'</c> with a <c>Did you mean '...'? </c>
 /// hint (kind <c>UnknownCommand</c>, leaf-identical, exit 2 unchanged).
+/// Adding a version token beside help keeps each classification: a typo
+/// before help stays <c>RequiresSubcommand</c> with the same suggestion, while
+/// help before a near-miss stays <c>UnknownCommand</c> and help before a
+/// far-miss stays <c>RequiresSubcommand</c>.
 /// Exit-code contract: every error scenario below fails with exit code 2
 /// (usage error per the structured CommandErrorKind contract); each kind is
 /// pinned via its distinct help footer.
@@ -166,6 +170,52 @@ public sealed class RequiresSubcommandSuggestionTests
         Assert.Equal(0, exitCode);
         Assert.Contains("9.9.9", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Theory]
+    [InlineData("gett", "--help", "--version", "Did you mean 'get'?")]
+    [InlineData("gett", "--version", "--help", "Did you mean 'get'?")]
+    [InlineData("zzzqqq", "--help", "--version", null)]
+    [InlineData("zzzqqq", "--version", "--help", null)]
+    public async Task Typo_With_Help_And_Version_Matches_Help_Only(string typo, string first, string second, string? suggestion)
+    {
+        var expected = await RunCapturedAsync(["config", typo, "--help"]);
+        var (exitCode, output, error) = await RunCapturedAsync(["config", typo, first, second]);
+
+        Assert.Equal(2, expected.ExitCode);
+        Assert.Equal(expected.ExitCode, exitCode);
+        Assert.Equal(expected.Output, output);
+        Assert.Equal(expected.Error, error);
+        Assert.Contains("'config' requires a subcommand", error);
+        Assert.Contains("Available subcommands: get, set", error);
+        Assert.DoesNotContain("Unknown subcommand", error);
+        Assert.DoesNotContain("Object reference not set", error);
+        Assert.DoesNotContain("Non-static method requires a target", error);
+        if (suggestion != null)
+            Assert.Contains(suggestion, error);
+        else
+            Assert.DoesNotContain("Did you mean", error);
+    }
+
+    [Theory]
+    [InlineData("gett", "Unknown subcommand 'gett'", "Did you mean 'get'?")]
+    [InlineData("zzzqqq", "'config' requires a subcommand", null)]
+    public async Task Help_Before_Typo_With_Version_Matches_Help_Only(string typo, string expectedError, string? suggestion)
+    {
+        var expected = await RunCapturedAsync(["config", "--help", typo]);
+        var (exitCode, output, error) = await RunCapturedAsync(["config", "--help", typo, "--version"]);
+
+        Assert.Equal(2, expected.ExitCode);
+        Assert.Equal(expected.ExitCode, exitCode);
+        Assert.Equal(expected.Output, output);
+        Assert.Equal(expected.Error, error);
+        Assert.Contains(expectedError, error);
+        Assert.DoesNotContain("Object reference not set", error);
+        Assert.DoesNotContain("Non-static method requires a target", error);
+        if (suggestion != null)
+            Assert.Contains(suggestion, error);
+        else
+            Assert.DoesNotContain("Did you mean", error);
     }
 
     private static ApplicationBuilder CreateBuilder()

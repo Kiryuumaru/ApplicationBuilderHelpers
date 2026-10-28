@@ -171,10 +171,11 @@ internal sealed class ArgumentParser
         var preSentinelTokens = args.Skip(argIndex).TakeWhile(t => t != "--").ToArray();
         if (!result.TargetCommand.HasImplementation
             && preSentinelTokens.Any(HelpVersionGateway.IsVersionToken)
-            && !preSentinelTokens.Any(HelpVersionGateway.IsHelpToken))
+            && !HelpVersionGateway.RequestedHelp(args))
         {
-            // A lone version request wins on abstract paths; with help present, the
-            // help and miss gates decide before version precedence.
+            // Version-only abstract path is the ADR 0010 carve-out; the help window
+            // matches DecideValidationForgiveness (full argv up to "--"), so a live
+            // help request keeps the help and miss gates ahead of version precedence.
             result.ShowVersion = true;
             return result;
         }
