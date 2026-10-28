@@ -201,7 +201,7 @@ if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, o
 
 Keep `Parse` pure: no side effects, and the same input always gives the same output and error. Binding may run your parser twice per value (once to check, once to bind).
 
-Registering a custom parser for an enum type turns off automatic enum-value help for that enum, for options and arguments alike.
+Registering a custom parser for an enum type turns off automatic enum-value help for that enum on scalar options and arguments.
 
 ## Built-in Types
 
@@ -211,7 +211,7 @@ These 25 types already have parsers. You can override any of them by registering
 
 ## Repeatable Options and Multi-Value Arguments
 
-Repeat an option to fill a collection. Supported shapes are `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, and `IList<T>`:
+Repeat an option to fill a collection. Supported shapes are `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, and `IList<T>`. Except for `object`, the element type must have a parser registered for it: the built-in types already have one, and enums are not built-ins, so `List<MyEnum>` needs a parser registered for `MyEnum` first. See [Limiting Values With `FromAmong`](#limiting-values-with-fromamong) for scalar enum help. For example:
 
 ```csharp
 [CommandOption("tag", Description = "Repeatable tags.")]
@@ -235,4 +235,4 @@ Restrict an option to an allowed list. The library converts the typed text first
 public int Level { get; set; }
 ```
 
-When the value is not allowed, the error names the list: `Must be one of: ...`. The same rule applies to positional arguments. Plain enums fill their allowed list from the enum names automatically. A matched string value binds verbatim: `--mode=JSON` binds as `JSON` when `FromAmong` lists `json` (matching may ignore case unless `CaseSensitive` is set, delivery keeps the typed text). `FromAmong` also gates parser defaults: a default outside the list is ignored, while explicit invalid values still error.
+When the value is not allowed, the error names the list: `Must be one of: ...`. The same rule applies to positional arguments. Plain scalar enum options and arguments fill their allowed list from the enum names automatically; this does not extend to collection elements. A matched string value binds verbatim: `--mode=JSON` binds as `JSON` when `FromAmong` lists `json` (matching may ignore case unless `CaseSensitive` is set, delivery keeps the typed text). `FromAmong` also gates parser defaults: a default outside the list is ignored, while explicit invalid values still error.

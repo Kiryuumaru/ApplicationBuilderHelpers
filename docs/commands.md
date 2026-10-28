@@ -92,7 +92,7 @@ A single-letter long name also answers its single-dash alias: `[CommandOption("a
 | `Description` | Help text |
 | `EnvironmentVariable` | Env var used when a valued option is omitted (flags never consult env; blank counts as omitted) |
 | `Required` | Fail with exit `2` when omitted (`""` counts as supplied) |
-| `FromAmong` | Only accept these values (enums fill this in automatically) |
+| `FromAmong` | Only accept these values (scalar enums fill this in automatically) |
 | `CaseSensitive` | Match `FromAmong` values with exact case; does NOT affect option NAME matching (names always match exactly) |
 | `Secret` | Never print the value; optional-option help always shows `Default: [REDACTED]` to signal secrecy, not that a default exists. The allowed-values list still shows — `[REDACTED]` may be one of the listed values |
 
