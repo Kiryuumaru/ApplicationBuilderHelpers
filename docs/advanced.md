@@ -71,7 +71,7 @@ public class MyCommand : Command
 }
 ```
 
-Need a server? Extend `Command<T>` with your host builder type and build it yourself:
+Need a server? Extend `Command<T>` with your host builder type. The library builds the host before `Run`, then starts it alongside your command. Map endpoints in `AddMappings` and wait for shutdown in `Run`:
 
 ```csharp
 [Command("serve", description: "Serve HTTP traffic")]
@@ -83,16 +83,22 @@ public class WebCommand : Command<WebApplicationBuilder>
         return new ValueTask<WebApplicationBuilder>(builder);
     }
 
+    public override void AddMappings(ApplicationHost applicationHost, IHost host)
+    {
+        var app = (WebApplication)host;
+        app.MapGet("/", () => "Hello World");
+    }
+
     protected override ValueTask Run(ApplicationHost<WebApplicationBuilder> applicationHost, CancellationToken cancellationToken)
     {
-        var app = applicationHost.Builder.Build();
-        app.MapGet("/", () => "Hello World");
-        return new ValueTask(app.RunAsync(cancellationToken));
+        return new ValueTask(applicationHost.Host.WaitForShutdownAsync(cancellationToken));
     }
 }
 ```
 
-The web sample needs ASP.NET Core packages.
+`Run` must wait for shutdown: the library runs the command and host together, so a command that returns first cancels the host. The `(WebApplication)host` cast is safe because the library built the host from the `WebApplicationBuilder`.
+
+The web sample needs the ASP.NET Core shared framework. Add a `Microsoft.AspNetCore.App` framework reference, or use the Web SDK (`Microsoft.NET.Sdk.Web`).
 
 Custom `Command<T>` hosts keep their own logging. The default policy below still applies to them: status messages are suppressed, and `Microsoft.Hosting.Lifetime` is filtered to `Warning` and above. Stream routing stays yours — the plain `Command` base is what sends console logs to stderr; custom hosts keep the console logger's default (stdout).
 

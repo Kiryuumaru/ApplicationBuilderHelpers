@@ -80,7 +80,7 @@ public class GreetCommand : Command
 }
 ```
 
-Need a server or a custom host? Extend `Command<THostBuilder>` instead, build the host in `ApplicationBuilder(stoppingToken)`, and read it back through `applicationHost.Builder` in `Run`. See [Advanced Topics](advanced.md).
+Need a server or a custom host? Extend `Command<THostBuilder>` instead. `ApplicationBuilder(stoppingToken)` returns the host builder; the library builds the host before `Run`. The library also starts the host, so `Run` should wait for shutdown rather than call `RunAsync` on the already-started host. In `Run`, `applicationHost.Host` is the built host and `applicationHost.Builder` is the original builder. See [Advanced Topics](advanced.md).
 
 Ignore the obsolete `Run` overload that takes a `CancellationTokenSource`. Override the `CancellationToken` overload above. Do not implement `ICommand` directly; derive from `Command<T>` instead.
 
