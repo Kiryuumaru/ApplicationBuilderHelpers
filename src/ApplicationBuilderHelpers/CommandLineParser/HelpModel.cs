@@ -1,12 +1,13 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
 /// <summary>
 /// Typed help content with no width, wrapping, theme, or Console knowledge.
 /// Emitted by <see cref="HelpContentProvider"/>, consumed by <see cref="HelpLayoutRenderer"/>.
-/// All strings are pre-composed (signatures, "\n"-joined description parts,
-/// "    "-indented usage/description lines); the renderer only lays them out.
+/// Two-column entry text is role-tagged so the renderer maps roles to theme colors;
+/// usage, description, and footer text stay pre-composed plain strings.
 /// </summary>
 internal sealed class HelpModel
 {
@@ -47,11 +48,38 @@ internal sealed class HelpSection
 }
 
 /// <summary>
-/// One two-column row: pre-computed left signature and "\n"-joined right description.
+/// One two-column row: role-tagged left spans and role-tagged right lines.
+/// <see cref="Left"/> and <see cref="Right"/> expose the composed plain text for width math and tests.
 /// </summary>
 internal sealed class HelpEntry
 {
-    internal string Left { get; init; } = string.Empty;
+    internal List<HelpSpan> LeftSpans { get; init; } = [];
 
-    internal string Right { get; init; } = string.Empty;
+    internal List<HelpLine> RightLines { get; init; } = [];
+
+    internal string Left => string.Concat(LeftSpans.Select(span => span.Text));
+
+    internal string Right => string.Join("\n", RightLines.Select(line => line.Text));
 }
+
+/// <summary>
+/// Theme role for a span or line of help text.
+/// </summary>
+internal enum HelpRole
+{
+    Plain,
+    Flag,
+    Parameter,
+    Description,
+    Required,
+}
+
+/// <summary>
+/// A run of help text with the theme role used to color it.
+/// </summary>
+internal readonly record struct HelpSpan(string Text, HelpRole Role);
+
+/// <summary>
+/// One logical right-column line with the theme role used to color it.
+/// </summary>
+internal sealed record HelpLine(string Text, HelpRole Role);

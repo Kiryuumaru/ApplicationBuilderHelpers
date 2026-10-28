@@ -203,11 +203,18 @@ internal class SubCommandOptionInfo
             return Property.Name;
     }
 
-    public string GetSignature()
+    internal string GetFlagsDisplayText()
     {
         var name = GetDisplayName();
         if (ShouldShowNegation && NegatedLongName != null)
             name += $", {NegatedLongName}";
+
+        return name;
+    }
+
+    public string GetSignature()
+    {
+        var name = GetFlagsDisplayText();
 
         var placeholder = HelpTypeDisplay.GetParameterPlaceholder(this);
         if (string.IsNullOrEmpty(placeholder))

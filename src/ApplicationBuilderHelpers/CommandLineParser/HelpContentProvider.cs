@@ -60,8 +60,8 @@ internal sealed class HelpContentProvider(
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = BuildOptionSignature(opt),
-                    Right = BuildOptionDescription(opt),
+                    LeftSpans = BuildOptionLeftSpans(opt),
+                    RightLines = BuildOptionDescription(opt),
                 });
             }
             sections.Add(new HelpSection { Header = "OPTIONS:", Entries = entries });
@@ -75,8 +75,8 @@ internal sealed class HelpContentProvider(
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = $"    {cmd.Name}",
-                    Right = cmd.Description ?? "",
+                    LeftSpans = BuildCommandLeftSpans(cmd.Name),
+                    RightLines = BuildDescriptionLines(cmd.Description, HelpRole.Description),
                 });
             }
             sections.Add(new HelpSection { Header = "COMMANDS:", Entries = entries });
@@ -93,8 +93,8 @@ internal sealed class HelpContentProvider(
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = BuildArgumentSignature(arg),
-                    Right = BuildArgumentDescription(arg),
+                    LeftSpans = [new HelpSpan(BuildArgumentSignature(arg), HelpRole.Plain)],
+                    RightLines = BuildArgumentDescription(arg),
                 });
             }
             sections.Add(new HelpSection { Header = "ARGUMENTS:", Entries = entries });
@@ -105,14 +105,14 @@ internal sealed class HelpContentProvider(
         {
             globalEntries.Add(new HelpEntry
             {
-                Left = BuildOptionSignature(opt),
-                Right = BuildOptionDescription(opt),
+                LeftSpans = BuildOptionLeftSpans(opt),
+                RightLines = BuildOptionDescription(opt),
             });
         }
         globalEntries.Add(new HelpEntry
         {
-            Left = "    -V, --version",
-            Right = "Show version information",
+            LeftSpans = BuildVersionLeftSpans(),
+            RightLines = [new HelpLine("Show version information", HelpRole.Description)],
         });
         sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = globalEntries });
 
@@ -194,16 +194,16 @@ internal sealed class HelpContentProvider(
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = BuildOptionSignature(opt),
-                    Right = BuildOptionDescription(opt),
+                    LeftSpans = BuildOptionLeftSpans(opt),
+                    RightLines = BuildOptionDescription(opt),
                 });
             }
             foreach (var opt in hierarchySpecificOptions)
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = BuildOptionSignature(opt),
-                    Right = BuildOptionDescription(opt),
+                    LeftSpans = BuildOptionLeftSpans(opt),
+                    RightLines = BuildOptionDescription(opt),
                 });
             }
             sections.Add(new HelpSection { Header = commandSectionName, Entries = entries });
@@ -217,8 +217,8 @@ internal sealed class HelpContentProvider(
                 {
                     entries.Add(new HelpEntry
                     {
-                        Left = BuildOptionSignature(opt),
-                        Right = BuildOptionDescription(opt),
+                        LeftSpans = BuildOptionLeftSpans(opt),
+                        RightLines = BuildOptionDescription(opt),
                     });
                 }
                 sections.Add(new HelpSection { Header = commandSectionName!, Entries = entries });
@@ -231,8 +231,8 @@ internal sealed class HelpContentProvider(
                 {
                     entries.Add(new HelpEntry
                     {
-                        Left = BuildOptionSignature(opt),
-                        Right = BuildOptionDescription(opt),
+                        LeftSpans = BuildOptionLeftSpans(opt),
+                        RightLines = BuildOptionDescription(opt),
                     });
                 }
                 sections.Add(new HelpSection { Header = hierarchySectionName!, Entries = entries });
@@ -246,8 +246,8 @@ internal sealed class HelpContentProvider(
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = $"    {child.Name}",
-                    Right = child.Description ?? "",
+                    LeftSpans = BuildCommandLeftSpans(child.Name),
+                    RightLines = BuildDescriptionLines(child.Description, HelpRole.Description),
                 });
             }
             sections.Add(new HelpSection { Header = "COMMANDS:", Entries = entries });
@@ -261,8 +261,8 @@ internal sealed class HelpContentProvider(
             {
                 entries.Add(new HelpEntry
                 {
-                    Left = BuildArgumentSignature(arg),
-                    Right = BuildArgumentDescription(arg),
+                    LeftSpans = [new HelpSpan(BuildArgumentSignature(arg), HelpRole.Plain)],
+                    RightLines = BuildArgumentDescription(arg),
                 });
             }
             sections.Add(new HelpSection { Header = "ARGUMENTS:", Entries = entries });
@@ -276,14 +276,14 @@ internal sealed class HelpContentProvider(
         {
             globalEntries.Add(new HelpEntry
             {
-                Left = BuildOptionSignature(opt),
-                Right = BuildOptionDescription(opt),
+                LeftSpans = BuildOptionLeftSpans(opt),
+                RightLines = BuildOptionDescription(opt),
             });
         }
         globalEntries.Add(new HelpEntry
         {
-            Left = "    -V, --version",
-            Right = "Show version information",
+            LeftSpans = BuildVersionLeftSpans(),
+            RightLines = [new HelpLine("Show version information", HelpRole.Description)],
         });
         sections.Add(new HelpSection { Header = "GLOBAL OPTIONS:", Entries = globalEntries });
 
@@ -342,48 +342,77 @@ internal sealed class HelpContentProvider(
         }
     }
 
-    private static string BuildOptionSignature(SubCommandOptionInfo option)
+    private static List<HelpSpan> BuildOptionLeftSpans(SubCommandOptionInfo option)
     {
         if (string.Equals(option.LongName, "help", StringComparison.Ordinal))
-            return "    -h, --help, -?";
-        return "    " + option.GetSignature();
-    }
-
-    private string BuildOptionDescription(SubCommandOptionInfo option)
-    {
-        var parts = new List<string>();
-
-        if (!string.IsNullOrEmpty(option.Description))
         {
-            parts.Add(option.Description);
+            return
+            [
+                new HelpSpan("    ", HelpRole.Plain),
+                new HelpSpan("-h, --help, -?", HelpRole.Flag),
+            ];
         }
 
+        var spans = new List<HelpSpan>
+        {
+            new("    ", HelpRole.Plain),
+            new(option.GetFlagsDisplayText(), HelpRole.Flag),
+        };
+
+        var placeholder = HelpTypeDisplay.GetParameterPlaceholder(option);
+        if (!string.IsNullOrEmpty(placeholder))
+        {
+            spans.Add(new HelpSpan(" ", HelpRole.Plain));
+            spans.Add(new HelpSpan(placeholder, HelpRole.Parameter));
+        }
+
+        return spans;
+    }
+
+    private static List<HelpSpan> BuildCommandLeftSpans(string name) =>
+    [
+        new HelpSpan("    ", HelpRole.Plain),
+        new HelpSpan(name, HelpRole.Flag),
+    ];
+
+    private static List<HelpSpan> BuildVersionLeftSpans() =>
+    [
+        new HelpSpan("    ", HelpRole.Plain),
+        new HelpSpan("-V, --version", HelpRole.Flag),
+    ];
+
+    private List<HelpLine> BuildOptionDescription(SubCommandOptionInfo option)
+    {
+        var lines = new List<HelpLine>();
+
+        AddLines(lines, option.Description, HelpRole.Description);
+
         if (string.Equals(option.LongName, "help", StringComparison.Ordinal))
         {
-            parts.Add("Also -? /? bare");
+            AddLines(lines, "Also -? /? bare", HelpRole.Plain);
         }
 
         if (option.IsRequired)
         {
-            parts.Add("(required)");
+            lines.Add(new HelpLine("(required)", HelpRole.Required));
         }
 
         if (option.ValidValues?.Length > 0)
         {
             var values = string.Join(", ", option.ValidValues);
-            parts.Add($"Possible values: {values}");
+            AddLines(lines, $"Possible values: {values}", HelpRole.Plain);
         }
 
         if (!string.IsNullOrEmpty(option.EnvironmentVariable))
         {
-            parts.Add($"Environment variable: {option.EnvironmentVariable}");
+            AddLines(lines, $"Environment variable: {option.EnvironmentVariable}", HelpRole.Plain);
         }
 
         if (!option.IsRequired && option.LongName != "help" && option.LongName != "version")
         {
             if (option.IsSecret)
             {
-                parts.Add($"Default: {SecretRedaction.Mask}");
+                AddLines(lines, $"Default: {SecretRedaction.Mask}", HelpRole.Plain);
             }
             else
             {
@@ -392,11 +421,11 @@ internal sealed class HelpContentProvider(
                     ? _defaultResolver.FormatDefault(option.PropertyType, defaultValue)
                     : null;
                 if (display is not null)
-                    parts.Add($"Default: {display}");
+                    AddLines(lines, $"Default: {display}", HelpRole.Plain);
             }
         }
 
-        return string.Join("\n", parts);
+        return lines;
     }
 
     private static string BuildArgumentSignature(SubCommandArgumentInfo argument)
@@ -410,22 +439,35 @@ internal sealed class HelpContentProvider(
         return $"    {bracketedName}";
     }
 
-    private static string BuildArgumentDescription(SubCommandArgumentInfo argument)
+    private static List<HelpLine> BuildArgumentDescription(SubCommandArgumentInfo argument)
     {
-        var parts = new List<string>();
+        var lines = new List<HelpLine>();
 
-        if (!string.IsNullOrEmpty(argument.Description))
-        {
-            parts.Add(argument.Description);
-        }
+        AddLines(lines, argument.Description, HelpRole.Plain);
 
         if (argument.ValidValues?.Length > 0)
         {
             var values = string.Join(", ", argument.ValidValues);
-            parts.Add($"Possible values: {values}");
+            AddLines(lines, $"Possible values: {values}", HelpRole.Plain);
         }
 
-        return string.Join("\n", parts);
+        return lines;
+    }
+
+    private static List<HelpLine> BuildDescriptionLines(string? text, HelpRole role)
+    {
+        var lines = new List<HelpLine>();
+        AddLines(lines, text, role);
+        return lines;
+    }
+
+    private static void AddLines(List<HelpLine> lines, string? text, HelpRole role)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        foreach (var line in text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            lines.Add(new HelpLine(line, role));
     }
 
     private static string? GetParentCommandName(SubCommandInfo commandInfo)

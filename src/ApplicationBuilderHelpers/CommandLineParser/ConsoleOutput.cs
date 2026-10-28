@@ -6,7 +6,7 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <summary>
 /// Internal decoupling of console output for testability.
 /// </summary>
-internal sealed class ConsoleOutput
+internal sealed class ConsoleOutput : IHelpOutput
 {
     /// <summary>
     /// Sink for normal output (help/version).
@@ -82,6 +82,12 @@ internal sealed class ConsoleOutput
     {
         WriteInternal(Error, value, color, isError: true, newLine: true);
     }
+
+    void IHelpOutput.Write(string? text, ConsoleColor? color) => Write(text, color);
+
+    void IHelpOutput.WriteLine() => WriteLine();
+
+    void IHelpOutput.WriteLine(string? text, ConsoleColor? color) => WriteLine(text, color);
 
     private void WriteInternal(TextWriter writer, string? value, ConsoleColor? color, bool isError, bool newLine)
     {
