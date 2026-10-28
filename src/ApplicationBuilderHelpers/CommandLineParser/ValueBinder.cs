@@ -6,7 +6,9 @@ using System.Linq;
 
 namespace ApplicationBuilderHelpers.CommandLineParser;
 
-internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollection)
+internal sealed class ValueBinder(
+    ICommandTypeParserCollection typeParserCollection,
+    OptionDefaultResolver defaultResolver)
 {
     public List<string> CollectBindingErrors(ParseResult result)
     {
@@ -82,7 +84,10 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
 
 
             option.Property.SetValue(command, propertyValue);
+            defaultResolver.MarkOptionBound(command, option);
         }
+
+        ApplyOmittedOptionDefaults(result, command);
 
         foreach (var (argument, values) in result.ArgumentValues)
         {
@@ -110,6 +115,25 @@ internal sealed class ValueBinder(ICommandTypeParserCollection typeParserCollect
             }
 
             argument.Property.SetValue(command, propertyValue);
+        }
+    }
+
+    private void ApplyOmittedOptionDefaults(ParseResult result, ICommand command)
+    {
+        var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var option in result.TargetCommand.AllOptions)
+        {
+            var key = ParseResult.GetCanonicalOptionKey(option);
+            if (!seenKeys.Add(key))
+                continue;
+            if (result.BareOptionOccurrences.Contains(key))
+                continue;
+            if (result.TryGetMergedOptionValues(option, out _))
+                continue;
+            if (!defaultResolver.TryResolveOmittedValue(command, option, out var defaultValue))
+                continue;
+
+            option.Property.SetValue(command, defaultValue);
         }
     }
 

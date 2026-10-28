@@ -145,14 +145,39 @@ internal static class TypeConversion
         bool isSecret = false,
         bool isArgument = false)
     {
-        if (fromAmong is null || fromAmong.Length == 0)
+        if (raw is null || converted is null)
         {
             return;
         }
 
-        if (raw is null || converted is null)
+        if (IsAllowedValue(converted, targetType, isCaseSensitive, fromAmong, typeParsers, raw, displayName))
         {
             return;
+        }
+
+        throw ConversionErrors.NotAmong(raw, displayName, string.Join(", ", fromAmong!.Select(entry => entry?.ToString())), isSecret, isArgument);
+    }
+
+    /// <summary>
+    /// Checks a typed value against the declared allowed values without throwing.
+    /// </summary>
+    internal static bool IsAllowedValue(
+        object? converted,
+        Type targetType,
+        bool isCaseSensitive,
+        object[]? fromAmong,
+        ICommandTypeParserCollection typeParsers,
+        string? raw = null,
+        string displayName = "default value")
+    {
+        if (fromAmong is null || fromAmong.Length == 0)
+        {
+            return true;
+        }
+
+        if (converted is null)
+        {
+            return true;
         }
 
         Type effectiveType = Nullable.GetUnderlyingType(targetType) ?? targetType;
@@ -160,112 +185,113 @@ internal static class TypeConversion
         if (effectiveType == typeof(string))
         {
             StringComparison comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            string? text = raw ?? converted.ToString();
             foreach (object? entry in fromAmong)
             {
-                if (string.Equals(entry?.ToString(), raw, comparison))
+                if (string.Equals(entry?.ToString(), text, comparison))
                 {
-                    return;
+                    return true;
                 }
             }
+
+            return false;
         }
-        else
+
+        bool parserOwnsEnumTarget = effectiveType.IsEnum
+            && (typeParsers.TypeParsers.ContainsKey(targetType)
+                || typeParsers.TypeParsers.ContainsKey(effectiveType));
+        bool enumStrict = effectiveType.IsEnum
+            && !parserOwnsEnumTarget
+            && !effectiveType.IsDefined(typeof(FlagsAttribute), inherit: false);
+
+        if (enumStrict && !Enum.IsDefined(effectiveType, converted))
         {
-            bool parserOwnsEnumTarget = effectiveType.IsEnum
-                && (typeParsers.TypeParsers.ContainsKey(targetType)
-                    || typeParsers.TypeParsers.ContainsKey(effectiveType));
-            bool enumStrict = effectiveType.IsEnum
-                && !parserOwnsEnumTarget
-                && !effectiveType.IsDefined(typeof(FlagsAttribute), inherit: false);
+            return false;
+        }
 
-            if (enumStrict && !Enum.IsDefined(effectiveType, converted))
+        foreach (object? entry in fromAmong)
+        {
+            object? candidate = entry;
+            if (entry is string entryText)
             {
-                throw ConversionErrors.NotAmong(raw, displayName, string.Join(", ", fromAmong.Select(entry => entry?.ToString())), isSecret, isArgument);
-            }
-
-            foreach (object? entry in fromAmong)
-            {
-                object? candidate = entry;
-                if (entry is string entryText)
+                try
                 {
+                    candidate = ConvertCore(entryText, targetType, isCaseSensitive, displayName, typeParsers);
+                }
+                catch (Exception)
+                {
+                    // Unconvertible allowed entry cannot match: skip it rather than failing the whole check.
+                    continue;
+                }
+            }
+            else if (entry is not null && !parserOwnsEnumTarget)
+            {
+                if (effectiveType.IsEnum)
+                {
+                    object normalized;
+                    if (entry.GetType() == effectiveType)
+                    {
+                        normalized = entry;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            normalized = Enum.ToObject(effectiveType, entry);
+                        }
+                        catch (Exception)
+                        {
+                            // Numeric entry outside the enum range cannot match: skip it.
+                            continue;
+                        }
+                    }
+
+                    if (enumStrict && !Enum.IsDefined(effectiveType, normalized))
+                    {
+                        continue;
+                    }
+
+                    candidate = normalized;
+                }
+                else if (entry.GetType() != effectiveType)
+                {
+                    object normalized;
                     try
                     {
-                        candidate = ConvertCore(entryText, targetType, isCaseSensitive, displayName, typeParsers);
+                        normalized = System.Convert.ChangeType(entry, effectiveType, CultureInfo.InvariantCulture);
                     }
                     catch (Exception)
                     {
-                        // Unconvertible allowed entry cannot match: skip it rather than failing the whole check.
+                        // Allowed entry that cannot convert to the target type cannot match: skip it.
                         continue;
                     }
-                }
-                else if (entry is not null && !parserOwnsEnumTarget)
-                {
-                    if (effectiveType.IsEnum)
+
+                    object roundTrip;
+                    try
                     {
-                        object normalized;
-                        if (entry.GetType() == effectiveType)
-                        {
-                            normalized = entry;
-                        }
-                        else
-                        {
-                            try
-                            {
-                                normalized = Enum.ToObject(effectiveType, entry);
-                            }
-                            catch (Exception)
-                            {
-                                // Numeric entry outside the enum range cannot match: skip it.
-                                continue;
-                            }
-                        }
-
-                        if (enumStrict && !Enum.IsDefined(effectiveType, normalized))
-                        {
-                            continue;
-                        }
-
-                        candidate = normalized;
+                        roundTrip = System.Convert.ChangeType(normalized, entry.GetType(), CultureInfo.InvariantCulture);
                     }
-                    else if (entry.GetType() != effectiveType)
+                    catch (Exception)
                     {
-                        object normalized;
-                        try
-                        {
-                            normalized = System.Convert.ChangeType(entry, effectiveType, CultureInfo.InvariantCulture);
-                        }
-                        catch (Exception)
-                        {
-                            // Allowed entry that cannot convert to the target type cannot match: skip it.
-                            continue;
-                        }
-
-                        object roundTrip;
-                        try
-                        {
-                            roundTrip = System.Convert.ChangeType(normalized, entry.GetType(), CultureInfo.InvariantCulture);
-                        }
-                        catch (Exception)
-                        {
-                            // Lossy narrowing would compare unequal anyway: skip it.
-                            continue;
-                        }
-
-                        if (!Equals(roundTrip, entry))
-                        {
-                            continue;
-                        }
-
-                        candidate = normalized;
+                        // Lossy narrowing would compare unequal anyway: skip it.
+                        continue;
                     }
-                }
 
-                if (Equals(converted, candidate))
-                {
-                    return;
+                    if (!Equals(roundTrip, entry))
+                    {
+                        continue;
+                    }
+
+                    candidate = normalized;
                 }
+            }
+
+            if (Equals(converted, candidate))
+            {
+                return true;
             }
         }
 
-        throw ConversionErrors.NotAmong(raw, displayName, string.Join(", ", fromAmong.Select(entry => entry?.ToString())), isSecret, isArgument);
+        return false;
     }
 }

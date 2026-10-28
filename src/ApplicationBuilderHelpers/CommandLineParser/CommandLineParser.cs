@@ -18,7 +18,6 @@ internal class CommandLineParser
     internal ConsoleOutput ConsoleOutput { get; }
 
     private SubCommandInfo? _rootCommand;
-    private readonly Dictionary<string, SubCommandInfo> _allCommands = [];
 
     private readonly CommandHierarchyBuilder _hierarchy;
     private readonly ArgumentParser _parser;
@@ -40,9 +39,10 @@ internal class CommandLineParser
         _hierarchy = new CommandHierarchyBuilder(CommandBuilder, CommandTypeParserCollection, reflectionCache ?? new CommandReflectionCache());
         _parser = new ArgumentParser();
         _validator = new ParameterValidator();
-        _binder = new ValueBinder(CommandTypeParserCollection);
+        var defaultResolver = new OptionDefaultResolver(CommandBuilder, CommandTypeParserCollection);
+        _binder = new ValueBinder(CommandTypeParserCollection, defaultResolver);
         _executor = new CommandExecutor(ApplicationDependencyCollection, ConsoleOutput);
-        _helpGateway = new HelpVersionGateway(CommandBuilder, ConsoleOutput);
+        _helpGateway = new HelpVersionGateway(CommandBuilder, ConsoleOutput, defaultResolver);
         _completionGateway = new CompletionGateway(CommandBuilder, ConsoleOutput);
     }
 
@@ -133,16 +133,11 @@ internal class CommandLineParser
         }
     }
 
-    /// <summary>Builds the hierarchy snapshot and caches the root plus the flat lookup.</summary>
+    /// <summary>Builds the hierarchy snapshot and caches the root.</summary>
     private void BuildCommandHierarchy()
     {
         _hierarchy.BuildCommandHierarchy();
         _rootCommand = _hierarchy.RootCommand;
-        _allCommands.Clear();
-        foreach (var (key, value) in _hierarchy.AllCommands)
-        {
-            _allCommands[key] = value;
-        }
     }
 
     /// <summary>Runs hierarchy validation.</summary>
@@ -209,9 +204,9 @@ internal class CommandLineParser
 
     private static bool ShouldShowGlobalHelp(string[] args) => HelpVersionGateway.ShouldShowGlobalHelp(args);
 
-    private void ShowGlobalHelp() => _helpGateway.ShowGlobalHelp(_rootCommand, _allCommands);
+    private void ShowGlobalHelp() => _helpGateway.ShowGlobalHelp(_rootCommand);
 
-    private void ShowCommandHelp(SubCommandInfo commandInfo) => _helpGateway.ShowCommandHelp(commandInfo, _rootCommand, _allCommands);
+    private void ShowCommandHelp(SubCommandInfo commandInfo) => _helpGateway.ShowCommandHelp(commandInfo, _rootCommand);
 
     private void ShowVersion() => _helpGateway.ShowVersion();
 

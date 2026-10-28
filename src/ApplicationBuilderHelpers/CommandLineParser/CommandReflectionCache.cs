@@ -1,4 +1,5 @@
 using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -134,6 +135,75 @@ internal sealed class CommandReflectionCache
     {
         return property.IsDefined(typeof(CommandOptionAttribute), inherit: true)
             || property.IsDefined(typeof(CommandArgumentAttribute), inherit: true);
+    }
+
+    internal static PropertyInfo? ResolveHolderProperty(TypedCommandHolder holder, PropertyInfo optionProperty)
+    {
+        if (holder.CommandType == optionProperty.DeclaringType)
+            return CanonicalizeHolderProperty(holder.CommandType, optionProperty);
+
+        var resolved = holder.CommandType.GetProperty(
+            optionProperty.Name,
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+        if (resolved is not null
+            && resolved.DeclaringType != optionProperty.DeclaringType
+            && resolved.IsDefined(typeof(CommandOptionAttribute), inherit: true)
+            && IsActualOverride(resolved, optionProperty))
+        {
+            if (!optionProperty.PropertyType.IsAssignableFrom(resolved.PropertyType)
+                && !resolved.PropertyType.IsAssignableFrom(optionProperty.PropertyType))
+                return null;
+            // Walk reflects an override against its declaring type; snapshots and mutation history use that key.
+            return CanonicalizeHolderProperty(holder.CommandType, resolved);
+        }
+
+        if (resolved is not null
+            && optionProperty.DeclaringType is not null
+            && optionProperty.DeclaringType.IsAssignableFrom(holder.CommandType)
+            && optionProperty.IsDefined(typeof(CommandOptionAttribute), inherit: true)
+            && !IsPrivateProperty(optionProperty))
+        {
+            // An independent new declaration never redirects its base descriptor.
+            return CanonicalizeHolderProperty(holder.CommandType, optionProperty);
+        }
+
+        return null;
+    }
+
+    private static PropertyInfo CanonicalizeHolderProperty(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type holderType,
+        PropertyInfo property)
+    {
+        foreach (var candidate in Walk(holderType))
+        {
+            if (candidate.DeclaringType == property.DeclaringType
+                && candidate.Name == property.Name)
+                return candidate;
+        }
+
+        return property;
+    }
+
+    private static bool IsActualOverride(PropertyInfo candidate, PropertyInfo baseProperty)
+    {
+        var candidateAccessor = candidate.GetMethod ?? candidate.SetMethod;
+        var baseAccessor = baseProperty.GetMethod ?? baseProperty.SetMethod;
+        if (candidateAccessor is null || baseAccessor is null)
+            return false;
+
+        var candidateBase = candidateAccessor.GetBaseDefinition();
+        var baseDefinition = baseAccessor.GetBaseDefinition();
+        return candidateBase.Module == baseDefinition.Module
+            && candidateBase.MetadataToken == baseDefinition.MetadataToken;
+    }
+
+    private static bool IsPrivateProperty(PropertyInfo property)
+    {
+        var getter = property.GetMethod;
+        var setter = property.SetMethod;
+        return (getter is null || getter.IsPrivate)
+            && (setter is null || setter.IsPrivate);
     }
 
     internal static List<PropertyInfo> Walk([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)

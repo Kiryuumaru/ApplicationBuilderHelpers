@@ -104,6 +104,36 @@ Two options in one command must not share a short flag. If a shared base class d
 
 When you set `EnvironmentVariable` and the user omits a valued option, the env value fills the option. A typed valued option always beats env. Flags never consult env. Empty or whitespace-only env counts as unset. Env rescues omitted valued options only.
 
+### Omitted Values and Parser Defaults
+
+An omitted optional valued option resolves its value in this order:
+
+1. An explicit CLI value, including `""`.
+2. A non-blank `EnvironmentVariable` fallback.
+3. A non-CLR-default property initializer.
+4. The registered parser default for the property's exact type, when runtime-assignable and allowed by `FromAmong`.
+5. The CLR default.
+
+Required options, flags, and collections never receive parser defaults. A required option still fails as missing when no explicit or env value exists. A flag keeps its bare or initializer value. A collection is not filled from a parser default.
+
+On a non-nullable value type, an initializer that writes the CLR default (`= 0`, `= false`, a zero-valued enum such as `MyEnum.None`, or a zero-valued struct such as `new MyStruct(0)`) is indistinguishable from no initializer, so the parser default applies. On a nullable value type (`int?`, `bool?`), only `= null` is indistinguishable; `= 0` and `= false` are real initializers and win. On a reference type, only `= null` is indistinguishable; any non-null initializer wins. `= ""` is a real initializer even though help prints no `Default:` line for it.
+
+An explicit or environment value that fails validation still fails with exit `2`; the parser default never rescues bad input. A parser default that is not runtime-assignable to the property type is ignored first: no binding, no parser `Default:` line, no error. `FromAmong` is checked only after that type gate; a default outside the list is likewise ignored, and the property keeps its initializer or CLR default.
+
+A secret optional binds its parser default like any other option; help still shows `Default: [REDACTED]`. See [Custom Type Parsers](custom-type-parsers.md#defaults-for-omitted-options) for the `GetDefaultValue` contract and help formatting.
+
+### Shared Instances and Help
+
+`AddCommand<T>()` creates a fresh command per run. Help uses that run instance's initializer or parser default, and binding applies the same default.
+
+`AddCommand(instance)` keeps one instance across runs. Help uses the registration-time initializer for a property that has one, even after an explicit value changes the live instance; binding still keeps that explicit value for later runs, so help and runtime can disagree on that property. For a property with no initializer or a CLR-default initializer, help uses the live value once an explicit CLI or environment value binds it, or once code changes it away from the registration snapshot. It uses the parser default while the property is untouched and still equals its registration snapshot. Binding applies the parser default only under the same conditions, so explicit state survives later omitted runs. An explicit CLI or environment value is recorded for the registration's lifetime: later omitted runs keep it, and help shows that live value even when it equals the CLR default (for example `--port=0`). After an explicit bind, resetting the property in code to its registration snapshot does not re-enable the parser default.
+
+A fully private base option is fail-closed: no holder property resolves, so parser defaults never apply. Help may show a real initializer, but it does not follow a later explicit binding.
+
+### Inherited Options
+
+Parser defaults reach inherited options that are not fully private (for example public, protected, or internal), for both registration kinds. A real override resolves to the override property. An attribute-less shadow does not replace the inherited option. An independent `new` declaration with its own `[CommandOption]` also leaves the inherited option intact and stays a separate option. Any fully private base property (with or without a derived shadow) receives no parser default; a real initializer is preserved and shown in help.
+
 ### Required Means Present, Not Non-Empty
 
 `Required` checks presence only. Typing `--name ""` or `""` supplies a value, so it passes `Required` and binds as `""`. Only omission fails `Required` with exit `2`. To reject empty text, guard it in code:

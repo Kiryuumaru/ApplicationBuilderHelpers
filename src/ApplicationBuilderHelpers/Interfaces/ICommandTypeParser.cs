@@ -24,14 +24,16 @@ public interface ICommandTypeParser
     object? Parse(string? value, out string? validateError);
 
     /// <summary>
-    /// Formats a boxed value for help defaults and completion.
+    /// Formats a boxed value for the <c>Default:</c> line in help.
     /// </summary>
     /// <param name="value">The boxed value to format.</param>
     /// <returns>The display text, or null when the value has no text form.</returns>
     string? GetString(object? value);
 
     /// <summary>
-    /// Gets the boxed type default used when no value is provided.
+    /// Gets the boxed default applied to an omitted optional valued option.
+    /// Called once per option per run; return a fresh instance when the value is mutable.
+    /// The library stores the returned object directly and does not clone it.
     /// </summary>
     /// <returns>The boxed default of the handled type.</returns>
     object? GetDefaultValue();

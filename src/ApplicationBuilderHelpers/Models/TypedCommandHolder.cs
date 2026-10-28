@@ -1,4 +1,5 @@
 ﻿using ApplicationBuilderHelpers.Attributes;
+using ApplicationBuilderHelpers.CommandLineParser;
 using ApplicationBuilderHelpers.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -10,39 +11,56 @@ namespace ApplicationBuilderHelpers.Models;
 /// <summary>
 /// Registration record pairing a command type with its instance and run-resolution policy.
 /// </summary>
-internal class TypedCommandHolder([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType, ICommand command, bool isInstanceRegistration = false)
+internal class TypedCommandHolder
 {
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-    public Type CommandType { get; init; } = commandType ?? throw new ArgumentNullException(nameof(commandType));
-
-    public ICommand Command { get; init; } = command ?? throw new ArgumentNullException(nameof(command));
-
-    public bool IsInstanceRegistration { get; init; } = isInstanceRegistration;
-
     private static readonly object UnreadableDefault = new();
 
-    private readonly object _snapshotLock = new();
-    private Dictionary<PropertyInfo, object?>? _initializerDefaults;
+    private readonly Dictionary<PropertyInfo, object?>? _registrationValues;
+    // Instance mutation history: properties written after registration. Not a registration fact.
+    private readonly HashSet<PropertyInfo>? _instanceMutationHistory;
 
-    internal bool TryGetInitializerDefault(PropertyInfo property, out object? value)
+    internal TypedCommandHolder(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type commandType,
+        ICommand command,
+        bool isInstanceRegistration = false)
     {
-        value = null;
-        if (!IsInstanceRegistration)
-            return false;
-
-        lock (_snapshotLock)
+        CommandType = commandType ?? throw new ArgumentNullException(nameof(commandType));
+        Command = command ?? throw new ArgumentNullException(nameof(command));
+        IsInstanceRegistration = isInstanceRegistration;
+        if (isInstanceRegistration)
         {
-            _initializerDefaults ??= CaptureInitializerDefaults();
-            if (!_initializerDefaults.TryGetValue(property, out value))
-                return false;
-            return !ReferenceEquals(value, UnreadableDefault);
+            _registrationValues = CaptureRegistrationValues();
+            _instanceMutationHistory = [];
         }
     }
 
-    private Dictionary<PropertyInfo, object?> CaptureInitializerDefaults()
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+    public Type CommandType { get; }
+
+    public ICommand Command { get; }
+
+    public bool IsInstanceRegistration { get; }
+
+    internal bool TryGetRegistrationValue(PropertyInfo property, out object? value)
+    {
+        value = null;
+        if (_registrationValues is null || !_registrationValues.TryGetValue(property, out value))
+            return false;
+        return !ReferenceEquals(value, UnreadableDefault);
+    }
+
+    internal bool HasInstanceMutation(PropertyInfo property) =>
+        _instanceMutationHistory?.Contains(property) == true;
+
+    internal void RecordInstanceMutation(PropertyInfo property)
+    {
+        _instanceMutationHistory?.Add(property);
+    }
+
+    private Dictionary<PropertyInfo, object?> CaptureRegistrationValues()
     {
         var snapshot = new Dictionary<PropertyInfo, object?>();
-        foreach (var property in CommandType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        foreach (var property in CommandReflectionCache.Walk(CommandType))
         {
             if (!property.IsDefined(typeof(CommandOptionAttribute), inherit: true))
                 continue;

@@ -67,9 +67,11 @@ Rules you will see in practice:
 
 ## Required Options in Help
 
-Required options print a lowercase `(required)` marker on the line after the description. The order is always description, then `(required)`, then `Possible values:`, then `Environment variable:`.
+Required options print a lowercase `(required)` marker on the line after the description. The order is always description, then `(required)`, then `Possible values:`, then `Environment variable:`, then `Default:`.
 
-A required option never shows a `Default:` line. An optional option with a starting value keeps its `Default:` line, for example `Default: 3`. A secret optional always shows `Default: [REDACTED]` to signal secrecy, not that a default exists. See [Commands](commands.md#options).
+A required option never shows a `Default:` line. An optional option shows one when it has a non-empty starting value or a usable parser default, for example `Default: 3` or `Default: P7000`. A registered parser's `GetString` formats the text. A null, empty, whitespace-only, or unformattable value drops the line, and control characters or line separators render as spaces. A secret optional always shows `Default: [REDACTED]` to signal secrecy, not that a default exists.
+
+On a shared instance registration, `Default:` follows the shared instance's state. An initializer-sourced option keeps its registration-time initializer. A parser-default-sourced option shows its live value after an explicit binding, or after code mutates it away from the registration snapshot. See [Commands](commands.md#shared-instances-and-help).
 
 ## Console Themes
 

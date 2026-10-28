@@ -31,7 +31,7 @@ public abstract class CommandTypeParser<T> : ICommandTypeParser
     }
 
     /// <summary>
-    /// Formats a boxed value for help defaults and completion.
+    /// Formats a boxed value for the <c>Default:</c> line in help.
     /// </summary>
     /// <param name="value">The boxed value to format.</param>
     /// <returns>The display text, or null when the value has no text form.</returns>
@@ -52,7 +52,8 @@ public abstract class CommandTypeParser<T> : ICommandTypeParser
     }
 
     /// <summary>
-    /// Gets the default of <typeparamref name="T"/> boxed for omitted values.
+    /// Gets the default of <typeparamref name="T"/> boxed for an omitted optional valued option.
+    /// Called once per option per run; return a fresh instance when the value is mutable.
     /// </summary>
     /// <returns>The boxed default of <typeparamref name="T"/>.</returns>
     public object? GetDefaultValue()
@@ -81,7 +82,7 @@ public abstract class CommandTypeParser<T> : ICommandTypeParser
     }
 
     /// <summary>
-    /// Formats a typed value for help defaults and completion.
+    /// Formats a typed value for the <c>Default:</c> line in help.
     /// </summary>
     /// <param name="value">The typed value to format.</param>
     /// <returns>The display text, or null when the value has no text form.</returns>

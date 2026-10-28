@@ -1,7 +1,5 @@
-using ApplicationBuilderHelpers.CommandLineParser.TypeConversion;
 using ApplicationBuilderHelpers.Extensions;
 using ApplicationBuilderHelpers.Interfaces;
-using ApplicationBuilderHelpers.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,12 +13,11 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 internal sealed class HelpContentProvider(
     ICommandBuilder commandBuilder,
     SubCommandInfo? rootCommand,
-    Dictionary<string, SubCommandInfo> allCommands)
+    OptionDefaultResolver defaultResolver)
 {
     private readonly ICommandBuilder _commandBuilder = commandBuilder;
     private readonly SubCommandInfo? _rootCommand = rootCommand;
-    private readonly Dictionary<string, SubCommandInfo> _allCommands = allCommands;
-    private readonly ICommandTypeParserCollection _typeParserCollection = commandBuilder;
+    private readonly OptionDefaultResolver _defaultResolver = defaultResolver;
 
     /// <summary>Builds the global model.</summary>
     internal HelpModel BuildGlobalModel()
@@ -390,9 +387,12 @@ internal sealed class HelpContentProvider(
             }
             else
             {
-                var defaultValue = GetOptionDefaultValue(option);
-                if (defaultValue != null && !IsDefaultValueEmpty(defaultValue))
-                    parts.Add($"Default: {SecretRedaction.GetDefaultDisplay(defaultValue, isSecret: false)}");
+                var display = _defaultResolver.TryGetHelpDefault(option, out var defaultValue)
+                    && !OptionDefaultResolver.IsEmptyDefault(defaultValue)
+                    ? _defaultResolver.FormatDefault(option.PropertyType, defaultValue)
+                    : null;
+                if (display is not null)
+                    parts.Add($"Default: {display}");
             }
         }
 
@@ -475,194 +475,4 @@ internal sealed class HelpContentProvider(
     private static bool IsFrameworkCommandRoot(Type type) =>
         type == typeof(Command) ||
         (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Command<>));
-
-    private object? GetOptionDefaultValue(SubCommandOptionInfo option)
-    {
-        try
-        {
-            if (option.OwnerCommand?.Command != null)
-            {
-                var holder = FindHolder(option.OwnerCommand.Command.GetType());
-                if (holder?.TryGetInitializerDefault(option.Property, out var snapshot) == true)
-                {
-                    return snapshot;
-                }
-
-                return option.Property.GetValue(option.OwnerCommand.Command);
-            }
-
-            if (option.BindTarget?.Command != null && !ReferenceEquals(option.BindTarget, option.OwnerCommand))
-            {
-                return option.Property.GetValue(option.BindTarget.Command);
-            }
-
-            var declaringType = option.Property.DeclaringType;
-            if (declaringType != null)
-            {
-                var fallbackHolder = FindHolder(declaringType);
-                if (fallbackHolder != null)
-                {
-                    if (fallbackHolder.TryGetInitializerDefault(option.Property, out var fallbackSnapshot))
-                    {
-                        return fallbackSnapshot;
-                    }
-
-                    if (!fallbackHolder.IsInstanceRegistration)
-                    {
-                        return option.Property.GetValue(fallbackHolder.Command);
-                    }
-                }
-                else
-                {
-                    return GetUnanimousDerivedDefault(option);
-                }
-            }
-
-            if (option.PropertyType.IsValueType)
-            {
-                return GetDefaultValueFromTypeParser(option.PropertyType);
-            }
-
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    /// <summary>Finds the registration holder for a command type.</summary>
-    private TypedCommandHolder? FindHolder(Type commandType)
-    {
-        foreach (var holder in _commandBuilder.Commands)
-        {
-            if (holder.CommandType == commandType)
-                return holder;
-        }
-
-        return null;
-    }
-
-    /// <summary>Reads the unanimous declaring-type default across derived holders.</summary>
-    private object? GetUnanimousDerivedDefault(SubCommandOptionInfo option)
-    {
-        var declaringType = option.Property.DeclaringType;
-        if (declaringType is null)
-            return null;
-
-        var seen = false;
-        object? agreed = null;
-        foreach (var holder in _commandBuilder.Commands)
-        {
-            if (!declaringType.IsAssignableFrom(holder.CommandType))
-                continue;
-
-            var holderProperty = ResolveHolderProperty(holder, option.Property);
-            if (holderProperty is null)
-                return null;
-
-            object? candidate;
-            if (holder.TryGetInitializerDefault(holderProperty, out var snapshot))
-            {
-                candidate = snapshot;
-            }
-            else if (holder.IsInstanceRegistration)
-            {
-                return null;
-            }
-            else
-            {
-                try
-                {
-                    candidate = holderProperty.GetValue(holder.Command);
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-
-            if (!seen)
-            {
-                agreed = InitializerValueEquality.CloneIfArray(candidate);
-                seen = true;
-                continue;
-            }
-
-            if (!InitializerValuesEqual(agreed, candidate))
-                return null;
-        }
-
-        return seen ? agreed : null;
-    }
-
-    private static System.Reflection.PropertyInfo? ResolveHolderProperty(Models.TypedCommandHolder holder, System.Reflection.PropertyInfo optionProperty)
-    {
-        if (holder.CommandType == optionProperty.DeclaringType)
-            return optionProperty;
-
-        var resolved = holder.CommandType.GetProperty(
-            optionProperty.Name,
-            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (resolved is null)
-            return null;
-
-        if (!optionProperty.PropertyType.IsAssignableFrom(resolved.PropertyType) && !resolved.PropertyType.IsAssignableFrom(optionProperty.PropertyType))
-            return null;
-
-        if (!resolved.IsDefined(typeof(ApplicationBuilderHelpers.Attributes.CommandOptionAttribute), inherit: true))
-        {
-            var originalDeclaringType = optionProperty.DeclaringType;
-            var resolvedDeclaringType = resolved.DeclaringType;
-            if (originalDeclaringType is null || resolvedDeclaringType is null || !originalDeclaringType.IsAssignableFrom(resolvedDeclaringType))
-                return null;
-        }
-
-        return resolved;
-    }
-
-    private static bool InitializerValuesEqual(object? first, object? second) =>
-        InitializerValueEquality.ValuesEqual(first, second);
-
-    /// <summary>Gets the default value for a type using the registered type parsers.</summary>
-    private object? GetDefaultValueFromTypeParser(Type type)
-    {
-        if (_typeParserCollection.TypeParsers.TryGetValue(type, out var parser))
-        {
-            try
-            {
-                return parser.GetDefaultValue();
-            }
-            catch
-            {
-            }
-        }
-
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
-        {
-            return null;
-        }
-
-        if (type.IsEnum)
-        {
-            return null;
-        }
-
-        if (type.IsArray)
-            return null;
-
-        return null;
-    }
-
-    private static bool IsDefaultValueEmpty(object value)
-    {
-        return value switch
-        {
-            null => true,
-            string s => string.IsNullOrEmpty(s),
-            Array arr => arr.Length == 0,
-            System.Collections.ICollection collection => collection.Count == 0,
-            _ => false
-        };
-    }
 }

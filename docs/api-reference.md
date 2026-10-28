@@ -216,16 +216,26 @@ ApplicationBuilder.Create()
 
 On failure, return `null` and set `validateError` to the reason. That reason appears in the `InvalidValue` error (exit `2`). Keep `Parse` pure: no side effects. Parse numbers and dates with `CultureInfo.InvariantCulture`. Full examples live in [Custom Type Parsers](custom-type-parsers.md).
 
-Need control over defaults and collection storage? Implement `ICommandTypeParser` directly:
+Need a non-default value for omitted input or control over collection storage? Implement `ICommandTypeParser` directly. The `CommandTypeParser<T>` base returns `default(T)` and its `GetDefaultValue()` is not virtual:
 
 | Member | Implement it to |
 |---|---|
 | `Type` | Name the CLR type this parser converts |
 | `Parse` | Convert CLI text; return `null` plus a reason on failure |
-| `GetString` | Format a value for help defaults and completion |
-| `GetDefaultValue` | Supply the value used when input is omitted |
+| `GetString` | Format a value for the `Default:` line in help |
+| `GetDefaultValue` | Supply the value for an omitted optional valued option; exact-type lookup, once per option per run |
 | `CreateTypedArray` | Build the `T[]` used for repeatable options |
 | `CreateTypedList` | Build the `List<T>` used for repeatable options |
+
+Parser defaults for omitted options:
+
+- Precedence: explicit CLI, non-blank environment, non-CLR-default initializer, exact-type parser default that is runtime-assignable and allowed by `FromAmong`, CLR default.
+- Excluded: required options, flags, and collections never receive parser defaults.
+- Caveat: on a non-nullable value type, an initializer that writes the CLR default (`= 0`, `= false`, a zero enum, a zero-valued struct) is indistinguishable from no initializer, so the parser default applies. Nullable value types (`int?`, `bool?`) are indistinguishable only when `= null`; `= 0` and `= false` are real initializers and win. Reference types are indistinguishable only when `= null`; any non-null initializer wins.
+- A parser default equal to the CLR default or empty is a no-op: no binding and no parser `Default:` line.
+- Lookup is exact-type: `Port?` does not borrow a `Port` parser. A `null` parser default leaves the property unchanged.
+- A parser default that is not runtime-assignable to the declared property type is ignored first: no binding, no parser `Default:` line, no error. `FromAmong` is checked after that type gate. Explicit invalid values still fail.
+- Help uses the same resolver; `GetString` formats the `Default:` line. Optional secret options still show `[REDACTED]`.
 
 Repeat an option to fill `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, or `IList<T>`. Registering a parser for an enum type turns off automatic enum-value help for that enum. Registering a parser for a built-in type replaces the built-in one.
 

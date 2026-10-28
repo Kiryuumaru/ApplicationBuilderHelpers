@@ -63,8 +63,7 @@ public sealed class HelpContinuationWidthTests
         "Write the configured release note message to every output channel",
         Indented(OverflowContinuationIndent, "after the build completes so operators can audit what shipped."),
         Indented(OverflowContinuationIndent, "Possible values: Immediate, Nightly, Weekly, Biweekly, Monthly"),
-        Indented(OverflowContinuationIndent, "Quarterly, Semiannual, Annual"),
-        Indented(OverflowContinuationIndent, "Default: Immediate"));
+        Indented(OverflowContinuationIndent, "Quarterly, Semiannual, Annual"));
 
     public enum ReleaseCadence
     {
@@ -318,13 +317,13 @@ public sealed class HelpContinuationWidthTests
             line => Assert.True(line.Length <= HelpWidth, $"Line exceeds width {HelpWidth} ({line.Length}): {line}"));
 
         var start = Array.FindIndex(lines, line => string.Equals(line, "    -r, --release-note-document <VALUE>", StringComparison.Ordinal));
-        Assert.True(start >= 0 && start + 6 < lines.Length, "Expected the overflow option block.");
+        Assert.True(start >= 0 && start + 5 < lines.Length, "Expected the overflow option block.");
 
-        Assert.Equal(OverflowOptionBlockAt71, string.Join('\n', lines[start..(start + 6)]));
-        Assert.Equal(string.Empty, lines[start + 6]);
+        Assert.Equal(OverflowOptionBlockAt71, string.Join('\n', lines[start..(start + 5)]));
+        Assert.Equal(string.Empty, lines[start + 5]);
         Assert.Equal(0, lines[start + 1].Length - lines[start + 1].TrimStart().Length);
         Assert.All(
-            lines[(start + 2)..(start + 6)],
+            lines[(start + 2)..(start + 5)],
             line => Assert.True(
                 line.Length > OverflowContinuationIndent && !char.IsWhiteSpace(line[OverflowContinuationIndent]),
                 $"Expected a four-space continuation indent: {line}"));
