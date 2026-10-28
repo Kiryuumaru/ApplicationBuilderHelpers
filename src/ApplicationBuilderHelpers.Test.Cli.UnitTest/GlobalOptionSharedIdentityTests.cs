@@ -168,6 +168,32 @@ public sealed class GlobalOptionSharedIdentityTests
         }
     }
 
+    public abstract class SharedListIdentityBase : Command
+    {
+        [CommandOption("tag", Description = "Tag list.")]
+        public List<string> Tags { get; set; } = new();
+    }
+
+    [Command("listwalk list", "First leaf inheriting the shared list option.")]
+    public sealed class SharedListIdentityListCommand : SharedListIdentityBase
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"listwalk list tags={string.Join(",", Tags)}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Command("listwalk array", "Second leaf inheriting the shared list option.")]
+    public sealed class SharedListIdentityArrayCommand : SharedListIdentityBase
+    {
+        protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"listwalk array tags={string.Join(",", Tags)}");
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [Fact]
     public async Task CaseDistinctLongNames_BindIndependently()
     {
@@ -308,6 +334,26 @@ public sealed class GlobalOptionSharedIdentityTests
         Assert.DoesNotContain("env-value", output);
         Assert.DoesNotContain("fallback", output);
         Assert.True(string.IsNullOrWhiteSpace(error), $"Expected empty stderr but got: {error}");
+    }
+
+    [Fact]
+    public async Task PromotedMaterializedListGlobal_AccumulatesRepeatedValuesInEveryScope()
+    {
+        var (leafExitCode, leafOutput, leafError) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<SharedListIdentityListCommand>().AddCommand<SharedListIdentityArrayCommand>(),
+            ["listwalk", "list", "--tag", "x", "--tag", "y"]);
+
+        Assert.Equal(0, leafExitCode);
+        Assert.Contains("listwalk list tags=x,y", leafOutput);
+        Assert.True(string.IsNullOrWhiteSpace(leafError), $"Expected empty stderr but got: {leafError}");
+
+        var (rootExitCode, rootOutput, rootError) = await RunCapturedAsync(
+            () => CreateBuilder().AddCommand<SharedListIdentityListCommand>().AddCommand<SharedListIdentityArrayCommand>(),
+            ["--tag", "z", "listwalk", "array"]);
+
+        Assert.Equal(0, rootExitCode);
+        Assert.Contains("listwalk array tags=z", rootOutput);
+        Assert.True(string.IsNullOrWhiteSpace(rootError), $"Expected empty stderr but got: {rootError}");
     }
 
     private static ApplicationBuilder CreateBuilder()

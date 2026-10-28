@@ -35,6 +35,7 @@ All notable changes to this project are documented here. This file follows Keep 
 - `/?` now behaves like `--help`/`-h`/`-?` on the value-consumption path: an optional option no longer binds it as a value, grouping and subcommand-only nodes show help, and a consumed `/?` counts toward `=`-form forgiveness. Required valued options on a command with its own run still consume `/?` as their value (`--name /?` binds `/?`). This change also fixes a crash (exit `1`) on a grouping node with a valued option followed by `/?` and `--version`; the node now shows help. (Fixes #744). See `docs/advanced.md#help-system`.
 - Two-column help continuations now use the full right-column budget at the configured help width, so wrapped descriptions and `Possible values:` lists no longer collapse; overlong-left overflow rows are unchanged. (Fixes #763)
 - A mistyped subcommand on a grouping parent followed by both `--help` and `--version` now reports the typed `RequiresSubcommand` usage error (exit `2`) instead of a `NullReferenceException`/`Fault` (exit `1`); the ADR 0010 version-only behavior is preserved (`config bogus --version` still prints the version, exit `0`). (Fixes #760). See `docs/advanced.md#help-system`.
+- `List<T>` option initializers now promote to a global option when their initializer values compare equal element-wise in order, matching `T[]`; lazy, custom, or unordered collection initializers stay command-local. (Fixes #764). See `docs/advanced.md#global-options` and `docs/adr/0004b-global-option-identity.md`.
 
 ## Versions
 

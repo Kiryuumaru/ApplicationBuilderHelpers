@@ -100,6 +100,8 @@ Do not declare your own `-h` or `-V`. They belong to `--help` and `--version` an
 
 Two options in one command must not share a short flag. If a shared base class declares `-l, --log-level` on every command, it becomes one shared global. Leaf commands must then avoid reusing `-l`; use a long-only flag like `--local` instead.
 
+Promotion also requires value-equal initializer values captured at registration/build time across commands. Arrays and materialized `List<T>` match element-wise in order; lazy, custom, or unordered collections stay command-local. See [Global Options](advanced.md#global-options).
+
 ### Env Var Fallback
 
 When you set `EnvironmentVariable` and the user omits a valued option, the env value fills the option. A typed valued option always beats env. Flags never consult env. Empty or whitespace-only env counts as unset. Env rescues omitted valued options only.
