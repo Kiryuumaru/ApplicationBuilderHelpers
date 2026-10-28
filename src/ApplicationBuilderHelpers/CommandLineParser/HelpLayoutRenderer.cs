@@ -8,9 +8,9 @@ namespace ApplicationBuilderHelpers.CommandLineParser;
 /// <summary>
 /// Layout renderer for help output.
 /// </summary>
-internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
+internal sealed class HelpLayoutRenderer(IHelpOutput output)
 {
-    private readonly ConsoleOutput _consoleOutput = consoleOutput;
+    private readonly IHelpOutput _output = output;
 
     /// <summary>Renders the model at the given width; values are floored to <see cref="HelpWidths.Minimum"/> and capped at <see cref="HelpWidths.Maximum"/>.</summary>
     internal void Render(HelpModel model, IConsoleTheme? theme, int helpWidth, int helpBorderWidth)
@@ -18,17 +18,17 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         helpWidth = HelpWidths.Clamp(helpWidth);
 
         WriteColored(model.TitleLine, theme?.HeaderColor);
-        _consoleOutput.WriteLine();
+        _output.WriteLine();
 
         WriteColored("USAGE:", theme?.HeaderColor);
         WriteWrappedContent(model.UsageText, helpWidth, 0, theme);
-        _consoleOutput.WriteLine();
+        _output.WriteLine();
 
         if (!string.IsNullOrEmpty(model.DescriptionText))
         {
             WriteColored("DESCRIPTION:", theme?.HeaderColor);
             WriteWrappedContent(model.DescriptionText, helpWidth, 0, theme);
-            _consoleOutput.WriteLine();
+            _output.WriteLine();
         }
 
         var allLeftColumnItems = new List<string>();
@@ -44,9 +44,7 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
         foreach (var section in model.Sections)
         {
-            ShowSectionWithFixedLayout(section.Header, section.Entries, optimalLeftColumnWidth, helpWidth, helpBorderWidth, theme,
-                entry => entry.Left,
-                entry => entry.Right);
+            ShowSectionWithFixedLayout(section, optimalLeftColumnWidth, helpWidth, helpBorderWidth, theme);
         }
 
         if (!string.IsNullOrEmpty(model.FooterText))
@@ -55,34 +53,40 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         }
     }
 
-    private void ShowSectionWithFixedLayout<T>(string sectionHeader, List<T> items, int leftColumnWidth, int totalWidth, int helpBorderWidth, IConsoleTheme? theme,
-        Func<T, string> getLeftColumn, Func<T, string> getRightColumn)
+    private void ShowSectionWithFixedLayout(HelpSection section, int leftColumnWidth, int totalWidth, int helpBorderWidth, IConsoleTheme? theme)
     {
-        if (items.Count == 0) return;
+        if (section.Entries.Count == 0) return;
 
-        WriteColored(sectionHeader, theme?.HeaderColor);
+        WriteColored(section.Header, theme?.HeaderColor);
 
-        foreach (var item in items)
+        foreach (var entry in section.Entries)
         {
-            var leftColumn = getLeftColumn(item);
-            var rightColumn = getRightColumn(item);
-            var leftDisplayWidth = GetDisplayWidth(leftColumn);
+            var leftDisplayWidth = GetDisplayWidth(entry.Left);
 
             if (leftDisplayWidth > leftColumnWidth)
             {
-                _consoleOutput.WriteLine(leftColumn);
-                WriteWrappedText(rightColumn, 0, 4, totalWidth - 4, theme);
+                WriteLeftColumn(entry.LeftSpans, theme);
+                _output.WriteLine();
+                WriteWrappedText(entry.RightLines, 0, 4, totalWidth - 4, theme);
             }
             else
             {
                 var descriptionColumn = leftColumnWidth + helpBorderWidth;
 
-                _consoleOutput.Write(leftColumn);
-                _consoleOutput.Write(new string(' ', descriptionColumn - leftDisplayWidth));
-                WriteWrappedText(rightColumn, descriptionColumn, descriptionColumn, totalWidth, theme);
+                WriteLeftColumn(entry.LeftSpans, theme);
+                _output.Write(new string(' ', descriptionColumn - leftDisplayWidth));
+                WriteWrappedText(entry.RightLines, descriptionColumn, descriptionColumn, totalWidth, theme);
             }
         }
-        _consoleOutput.WriteLine();
+        _output.WriteLine();
+    }
+
+    private void WriteLeftColumn(List<HelpSpan> spans, IConsoleTheme? theme)
+    {
+        foreach (var span in spans)
+        {
+            _output.Write(span.Text, ResolveColor(span.Role, theme));
+        }
     }
 
     private int CalculateOptimalLeftColumnWidth(List<string> leftColumnItems, int totalWidth)
@@ -142,11 +146,11 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         return false;
     }
 
-    private void WriteAnnotatedLine(LabelSpec spec, string line, int lineStartColumn, int firstLineColumn, string indentStr, int maxColumn, IConsoleTheme? theme)
+    private void WriteAnnotatedLine(LabelSpec spec, HelpLine line, int lineStartColumn, int firstLineColumn, string indentStr, int maxColumn, IConsoleTheme? theme)
     {
-        if (!TrySplitPrefix(line, out var prefix, out var valueText))
+        if (!TrySplitPrefix(line.Text, out var prefix, out var valueText))
         {
-            WriteWrappedLine(line, lineStartColumn, indentStr, maxColumn);
+            WriteWrappedLine(line, lineStartColumn, indentStr, maxColumn, theme);
             return;
         }
 
@@ -183,8 +187,8 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             }
             else
             {
-                _consoleOutput.WriteLine();
-                _consoleOutput.Write(indentStr);
+                _output.WriteLine();
+                _output.Write(indentStr);
                 WriteColoredText(value, theme?.ParameterColor);
                 currentPos = indentStr.Length + GetDisplayWidth(value);
             }
@@ -197,15 +201,14 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
         WriteColoredText($" {valueText}", theme?.ParameterColor);
     }
 
-    private void WriteWrappedText(string text, int firstLineColumn, int continuationIndent, int maxColumn, IConsoleTheme? theme)
+    private void WriteWrappedText(List<HelpLine> lines, int firstLineColumn, int continuationIndent, int maxColumn, IConsoleTheme? theme)
     {
-        if (string.IsNullOrEmpty(text))
+        if (lines.Count == 0)
         {
-            _consoleOutput.WriteLine();
+            _output.WriteLine();
             return;
         }
 
-        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         var indentStr = new string(' ', continuationIndent);
         var firstSourceLine = true;
 
@@ -215,28 +218,29 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
             if (!firstSourceLine)
             {
-                _consoleOutput.WriteLine();
-                _consoleOutput.Write(indentStr);
+                _output.WriteLine();
+                _output.Write(indentStr);
             }
 
-            if (TryMatchAnnotated(line, out var spec))
+            if (TryMatchAnnotated(line.Text, out var spec))
             {
                 WriteAnnotatedLine(spec, line, lineStartColumn, firstLineColumn, indentStr, maxColumn, theme);
             }
             else
             {
-                WriteWrappedLine(line, lineStartColumn, indentStr, maxColumn);
+                WriteWrappedLine(line, lineStartColumn, indentStr, maxColumn, theme);
             }
 
             firstSourceLine = false;
         }
 
-        _consoleOutput.WriteLine();
+        _output.WriteLine();
     }
 
-    private void WriteWrappedLine(string line, int startColumn, string indentStr, int maxColumn)
+    private void WriteWrappedLine(HelpLine line, int startColumn, string indentStr, int maxColumn, IConsoleTheme? theme)
     {
-        var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var color = ResolveColor(line.Role, theme);
+        var words = line.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var currentLineLength = startColumn;
         var lineStarted = false;
 
@@ -246,19 +250,19 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
             if (lineStarted && currentLineLength + wordLength + 1 > maxColumn)
             {
-                _consoleOutput.WriteLine();
-                _consoleOutput.Write(indentStr);
+                _output.WriteLine();
+                _output.Write(indentStr);
                 currentLineLength = indentStr.Length;
                 lineStarted = false;
             }
 
             if (lineStarted)
             {
-                _consoleOutput.Write(" ");
+                _output.Write(" ");
                 currentLineLength++;
             }
 
-            WriteColoredText(word, null);
+            WriteColoredText(word, color);
             currentLineLength += wordLength;
             lineStarted = true;
         }
@@ -266,19 +270,19 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
     private void WriteColored(string text, ConsoleColor? color)
     {
-        _consoleOutput.WriteLine(text, color);
+        _output.WriteLine(text, color);
     }
 
     private void WriteColoredText(string text, ConsoleColor? color)
     {
-        _consoleOutput.Write(text, color);
+        _output.Write(text, color);
     }
 
     private void WriteWrappedContent(string text, int maxWidth, int indent, IConsoleTheme? theme)
     {
         if (string.IsNullOrEmpty(text))
         {
-            _consoleOutput.WriteLine();
+            _output.WriteLine();
             return;
         }
 
@@ -295,20 +299,20 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
 
             if (lineStarted && currentLineLength + wordLength + 1 > availableWidth)
             {
-                _consoleOutput.WriteLine();
-                _consoleOutput.Write(indentStr);
+                _output.WriteLine();
+                _output.Write(indentStr);
                 currentLineLength = 0;
                 lineStarted = false;
             }
 
             if (lineStarted)
             {
-                _consoleOutput.Write(" ");
+                _output.Write(" ");
                 currentLineLength++;
             }
             else if (indent > 0)
             {
-                _consoleOutput.Write(indentStr);
+                _output.Write(indentStr);
                 currentLineLength = indent;
             }
 
@@ -317,8 +321,17 @@ internal sealed class HelpLayoutRenderer(ConsoleOutput consoleOutput)
             lineStarted = true;
         }
 
-        _consoleOutput.WriteLine();
+        _output.WriteLine();
     }
+
+    private static ConsoleColor? ResolveColor(HelpRole role, IConsoleTheme? theme) => role switch
+    {
+        HelpRole.Flag => theme?.FlagColor,
+        HelpRole.Parameter => theme?.ParameterColor,
+        HelpRole.Description => theme?.DescriptionColor,
+        HelpRole.Required => theme?.RequiredColor,
+        _ => null,
+    };
 
     private int GetDisplayWidth(string text)
     {
