@@ -62,7 +62,7 @@ Rules you will see in practice:
 - `int?` renders like `int`. Nullable types unwrap before mapping.
 - `bool` options are flags and show no placeholder: `--verbose`, never `--verbose <BOOL>`.
 - Repeatable options show the element type plus `...`: `List<string>` renders `<STRING...>`.
-- Enums render `<VALUE>` plus a `Possible values:` line.
+- Scalar enum options render `<VALUE>` plus a `Possible values:` line.
 - Positional arguments show only the name: `<NAME>` or `[NAME]`.
 
 ## Required Options in Help

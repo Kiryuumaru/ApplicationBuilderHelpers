@@ -237,7 +237,7 @@ Parser defaults for omitted options:
 - A parser default that is not runtime-assignable to the declared property type is ignored first: no binding, no parser `Default:` line, no error. `FromAmong` is checked after that type gate. Explicit invalid values still fail.
 - Help uses the same resolver; `GetString` formats the `Default:` line. Optional secret options still show `[REDACTED]`.
 
-Repeat an option to fill `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, or `IList<T>`. Registering a parser for an enum type turns off automatic enum-value help for that enum. Registering a parser for a built-in type replaces the built-in one.
+Repeat an option to fill `T[]`, `List<T>`, `IEnumerable<T>`, `ICollection<T>`, or `IList<T>`. Except for `object`, the element type must have a parser registered for it; enums are not built-ins, so an enum collection needs an enum parser. Scalar enum automatic enum-value help (`Possible values:`) does not extend to collections; registering an enum parser turns off that scalar help, while registering a built-in parser replaces the built-in one. See [Repeatable Options and Multi-Value Arguments](custom-type-parsers.md#repeatable-options-and-multi-value-arguments).
 
 ## Style Help and Reuse Settings
 
