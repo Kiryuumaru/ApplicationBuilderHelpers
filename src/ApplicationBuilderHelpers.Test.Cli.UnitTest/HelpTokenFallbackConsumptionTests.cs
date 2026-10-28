@@ -103,9 +103,13 @@ public sealed class HelpTokenFallbackConsumptionTests
     [Command("grp2 child", "Child of the required-option grouping node.")]
     public sealed class RequiredGroupingChildFallbackProbeCommand : RequiredGroupingFallbackProbeCommand
     {
+        [CommandArgument("target", Description = "Target item.", Position = 0, Required = false)]
+        public string? Target { get; set; }
+
         protected override ValueTask Run(ApplicationHost<HostApplicationBuilder> applicationHost, CancellationToken cancellationToken)
         {
             Console.WriteLine($"GRP2-CHILD name=[{Name}]");
+            Console.WriteLine($"Ran target={Target} name={Name}");
             return ValueTask.CompletedTask;
         }
     }
@@ -206,6 +210,33 @@ public sealed class HelpTokenFallbackConsumptionTests
         Assert.Equal(dash.ExitCode, slash.ExitCode);
         Assert.Equal(dash.Output, slash.Output);
         Assert.Equal(dash.Error, slash.Error);
+    }
+
+    [Fact]
+    public async Task GroupingLeaf_RequiredValuedOption_ConsumesHelpToken_Executes()
+    {
+        var result = await RunCapturedAsync(["grp2", "child", "target", "--name", "--help"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Ran target=target name=--help", result.Output);
+        Assert.DoesNotContain("USAGE:", result.Output);
+        Assert.True(string.IsNullOrWhiteSpace(result.Error), $"Expected empty stderr but got: {result.Error}");
+    }
+
+    [Theory]
+    [InlineData("--version")]
+    [InlineData("-V")]
+    public async Task GroupingLeaf_VersionBeforePath_ConsumedHelp_ShowsVersion(string versionToken)
+    {
+        var control = await RunCapturedAsync(["grp2", "--version"]);
+        var result = await RunCapturedAsync(["grp2", versionToken, "child", "target", "--name", "--help"]);
+
+        Assert.Equal(0, control.ExitCode);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(control.Output, result.Output);
+        Assert.Equal(control.Error, result.Error);
+        Assert.Contains("9.9.9", result.Output);
+        Assert.DoesNotContain("Ran target=", result.Output);
     }
 
     [Fact]

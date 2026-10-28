@@ -12,6 +12,9 @@ internal class ParseResult
     public Dictionary<SubCommandOptionInfo, List<string>> OptionValues { get; set; } = [];
     public Dictionary<SubCommandArgumentInfo, List<string>> ArgumentValues { get; set; } = [];
 
+    internal bool HelpTokenConsumed { get; set; }
+    internal bool VersionSkippedOnPath { get; set; }
+
     internal HashSet<string> BareOptionOccurrences { get; } = new(StringComparer.Ordinal);
 
     /// <summary>Explicit valued occurrence counts per canonical key. Flags and env fallback never count.</summary>

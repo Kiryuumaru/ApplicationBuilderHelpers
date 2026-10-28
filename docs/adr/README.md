@@ -33,6 +33,7 @@ Decision records are immutable. Do not edit a record after it lands.
 | 0020 | Flags Never Consult Env Fallback | Accepted |
 | 0021 | Restore Boolean Flag Value Forms | Accepted |
 | 0022 | Command-Last Dependency Order | Accepted |
+| 0023 | Version Transparent to Live Help Target Resolution | Accepted |
 
 Suffixed letters (`0004a`/`0004b`) resolve filename collisions. Numbers never shift after landing.
 
