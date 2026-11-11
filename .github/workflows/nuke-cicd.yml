@@ -149,6 +149,10 @@ jobs:
   APPLICATIONBUILDERHELPERSPUBLISH:
     name: Publish - application_builder_helpers (ApplicationBuilderHelpersPublish)
     runs-on: ${{ fromJson(needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_RUNS_ON) }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
     - uses: actions/checkout@v6
       with:
@@ -179,9 +183,17 @@ jobs:
         restore-keys: |-
           ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CACHE_RESTORE_KEY }}
           ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CACHE_MAIN_RESTORE_KEY }}
+    - id: nuget_login
+      name: NuGet login (OIDC)
+      uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+      with:
+        user: Kiryuumaru
+      if: github.event_name == 'push'
     - id: NUKE_RUN
       name: Run Nuke ApplicationBuilderHelpersPublish
       run: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_RUN_SCRIPT }} Run --args "ApplicationBuilderHelpersPublish"
+      env:
+        NUKE_NUGET_AUTH_TOKEN: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
     - name: Upload common publish artifacts
       uses: actions/upload-artifact@v7
       with:
@@ -193,7 +205,7 @@ jobs:
     - PRE_SETUP
     - APPLICATIONBUILDERHELPERSTEST
     - APPLICATIONBUILDERHELPERSBUILD
-    if: "! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSTEST.result == 'success' && needs.APPLICATIONBUILDERHELPERSBUILD.result == 'success'"
+    if: "github.event_name == 'push' && (! failure() && ! cancelled() && needs.PRE_SETUP.outputs.NUKE_PRE_SETUP_APPLICATIONBUILDERHELPERSPUBLISH_CONDITION == 'true' && needs.APPLICATIONBUILDERHELPERSTEST.result == 'success' && needs.APPLICATIONBUILDERHELPERSBUILD.result == 'success')"
     env:
       NUKE_PRE_SETUP: ${{ needs.PRE_SETUP.outputs.NUKE_PRE_SETUP }}
   POST_SETUP:
@@ -228,5 +240,4 @@ jobs:
       NUKE_RUN_RESULT_GITHUB_APPLICATIONBUILDERHELPERSPUBLISH: ${{ needs.APPLICATIONBUILDERHELPERSPUBLISH.result }}
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  NUKE_NUGET_AUTH_TOKEN: ${{ secrets.NUGET_AUTH_TOKEN }}
   NUKE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
