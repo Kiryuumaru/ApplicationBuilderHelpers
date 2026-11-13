@@ -19,9 +19,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
-  	<PackageReference Include="NuGet.Packaging" Version="7.9.0" />
+  	<PackageReference Include="NuGet.Packaging" Version="8.0.0" />
   	<PackageReference Include="System.Security.Cryptography.Xml" Version="11.0.0" />
 		<ProjectReference Include="..\src\ApplicationBuilderHelpers\ApplicationBuilderHelpers.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- WorkflowPatcher.Tests is a standalone xUnit project; keep its sources
+		     out of this project's default compile glob. -->
+		<Compile Remove="WorkflowPatcher.Tests/**/*.cs" />
 	</ItemGroup>
 
 </Project>
