@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="src/ApplicationBuilderHelpers/ApplicationBuilderHelpers.csproj" />
   <Project Path="build/_build.csproj" />
+  <Project Path="build/WorkflowPatcher.Tests/WorkflowPatcher.Tests.csproj" />
   <Project Path="src/ApplicationBuilderHelpers.Analyzers/ApplicationBuilderHelpers.Analyzers.csproj" />
   <Project Path="src/ApplicationBuilderHelpers.Analyzers.Tests/ApplicationBuilderHelpers.Analyzers.Tests.csproj" />
   <Project Path="src/ApplicationBuilderHelpers.Test.Cli/ApplicationBuilderHelpers.Test.Cli.csproj" />
