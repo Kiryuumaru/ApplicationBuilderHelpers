@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <!-- Application layer - tests integration through DI -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="10.0.13" />
     <ProjectReference Include="..\..\src\Application\Application.csproj" />
     <!-- Infrastructure implementations for integration testing -->
     <ProjectReference Include="..\..\src\Infrastructure.EFCore\Infrastructure.EFCore.csproj" />
